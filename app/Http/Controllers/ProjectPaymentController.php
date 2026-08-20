@@ -115,7 +115,7 @@ class ProjectPaymentController extends Controller
                                 2
                             )
                         ),
-                    ]);
+                    ]);   
             }
 
             $lockedProject->obligation()->create([
