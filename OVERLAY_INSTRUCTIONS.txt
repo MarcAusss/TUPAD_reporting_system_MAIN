@@ -1,0 +1,39 @@
+TUPAD Reporting System - Fix Overlay
+
+HOW TO APPLY
+1. Back up your project/database first.
+2. Extract this ZIP directly over the root of your existing tupad-reporting-system project.
+3. Allow it to overwrite files with the same paths.
+4. Delete these obsolete files from the project manually:
+   - resources/views/projects/_form.blade.php
+   - resources/views/projects/gip-placeholder.blade.php
+   - public/hot (only if Vite dev server is not running)
+5. Do NOT delete database/database.sqlite if you intentionally use SQLite for tests. Otherwise it is unused by the MySQL app.
+
+DEVELOPMENT RESET / SEED
+WARNING: migrate:fresh deletes all current database tables and data.
+Run only on development/test data:
+
+php artisan migrate:fresh --seed
+php artisan optimize:clear
+npm install
+npm run build
+php artisan route:list
+
+Then run:
+composer run dev
+
+SEEDED ACCOUNTS
+Admin: admin / password
+TC: tc / password
+GIP: gip / password
+Focal: focal / password
+
+KEY FIXES INCLUDED
+- Correct project-drafts/_form.blade.php location.
+- Correct route organization and Focal access to For Payment/Completed project details.
+- Adds Focal/Admin Payment Queue.
+- Removes the premature PPE Inventory Reference input while keeping the DB column for future integration.
+- Removes forced consecutive-calendar-day validation from implementation period input.
+- Stores post-document attachments on the private local disk and serves them through an authorized download route.
+- Adds UserSeeder and DevelopmentDataSeeder with ADL, allocations, official projects, a For Payment project, and a pending GIP draft.

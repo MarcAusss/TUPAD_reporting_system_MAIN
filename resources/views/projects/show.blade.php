@@ -6,6 +6,35 @@
 
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
+        @if ($project->status === \App\Enums\ProjectStatus::COMPLETED)
+            <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+
+                <div class="flex items-center gap-3">
+
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m5 12 4 4L19 6"></path>
+                        </svg>
+
+                    </div>
+
+                    <div>
+
+                        <div class="text-sm font-semibold text-emerald-900">
+                            Project Completed
+                        </div>
+
+                        <p class="mt-1 text-xs text-emerald-700">
+                            Post-documentary requirements, payment, and payout have been recorded.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+        @endif
         <div>
 
             <a href="{{ route('projects.index') }}" class="text-sm font-medium text-slate-500 hover:text-slate-800">
@@ -328,7 +357,8 @@
 
                         @endif
 
-                        <form method="POST" action="{{ route('projects.evaluation.resubmit', $project) }}" class="mt-4">
+                        <form method="POST" action="{{ route('projects.evaluation.resubmit', $project) }}"
+                            class="mt-4">
                             @csrf
 
                             <button type="submit"
@@ -852,19 +882,6 @@
 
                         </div>
 
-                        <div class="mt-4">
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                Inventory Reference
-                            </label>
-
-                            <input name="inventory_reference"
-                                value="{{ old('inventory_reference', $project->ppeDelivery?->inventory_reference) }}"
-                                placeholder="Optional until Phase 8 integration"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
-
-                        </div>
-
                         <button
                             class="mt-4 h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
                             Save PPE Delivery
@@ -1000,6 +1017,510 @@
 
                     </form>
 
+                </div>
+            @endif
+
+        </section>
+
+    @endif
+
+    {{-- <------------------------------------------- Post-Documentary Requirements ------------------------------/> --}}
+
+    @if (in_array(
+            $project->status,
+            [
+                \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+                \App\Enums\ProjectStatus::FOR_PAYMENT,
+                \App\Enums\ProjectStatus::COMPLETED,
+            ],
+            true))
+
+        <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+            <div class="border-b border-slate-200 px-5 py-4">
+
+                <h2 class="text-sm font-semibold text-slate-900">
+                    Post-Documentary Requirements
+                </h2>
+
+                <p class="mt-1 text-xs text-slate-500">
+                    Record submitted post-implementation documents.
+                </p>
+
+            </div>
+
+            @if (
+                $project->status === \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS &&
+                    (auth()->user()->isAdmin() || auth()->user()->isTc()))
+                <form method="POST" action="{{ route('projects.post-documents.store', $project) }}"
+                    enctype="multipart/form-data" class="border-b border-slate-200 p-5">
+
+                    @csrf
+
+                    <div class="grid gap-4 md:grid-cols-2">
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Date Received
+                            </label>
+
+                            <input type="date" name="date_received" required
+                                value="{{ old('date_received', now()->format('Y-m-d')) }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Document Type
+                            </label>
+
+                            <input name="document_type" required value="{{ old('document_type') }}"
+                                placeholder="Example: Accomplishment Report"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Attachment
+                            </label>
+
+                            <input type="file" name="attachment"
+                                class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+
+                            <p class="mt-1 text-[11px] text-slate-400">
+                                Maximum 10 MB.
+                            </p>
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Date Forwarded to IMSD
+                            </label>
+
+                            <input type="date" name="date_forwarded_to_imsd"
+                                value="{{ old('date_forwarded_to_imsd') }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                        <div class="md:col-span-2">
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Remarks
+                            </label>
+
+                            <textarea name="remarks" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks') }}</textarea>
+
+                        </div>
+
+                    </div>
+
+                    <div class="mt-4 flex justify-end">
+
+                        <button type="submit"
+                            class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                            Save Post-Document
+                        </button>
+
+                    </div>
+
+                </form>
+            @endif
+
+            <div class="overflow-x-auto">
+
+                <table class="min-w-full">
+
+                    <thead class="bg-slate-50">
+
+                        <tr>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                                Date Received
+                            </th>
+
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                                Document
+                            </th>
+
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                                Forwarded to IMSD
+                            </th>
+
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                                Attachment
+                            </th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody class="divide-y divide-slate-100">
+
+                        @forelse($project->postDocuments as $document)
+                            <tr>
+
+                                <td class="px-5 py-4 text-sm text-slate-600">
+                                    {{ $document->date_received->format('M d, Y') }}
+                                </td>
+
+                                <td class="px-5 py-4 text-sm font-medium text-slate-800">
+                                    {{ $document->document_type }}
+                                </td>
+
+                                <td class="px-5 py-4 text-sm text-slate-600">
+                                    {{ $document->date_forwarded_to_imsd?->format('M d, Y') ?? 'Not yet forwarded' }}
+                                </td>
+
+                                <td class="px-5 py-4">
+
+                                    @if ($document->attachment_path)
+                                        <a href="{{ route('projects.post-documents.download', [
+                                            'project' => $project,
+                                            'projectPostDocument' => $document,
+                                        ]) }}"
+                                            class="text-sm font-semibold text-blue-700 hover:underline">
+                                            Download File
+                                        </a>
+                                    @else
+                                        <span class="text-sm text-slate-400">
+                                            None
+                                        </span>
+                                    @endif
+
+                                </td>
+
+                            </tr>
+
+                        @empty
+
+                            <tr>
+
+                                <td colspan="4" class="px-5 py-10 text-center text-sm text-slate-400">
+                                    No post-documentary requirements recorded.
+                                </td>
+
+                            </tr>
+                        @endforelse
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    @endif
+
+    {{-- <------------------------------------------- Payment / Obligation ------------------------------/> --}}
+
+    @if (in_array($project->status, [\App\Enums\ProjectStatus::FOR_PAYMENT, \App\Enums\ProjectStatus::COMPLETED], true))
+
+        <section class="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+
+            <div class="border-b border-slate-200 px-5 py-4">
+
+                <h2 class="text-sm font-semibold text-slate-900">
+                    Payment / Obligation
+                </h2>
+
+            </div>
+
+            @if ($project->obligation)
+
+                <dl class="divide-y divide-slate-100">
+
+                    @foreach ([
+            'ADL Number' => $project->obligation->adl_number,
+
+            'Fund Sponsor' => $project->obligation->fund_sponsor,
+
+            'Partner' => $project->obligation->partner,
+
+            'Location' => $project->obligation->project_location,
+
+            'Term' => $project->obligation->term,
+
+            'Beneficiaries' => number_format($project->obligation->beneficiaries_total),
+
+            'Female Beneficiaries' => number_format($project->obligation->beneficiaries_female),
+
+            'Amount' => '₱' . number_format($project->obligation->amount, 2),
+
+            'Date' => $project->obligation->obligation_date->format('F d, Y'),
+
+            'Month' => $project->obligation->month,
+
+            'Payee' => $project->obligation->payee,
+        ] as $label => $value)
+                        <div class="grid grid-cols-2 gap-4 px-5 py-3">
+
+                            <dt class="text-xs text-slate-500">
+                                {{ $label }}
+                            </dt>
+
+                            <dd class="text-right text-sm font-medium text-slate-800">
+                                {{ $value }}
+                            </dd>
+
+                        </div>
+                    @endforeach
+
+                </dl>
+            @elseif(
+                $project->status === \App\Enums\ProjectStatus::FOR_PAYMENT &&
+                    (auth()->user()->isAdmin() || auth()->user()->isFocal()))
+                <form method="POST" action="{{ route('projects.payment.store', $project) }}" class="p-5">
+
+                    @csrf
+
+                    <div class="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+
+                        <div class="text-xs font-semibold text-slate-500">
+                            Project information will be automatically copied into the obligation record.
+                        </div>
+
+                        <div class="mt-3 grid gap-3 md:grid-cols-3">
+
+                            <div>
+                                <div class="text-[11px] text-slate-400">
+                                    ADL
+                                </div>
+
+                                <div class="mt-1 text-sm font-semibold text-slate-800">
+                                    {{ $project->allocation->adl->adl_number }}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="text-[11px] text-slate-400">
+                                    Partner
+                                </div>
+
+                                <div class="mt-1 text-sm font-semibold text-slate-800">
+                                    {{ $project->allocation->partner }}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="text-[11px] text-slate-400">
+                                    Total Project Cost
+                                </div>
+
+                                <div class="mt-1 text-sm font-semibold text-slate-800">
+                                    ₱{{ number_format($project->total_project_cost, 2) }}
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Amount
+                            </label>
+
+                            <input name="amount" type="number" min="0.01" step="0.01" required
+                                value="{{ old('amount', $project->total_project_cost) }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Obligation Date
+                            </label>
+
+                            <input name="obligation_date" type="date" required
+                                value="{{ old('obligation_date', now()->format('Y-m-d')) }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Month
+                            </label>
+
+                            <input name="month" required value="{{ old('month', now()->format('F Y')) }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Payee
+                            </label>
+
+                            <input name="payee" required value="{{ old('payee') }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                    </div>
+
+                    <div class="mt-4">
+
+                        <label class="mb-2 block text-xs font-semibold text-slate-700">
+                            Remarks
+                        </label>
+
+                        <textarea name="remarks" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks') }}</textarea>
+
+                    </div>
+
+                    <div class="mt-4 flex justify-end">
+
+                        <button
+                            class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
+                            Save Payment
+                        </button>
+
+                    </div>
+
+                </form>
+            @else
+                <div class="p-5 text-sm text-slate-500">
+                    Waiting for the Focal account to record payment information.
+                </div>
+
+            @endif
+
+        </section>
+
+    @endif
+
+    {{-- <------------------------------------------- Release / Payout ------------------------------/> --}}
+
+    @if (in_array($project->status, [\App\Enums\ProjectStatus::FOR_PAYMENT, \App\Enums\ProjectStatus::COMPLETED], true))
+
+        <section class="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+
+            <div class="border-b border-slate-200 px-5 py-4">
+
+                <h2 class="text-sm font-semibold text-slate-900">
+                    Release of Assistance / Payout
+                </h2>
+
+            </div>
+
+            @if ($project->payout)
+                <dl class="divide-y divide-slate-100">
+
+                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
+                        <dt class="text-xs text-slate-500">
+                            Date of Payout
+                        </dt>
+
+                        <dd class="text-right text-sm font-medium text-slate-800">
+                            {{ $project->payout->payout_date->format('F d, Y') }}
+                        </dd>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
+                        <dt class="text-xs text-slate-500">
+                            Mode of Payout
+                        </dt>
+
+                        <dd class="text-right text-sm font-medium text-slate-800">
+                            {{ $project->payout->payout_mode }}
+                        </dd>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
+                        <dt class="text-xs text-slate-500">
+                            Venue
+                        </dt>
+
+                        <dd class="text-right text-sm font-medium text-slate-800">
+                            {{ $project->payout->venue }}
+                        </dd>
+                    </div>
+
+                </dl>
+            @elseif(
+                $project->status === \App\Enums\ProjectStatus::FOR_PAYMENT &&
+                    $project->obligation &&
+                    (auth()->user()->isAdmin() || auth()->user()->isTc()))
+                <form method="POST" action="{{ route('projects.payout.store', $project) }}" class="p-5">
+
+                    @csrf
+
+                    <div class="grid gap-4 md:grid-cols-3">
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Date of Payout
+                            </label>
+
+                            <input name="payout_date" type="date" required
+                                value="{{ old('payout_date', now()->format('Y-m-d')) }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Mode of Payout
+                            </label>
+
+                            <input name="payout_mode" required value="{{ old('payout_mode') }}"
+                                placeholder="Example: Cash Card / Direct Payout"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Venue
+                            </label>
+
+                            <input name="venue" required value="{{ old('venue') }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                        </div>
+
+                    </div>
+
+                    <div class="mt-4">
+
+                        <label class="mb-2 block text-xs font-semibold text-slate-700">
+                            Remarks
+                        </label>
+
+                        <textarea name="remarks" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks') }}</textarea>
+
+                    </div>
+
+                    <div class="mt-4 flex justify-end">
+
+                        <button
+                            class="h-10 rounded-lg bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800">
+                            Record Payout & Complete Project
+                        </button>
+
+                    </div>
+
+                </form>
+            @elseif($project->status === \App\Enums\ProjectStatus::FOR_PAYMENT && !$project->obligation)
+                <div class="p-5 text-sm text-slate-500">
+                    Payment/obligation information must be recorded before payout.
                 </div>
             @endif
 

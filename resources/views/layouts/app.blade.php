@@ -105,6 +105,25 @@
                             </a>
                         @endif
 
+                        {{-- <------------------------------------------- Payment Queue ------------------------------/> --}}
+                        @if (auth()->user()->isAdmin() || auth()->user()->isFocal())
+                            <a href="{{ route('payments.index') }}"
+                                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium
+                                {{ request()->routeIs('payments.*')
+                                    ? 'bg-slate-100 text-slate-900'
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.8">
+                                    <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                                    <path d="M3 10h18"></path>
+                                </svg>
+
+                                <span>
+                                    Payment Queue
+                                </span>
+                            </a>
+                        @endif
+
                         {{-- <------------------------------------------- Project Management ------------------------------/> --}}
 
                         @if (auth()->user()->isAdmin() || auth()->user()->isTc())

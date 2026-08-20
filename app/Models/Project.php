@@ -168,4 +168,31 @@ class Project extends Model
             && $this->orientation()->exists()
             && $this->implementation()->exists();
     }
+    public function postDocuments(): HasMany
+    {
+        return $this->hasMany(
+            ProjectPostDocument::class
+        );
+    }
+
+    public function obligation(): HasOne
+    {
+        return $this->hasOne(
+            ProjectObligation::class
+        );
+    }
+
+    public function payout(): HasOne
+    {
+        return $this->hasOne(
+            ProjectPayout::class
+        );
+    }
+
+    public function postDocumentsComplete(): bool
+    {
+        return $this->postDocuments()
+            ->whereNotNull('date_forwarded_to_imsd')
+            ->exists();
+    }
 }

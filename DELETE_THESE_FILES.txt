@@ -1,0 +1,3 @@
+resources/views/projects/_form.blade.php
+resources/views/projects/gip-placeholder.blade.php
+public/hot  (delete only when Vite dev server is not running)

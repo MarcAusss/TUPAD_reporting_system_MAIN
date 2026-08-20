@@ -34,6 +34,27 @@ class ProjectController extends Controller
         );
     }
 
+    public function paymentQueue(): View
+    {
+        $projects = Project::query()
+            ->whereIn('status', [
+                ProjectStatus::FOR_PAYMENT->value,
+                ProjectStatus::COMPLETED->value,
+            ])
+            ->with([
+                'allocation.adl',
+                'obligation',
+                'payout',
+            ])
+            ->latest('updated_at')
+            ->paginate(15);
+
+        return view(
+            'payments.index',
+            compact('projects')
+        );
+    }
+
     public function create(): View
     {
         $allocations = AdlAllocation::query()
@@ -264,13 +285,36 @@ class ProjectController extends Controller
         });
     }
 
-    public function show(Project $project): View
-    {
+    public function show(
+        Request $request,
+        Project $project
+    ): View {
+        $user = $request->user();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Project Viewing Authorization
+        |--------------------------------------------------------------------------
+        */
+
+        if ($user->isGip()) {
+            abort(403);
+        }
+
+        if (
+            $user->isFocal()
+            && $project->status !== ProjectStatus::FOR_PAYMENT
+            && $project->status !== ProjectStatus::COMPLETED
+        ) {
+            abort(403);
+        }
+
         $project->load([
             'allocation.adl',
             'ppeItems',
             'creator',
             'updater',
+
             'evaluations.evaluator',
             'approval.approver',
 
@@ -279,6 +323,10 @@ class ProjectController extends Controller
             'noticeToProceed.recorder',
             'orientation.recorder',
             'implementation.recorder',
+
+            'postDocuments.recorder',
+            'obligation.recorder',
+            'payout.recorder',
         ]);
 
         return view(
