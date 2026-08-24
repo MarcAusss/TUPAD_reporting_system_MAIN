@@ -1,49 +1,40 @@
-TUPAD Reporting System — Unified PPE-Style UI Overlay
-=====================================================
+TUPAD ADL - Grants Automatically Mirrors Total
+================================================
 
-PURPOSE
-This overlay changes the global UI language of the system so all existing pages use the same practical layout behavior as the TUPAD PPE Inventory screens while retaining the clean dashboard design reference:
-- white slim sidebar
-- dark navy active navigation
-- compact top header/search
-- light gray government-system background
-- white bordered cards
-- dense readable tables
-- consistent forms/buttons/status surfaces
-- responsive/mobile sidebar
-- accessibility focus states
+Business rule implemented:
+- Grants = user input
+- Administrative Cost = separate user input
+- Total = automatically equal to Grants
+- Administrative Cost is NOT added to Total
 
-IMPORTANT
-This is a UI-only overlay. It intentionally does NOT replace controllers, models, migrations, routes, permissions, workflow logic, Phase 14 monitoring logic, or database calculations.
+Example:
+Grants:             8,000,000.00
+Administrative Cost: 240,000.00
+Total:              8,000,000.00
 
-FILES
-REPLACE resources/css/app.css
-REPLACE resources/views/layouts/app.blade.php
+Security/data-integrity rule:
+The controller ignores any submitted Total value and always stores Total = Grants.
+This prevents a manipulated browser request from breaking the official rule.
 
-HOW TO APPLY
-1. Back up your current project or commit your changes.
-2. Extract this ZIP into the project root.
-3. Allow the two files above to overwrite.
-4. Run:
+Files in this overlay:
+- app/Http/Controllers/AdlController.php
+- resources/views/adl/_form-fields.blade.php
+- resources/views/adl/create.blade.php
+- resources/views/adl/edit.blade.php
+- tests/Feature/AdlCoreInputTest.php
+
+No migration is required.
+
+Apply:
+1. Extract this ZIP into the root of tupad-reporting-system.
+2. Allow overwrite for the included files.
+3. Run:
 
    php artisan optimize:clear
    npm run build
+   php artisan test --filter=AdlCoreInputTest
    php artisan test
 
-5. Start the app using your normal development command:
-
-   composer run dev
-
-VERIFY
-- Dashboard
-- ADL list/create/show/edit
-- PER ADL / Summary / Summary Current / Per Province
-- Projects list/create/show
-- Beneficiary pages
-- GIP drafts/reviews
-- Provincial monitoring
-- Payments
-- Reports
-- Global search
-
-No migration is required.
+Expected UI:
+Changing Grants immediately changes the readonly Total field.
+Changing Administrative Cost does not change Total.

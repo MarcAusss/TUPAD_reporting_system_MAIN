@@ -13,7 +13,11 @@ class AdlController extends Controller
 {
     public function index(): View
     {
-        $adls = Adl::query()->withCount(['allocations', 'realignments'])->latest()->paginate(15);
+        $adls = Adl::query()
+            ->withCount(['allocations', 'realignments'])
+            ->latest()
+            ->paginate(15);
+
         return view('adl.index', compact('adls'));
     }
 
@@ -25,19 +29,35 @@ class AdlController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateAdl($request);
+
         $grants = round((float) $validated['grants'], 2);
         $adminCost = round((float) ($validated['admin_cost'] ?? 0), 2);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Official ADL Total Rule
+        |--------------------------------------------------------------------------
+        |
+        | Total must always be the same amount entered under Grants.
+        | Administrative Cost is tracked separately and is NOT added to Total.
+        | The server calculates this so a manually manipulated request cannot
+        | override the rule.
+        |
+        */
+        $total = $grants;
+
         $adl = Adl::create([
-            ...$this->metadata($validated),
             'adl_number' => trim($validated['adl_number']),
+            'date_received' => $validated['date_received'] ?? null,
             'grants' => $grants,
             'admin_cost' => $adminCost,
-            'total' => $grants + $adminCost,
+            'total' => $total,
             'created_by' => $request->user()->id,
         ]);
 
-        return redirect()->route('adl.show', $adl)->with('success', 'ADL record created successfully.');
+        return redirect()
+            ->route('adl.show', $adl)
+            ->with('success', 'ADL record created successfully.');
     }
 
     public function show(Adl $adl, PerAdlSummaryService $summaryService): View
@@ -63,63 +83,55 @@ class AdlController extends Controller
     public function update(Request $request, Adl $adl): RedirectResponse
     {
         $validated = $this->validateAdl($request, $adl);
+
         $grants = round((float) $validated['grants'], 2);
         $adminCost = round((float) ($validated['admin_cost'] ?? 0), 2);
+        $total = $grants;
+
         $realignments = (float) $adl->realignments()->sum('amount');
         $newAdjustedGrants = $grants + $realignments;
         $allocated = (float) $adl->allocations()->sum('amount');
 
         if ($newAdjustedGrants < $allocated) {
-            return back()->withInput()->withErrors([
-                'grants' => sprintf(
-                    'The adjusted grant would become ₱%s, which is lower than the already allocated amount of ₱%s.',
-                    number_format($newAdjustedGrants, 2), number_format($allocated, 2)
-                ),
-            ]);
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'grants' => sprintf(
+                        'The adjusted grant would become ₱%s, which is lower than the already allocated amount of ₱%s.',
+                        number_format($newAdjustedGrants, 2),
+                        number_format($allocated, 2)
+                    ),
+                ]);
         }
 
         $adl->update([
-            ...$this->metadata($validated),
             'adl_number' => trim($validated['adl_number']),
+            'date_received' => $validated['date_received'] ?? null,
             'grants' => $grants,
             'admin_cost' => $adminCost,
-            'total' => $grants + $adminCost,
+            'total' => $total,
             'updated_by' => $request->user()->id,
         ]);
 
-        return redirect()->route('adl.show', $adl)->with('success', 'ADL record updated successfully.');
+        return redirect()
+            ->route('adl.show', $adl)
+            ->with('success', 'ADL record updated successfully.');
     }
 
     private function validateAdl(Request $request, ?Adl $adl = null): array
     {
         return $request->validate([
-            'adl_number' => ['required', 'string', 'max:100', $adl
-                ? Rule::unique('adls', 'adl_number')->ignore($adl->id)
-                : Rule::unique('adls', 'adl_number')],
+            'adl_number' => [
+                'required',
+                'string',
+                'max:100',
+                $adl
+                    ? Rule::unique('adls', 'adl_number')->ignore($adl->id)
+                    : Rule::unique('adls', 'adl_number'),
+            ],
             'date_received' => ['nullable', 'date'],
-            'batch' => ['nullable', 'string', 'max:100'],
-            'tranche' => ['nullable', 'string', 'max:100'],
-            'sponsor_reference' => ['nullable', 'string', 'max:255'],
-            'nfa_date' => ['nullable', 'date'],
-            'nfa_number' => ['nullable', 'string', 'max:150'],
-            'nta_date' => ['nullable', 'date'],
-            'nta_number' => ['nullable', 'string', 'max:150'],
             'grants' => ['required', 'numeric', 'min:0'],
             'admin_cost' => ['nullable', 'numeric', 'min:0'],
         ]);
-    }
-
-    private function metadata(array $validated): array
-    {
-        return [
-            'date_received' => $validated['date_received'] ?? null,
-            'batch' => $validated['batch'] ?? null,
-            'tranche' => $validated['tranche'] ?? null,
-            'sponsor_reference' => $validated['sponsor_reference'] ?? null,
-            'nfa_date' => $validated['nfa_date'] ?? null,
-            'nfa_number' => $validated['nfa_number'] ?? null,
-            'nta_date' => $validated['nta_date'] ?? null,
-            'nta_number' => $validated['nta_number'] ?? null,
-        ];
     }
 }
