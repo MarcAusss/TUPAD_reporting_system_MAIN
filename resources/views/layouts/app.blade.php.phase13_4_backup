@@ -330,7 +330,7 @@
                             <path d="m20 20-3.5-3.5"></path>
                         </svg>
 
-                        <input type="search" placeholder="Search coming soon" disabled aria-disabled="true" title="Global search is not enabled yet"
+                        <input type="search" placeholder="Search..."
                             class="h-9 w-full bg-transparent pl-2 text-xs text-slate-700 outline-none placeholder:text-slate-400">
 
                     </div>
@@ -339,7 +339,9 @@
 
                 <div class="flex items-center gap-2">
 
-                    <button type="button" disabled aria-disabled="true" title="Notifications are not enabled yet" class="flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-lg text-slate-300" aria-label="Notifications">
+                    <button type="button"
+                        class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                        aria-label="Notifications">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="1.8">
                             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
