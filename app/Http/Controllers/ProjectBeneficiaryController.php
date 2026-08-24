@@ -264,6 +264,12 @@ class ProjectBeneficiaryController extends Controller
                 'max:30',
             ],
 
+            'is_pwd' => ['nullable', 'boolean'],
+
+            'is_rebel_returnee' => ['nullable', 'boolean'],
+
+            'grant_amount' => ['nullable', 'numeric', 'min:0'],
+
             'remarks' => [
                 'nullable',
                 'string',
@@ -327,6 +333,14 @@ class ProjectBeneficiaryController extends Controller
                 ? trim(
                     $validated['contact_number']
                 )
+                : null,
+
+            'is_pwd' => (bool) ($validated['is_pwd'] ?? false),
+
+            'is_rebel_returnee' => (bool) ($validated['is_rebel_returnee'] ?? false),
+
+            'grant_amount' => isset($validated['grant_amount'])
+                ? round((float) $validated['grant_amount'], 2)
                 : null,
 
             'remarks' =>

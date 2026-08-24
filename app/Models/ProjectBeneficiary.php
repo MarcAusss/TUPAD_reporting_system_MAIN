@@ -19,6 +19,9 @@ class ProjectBeneficiary extends Model
         'sex',
         'birth_date',
         'contact_number',
+        'is_pwd',
+        'is_rebel_returnee',
+        'grant_amount',
         'remarks',
         'encoded_by',
     ];
@@ -27,6 +30,9 @@ class ProjectBeneficiary extends Model
     {
         return [
             'birth_date' => 'date',
+            'is_pwd' => 'boolean',
+            'is_rebel_returnee' => 'boolean',
+            'grant_amount' => 'decimal:2',
         ];
     }
 
@@ -58,5 +64,22 @@ class ProjectBeneficiary extends Model
     public function isFemale(): bool
     {
         return $this->sex === 'female';
+    }
+
+    public function age(): ?int
+    {
+        return $this->birth_date?->age;
+    }
+
+    public function isYouth(): bool
+    {
+        $age = $this->age();
+        return $age !== null && $age >= 15 && $age <= 30;
+    }
+
+    public function isSeniorCitizen(): bool
+    {
+        $age = $this->age();
+        return $age !== null && $age >= 60;
     }
 }

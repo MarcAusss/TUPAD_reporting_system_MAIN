@@ -13,6 +13,14 @@ class Adl extends Model
 
     protected $fillable = [
         'adl_number',
+        'date_received',
+        'batch',
+        'tranche',
+        'sponsor_reference',
+        'nfa_date',
+        'nfa_number',
+        'nta_date',
+        'nta_number',
         'grants',
         'admin_cost',
         'total',
@@ -23,6 +31,9 @@ class Adl extends Model
     protected function casts(): array
     {
         return [
+            'date_received' => 'date',
+            'nfa_date' => 'date',
+            'nta_date' => 'date',
             'grants' => 'decimal:2',
             'admin_cost' => 'decimal:2',
             'total' => 'decimal:2',

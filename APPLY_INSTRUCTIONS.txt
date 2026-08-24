@@ -1,0 +1,49 @@
+TUPAD Reporting System — Unified PPE-Style UI Overlay
+=====================================================
+
+PURPOSE
+This overlay changes the global UI language of the system so all existing pages use the same practical layout behavior as the TUPAD PPE Inventory screens while retaining the clean dashboard design reference:
+- white slim sidebar
+- dark navy active navigation
+- compact top header/search
+- light gray government-system background
+- white bordered cards
+- dense readable tables
+- consistent forms/buttons/status surfaces
+- responsive/mobile sidebar
+- accessibility focus states
+
+IMPORTANT
+This is a UI-only overlay. It intentionally does NOT replace controllers, models, migrations, routes, permissions, workflow logic, Phase 14 monitoring logic, or database calculations.
+
+FILES
+REPLACE resources/css/app.css
+REPLACE resources/views/layouts/app.blade.php
+
+HOW TO APPLY
+1. Back up your current project or commit your changes.
+2. Extract this ZIP into the project root.
+3. Allow the two files above to overwrite.
+4. Run:
+
+   php artisan optimize:clear
+   npm run build
+   php artisan test
+
+5. Start the app using your normal development command:
+
+   composer run dev
+
+VERIFY
+- Dashboard
+- ADL list/create/show/edit
+- PER ADL / Summary / Summary Current / Per Province
+- Projects list/create/show
+- Beneficiary pages
+- GIP drafts/reviews
+- Provincial monitoring
+- Payments
+- Reports
+- Global search
+
+No migration is required.

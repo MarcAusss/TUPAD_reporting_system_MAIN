@@ -15,6 +15,8 @@ class AdlRealignment extends Model
         'amount',
         'reference_number',
         'realignment_date',
+        'maf_date',
+        'maf_number',
         'reason',
         'created_by',
     ];
@@ -24,6 +26,7 @@ class AdlRealignment extends Model
         return [
             'amount' => 'decimal:2',
             'realignment_date' => 'date',
+            'maf_date' => 'date',
         ];
     }
 

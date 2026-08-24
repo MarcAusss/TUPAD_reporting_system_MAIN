@@ -10,17 +10,12 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserSeeder::class,
-
-                /*
-                |--------------------------------------------------------------------------
-                | Geographic references must exist before development projects.
-                |--------------------------------------------------------------------------
-                */
-
             LocationSeeder::class,
+            BicolLocationSeeder::class,
 
             DevelopmentDataSeeder::class,
             ProjectStatusHistorySeeder::class,
+            ProvincialProjectSeeder::class,
         ]);
     }
 }

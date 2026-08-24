@@ -5,6 +5,7 @@ use App\Http\Controllers\AdlController;
 use App\Http\Controllers\AdlRealignmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ProjectApprovalController;
 use App\Http\Controllers\ProjectController;
@@ -17,6 +18,8 @@ use App\Http\Controllers\ProjectPayoutController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProjectBeneficiaryController;
+use App\Http\Controllers\FundMonitoringController;
+use App\Http\Controllers\ProvinceMonitoringController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -46,6 +49,67 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
+    Route::get('/search', [GlobalSearchController::class, 'index'])
+        ->name('search.index');
+
+
+    /*
+|--------------------------------------------------------------------------
+| Fund Monitoring — Admin & Focal
+|--------------------------------------------------------------------------
+*/
+
+    Route::middleware('role:admin,focal')->group(function () {
+
+        Route::get(
+            '/fund-monitoring/per-adl-current',
+            [FundMonitoringController::class, 'perAdl']
+        )->name('fund-monitoring.per-adl-current');
+
+        Route::get(
+            '/fund-monitoring/summary',
+            [FundMonitoringController::class, 'summary']
+        )->name('fund-monitoring.summary');
+
+        Route::get(
+            '/fund-monitoring/summary-current',
+            [FundMonitoringController::class, 'summaryCurrent']
+        )->name('fund-monitoring.summary-current');
+
+        Route::get(
+            '/fund-monitoring/per-province-current',
+            [FundMonitoringController::class, 'perProvince']
+        )->name('fund-monitoring.per-province-current');
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Provincial Monitoring — Admin & TC
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('role:admin,tc')->group(function () {
+
+        Route::get(
+            '/project-monitoring/{province}',
+            [ProvinceMonitoringController::class, 'index']
+        )->name('project-monitoring.province');
+
+        Route::get(
+            '/projects/{project}/monitoring/edit',
+            [ProvinceMonitoringController::class, 'edit']
+        )
+            ->whereNumber('project')
+            ->name('projects.monitoring.edit');
+
+        Route::put(
+            '/projects/{project}/monitoring',
+            [ProvinceMonitoringController::class, 'update']
+        )
+            ->whereNumber('project')
+            ->name('projects.monitoring.update');
+    });
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
 

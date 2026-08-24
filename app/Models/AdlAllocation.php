@@ -15,8 +15,15 @@ class AdlAllocation extends Model
         'adl_id',
         'fund_sponsor',
         'partner',
+        'local_chief_executive_partylist',
         'location',
+        'province',
+        'district',
+        'municipality',
         'amount',
+        'grant_amount',
+        'admin_cost_amount',
+        'total_amount',
         'remarks',
         'created_by',
         'updated_by',
@@ -26,6 +33,9 @@ class AdlAllocation extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'grant_amount' => 'decimal:2',
+            'admin_cost_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
         ];
     }
 

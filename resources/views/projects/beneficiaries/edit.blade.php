@@ -145,6 +145,15 @@
                 </div>
 
                 <div>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700">Grant Amount (optional)</label>
+                    <input name="grant_amount" type="number" min="0" step="0.01" value="{{ old('grant_amount', $beneficiary->grant_amount) }}" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                </div>
+                <div class="flex items-center gap-6 pt-7">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" name="is_pwd" value="1" @checked(old('is_pwd', $beneficiary->is_pwd)) class="rounded border-slate-300"> PWD</label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" name="is_rebel_returnee" value="1" @checked(old('is_rebel_returnee', $beneficiary->is_rebel_returnee)) class="rounded border-slate-300"> Rebel Returnee</label>
+                </div>
+
+                <div>
 
                     <label class="mb-2 block text-sm font-semibold text-slate-700">
                         Remarks

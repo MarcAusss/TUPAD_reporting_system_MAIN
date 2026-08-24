@@ -253,6 +253,11 @@ class Project extends Model
             ])
         );
     }
+    public function monitoringDetail(): HasOne
+    {
+        return $this->hasOne(ProjectMonitoringDetail::class);
+    }
+
     public function beneficiaries(): HasMany
     {
         return $this->hasMany(

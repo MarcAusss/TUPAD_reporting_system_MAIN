@@ -2,38 +2,166 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-/* Phase 13.4 UI hardening */
-:where(a, button, input, select, textarea):focus-visible {
-    outline: 2px solid rgb(51 65 85);
+
+:root {
+    --tupad-navy: #063b86;
+    --tupad-navy-dark: #052f6d;
+    --tupad-blue: #1765d8;
+    --tupad-blue-soft: #eaf2ff;
+    --tupad-green: #16864b;
+    --tupad-amber: #b7791f;
+    --tupad-red: #b42318;
+    --tupad-bg: #f4f7fb;
+    --tupad-surface: #ffffff;
+    --tupad-line: #dfe6f0;
+    --tupad-line-strong: #ccd7e6;
+    --tupad-text: #10294f;
+    --tupad-muted: #64748b;
+    --tupad-radius: 12px;
+}
+
+html { background: var(--tupad-bg); }
+body {
+    min-width: 320px;
+    color: var(--tupad-text);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Unified PPE-inventory-style government shell */
+.tupad-shell {
+    background: var(--tupad-bg);
+}
+.tupad-card,
+.tupad-panel {
+    border: 1px solid var(--tupad-line);
+    border-radius: var(--tupad-radius);
+    background: var(--tupad-surface);
+    box-shadow: 0 1px 2px rgba(15, 35, 71, .035);
+}
+.tupad-panel-header {
+    border-bottom: 1px solid var(--tupad-line);
+    padding: 16px 20px;
+}
+.tupad-page-title { color: #0d2449; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.tupad-page-subtitle { margin-top: 4px; color: #6f7f98; font-size: 12px; }
+
+.tupad-nav-active {
+    color: #fff;
+    background: var(--tupad-navy);
+    box-shadow: 0 6px 14px rgba(6, 59, 134, .14);
+}
+.tupad-nav-idle { color: #17325c; }
+.tupad-nav-idle:hover { background: #f2f6fb; color: var(--tupad-navy); }
+.tupad-nav-section {
+    padding: 16px 12px 6px;
+    color: #8a98ab;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.tupad-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.tupad-scrollbar::-webkit-scrollbar-thumb { border-radius: 999px; background: #cbd5e1; }
+.tupad-scrollbar::-webkit-scrollbar-track { background: transparent; }
+
+.tupad-input,
+main input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+main select,
+main textarea {
+    border-color: #d6dfeb !important;
+    background-color: #fff !important;
+    color: #203b63;
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.tupad-input:focus-within,
+main input:not([type='checkbox']):not([type='radio']):focus,
+main select:focus,
+main textarea:focus {
+    border-color: #86afe6 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(23, 101, 216, .09) !important;
+}
+main label { color: #304b70; }
+main input::placeholder, main textarea::placeholder { color: #94a3b8; }
+
+/* Make every content page read like the PPE Inventory screens: flat, dense, consistent. */
+main section.rounded-xl,
+main form.rounded-xl,
+main div.rounded-xl.border.bg-white,
+main div.rounded-xl.border.border-slate-200.bg-white,
+main div.rounded-2xl.border.bg-white,
+main article.rounded-xl.border.bg-white {
+    border-color: var(--tupad-line) !important;
+    border-radius: var(--tupad-radius) !important;
+    box-shadow: 0 1px 2px rgba(15, 35, 71, .035) !important;
+}
+main .shadow-sm { box-shadow: 0 1px 2px rgba(15, 35, 71, .035) !important; }
+main .shadow { box-shadow: 0 2px 5px rgba(15, 35, 71, .05) !important; }
+
+/* Tables */
+main table { border-collapse: separate; border-spacing: 0; }
+main table thead:not(.preserve-colors),
+main table thead.bg-slate-50 { background: #f7f9fc !important; }
+main table th {
+    color: #526782;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .015em;
+    vertical-align: middle;
+}
+main table td { color: #405573; vertical-align: middle; }
+main table tbody tr { transition: background-color .12s ease; }
+main table tbody tr:hover { background: #f8fbff; }
+main .overflow-x-auto { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+/* Buttons and links: navy primary, white secondary, restrained government styling */
+main a[class*='bg-slate-900'], main button[class*='bg-slate-900'],
+main a[class*='bg-[#063b86]'], main button[class*='bg-[#063b86]'] {
+    background: var(--tupad-navy) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+main a[class*='bg-slate-900']:hover, main button[class*='bg-slate-900']:hover,
+main a[class*='bg-[#063b86]']:hover, main button[class*='bg-[#063b86]']:hover {
+    background: var(--tupad-navy-dark) !important;
+}
+main a[class*='text-slate-700']:hover { color: var(--tupad-navy) !important; }
+
+/* Status/alert surfaces remain semantic but visually restrained */
+main .bg-emerald-50 { background-color: #f0fdf5 !important; }
+main .bg-amber-50 { background-color: #fffaf0 !important; }
+main .bg-red-50 { background-color: #fff5f5 !important; }
+main .bg-blue-50 { background-color: #f3f8ff !important; }
+
+/* Spreadsheet/monitoring pages: sticky header and readable dense rows */
+main table.min-w-\[3300px\] thead { position: sticky; top: 0; z-index: 10; }
+main table.min-w-\[3300px\] th { background: #f5d77b; color: #17325c; border-color: #dfc164; }
+main table.min-w-\[3300px\] td { white-space: nowrap; }
+
+/* Pagination */
+main nav[role='navigation'] a,
+main nav[role='navigation'] span {
+    border-color: var(--tupad-line) !important;
+}
+
+/* Focus and accessibility */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid #1765d8;
     outline-offset: 2px;
 }
 
-:where(button, input, select, textarea):disabled {
-    cursor: not-allowed;
+@media (max-width: 1023px) {
+    .tupad-desktop-sidebar { box-shadow: 18px 0 45px rgba(15, 35, 71, .12); }
 }
-
-:where(input, textarea)[readonly] {
-    cursor: default;
-}
-
-form[aria-busy="true"] {
-    cursor: progress;
-}
-
-form[aria-busy="true"] button[type="submit"] {
-    pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        scroll-behavior: auto !important;
-        transition-duration: 0.01ms !important;
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-    }
+@media (max-width: 640px) {
+    main { padding: 14px !important; }
+    main h1 { font-size: 20px !important; }
+    main section.rounded-xl, main form.rounded-xl { border-radius: 10px !important; }
 }
