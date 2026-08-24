@@ -1,0 +1,309 @@
+@extends('layouts.app')
+
+@section('title', 'Reports')
+
+@section('content')
+
+    <div class="mb-6">
+
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+            Reports
+        </h1>
+
+        <p class="mt-1 text-sm text-slate-500">
+            Filter and review official TUPAD project records.
+        </p>
+
+    </div>
+
+    {{-- Filters --}}
+
+    <form method="GET" action="{{ route('reports.index') }}"
+        class="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+
+            <div>
+
+                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                    Province
+                </label>
+
+                <select name="province" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+
+                    <option value="">
+                        All Provinces
+                    </option>
+
+                    @foreach ($provinces as $province)
+                        <option value="{{ $province }}" @selected(request('province') === $province)>
+                            {{ $province }}
+                        </option>
+                    @endforeach
+
+                </select>
+
+            </div>
+
+            <div>
+
+                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                    Municipality
+                </label>
+
+                <select name="municipality" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+
+                    <option value="">
+                        All Municipalities
+                    </option>
+
+                    @foreach ($municipalities as $municipality)
+                        <option value="{{ $municipality }}" @selected(request('municipality') === $municipality)>
+                            {{ $municipality }}
+                        </option>
+                    @endforeach
+
+                </select>
+
+            </div>
+
+            <div>
+
+                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                    Status
+                </label>
+
+                <select name="status" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+
+                    <option value="">
+                        All Statuses
+                    </option>
+
+                    @foreach ($statuses as $status)
+                        <option value="{{ $status->value }}" @selected(request('status') === $status->value)>
+                            {{ $status->label() }}
+                        </option>
+                    @endforeach
+
+                </select>
+
+            </div>
+
+            <div>
+
+                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                    Date From
+                </label>
+
+                <input name="date_from" type="date" value="{{ request('date_from') }}"
+                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+            </div>
+
+            <div>
+
+                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                    Date To
+                </label>
+
+                <input name="date_to" type="date" value="{{ request('date_to') }}"
+                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+            </div>
+
+        </div>
+
+        <div class="mt-4 flex justify-end gap-2">
+
+            <a href="{{ route('reports.index') }}"
+                class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                Reset
+            </a>
+
+            <button type="submit"
+                class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
+                Apply Filters
+            </button>
+
+        </div>
+
+    </form>
+
+    {{-- Summary --}}
+
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+
+        @foreach ([
+            [
+                'label' => 'Projects',
+                'value' => number_format($summary['projects']),
+            ],
+            [
+                'label' => 'Beneficiaries',
+                'value' => number_format($summary['beneficiaries']),
+            ],
+            [
+                'label' => 'Female Beneficiaries',
+                'value' => number_format($summary['female_beneficiaries']),
+            ],
+            [
+                'label' => 'Project Cost',
+                'value' => '₱' . number_format($summary['project_cost'], 2),
+            ],
+            [
+                'label' => 'Completed',
+                'value' => number_format($summary['completed']),
+            ],
+        ] as $item)
+            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+
+                <div class="text-xs font-semibold text-slate-500">
+                    {{ $item['label'] }}
+                </div>
+
+                <div class="mt-3 text-xl font-bold text-slate-900">
+                    {{ $item['value'] }}
+                </div>
+
+            </article>
+        @endforeach
+
+    </div>
+
+    {{-- Table --}}
+
+    <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="overflow-x-auto">
+
+            <table class="min-w-full">
+
+                <thead class="bg-slate-50">
+
+                    <tr>
+
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                            Project
+                        </th>
+
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                            Location
+                        </th>
+
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                            ADL / Partner
+                        </th>
+
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
+                            Beneficiaries
+                        </th>
+
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
+                            Cost
+                        </th>
+
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                            Status
+                        </th>
+
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
+                            Action
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody class="divide-y divide-slate-100">
+
+                    @forelse($projects as $project)
+                        <tr>
+
+                            <td class="px-5 py-4">
+
+                                <div class="text-sm font-semibold text-slate-900">
+                                    {{ $project->project_title }}
+                                </div>
+
+                                <div class="mt-1 text-xs text-slate-400">
+
+                                    @if ($project->approval)
+                                        {{ $project->approval->project_code }}
+                                    @else
+                                        No Project Code
+                                    @endif
+
+                                </div>
+
+                            </td>
+
+                            <td class="px-5 py-4 text-sm text-slate-600">
+                                {{ $project->barangay }},
+                                {{ $project->municipality }},
+                                {{ $project->province }}
+                            </td>
+
+                            <td class="px-5 py-4">
+
+                                <div class="text-sm text-slate-700">
+                                    {{ $project->allocation->adl->adl_number }}
+                                </div>
+
+                                <div class="mt-1 text-xs text-slate-400">
+                                    {{ $project->allocation->partner }}
+                                </div>
+
+                            </td>
+
+                            <td class="px-5 py-4 text-right text-sm text-slate-700">
+                                {{ number_format($project->beneficiaries_total) }}
+                            </td>
+
+                            <td class="px-5 py-4 text-right text-sm font-semibold text-slate-900">
+                                ₱{{ number_format($project->total_project_cost, 2) }}
+                            </td>
+
+                            <td class="px-5 py-4">
+
+                                <span
+                                    class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                    {{ $project->status->label() }}
+                                </span>
+
+                            </td>
+
+                            <td class="px-5 py-4 text-right">
+
+                                <a href="{{ route('projects.show', $project) }}"
+                                    class="text-sm font-semibold text-slate-700 hover:text-slate-950">
+                                    View
+                                </a>
+
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+
+                            <td colspan="7" class="px-5 py-12 text-center text-sm text-slate-400">
+                                No projects match the selected filters.
+                            </td>
+
+                        </tr>
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+    <div class="mt-5">
+        {{ $projects->links() }}
+    </div>
+
+@endsection

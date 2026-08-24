@@ -195,4 +195,10 @@ class Project extends Model
             ->whereNotNull('date_forwarded_to_imsd')
             ->exists();
     }
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(
+            ProjectStatusHistory::class
+        );
+    }
 }

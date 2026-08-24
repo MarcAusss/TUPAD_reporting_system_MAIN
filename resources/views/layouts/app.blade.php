@@ -182,20 +182,27 @@
                         @endif
 
                         {{-- Reports --}}
-                        <button type="button" disabled
-                            class="flex w-full cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-400">
-                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M4 19V9"></path>
-                                <path d="M10 19V5"></path>
-                                <path d="M16 19v-7"></path>
-                                <path d="M22 19H2"></path>
-                            </svg>
+                        @if (auth()->user()->isAdmin() || auth()->user()->isTc() || auth()->user()->isFocal())
+                            <a href="{{ route('reports.index') }}"
+                                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium
+            {{ request()->routeIs('reports.*')
+                ? 'bg-slate-100 text-slate-900'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
 
-                            <span>
-                                Reports
-                            </span>
-                        </button>
+                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.8">
+                                    <path d="M4 19V9"></path>
+                                    <path d="M10 19V5"></path>
+                                    <path d="M16 19v-7"></path>
+                                    <path d="M22 19H2"></path>
+                                </svg>
+
+                                <span>
+                                    Reports
+                                </span>
+
+                            </a>
+                        @endif
 
                     </nav>
 

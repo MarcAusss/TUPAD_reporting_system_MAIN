@@ -13,6 +13,8 @@ use App\Http\Controllers\ProjectImplementationController;
 use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectPayoutController;
 use App\Http\Controllers\ProjectPostDocumentController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -24,13 +26,28 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/', fn () => redirect()->route('dashboard'));
+    Route::get('/', fn() => redirect()->route('dashboard'));
 
-    Route::get('/dashboard', fn () => view('dashboard.index'))
-        ->name('dashboard');
+    Route::get(
+        '/dashboard',
+        [DashboardController::class, 'index']
+    )->name('dashboard');
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Reports
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('role:admin,tc,focal')->group(function () {
+        Route::get(
+            '/reports',
+            [ReportController::class, 'index']
+        )->name('reports.index');
+    });
 
     /*
     |--------------------------------------------------------------------------
@@ -48,7 +65,7 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:admin')->group(function () {
-        Route::get('/users', fn () => 'User Management')
+        Route::get('/users', fn() => 'User Management')
             ->name('users.index');
     });
 

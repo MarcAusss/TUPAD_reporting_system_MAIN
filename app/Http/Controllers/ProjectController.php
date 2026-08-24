@@ -327,6 +327,8 @@ class ProjectController extends Controller
             'postDocuments.recorder',
             'obligation.recorder',
             'payout.recorder',
+
+            'statusHistory.changer',
         ]);
 
         return view(
