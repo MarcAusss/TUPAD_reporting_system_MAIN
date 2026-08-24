@@ -16,6 +16,7 @@ use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectPayoutController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ProjectBeneficiaryController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -40,7 +41,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
 
-    Route::get('/', fn () => redirect()->route('dashboard'));
+    Route::get('/', fn() => redirect()->route('dashboard'));
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
@@ -55,8 +56,21 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:admin,tc,focal')->group(function () {
-        Route::get('/reports', [ReportController::class, 'index'])
-            ->name('reports.index');
+
+        Route::get(
+            '/reports',
+            [ReportController::class, 'index']
+        )->name('reports.index');
+
+        Route::get(
+            '/reports/export/csv',
+            [ReportController::class, 'exportCsv']
+        )->name('reports.export.csv');
+
+        Route::get(
+            '/reports/print',
+            [ReportController::class, 'print']
+        )->name('reports.print');
     });
 
     /*
@@ -82,7 +96,7 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:admin')->group(function () {
-        Route::get('/users', fn () => 'User Management')
+        Route::get('/users', fn() => 'User Management')
             ->name('users.index');
     });
 
@@ -135,6 +149,50 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/projects', [ProjectController::class, 'index'])
             ->name('projects.index');
+
+        /*
+|--------------------------------------------------------------------------
+| Beneficiary Registry
+|--------------------------------------------------------------------------
+*/
+
+        Route::get(
+            '/projects/{project}/beneficiaries',
+            [ProjectBeneficiaryController::class, 'index']
+        )
+            ->whereNumber('project')
+            ->name('projects.beneficiaries.index');
+
+        Route::post(
+            '/projects/{project}/beneficiaries',
+            [ProjectBeneficiaryController::class, 'store']
+        )
+            ->whereNumber('project')
+            ->name('projects.beneficiaries.store');
+
+        Route::get(
+            '/projects/{project}/beneficiaries/{beneficiary}/edit',
+            [ProjectBeneficiaryController::class, 'edit']
+        )
+            ->whereNumber('project')
+            ->whereNumber('beneficiary')
+            ->name('projects.beneficiaries.edit');
+
+        Route::put(
+            '/projects/{project}/beneficiaries/{beneficiary}',
+            [ProjectBeneficiaryController::class, 'update']
+        )
+            ->whereNumber('project')
+            ->whereNumber('beneficiary')
+            ->name('projects.beneficiaries.update');
+
+        Route::delete(
+            '/projects/{project}/beneficiaries/{beneficiary}',
+            [ProjectBeneficiaryController::class, 'destroy']
+        )
+            ->whereNumber('project')
+            ->whereNumber('beneficiary')
+            ->name('projects.beneficiaries.destroy');
 
         /*
         | IMPORTANT:

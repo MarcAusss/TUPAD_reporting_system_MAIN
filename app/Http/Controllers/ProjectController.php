@@ -538,6 +538,8 @@ class ProjectController extends Controller
             'obligation.recorder',
             'payout.recorder',
 
+            'beneficiaries',
+
             'statusHistory.changer',
         ]);
 

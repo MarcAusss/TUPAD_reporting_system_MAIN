@@ -21,7 +21,7 @@
     <form method="GET" action="{{ route('reports.index') }}"
         class="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
 
             <div>
 
@@ -110,14 +110,34 @@
                     class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
             </div>
+            <div>
+
+                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                    Barangay
+                </label>
+
+                <input name="barangay" value="{{ request('barangay') }}" placeholder="All Barangays"
+                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+            </div>
 
         </div>
 
-        <div class="mt-4 flex justify-end gap-2">
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
 
             <a href="{{ route('reports.index') }}"
                 class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">
                 Reset
+            </a>
+
+            <a href="{{ route('reports.export.csv', request()->query()) }}"
+                class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Export CSV
+            </a>
+
+            <a href="{{ route('reports.print', request()->query()) }}" target="_blank"
+                class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Print Report
             </a>
 
             <button type="submit"
@@ -131,7 +151,7 @@
 
     {{-- Summary --}}
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
         @foreach ([
             [
@@ -145,6 +165,18 @@
             [
                 'label' => 'Female Beneficiaries',
                 'value' => number_format($summary['female_beneficiaries']),
+            ],
+            [
+                'label' => 'Wages',
+                'value' => '₱' . number_format($summary['wages'], 2),
+            ],
+            [
+                'label' => 'PPE',
+                'value' => '₱' . number_format($summary['ppe'], 2),
+            ],
+            [
+                'label' => 'Insurance',
+                'value' => '₱' . number_format($summary['insurance'], 2),
             ],
             [
                 'label' => 'Project Cost',
@@ -202,6 +234,10 @@
                             Cost
                         </th>
 
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
+                            Registered
+                        </th>
+
                         <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
                             Status
                         </th>
@@ -238,9 +274,7 @@
                             </td>
 
                             <td class="px-5 py-4 text-sm text-slate-600">
-                                {{ $project->barangay }},
-                                {{ $project->municipality }},
-                                {{ $project->province }}
+                                {{ $project->full_location }}
                             </td>
 
                             <td class="px-5 py-4">
@@ -261,6 +295,17 @@
 
                             <td class="px-5 py-4 text-right text-sm font-semibold text-slate-900">
                                 ₱{{ number_format($project->total_project_cost, 2) }}
+                            </td>
+
+                            <td class="px-5 py-4 text-right text-sm text-slate-700">
+
+                                <span
+                                    class="{{ $project->beneficiaries_count === (int) $project->beneficiaries_total
+                                        ? 'text-emerald-700'
+                                        : 'text-amber-700' }}">
+                                    {{ number_format($project->beneficiaries_count) }}
+                                </span>
+
                             </td>
 
                             <td class="px-5 py-4">
@@ -287,8 +332,108 @@
 
                         <tr>
 
-                            <td colspan="7" class="px-5 py-12 text-center text-sm text-slate-400">
+                            <td colspan="8" class="px-5 py-12 text-center text-sm text-slate-400">
                                 No projects match the selected filters.
+                            </td>
+
+                        </tr>
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+    <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="border-b border-slate-200 px-5 py-4">
+
+            <h2 class="text-sm font-semibold text-slate-900">
+                Geographic Summary
+            </h2>
+
+            <p class="mt-1 text-xs text-slate-500">
+                Aggregated official project totals by province and municipality.
+            </p>
+
+        </div>
+
+        <div class="overflow-x-auto">
+
+            <table class="min-w-full">
+
+                <thead class="bg-slate-50">
+
+                    <tr>
+
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                            Province
+                        </th>
+
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
+                            Municipality
+                        </th>
+
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
+                            Projects
+                        </th>
+
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
+                            Beneficiaries
+                        </th>
+
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
+                            Female
+                        </th>
+
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
+                            Project Cost
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody class="divide-y divide-slate-100">
+
+                    @forelse($geographicSummary as $row)
+                        <tr>
+
+                            <td class="px-5 py-4 text-sm font-medium text-slate-700">
+                                {{ $row['province'] }}
+                            </td>
+
+                            <td class="px-5 py-4 text-sm text-slate-600">
+                                {{ $row['municipality'] }}
+                            </td>
+
+                            <td class="px-5 py-4 text-right text-sm text-slate-700">
+                                {{ number_format($row['projects']) }}
+                            </td>
+
+                            <td class="px-5 py-4 text-right text-sm text-slate-700">
+                                {{ number_format($row['beneficiaries']) }}
+                            </td>
+
+                            <td class="px-5 py-4 text-right text-sm text-slate-700">
+                                {{ number_format($row['female']) }}
+                            </td>
+
+                            <td class="px-5 py-4 text-right text-sm font-semibold text-slate-900">
+                                ₱{{ number_format($row['project_cost'], 2) }}
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+
+                            <td colspan="6" class="px-5 py-10 text-center text-sm text-slate-400">
+                                No geographic report data available.
                             </td>
 
                         </tr>

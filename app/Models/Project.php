@@ -253,4 +253,28 @@ class Project extends Model
             ])
         );
     }
+    public function beneficiaries(): HasMany
+    {
+        return $this->hasMany(
+            ProjectBeneficiary::class
+        );
+    }
+    public function beneficiaryRegistryCount(): int
+    {
+        return $this->beneficiaries()
+            ->count();
+    }
+
+    public function beneficiaryRegistryFemaleCount(): int
+    {
+        return $this->beneficiaries()
+            ->where('sex', 'female')
+            ->count();
+    }
+
+    public function beneficiaryRegistryComplete(): bool
+    {
+        return $this->beneficiaryRegistryCount()
+            === (int) $this->beneficiaries_total;
+    }
 }

@@ -167,6 +167,9 @@ class AuditObserver
             $model instanceof \App\Models\User =>
             'User Management',
 
+            $model instanceof \App\Models\ProjectBeneficiary =>
+            'Beneficiary Registry',
+
             default =>
             class_basename($model),
         };

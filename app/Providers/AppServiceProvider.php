@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Observers\AuditObserver;
 use App\Observers\ProjectObserver;
 use Illuminate\Support\ServiceProvider;
+use App\Models\ProjectBeneficiary;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -68,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
             ProjectPayout::class,
 
             User::class,
+            ProjectBeneficiary::class,
         ];
 
         foreach ($auditedModels as $model) {
