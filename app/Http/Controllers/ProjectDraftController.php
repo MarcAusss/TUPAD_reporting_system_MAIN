@@ -7,7 +7,10 @@ use App\Enums\PpeType;
 use App\Enums\ProjectDraftStatus;
 use App\Enums\ProjectTerm;
 use App\Models\AdlAllocation;
+use App\Models\Barangay;
+use App\Models\Municipality;
 use App\Models\ProjectDraft;
+use App\Models\Province;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,14 +20,26 @@ use Illuminate\View\View;
 
 class ProjectDraftController extends Controller
 {
+    /*
+    |--------------------------------------------------------------------------
+    | GIP Draft List
+    |--------------------------------------------------------------------------
+    */
+
     public function index(Request $request): View
     {
         $drafts = ProjectDraft::query()
-            ->where('encoded_by', $request->user()->id)
+            ->where(
+                'encoded_by',
+                $request->user()->id
+            )
             ->with([
                 'allocation.adl',
                 'assignedTc',
                 'confirmedProject',
+                'provinceReference',
+                'municipalityReference',
+                'barangayReference',
             ])
             ->latest('updated_at')
             ->paginate(15);
@@ -34,6 +49,12 @@ class ProjectDraftController extends Controller
             compact('drafts')
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Create GIP Draft
+    |--------------------------------------------------------------------------
+    */
 
     public function create(Request $request): View
     {
@@ -49,15 +70,27 @@ class ProjectDraftController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        $provinces = Province::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         return view(
             'project-drafts.create',
             [
                 'allocations' => $allocations,
+                'provinces' => $provinces,
                 'implementationModes' => ImplementationMode::cases(),
                 'ppeTypes' => PpeType::cases(),
             ]
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Store GIP Draft
+    |--------------------------------------------------------------------------
+    */
 
     public function store(Request $request): RedirectResponse
     {
@@ -68,47 +101,124 @@ class ProjectDraftController extends Controller
             );
         }
 
-        $validated = $this->validateDraft($request);
+        $validated = $this->validateDraft(
+            $request
+        );
 
         return DB::transaction(function () use ($request, $validated) {
+            /*
+            |--------------------------------------------------------------------------
+            | Compute Project Values
+            |--------------------------------------------------------------------------
+            */
+
             $computed = $this->computeDraftValues(
                 $validated
             );
 
+            /*
+            |--------------------------------------------------------------------------
+            | Resolve Geographic Hierarchy
+            |--------------------------------------------------------------------------
+            */
+
+            $location = $this->resolveLocation(
+                $validated
+            );
+
+            $province = $location['province'];
+            $municipality = $location['municipality'];
+            $barangay = $location['barangay'];
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create Draft
+            |--------------------------------------------------------------------------
+            */
+
             $draft = ProjectDraft::create([
-                'encoded_by' => $request->user()->id,
+                /*
+                |--------------------------------------------------------------------------
+                | Ownership / Assignment
+                |--------------------------------------------------------------------------
+                */
+
+                'encoded_by' =>
+                    $request->user()->id,
 
                 'assigned_tc_id' =>
                     $request->user()->supervisor_tc_id,
 
+                /*
+                |--------------------------------------------------------------------------
+                | Allocation
+                |--------------------------------------------------------------------------
+                */
+
                 'adl_allocation_id' =>
                     $validated['adl_allocation_id'],
+
+                /*
+                |--------------------------------------------------------------------------
+                | General Information
+                |--------------------------------------------------------------------------
+                */
 
                 'date_received' =>
                     $validated['date_received'],
 
                 'project_title' =>
-                    trim($validated['project_title']),
+                    trim(
+                        $validated['project_title']
+                    ),
 
                 'nature_of_work' =>
-                    trim($validated['nature_of_work']),
+                    trim(
+                        $validated['nature_of_work']
+                    ),
+
+                /*
+                |--------------------------------------------------------------------------
+                | Geographic References
+                |--------------------------------------------------------------------------
+                */
+
+                'province_id' =>
+                    $province->id,
+
+                'municipality_id' =>
+                    $municipality->id,
+
+                'barangay_id' =>
+                    $barangay->id,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Geographic Snapshot
+                |--------------------------------------------------------------------------
+                */
 
                 'province' =>
-                    trim($validated['province']),
+                    $province->name,
 
                 'district' =>
-                    trim($validated['district']),
+                    $municipality->district
+                    ?? 'Not Assigned',
 
                 'municipality' =>
-                    trim($validated['municipality']),
+                    $municipality->name,
 
                 'barangay' =>
-                    trim($validated['barangay']),
+                    $barangay->name,
 
                 'income_class' =>
-                    filled($validated['income_class'] ?? null)
-                    ? trim($validated['income_class'])
-                    : null,
+                    $municipality->income_class,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Implementation
+                |--------------------------------------------------------------------------
+                */
 
                 'implementation_mode' =>
                     $validated['implementation_mode'],
@@ -119,11 +229,23 @@ class ProjectDraftController extends Controller
                 'term' =>
                     $computed['term'],
 
+                /*
+                |--------------------------------------------------------------------------
+                | Beneficiaries
+                |--------------------------------------------------------------------------
+                */
+
                 'beneficiaries_total' =>
                     $computed['beneficiaries_total'],
 
                 'beneficiaries_female' =>
                     $computed['beneficiaries_female'],
+
+                /*
+                |--------------------------------------------------------------------------
+                | Wage
+                |--------------------------------------------------------------------------
+                */
 
                 'wage_rate' =>
                     $computed['wage_rate'],
@@ -131,8 +253,20 @@ class ProjectDraftController extends Controller
                 'wages_total' =>
                     $computed['wages_total'],
 
+                /*
+                |--------------------------------------------------------------------------
+                | PPE
+                |--------------------------------------------------------------------------
+                */
+
                 'ppe_total' =>
                     $computed['ppe_total'],
+
+                /*
+                |--------------------------------------------------------------------------
+                | Insurance
+                |--------------------------------------------------------------------------
+                */
 
                 'insurance_rate' =>
                     $computed['insurance_rate'],
@@ -140,8 +274,20 @@ class ProjectDraftController extends Controller
                 'insurance_total' =>
                     $computed['insurance_total'],
 
+                /*
+                |--------------------------------------------------------------------------
+                | Total
+                |--------------------------------------------------------------------------
+                */
+
                 'total_project_cost' =>
                     $computed['total_project_cost'],
+
+                /*
+                |--------------------------------------------------------------------------
+                | Draft Workflow
+                |--------------------------------------------------------------------------
+                */
 
                 'status' =>
                     ProjectDraftStatus::DRAFT,
@@ -149,6 +295,12 @@ class ProjectDraftController extends Controller
                 'remarks' =>
                     $validated['remarks'] ?? null,
             ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create Draft PPE Items
+            |--------------------------------------------------------------------------
+            */
 
             if (!empty($computed['ppe_items'])) {
                 $draft
@@ -170,6 +322,12 @@ class ProjectDraftController extends Controller
         });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Show GIP Draft
+    |--------------------------------------------------------------------------
+    */
+
     public function show(
         Request $request,
         ProjectDraft $projectDraft
@@ -185,6 +343,10 @@ class ProjectDraftController extends Controller
             'assignedTc',
             'reviewer',
             'confirmedProject',
+
+            'provinceReference',
+            'municipalityReference',
+            'barangayReference',
         ]);
 
         return view(
@@ -194,6 +356,12 @@ class ProjectDraftController extends Controller
             ]
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Edit GIP Draft
+    |--------------------------------------------------------------------------
+    */
 
     public function edit(
         Request $request,
@@ -211,11 +379,21 @@ class ProjectDraftController extends Controller
             );
         }
 
-        $projectDraft->load('ppeItems');
+        $projectDraft->load([
+            'ppeItems',
+            'provinceReference',
+            'municipalityReference',
+            'barangayReference',
+        ]);
 
         $allocations = AdlAllocation::query()
             ->with('adl')
             ->orderByDesc('id')
+            ->get();
+
+        $provinces = Province::query()
+            ->where('is_active', true)
+            ->orderBy('name')
             ->get();
 
         return view(
@@ -223,11 +401,18 @@ class ProjectDraftController extends Controller
             [
                 'draft' => $projectDraft,
                 'allocations' => $allocations,
+                'provinces' => $provinces,
                 'implementationModes' => ImplementationMode::cases(),
                 'ppeTypes' => PpeType::cases(),
             ]
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update GIP Draft
+    |--------------------------------------------------------------------------
+    */
 
     public function update(
         Request $request,
@@ -245,42 +430,112 @@ class ProjectDraftController extends Controller
             );
         }
 
-        $validated = $this->validateDraft($request);
+        $validated = $this->validateDraft(
+            $request
+        );
 
         return DB::transaction(function () use ($validated, $projectDraft) {
+            /*
+            |--------------------------------------------------------------------------
+            | Recompute Values
+            |--------------------------------------------------------------------------
+            */
+
             $computed = $this->computeDraftValues(
                 $validated
             );
 
+            /*
+            |--------------------------------------------------------------------------
+            | Resolve Location
+            |--------------------------------------------------------------------------
+            */
+
+            $location = $this->resolveLocation(
+                $validated
+            );
+
+            $province = $location['province'];
+            $municipality = $location['municipality'];
+            $barangay = $location['barangay'];
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update Draft
+            |--------------------------------------------------------------------------
+            */
+
             $projectDraft->update([
+                /*
+                |--------------------------------------------------------------------------
+                | Allocation
+                |--------------------------------------------------------------------------
+                */
+
                 'adl_allocation_id' =>
                     $validated['adl_allocation_id'],
+
+                /*
+                |--------------------------------------------------------------------------
+                | General
+                |--------------------------------------------------------------------------
+                */
 
                 'date_received' =>
                     $validated['date_received'],
 
                 'project_title' =>
-                    trim($validated['project_title']),
+                    trim(
+                        $validated['project_title']
+                    ),
 
                 'nature_of_work' =>
-                    trim($validated['nature_of_work']),
+                    trim(
+                        $validated['nature_of_work']
+                    ),
+
+                /*
+                |--------------------------------------------------------------------------
+                | Geographic References
+                |--------------------------------------------------------------------------
+                */
+
+                'province_id' =>
+                    $province->id,
+
+                'municipality_id' =>
+                    $municipality->id,
+
+                'barangay_id' =>
+                    $barangay->id,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Geographic Snapshot
+                |--------------------------------------------------------------------------
+                */
 
                 'province' =>
-                    trim($validated['province']),
+                    $province->name,
 
                 'district' =>
-                    trim($validated['district']),
+                    $municipality->district
+                    ?? 'Not Assigned',
 
                 'municipality' =>
-                    trim($validated['municipality']),
+                    $municipality->name,
 
                 'barangay' =>
-                    trim($validated['barangay']),
+                    $barangay->name,
 
                 'income_class' =>
-                    filled($validated['income_class'] ?? null)
-                    ? trim($validated['income_class'])
-                    : null,
+                    $municipality->income_class,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Implementation
+                |--------------------------------------------------------------------------
+                */
 
                 'implementation_mode' =>
                     $validated['implementation_mode'],
@@ -291,11 +546,23 @@ class ProjectDraftController extends Controller
                 'term' =>
                     $computed['term'],
 
+                /*
+                |--------------------------------------------------------------------------
+                | Beneficiaries
+                |--------------------------------------------------------------------------
+                */
+
                 'beneficiaries_total' =>
                     $computed['beneficiaries_total'],
 
                 'beneficiaries_female' =>
                     $computed['beneficiaries_female'],
+
+                /*
+                |--------------------------------------------------------------------------
+                | Wage
+                |--------------------------------------------------------------------------
+                */
 
                 'wage_rate' =>
                     $computed['wage_rate'],
@@ -303,8 +570,20 @@ class ProjectDraftController extends Controller
                 'wages_total' =>
                     $computed['wages_total'],
 
+                /*
+                |--------------------------------------------------------------------------
+                | PPE
+                |--------------------------------------------------------------------------
+                */
+
                 'ppe_total' =>
                     $computed['ppe_total'],
+
+                /*
+                |--------------------------------------------------------------------------
+                | Insurance
+                |--------------------------------------------------------------------------
+                */
 
                 'insurance_rate' =>
                     $computed['insurance_rate'],
@@ -312,24 +591,53 @@ class ProjectDraftController extends Controller
                 'insurance_total' =>
                     $computed['insurance_total'],
 
+                /*
+                |--------------------------------------------------------------------------
+                | Overall Project Cost
+                |--------------------------------------------------------------------------
+                */
+
                 'total_project_cost' =>
                     $computed['total_project_cost'],
+
+                /*
+                |--------------------------------------------------------------------------
+                | Remarks
+                |--------------------------------------------------------------------------
+                */
 
                 'remarks' =>
                     $validated['remarks'] ?? null,
 
                 /*
                 |--------------------------------------------------------------------------
-                | Clear previous TC return message after correction
+                | Clear Previous TC Review State
                 |--------------------------------------------------------------------------
+                |
+                | When a returned draft is corrected, the previous return message
+                | must not remain as the active review state.
+                |
                 */
 
-                'tc_review_remarks' => null,
-                'reviewed_at' => null,
-                'reviewed_by' => null,
+                'tc_review_remarks' =>
+                    null,
+
+                'reviewed_at' =>
+                    null,
+
+                'reviewed_by' =>
+                    null,
             ]);
 
-            $projectDraft->ppeItems()->delete();
+            /*
+            |--------------------------------------------------------------------------
+            | Replace PPE Items
+            |--------------------------------------------------------------------------
+            */
+
+            $projectDraft
+                ->ppeItems()
+                ->delete();
 
             if (!empty($computed['ppe_items'])) {
                 $projectDraft
@@ -351,6 +659,12 @@ class ProjectDraftController extends Controller
         });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Submit Draft to TC
+    |--------------------------------------------------------------------------
+    */
+
     public function submit(
         Request $request,
         ProjectDraft $projectDraft
@@ -367,17 +681,34 @@ class ProjectDraftController extends Controller
             );
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Verify TC Assignment Still Exists
+        |--------------------------------------------------------------------------
+        */
+
+        if (!$projectDraft->assigned_tc_id) {
+            abort(
+                403,
+                'This draft does not have an assigned TUPAD Coordinator.'
+            );
+        }
+
         $projectDraft->update([
             'status' =>
                 ProjectDraftStatus::PENDING_TC_REVIEW,
 
-            'submitted_at' => now(),
+            'submitted_at' =>
+                now(),
 
-            'tc_review_remarks' => null,
+            'tc_review_remarks' =>
+                null,
 
-            'reviewed_at' => null,
+            'reviewed_at' =>
+                null,
 
-            'reviewed_by' => null,
+            'reviewed_by' =>
+                null,
         ]);
 
         return redirect()
@@ -391,24 +722,51 @@ class ProjectDraftController extends Controller
             );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ensure GIP Owns Draft
+    |--------------------------------------------------------------------------
+    */
+
     private function ensureOwner(
         Request $request,
         ProjectDraft $draft
     ): void {
-        if ($draft->encoded_by !== $request->user()->id) {
+        if (
+            $draft->encoded_by
+            !== $request->user()->id
+        ) {
             abort(403);
         }
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Draft Validation
+    |--------------------------------------------------------------------------
+    */
 
     private function validateDraft(
         Request $request
     ): array {
         return $request->validate([
+            /*
+            |--------------------------------------------------------------------------
+            | Allocation
+            |--------------------------------------------------------------------------
+            */
+
             'adl_allocation_id' => [
                 'required',
                 'integer',
                 'exists:adl_allocations,id',
             ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | General
+            |--------------------------------------------------------------------------
+            */
 
             'date_received' => [
                 'required',
@@ -427,35 +785,35 @@ class ProjectDraftController extends Controller
                 'max:3000',
             ],
 
-            'province' => [
+            /*
+            |--------------------------------------------------------------------------
+            | Geographic References
+            |--------------------------------------------------------------------------
+            */
+
+            'province_id' => [
                 'required',
-                'string',
-                'max:150',
+                'integer',
+                'exists:provinces,id',
             ],
 
-            'district' => [
+            'municipality_id' => [
                 'required',
-                'string',
-                'max:100',
+                'integer',
+                'exists:municipalities,id',
             ],
 
-            'municipality' => [
+            'barangay_id' => [
                 'required',
-                'string',
-                'max:150',
+                'integer',
+                'exists:barangays,id',
             ],
 
-            'barangay' => [
-                'required',
-                'string',
-                'max:150',
-            ],
-
-            'income_class' => [
-                'nullable',
-                'string',
-                'max:50',
-            ],
+            /*
+            |--------------------------------------------------------------------------
+            | Implementation
+            |--------------------------------------------------------------------------
+            */
 
             'implementation_mode' => [
                 'required',
@@ -471,6 +829,12 @@ class ProjectDraftController extends Controller
                 'max:90',
             ],
 
+            /*
+            |--------------------------------------------------------------------------
+            | Beneficiaries
+            |--------------------------------------------------------------------------
+            */
+
             'beneficiaries_total' => [
                 'required',
                 'integer',
@@ -482,6 +846,12 @@ class ProjectDraftController extends Controller
                 'integer',
                 'min:0',
             ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Wage / Insurance
+            |--------------------------------------------------------------------------
+            */
 
             'wage_rate' => [
                 'required',
@@ -495,6 +865,12 @@ class ProjectDraftController extends Controller
                 'min:0',
             ],
 
+            /*
+            |--------------------------------------------------------------------------
+            | PPE
+            |--------------------------------------------------------------------------
+            */
+
             'ppe_items' => [
                 'nullable',
                 'array',
@@ -502,7 +878,9 @@ class ProjectDraftController extends Controller
 
             'ppe_items.*.ppe_type' => [
                 'required_with:ppe_items.*.product',
-                Rule::enum(PpeType::class),
+                Rule::enum(
+                    PpeType::class
+                ),
             ],
 
             'ppe_items.*.product' => [
@@ -523,6 +901,12 @@ class ProjectDraftController extends Controller
                 'min:0',
             ],
 
+            /*
+            |--------------------------------------------------------------------------
+            | Remarks
+            |--------------------------------------------------------------------------
+            */
+
             'remarks' => [
                 'nullable',
                 'string',
@@ -531,12 +915,100 @@ class ProjectDraftController extends Controller
         ]);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Resolve Geographic Hierarchy
+    |--------------------------------------------------------------------------
+    |
+    | Province
+    |   ↓
+    | Municipality
+    |   ↓
+    | Barangay
+    |
+    | This prevents a manipulated request from pairing records that do not
+    | actually belong together.
+    |
+    */
+
+    private function resolveLocation(
+        array $validated
+    ): array {
+        $province = Province::query()
+            ->where(
+                'is_active',
+                true
+            )
+            ->findOrFail(
+                $validated['province_id']
+            );
+
+        $municipality = Municipality::query()
+            ->where(
+                'province_id',
+                $province->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->findOrFail(
+                $validated['municipality_id']
+            );
+
+        $barangay = Barangay::query()
+            ->where(
+                'municipality_id',
+                $municipality->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->findOrFail(
+                $validated['barangay_id']
+            );
+
+        return [
+            'province' =>
+                $province,
+
+            'municipality' =>
+                $municipality,
+
+            'barangay' =>
+                $barangay,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Compute Draft Values
+    |--------------------------------------------------------------------------
+    */
+
     private function computeDraftValues(
         array $validated
     ): array {
-        $days = (int) $validated['number_of_days'];
+        /*
+        |--------------------------------------------------------------------------
+        | Duration / Term
+        |--------------------------------------------------------------------------
+        */
 
-        $term = ProjectTerm::fromDays($days);
+        $days =
+            (int) $validated['number_of_days'];
+
+        $term =
+            ProjectTerm::fromDays(
+                $days
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Beneficiaries
+        |--------------------------------------------------------------------------
+        */
 
         $beneficiaries =
             (int) $validated['beneficiaries_total'];
@@ -551,6 +1023,12 @@ class ProjectDraftController extends Controller
             ]);
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Wage
+        |--------------------------------------------------------------------------
+        */
+
         $wageRate = round(
             (float) $validated['wage_rate'],
             2
@@ -563,6 +1041,12 @@ class ProjectDraftController extends Controller
             2
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Insurance
+        |--------------------------------------------------------------------------
+        */
+
         $insuranceRate = round(
             (float) $validated['insurance_rate'],
             2
@@ -573,6 +1057,12 @@ class ProjectDraftController extends Controller
             * $beneficiaries,
             2
         );
+
+        /*
+        |--------------------------------------------------------------------------
+        | PPE
+        |--------------------------------------------------------------------------
+        */
 
         $ppeItems = $this->preparePpeItems(
             $validated['ppe_items'] ?? [],
@@ -585,30 +1075,58 @@ class ProjectDraftController extends Controller
             2
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Return Computed Values
+        |--------------------------------------------------------------------------
+        */
+
         return [
-            'number_of_days' => $days,
-            'term' => $term,
+            'number_of_days' =>
+                $days,
 
-            'beneficiaries_total' => $beneficiaries,
-            'beneficiaries_female' => $female,
+            'term' =>
+                $term,
 
-            'wage_rate' => $wageRate,
-            'wages_total' => $wages,
+            'beneficiaries_total' =>
+                $beneficiaries,
 
-            'insurance_rate' => $insuranceRate,
-            'insurance_total' => $insurance,
+            'beneficiaries_female' =>
+                $female,
 
-            'ppe_total' => $ppeTotal,
-            'ppe_items' => $ppeItems,
+            'wage_rate' =>
+                $wageRate,
 
-            'total_project_cost' => round(
-                $wages
-                + $insurance
-                + $ppeTotal,
-                2
-            ),
+            'wages_total' =>
+                $wages,
+
+            'insurance_rate' =>
+                $insuranceRate,
+
+            'insurance_total' =>
+                $insurance,
+
+            'ppe_total' =>
+                $ppeTotal,
+
+            'ppe_items' =>
+                $ppeItems,
+
+            'total_project_cost' =>
+                round(
+                    $wages
+                    + $insurance
+                    + $ppeTotal,
+                    2
+                ),
         ];
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Prepare PPE Items
+    |--------------------------------------------------------------------------
+    */
 
     private function preparePpeItems(
         array $items,
@@ -616,47 +1134,142 @@ class ProjectDraftController extends Controller
     ): array {
         $prepared = [];
 
-        foreach ($items as $item) {
+        foreach (
+            $items as $index => $item
+        ) {
+            /*
+            |--------------------------------------------------------------------------
+            | Ignore Completely Empty Rows
+            |--------------------------------------------------------------------------
+            */
+
             if (
-                blank($item['product'] ?? null)
-                && blank($item['beneficiary_count'] ?? null)
-                && blank($item['unit_amount'] ?? null)
+                blank(
+                    $item['product']
+                    ?? null
+                )
+                && blank(
+                    $item['beneficiary_count']
+                    ?? null
+                )
+                && blank(
+                    $item['unit_amount']
+                    ?? null
+                )
             ) {
                 continue;
             }
 
-            $count = (int) (
-                $item['beneficiary_count'] ?? 0
+            /*
+            |--------------------------------------------------------------------------
+            | PPE Type
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                blank(
+                    $item['ppe_type']
+                    ?? null
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    "ppe_items.$index.ppe_type" =>
+                        'Select a PPE type.',
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | PPE Product
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                blank(
+                    $item['product']
+                    ?? null
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    "ppe_items.$index.product" =>
+                        'Enter the PPE product name.',
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Beneficiary Count
+            |--------------------------------------------------------------------------
+            */
+
+            $beneficiaryCount = (int) (
+                $item['beneficiary_count']
+                ?? 0
             );
 
-            if ($count > $projectBeneficiaries) {
+            if ($beneficiaryCount < 1) {
                 throw ValidationException::withMessages([
-                    'ppe_items' =>
+                    "ppe_items.$index.beneficiary_count" =>
+                        'PPE beneficiary count must be at least 1.',
+                ]);
+            }
+
+            if (
+                $beneficiaryCount
+                > $projectBeneficiaries
+            ) {
+                throw ValidationException::withMessages([
+                    "ppe_items.$index.beneficiary_count" =>
                         'A PPE beneficiary count cannot exceed the total project beneficiaries.',
                 ]);
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | Unit Amount
+            |--------------------------------------------------------------------------
+            */
+
             $unitAmount = round(
-                (float) ($item['unit_amount'] ?? 0),
+                (float) (
+                    $item['unit_amount']
+                    ?? 0
+                ),
                 2
             );
+
+            if ($unitAmount < 0) {
+                throw ValidationException::withMessages([
+                    "ppe_items.$index.unit_amount" =>
+                        'PPE unit amount cannot be negative.',
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Prepared Item
+            |--------------------------------------------------------------------------
+            */
 
             $prepared[] = [
                 'ppe_type' =>
                     $item['ppe_type'],
 
                 'product' =>
-                    trim($item['product']),
+                    trim(
+                        $item['product']
+                    ),
 
                 'beneficiary_count' =>
-                    $count,
+                    $beneficiaryCount,
 
                 'unit_amount' =>
                     $unitAmount,
 
                 'total_amount' =>
                     round(
-                        $count * $unitAmount,
+                        $beneficiaryCount
+                        * $unitAmount,
                         2
                     ),
             ];

@@ -4,6 +4,8 @@ use App\Http\Controllers\AdlAllocationController;
 use App\Http\Controllers\AdlController;
 use App\Http\Controllers\AdlRealignmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ProjectApprovalController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectDraftController;
@@ -13,9 +15,14 @@ use App\Http\Controllers\ProjectImplementationController;
 use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectPayoutController;
 use App\Http\Controllers\ProjectPostDocumentController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Guest Routes
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])
@@ -25,13 +32,18 @@ Route::middleware('guest')->group(function () {
         ->name('login.store');
 });
 
-Route::middleware('auth')->group(function () {
-    Route::get('/', fn() => redirect()->route('dashboard'));
+/*
+|--------------------------------------------------------------------------
+| Authenticated Routes
+|--------------------------------------------------------------------------
+*/
 
-    Route::get(
-        '/dashboard',
-        [DashboardController::class, 'index']
-    )->name('dashboard');
+Route::middleware('auth')->group(function () {
+
+    Route::get('/', fn () => redirect()->route('dashboard'));
+
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
@@ -43,20 +55,25 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:admin,tc,focal')->group(function () {
-        Route::get(
-            '/reports',
-            [ReportController::class, 'index']
-        )->name('reports.index');
+        Route::get('/reports', [ReportController::class, 'index'])
+            ->name('reports.index');
     });
 
     /*
     |--------------------------------------------------------------------------
-    | Shared Official Project Detail
+    | Geographic Reference Data
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/projects/{project}', [ProjectController::class, 'show'])
-        ->name('projects.show');
+    Route::get(
+        '/locations/provinces/{province}/municipalities',
+        [LocationController::class, 'municipalities']
+    )->name('locations.municipalities');
+
+    Route::get(
+        '/locations/municipalities/{municipality}/barangays',
+        [LocationController::class, 'barangays']
+    )->name('locations.barangays');
 
     /*
     |--------------------------------------------------------------------------
@@ -65,7 +82,7 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:admin')->group(function () {
-        Route::get('/users', fn() => 'User Management')
+        Route::get('/users', fn () => 'User Management')
             ->name('users.index');
     });
 
@@ -76,6 +93,7 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:admin,focal')->group(function () {
+
         Route::get('/adl', [AdlController::class, 'index'])
             ->name('adl.index');
 
@@ -114,8 +132,14 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:admin,tc')->group(function () {
+
         Route::get('/projects', [ProjectController::class, 'index'])
             ->name('projects.index');
+
+        /*
+        | IMPORTANT:
+        | Static routes must always come before /projects/{project}
+        */
 
         Route::get('/projects/create', [ProjectController::class, 'create'])
             ->name('projects.create');
@@ -177,6 +201,7 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:gip')->group(function () {
+
         Route::get('/project-drafts', [ProjectDraftController::class, 'index'])
             ->name('project-drafts.index');
 
@@ -206,6 +231,7 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::middleware('role:admin,tc')->group(function () {
+
         Route::get('/project-draft-reviews', [ProjectDraftReviewController::class, 'index'])
             ->name('project-draft-reviews.index');
 
@@ -218,4 +244,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/project-draft-reviews/{projectDraft}/confirm', [ProjectDraftReviewController::class, 'confirm'])
             ->name('project-draft-reviews.confirm');
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Shared Official Project Detail
+    |--------------------------------------------------------------------------
+    |
+    | This MUST remain after /projects/create.
+    | whereNumber prevents "create" from being interpreted as a project ID.
+    |
+    */
+
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])
+        ->whereNumber('project')
+        ->name('projects.show');
 });

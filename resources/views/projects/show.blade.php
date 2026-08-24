@@ -183,9 +183,7 @@
                 <div class="grid grid-cols-2 gap-4 px-5 py-3">
                     <dt class="text-xs text-slate-500">Location</dt>
                     <dd class="text-right text-sm font-medium text-slate-800">
-                        {{ $project->barangay }},
-                        {{ $project->municipality }},
-                        {{ $project->province }}
+                        {{ $project->full_location }}
                     </dd>
                 </div>
 
@@ -1659,8 +1657,8 @@
                 <tbody class="divide-y divide-slate-100">
 
                     @forelse($project->statusHistory
-                            ->sortByDesc('changed_at')
-                        as $history)
+                                ->sortByDesc('changed_at')
+                            as $history)
                         <tr>
 
                             <td class="px-5 py-4 text-sm text-slate-500">

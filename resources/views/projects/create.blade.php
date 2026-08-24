@@ -137,7 +137,8 @@
 
             </section>
 
-            {{-- Location --}}
+            {{-- <------------------------------------------- Project Location ------------------------------/> --}}
+
             <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
@@ -147,27 +148,101 @@
                     </h2>
 
                     <p class="mt-1 text-xs text-slate-500">
-                        Income Class mapping will later be automated using the municipality reference data.
+                        Select the official geographic hierarchy for this project.
                     </p>
 
                 </div>
 
                 <div class="grid gap-5 p-6 md:grid-cols-2 xl:grid-cols-5">
 
-                    <input name="province" placeholder="Province" value="{{ old('province') }}" required
-                        class="h-11 rounded-lg border border-slate-300 px-3 text-sm">
+                    {{-- Province --}}
 
-                    <input name="district" placeholder="District" value="{{ old('district') }}" required
-                        class="h-11 rounded-lg border border-slate-300 px-3 text-sm">
+                    <div>
 
-                    <input name="municipality" placeholder="Municipality" value="{{ old('municipality') }}" required
-                        class="h-11 rounded-lg border border-slate-300 px-3 text-sm">
+                        <label for="province_id" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Province
+                        </label>
 
-                    <input name="barangay" placeholder="Barangay" value="{{ old('barangay') }}" required
-                        class="h-11 rounded-lg border border-slate-300 px-3 text-sm">
+                        <select id="province_id" name="province_id" required
+                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
 
-                    <input name="income_class" placeholder="Income Class" value="{{ old('income_class') }}"
-                        class="h-11 rounded-lg border border-slate-300 px-3 text-sm">
+                            <option value="">
+                                Select province
+                            </option>
+
+                            @foreach ($provinces as $province)
+                                <option value="{{ $province->id }}" @selected(old('province_id') == $province->id)>
+                                    {{ $province->name }}
+                                </option>
+                            @endforeach
+
+                        </select>
+
+                    </div>
+
+                    {{-- Municipality --}}
+
+                    <div>
+
+                        <label for="municipality_id" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Municipality / City
+                        </label>
+
+                        <select id="municipality_id" name="municipality_id" required disabled
+                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
+
+                            <option value="">
+                                Select municipality
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    {{-- Barangay --}}
+
+                    <div>
+
+                        <label for="barangay_id" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Barangay
+                        </label>
+
+                        <select id="barangay_id" name="barangay_id" required disabled
+                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
+
+                            <option value="">
+                                Select barangay
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    {{-- District --}}
+
+                    <div>
+
+                        <label for="districtPreview" class="mb-2 block text-sm font-semibold text-slate-700">
+                            District
+                        </label>
+
+                        <input id="districtPreview" type="text" readonly placeholder="Automatically assigned"
+                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+
+                    </div>
+
+                    {{-- Income Class --}}
+
+                    <div>
+
+                        <label for="incomeClassPreview" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Income Class
+                        </label>
+
+                        <input id="incomeClassPreview" type="text" readonly placeholder="Not yet assigned"
+                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+
+                    </div>
 
                 </div>
 
@@ -425,6 +500,123 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const provinceSelect = document.getElementById('province_id');
+            const municipalitySelect = document.getElementById('municipality_id');
+            const barangaySelect = document.getElementById('barangay_id');
+
+            const districtPreview = document.getElementById('districtPreview');
+            const incomeClassPreview = document.getElementById('incomeClassPreview');
+
+            async function loadMunicipalities(provinceId) {
+                municipalitySelect.innerHTML =
+                    '<option value="">Loading...</option>';
+
+                municipalitySelect.disabled = true;
+
+                barangaySelect.innerHTML =
+                    '<option value="">Select barangay</option>';
+
+                barangaySelect.disabled = true;
+
+                districtPreview.value = '';
+                incomeClassPreview.value = '';
+
+                if (!provinceId) {
+                    municipalitySelect.innerHTML =
+                        '<option value="">Select municipality</option>';
+
+                    return;
+                }
+
+                const response = await fetch(
+                    `/locations/provinces/${provinceId}/municipalities`
+                );
+
+                const municipalities = await response.json();
+
+                municipalitySelect.innerHTML =
+                    '<option value="">Select municipality</option>';
+
+                municipalities.forEach(function(municipality) {
+                    const option = document.createElement('option');
+
+                    option.value = municipality.id;
+                    option.textContent = municipality.name;
+
+                    option.dataset.district =
+                        municipality.district ?? '';
+
+                    option.dataset.incomeClass =
+                        municipality.income_class ?? '';
+
+                    municipalitySelect.appendChild(option);
+                });
+
+                municipalitySelect.disabled = false;
+            }
+
+            async function loadBarangays(municipalityId) {
+                barangaySelect.innerHTML =
+                    '<option value="">Loading...</option>';
+
+                barangaySelect.disabled = true;
+
+                if (!municipalityId) {
+                    barangaySelect.innerHTML =
+                        '<option value="">Select barangay</option>';
+
+                    return;
+                }
+
+                const response = await fetch(
+                    `/locations/municipalities/${municipalityId}/barangays`
+                );
+
+                const barangays = await response.json();
+
+                barangaySelect.innerHTML =
+                    '<option value="">Select barangay</option>';
+
+                barangays.forEach(function(barangay) {
+                    const option = document.createElement('option');
+
+                    option.value = barangay.id;
+                    option.textContent = barangay.name;
+
+                    barangaySelect.appendChild(option);
+                });
+
+                barangaySelect.disabled = false;
+            }
+
+            provinceSelect.addEventListener(
+                'change',
+                function() {
+                    loadMunicipalities(
+                        this.value
+                    );
+                }
+            );
+
+            municipalitySelect.addEventListener(
+                'change',
+                function() {
+                    const selected =
+                        this.options[this.selectedIndex];
+
+                    districtPreview.value =
+                        selected?.dataset?.district ||
+                        'Not Assigned';
+
+                    incomeClassPreview.value =
+                        selected?.dataset?.incomeClass ||
+                        'Not Assigned';
+
+                    loadBarangays(
+                        this.value
+                    );
+                }
+            );
             const days = document.getElementById('numberOfDays');
             const beneficiaries = document.getElementById('beneficiariesTotal');
             const wageRate = document.getElementById('wageRate');

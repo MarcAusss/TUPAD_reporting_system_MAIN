@@ -7,7 +7,10 @@ use App\Enums\PpeType;
 use App\Enums\ProjectStatus;
 use App\Enums\ProjectTerm;
 use App\Models\AdlAllocation;
+use App\Models\Barangay;
+use App\Models\Municipality;
 use App\Models\Project;
+use App\Models\Province;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,12 +20,21 @@ use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
+    /*
+    |--------------------------------------------------------------------------
+    | Official Project List
+    |--------------------------------------------------------------------------
+    */
+
     public function index(): View
     {
         $projects = Project::query()
             ->with([
                 'allocation.adl',
                 'creator',
+                'provinceReference',
+                'municipalityReference',
+                'barangayReference',
             ])
             ->latest('date_received')
             ->latest('id')
@@ -33,6 +45,12 @@ class ProjectController extends Controller
             compact('projects')
         );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Queue
+    |--------------------------------------------------------------------------
+    */
 
     public function paymentQueue(): View
     {
@@ -55,6 +73,12 @@ class ProjectController extends Controller
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Create Official Project
+    |--------------------------------------------------------------------------
+    */
+
     public function create(): View
     {
         $allocations = AdlAllocation::query()
@@ -62,21 +86,36 @@ class ProjectController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        $provinces = Province::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         return view(
             'projects.create',
             [
                 'allocations' => $allocations,
+                'provinces' => $provinces,
                 'implementationModes' => ImplementationMode::cases(),
                 'ppeTypes' => PpeType::cases(),
             ]
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Store Official Project
+    |--------------------------------------------------------------------------
+    */
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateProject($request);
 
-        return DB::transaction(function () use ($request, $validated) {
+        return DB::transaction(function () use (
+            $request,
+            $validated
+        ) {
             /*
             |--------------------------------------------------------------------------
             | Lock Allocation
@@ -89,15 +128,29 @@ class ProjectController extends Controller
                     $validated['adl_allocation_id']
                 );
 
+            /*
+            |--------------------------------------------------------------------------
+            | Project Duration
+            |--------------------------------------------------------------------------
+            */
+
             $numberOfDays = (int) $validated['number_of_days'];
 
             $term = ProjectTerm::fromDays(
                 $numberOfDays
             );
 
-            $beneficiaries = (int) $validated['beneficiaries_total'];
+            /*
+            |--------------------------------------------------------------------------
+            | Beneficiaries
+            |--------------------------------------------------------------------------
+            */
 
-            $femaleBeneficiaries = (int) $validated['beneficiaries_female'];
+            $beneficiaries =
+                (int) $validated['beneficiaries_total'];
+
+            $femaleBeneficiaries =
+                (int) $validated['beneficiaries_female'];
 
             if ($femaleBeneficiaries > $beneficiaries) {
                 throw ValidationException::withMessages([
@@ -105,6 +158,47 @@ class ProjectController extends Controller
                         'Female beneficiaries cannot exceed the total number of beneficiaries.',
                 ]);
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Validate Geographic Hierarchy
+            |--------------------------------------------------------------------------
+            |
+            | Province
+            |   ↓
+            | Municipality
+            |   ↓
+            | Barangay
+            |
+            | This prevents users from manually submitting mismatched IDs.
+            |
+            */
+
+            $province = Province::query()
+                ->where('is_active', true)
+                ->findOrFail(
+                    $validated['province_id']
+                );
+
+            $municipality = Municipality::query()
+                ->where(
+                    'province_id',
+                    $province->id
+                )
+                ->where('is_active', true)
+                ->findOrFail(
+                    $validated['municipality_id']
+                );
+
+            $barangay = Barangay::query()
+                ->where(
+                    'municipality_id',
+                    $municipality->id
+                )
+                ->where('is_active', true)
+                ->findOrFail(
+                    $validated['barangay_id']
+                );
 
             /*
             |--------------------------------------------------------------------------
@@ -191,86 +285,184 @@ class ProjectController extends Controller
                 throw ValidationException::withMessages([
                     'adl_allocation_id' => sprintf(
                         'The project cost of ₱%s exceeds the remaining allocation budget of ₱%s.',
-                        number_format($totalProjectCost, 2),
-                        number_format($availableProjectBudget, 2),
+                        number_format(
+                            $totalProjectCost,
+                            2
+                        ),
+                        number_format(
+                            $availableProjectBudget,
+                            2
+                        ),
                     ),
                 ]);
             }
 
             /*
             |--------------------------------------------------------------------------
-            | Create Project
+            | Create Official Project
             |--------------------------------------------------------------------------
             */
 
             $project = Project::create([
-                'adl_allocation_id' => $allocation->id,
+                'adl_allocation_id' =>
+                    $allocation->id,
 
-                'date_received' => $validated['date_received'],
+                'date_received' =>
+                    $validated['date_received'],
 
-                'project_title' => trim(
-                    $validated['project_title']
-                ),
+                'project_title' =>
+                    trim(
+                        $validated['project_title']
+                    ),
 
-                'nature_of_work' => trim(
-                    $validated['nature_of_work']
-                ),
+                'nature_of_work' =>
+                    trim(
+                        $validated['nature_of_work']
+                    ),
 
-                'province' => trim(
-                    $validated['province']
-                ),
+                /*
+                |--------------------------------------------------------------------------
+                | Geographic References
+                |--------------------------------------------------------------------------
+                */
 
-                'district' => trim(
-                    $validated['district']
-                ),
+                'province_id' =>
+                    $province->id,
 
-                'municipality' => trim(
-                    $validated['municipality']
-                ),
+                'municipality_id' =>
+                    $municipality->id,
 
-                'barangay' => trim(
-                    $validated['barangay']
-                ),
+                'barangay_id' =>
+                    $barangay->id,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Geographic Text Snapshot
+                |--------------------------------------------------------------------------
+                |
+                | We retain these fields for historical compatibility and reporting.
+                |
+                */
+
+                'province' =>
+                    $province->name,
+
+                'district' =>
+                    $municipality->district
+                    ?? 'Not Assigned',
+
+                'municipality' =>
+                    $municipality->name,
+
+                'barangay' =>
+                    $barangay->name,
 
                 'income_class' =>
-                    filled($validated['income_class'] ?? null)
-                    ? trim($validated['income_class'])
-                    : null,
+                    $municipality->income_class,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Implementation
+                |--------------------------------------------------------------------------
+                */
 
                 'implementation_mode' =>
                     $validated['implementation_mode'],
 
-                'number_of_days' => $numberOfDays,
+                'number_of_days' =>
+                    $numberOfDays,
 
-                'term' => $term,
+                'term' =>
+                    $term,
 
-                'beneficiaries_total' => $beneficiaries,
+                /*
+                |--------------------------------------------------------------------------
+                | Beneficiaries
+                |--------------------------------------------------------------------------
+                */
 
-                'beneficiaries_female' => $femaleBeneficiaries,
+                'beneficiaries_total' =>
+                    $beneficiaries,
 
-                'wage_rate' => $wageRate,
+                'beneficiaries_female' =>
+                    $femaleBeneficiaries,
 
-                'wages_total' => $wagesTotal,
+                /*
+                |--------------------------------------------------------------------------
+                | Wage
+                |--------------------------------------------------------------------------
+                */
 
-                'ppe_total' => $ppeTotal,
+                'wage_rate' =>
+                    $wageRate,
 
-                'insurance_rate' => $insuranceRate,
+                'wages_total' =>
+                    $wagesTotal,
 
-                'insurance_total' => $insuranceTotal,
+                /*
+                |--------------------------------------------------------------------------
+                | PPE
+                |--------------------------------------------------------------------------
+                */
 
-                'total_project_cost' => $totalProjectCost,
+                'ppe_total' =>
+                    $ppeTotal,
 
-                'status' => ProjectStatus::ONGOING_PROFILING,
+                /*
+                |--------------------------------------------------------------------------
+                | Insurance
+                |--------------------------------------------------------------------------
+                */
 
-                'remarks' => $validated['remarks'] ?? null,
+                'insurance_rate' =>
+                    $insuranceRate,
 
-                'created_by' => $request->user()->id,
+                'insurance_total' =>
+                    $insuranceTotal,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Overall Cost
+                |--------------------------------------------------------------------------
+                */
+
+                'total_project_cost' =>
+                    $totalProjectCost,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Workflow
+                |--------------------------------------------------------------------------
+                */
+
+                'status' =>
+                    ProjectStatus::ONGOING_PROFILING,
+
+                'remarks' =>
+                    $validated['remarks'] ?? null,
+
+                /*
+                |--------------------------------------------------------------------------
+                | Audit
+                |--------------------------------------------------------------------------
+                */
+
+                'created_by' =>
+                    $request->user()->id,
             ]);
 
-            if (!empty($ppeItems)) {
+            /*
+            |--------------------------------------------------------------------------
+            | Create PPE Items
+            |--------------------------------------------------------------------------
+            */
+
+            if (! empty($ppeItems)) {
                 $project
                     ->ppeItems()
-                    ->createMany($ppeItems);
+                    ->createMany(
+                        $ppeItems
+                    );
             }
 
             return redirect()
@@ -284,6 +476,12 @@ class ProjectController extends Controller
                 );
         });
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Show Official Project
+    |--------------------------------------------------------------------------
+    */
 
     public function show(
         Request $request,
@@ -303,15 +501,27 @@ class ProjectController extends Controller
 
         if (
             $user->isFocal()
-            && $project->status !== ProjectStatus::FOR_PAYMENT
-            && $project->status !== ProjectStatus::COMPLETED
+            && ! in_array(
+                $project->status,
+                [
+                    ProjectStatus::FOR_PAYMENT,
+                    ProjectStatus::COMPLETED,
+                ],
+                true
+            )
         ) {
             abort(403);
         }
 
         $project->load([
             'allocation.adl',
+
+            'provinceReference',
+            'municipalityReference',
+            'barangayReference',
+
             'ppeItems',
+
             'creator',
             'updater',
 
@@ -337,14 +547,33 @@ class ProjectController extends Controller
         );
     }
 
-    private function validateProject(Request $request): array
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | Validate Project
+    |--------------------------------------------------------------------------
+    */
+
+    private function validateProject(
+        Request $request
+    ): array {
         return $request->validate([
+            /*
+            |--------------------------------------------------------------------------
+            | Allocation
+            |--------------------------------------------------------------------------
+            */
+
             'adl_allocation_id' => [
                 'required',
                 'integer',
                 'exists:adl_allocations,id',
             ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | General
+            |--------------------------------------------------------------------------
+            */
 
             'date_received' => [
                 'required',
@@ -363,39 +592,41 @@ class ProjectController extends Controller
                 'max:3000',
             ],
 
-            'province' => [
+            /*
+            |--------------------------------------------------------------------------
+            | Geographic References
+            |--------------------------------------------------------------------------
+            */
+
+            'province_id' => [
                 'required',
-                'string',
-                'max:150',
+                'integer',
+                'exists:provinces,id',
             ],
 
-            'district' => [
+            'municipality_id' => [
                 'required',
-                'string',
-                'max:100',
+                'integer',
+                'exists:municipalities,id',
             ],
 
-            'municipality' => [
+            'barangay_id' => [
                 'required',
-                'string',
-                'max:150',
+                'integer',
+                'exists:barangays,id',
             ],
 
-            'barangay' => [
-                'required',
-                'string',
-                'max:150',
-            ],
-
-            'income_class' => [
-                'nullable',
-                'string',
-                'max:50',
-            ],
+            /*
+            |--------------------------------------------------------------------------
+            | Implementation
+            |--------------------------------------------------------------------------
+            */
 
             'implementation_mode' => [
                 'required',
-                Rule::enum(ImplementationMode::class),
+                Rule::enum(
+                    ImplementationMode::class
+                ),
             ],
 
             'number_of_days' => [
@@ -404,6 +635,12 @@ class ProjectController extends Controller
                 'min:10',
                 'max:90',
             ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Beneficiaries
+            |--------------------------------------------------------------------------
+            */
 
             'beneficiaries_total' => [
                 'required',
@@ -417,6 +654,12 @@ class ProjectController extends Controller
                 'min:0',
             ],
 
+            /*
+            |--------------------------------------------------------------------------
+            | Financial
+            |--------------------------------------------------------------------------
+            */
+
             'wage_rate' => [
                 'required',
                 'numeric',
@@ -429,6 +672,12 @@ class ProjectController extends Controller
                 'min:0',
             ],
 
+            /*
+            |--------------------------------------------------------------------------
+            | PPE
+            |--------------------------------------------------------------------------
+            */
+
             'ppe_items' => [
                 'nullable',
                 'array',
@@ -436,7 +685,9 @@ class ProjectController extends Controller
 
             'ppe_items.*.ppe_type' => [
                 'required_with:ppe_items.*.product',
-                Rule::enum(PpeType::class),
+                Rule::enum(
+                    PpeType::class
+                ),
             ],
 
             'ppe_items.*.product' => [
@@ -457,6 +708,12 @@ class ProjectController extends Controller
                 'min:0',
             ],
 
+            /*
+            |--------------------------------------------------------------------------
+            | Remarks
+            |--------------------------------------------------------------------------
+            */
+
             'remarks' => [
                 'nullable',
                 'string',
@@ -465,46 +722,123 @@ class ProjectController extends Controller
         ]);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Prepare PPE Items
+    |--------------------------------------------------------------------------
+    */
+
     private function preparePpeItems(
         array $items,
         int $projectBeneficiaries
     ): array {
         $prepared = [];
 
-        foreach ($items as $item) {
+        foreach ($items as $index => $item) {
+            /*
+            |--------------------------------------------------------------------------
+            | Ignore Empty PPE Rows
+            |--------------------------------------------------------------------------
+            */
+
             if (
                 blank($item['product'] ?? null)
-                && blank($item['beneficiary_count'] ?? null)
-                && blank($item['unit_amount'] ?? null)
+                && blank(
+                    $item['beneficiary_count']
+                    ?? null
+                )
+                && blank(
+                    $item['unit_amount']
+                    ?? null
+                )
             ) {
                 continue;
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | Validate Complete PPE Row
+            |--------------------------------------------------------------------------
+            */
+
+            if (blank($item['ppe_type'] ?? null)) {
+                throw ValidationException::withMessages([
+                    "ppe_items.$index.ppe_type" =>
+                        'Select a PPE type.',
+                ]);
+            }
+
+            if (blank($item['product'] ?? null)) {
+                throw ValidationException::withMessages([
+                    "ppe_items.$index.product" =>
+                        'Enter the PPE product name.',
+                ]);
+            }
+
             $beneficiaryCount = (int) (
-                $item['beneficiary_count'] ?? 0
+                $item['beneficiary_count']
+                ?? 0
             );
 
-            if ($beneficiaryCount > $projectBeneficiaries) {
+            if ($beneficiaryCount < 1) {
                 throw ValidationException::withMessages([
-                    'ppe_items' =>
+                    "ppe_items.$index.beneficiary_count" =>
+                        'PPE beneficiary count must be at least 1.',
+                ]);
+            }
+
+            if (
+                $beneficiaryCount
+                > $projectBeneficiaries
+            ) {
+                throw ValidationException::withMessages([
+                    "ppe_items.$index.beneficiary_count" =>
                         'A PPE beneficiary count cannot exceed the total project beneficiaries.',
                 ]);
             }
 
             $unitAmount = round(
-                (float) ($item['unit_amount'] ?? 0),
+                (float) (
+                    $item['unit_amount']
+                    ?? 0
+                ),
                 2
             );
 
+            if ($unitAmount < 0) {
+                throw ValidationException::withMessages([
+                    "ppe_items.$index.unit_amount" =>
+                        'PPE unit amount cannot be negative.',
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Prepared PPE
+            |--------------------------------------------------------------------------
+            */
+
             $prepared[] = [
-                'ppe_type' => $item['ppe_type'],
-                'product' => trim($item['product']),
-                'beneficiary_count' => $beneficiaryCount,
-                'unit_amount' => $unitAmount,
-                'total_amount' => round(
-                    $beneficiaryCount * $unitAmount,
-                    2
-                ),
+                'ppe_type' =>
+                    $item['ppe_type'],
+
+                'product' =>
+                    trim(
+                        $item['product']
+                    ),
+
+                'beneficiary_count' =>
+                    $beneficiaryCount,
+
+                'unit_amount' =>
+                    $unitAmount,
+
+                'total_amount' =>
+                    round(
+                        $beneficiaryCount
+                        * $unitAmount,
+                        2
+                    ),
             ];
         }
 

@@ -48,6 +48,10 @@ class Project extends Model
         'status',
         'remarks',
 
+        'province_id',
+        'municipality_id',
+        'barangay_id',
+
         'created_by',
         'updated_by',
     ];
@@ -199,6 +203,54 @@ class Project extends Model
     {
         return $this->hasMany(
             ProjectStatusHistory::class
+        );
+    }
+
+    public function provinceReference(): BelongsTo
+    {
+        return $this->belongsTo(
+            Province::class,
+            'province_id'
+        );
+    }
+
+    public function municipalityReference(): BelongsTo
+    {
+        return $this->belongsTo(
+            Municipality::class,
+            'municipality_id'
+        );
+    }
+
+    public function barangayReference(): BelongsTo
+    {
+        return $this->belongsTo(
+            Barangay::class,
+            'barangay_id'
+        );
+    }
+
+    public function getFullLocationAttribute(): string
+    {
+        if (
+            $this->barangayReference
+            && $this->municipalityReference
+            && $this->provinceReference
+        ) {
+            return implode(', ', [
+                $this->barangayReference->name,
+                $this->municipalityReference->name,
+                $this->provinceReference->name,
+            ]);
+        }
+
+        return implode(
+            ', ',
+            array_filter([
+                $this->barangay,
+                $this->municipality,
+                $this->province,
+            ])
         );
     }
 }

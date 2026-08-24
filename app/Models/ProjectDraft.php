@@ -54,6 +54,10 @@ class ProjectDraft extends Model
         'reviewed_at',
         'reviewed_by',
 
+        'province_id',
+        'municipality_id',
+        'barangay_id',
+
         'confirmed_project_id',
         'confirmed_at',
     ];
@@ -157,5 +161,29 @@ class ProjectDraft extends Model
     {
         return $this->status
             === ProjectDraftStatus::CONFIRMED;
+    }
+
+    public function provinceReference(): BelongsTo
+    {
+        return $this->belongsTo(
+            Province::class,
+            'province_id'
+        );
+    }
+
+    public function municipalityReference(): BelongsTo
+    {
+        return $this->belongsTo(
+            Municipality::class,
+            'municipality_id'
+        );
+    }
+
+    public function barangayReference(): BelongsTo
+    {
+        return $this->belongsTo(
+            Barangay::class,
+            'barangay_id'
+        );
     }
 }

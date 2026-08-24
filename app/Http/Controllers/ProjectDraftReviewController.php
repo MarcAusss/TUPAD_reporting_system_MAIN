@@ -223,6 +223,15 @@ class ProjectDraftReviewController extends Controller
             */
 
             $officialProject = Project::create([
+                'province_id' =>
+                    $lockedDraft->province_id,
+
+                'municipality_id' =>
+                    $lockedDraft->municipality_id,
+
+                'barangay_id' =>
+                    $lockedDraft->barangay_id,
+
                 'adl_allocation_id' =>
                     $allocation->id,
 
