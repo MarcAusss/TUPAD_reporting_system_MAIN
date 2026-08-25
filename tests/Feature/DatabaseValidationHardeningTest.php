@@ -139,6 +139,24 @@ class DatabaseValidationHardeningTest extends TestCase
             'nature_of_work' =>
                 'Community clean-up activities.',
 
+            'fund_sponsor' =>
+                'Department of Labor and Employment',
+
+            'partner' =>
+                'LGU Virac',
+
+            'project_series' =>
+                'Regular TUPAD 2026',
+
+            'project_series_remarks' =>
+                'Validation test series remarks.',
+
+            'tevs_date_verified' =>
+                now()->toDateString(),
+
+            'tevs_remarks' =>
+                'TEVS verified.',
+
             'province_id' =>
                 $this->province->id,
 

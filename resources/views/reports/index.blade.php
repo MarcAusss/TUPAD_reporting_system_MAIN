@@ -4,22 +4,26 @@
 
 @section('content')
 
-    <div class="mb-6">
-
-        <h1 class="text-2xl font-bold tracking-tight text-slate-900">
-            Reports
-        </h1>
-
-        <p class="mt-1 text-sm text-slate-500">
-            Filter and review official TUPAD project records.
-        </p>
-
-    </div>
+    <x-page-header
+        eyebrow="Reporting"
+        title="Reports"
+        description="Filter, review, export, and print official TUPAD project records."
+    />
 
     {{-- Filters --}}
 
     <form method="GET" action="{{ route('reports.index') }}"
         class="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
+        <div class="mb-4">
+            <h2 class="text-sm font-semibold text-slate-900">
+                Report Filters
+            </h2>
+
+            <p class="mt-1 text-xs text-slate-500">
+                Narrow the report before exporting or printing.
+            </p>
+        </div>
 
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
 
@@ -206,7 +210,20 @@
 
     <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
-        <div class="overflow-x-auto">
+        <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-sm font-semibold text-slate-900">Report Results</h2>
+                <p class="mt-1 text-xs text-slate-500">
+                    Export and print actions use the currently applied filters.
+                </p>
+            </div>
+
+            <div class="text-[11px] font-semibold text-slate-400">
+                {{ number_format($projects->total()) }} project record(s)
+            </div>
+        </div>
+
+        <div class="tupad-data-scroll overflow-x-auto">
 
             <table class="min-w-full">
 

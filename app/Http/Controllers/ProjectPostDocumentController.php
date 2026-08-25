@@ -68,7 +68,7 @@ class ProjectPostDocumentController extends Controller
         return back()->with(
             'success',
             $project->status === ProjectStatus::FOR_PAYMENT
-                ? 'Post-documentary requirement saved. Project moved to For Payment.'
+                ? 'Post-documentary requirement saved. Project is ready for Payment of Wages / obligation processing.'
                 : 'Post-documentary requirement saved successfully.'
         );
     }

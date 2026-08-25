@@ -22,6 +22,14 @@
         $navClass = fn (bool $active) => $active
             ? 'tupad-nav-active'
             : 'tupad-nav-idle';
+
+        $workspaceLabel = match (true) {
+            $user->isFocal() => 'Focal Fund Monitoring Workspace',
+            $user->isTc() => 'TUPAD Coordinator Workspace',
+            $user->isGip() => 'GIP Encoding Workspace',
+            $user->isAdmin() => 'Administrator Workspace',
+            default => 'TUPAD Workspace',
+        };
     @endphp
 
     <div class="min-h-screen">
@@ -58,72 +66,265 @@
             </div>
 
             <div class="tupad-scrollbar flex-1 overflow-y-auto px-3 py-5">
-                <nav class="space-y-1.5">
-                    <a href="{{ route('dashboard') }}" class="{{ $navClass(request()->routeIs('dashboard')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+                <nav class="space-y-1.5" aria-label="Primary navigation">
+
+                    <div class="tupad-nav-section !pt-0">
+                        Main
+                    </div>
+
+                    <a
+                        href="{{ route('dashboard') }}"
+                        class="{{ $navClass(request()->routeIs('dashboard')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                    >
                         <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect>
+                            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
                         </svg>
+
                         <span>Dashboard</span>
                     </a>
 
-                    @if($user->isAdmin() || $user->isFocal())
-                        <a href="{{ route('adl.index') }}" class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+                    {{-- =========================================================
+                        FOCAL WORKSPACE
+                    ========================================================== --}}
+                    @if($user->isFocal())
+
+                        <div class="tupad-nav-section">
+                            Fund Management
+                        </div>
+
+                        <a
+                            href="{{ route('adl.index') }}"
+                            class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                        >
                             <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                <circle cx="12" cy="8" r="3"></circle><path d="M5 20a7 7 0 0 1 14 0"></path><path d="M4 4v6"></path><path d="M2 7h4"></path>
+                                <path d="M12 3v18"></path>
+                                <path d="M17 7.5C17 5.57 14.76 4 12 4S7 5.57 7 7.5 9.24 11 12 11s5 1.57 5 3.5S14.76 18 12 18s-5-1.57-5-3.5"></path>
                             </svg>
+
                             <span>ADL</span>
                         </a>
-                    @endif
 
-                    @if($user->isAdmin() || $user->isTc())
-                        <a href="{{ route('projects.index') }}" class="{{ $navClass(request()->routeIs('projects.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+                        <div class="tupad-nav-section">
+                            Monitoring
+                        </div>
+
+                        @if(Route::has('fund-monitoring.per-adl-current'))
+                            <a
+                                href="{{ route('fund-monitoring.per-adl-current') }}"
+                                class="{{ $navClass(request()->routeIs('fund-monitoring.per-adl-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
+                            >
+                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path>
+                                </svg>
+                                <span>PER ADL (Current)</span>
+                            </a>
+                        @endif
+
+                        @if(Route::has('fund-monitoring.summary'))
+                            <a
+                                href="{{ route('fund-monitoring.summary') }}"
+                                class="{{ $navClass(request()->routeIs('fund-monitoring.summary')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                            >
+                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 9h8"></path><path d="M8 13h5"></path><path d="M8 17h7"></path>
+                                </svg>
+                                <span>Summary</span>
+                            </a>
+                        @endif
+
+                        @if(Route::has('fund-monitoring.summary-current'))
+                            <a
+                                href="{{ route('fund-monitoring.summary-current') }}"
+                                class="{{ $navClass(request()->routeIs('fund-monitoring.summary-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
+                            >
+                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>
+                                </svg>
+                                <span>Summary (Current)</span>
+                            </a>
+                        @endif
+
+                        @if(Route::has('fund-monitoring.per-province-current'))
+                            <a
+                                href="{{ route('fund-monitoring.per-province-current') }}"
+                                class="{{ $navClass(request()->routeIs('fund-monitoring.per-province-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
+                            >
+                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M3 21h18"></path><path d="M5 21V9l7-5 7 5v12"></path><path d="M9 21v-6h6v6"></path>
+                                </svg>
+                                <span>Per Province (Current)</span>
+                            </a>
+                        @endif
+
+                        <div class="tupad-nav-section">
+                            Payment
+                        </div>
+
+                        <a
+                            href="{{ route('payments.index') }}"
+                            class="{{ $navClass(request()->routeIs('payments.*') || request()->routeIs('projects.payment.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
+                        >
+                            <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path><path d="M7 15h4"></path>
+                            </svg>
+                            <span>Payment of Wages</span>
+                        </a>
+
+                        <div class="tupad-nav-section">
+                            Reporting
+                        </div>
+
+                        <a
+                            href="{{ route('reports.index') }}"
+                            class="{{ $navClass(request()->routeIs('reports.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                        >
+                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path>
+                            </svg>
+                            <span>Reports</span>
+                        </a>
+
+                    {{-- =========================================================
+                        TC / ADMIN PROJECT WORKSPACE
+                    ========================================================== --}}
+                    @elseif($user->isTc() || $user->isAdmin())
+
+                        @if($user->isAdmin())
+                            <div class="tupad-nav-section">
+                                Fund Management
+                            </div>
+
+                            <a
+                                href="{{ route('adl.index') }}"
+                                class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                            >
+                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M12 3v18"></path><path d="M17 7.5C17 5.57 14.76 4 12 4S7 5.57 7 7.5 9.24 11 12 11s5 1.57 5 3.5S14.76 18 12 18s-5-1.57-5-3.5"></path>
+                                </svg>
+                                <span>ADL</span>
+                            </a>
+                        @endif
+
+                        <div class="tupad-nav-section">
+                            Project Management
+                        </div>
+
+                        <a
+                            href="{{ route('projects.index') }}"
+                            class="{{ $navClass(request()->routeIs('projects.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                        >
                             <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M3 12h18"></path>
                             </svg>
                             <span>Projects</span>
                         </a>
 
-                        <a href="{{ route('project-draft-reviews.index') }}" class="{{ $navClass(request()->routeIs('project-draft-reviews.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <a
+                            href="{{ route('project-draft-reviews.index') }}"
+                            class="{{ $navClass(request()->routeIs('project-draft-reviews.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
+                        >
+                            <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
                             </svg>
                             <span>GIP Draft Reviews</span>
                         </a>
-                    @elseif($user->isGip())
-                        <a href="{{ route('project-drafts.index') }}" class="{{ $navClass(request()->routeIs('project-drafts.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                <path d="M5 3h10l4 4v14H5z"></path><path d="M15 3v5h5"></path><path d="M8 13h8"></path><path d="M8 17h6"></path>
-                            </svg>
-                            <span>Project Drafts</span>
-                        </a>
-                    @endif
 
-                    @if($user->isAdmin() || $user->isFocal())
-                        <a href="{{ route('payments.index') }}" class="{{ $navClass(request()->routeIs('payments.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                <rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path><path d="M7 15h4"></path>
-                            </svg>
-                            <span>Payment Queue</span>
-                        </a>
-                    @endif
+                        <div class="tupad-nav-section">
+                            Project Workflow
+                        </div>
 
-                    @if($user->isAdmin() || $user->isTc() || $user->isFocal())
-                        <a href="{{ route('reports.index') }}" class="{{ $navClass(request()->routeIs('reports.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+                        @php
+                            $workflowQueue = request()->route('queue');
+                        @endphp
+
+                        @foreach([
+                            'tssd-evaluation' => ['TSSD Evaluation', 'M9 11l2 2 4-4 M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18'],
+                            'for-approval' => ['For Approval', 'M7 12l3 3 7-7 M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1'],
+                            'implementation' => ['Implementation', 'M4 21h16 M6 21V9l6-4 6 4v12 M9 14h6'],
+                            'post-documents' => ['Post-Documents', 'M5 3h10l4 4v14H5z M15 3v5h5 M8 13h8 M8 17h6'],
+                            'release-of-assistance' => ['Release of Assistance', 'M3 12h18 M15 6l6 6-6 6 M9 6H4v12h5'],
+                        ] as $queueKey => [$queueLabel, $queueIcon])
+                            <a
+                                href="{{ route('project-workflow.index', ['queue' => $queueKey]) }}"
+                                class="{{ $navClass(request()->routeIs('project-workflow.index') && $workflowQueue === $queueKey) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
+                            >
+                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="{{ $queueIcon }}"></path>
+                                </svg>
+                                <span>{{ $queueLabel }}</span>
+                            </a>
+                        @endforeach
+
+                        @if($user->isAdmin())
+                            <div class="tupad-nav-section">
+                                Payment
+                            </div>
+
+                            <a
+                                href="{{ route('payments.index') }}"
+                                class="{{ $navClass(request()->routeIs('payments.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
+                            >
+                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path><path d="M7 15h4"></path>
+                                </svg>
+                                <span>Payment of Wages</span>
+                            </a>
+                        @endif
+
+                        <div class="tupad-nav-section">
+                            Reporting
+                        </div>
+
+                        <a
+                            href="{{ route('reports.index') }}"
+                            class="{{ $navClass(request()->routeIs('reports.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                        >
                             <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path>
                             </svg>
                             <span>Reports</span>
                         </a>
+
+                        @if($user->isAdmin())
+                            <div class="tupad-nav-section">
+                                Administration
+                            </div>
+
+                            <a
+                                href="{{ route('users.index') }}"
+                                class="{{ $navClass(request()->routeIs('users.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                            >
+                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                                </svg>
+                                <span>Users</span>
+                            </a>
+                        @endif
+
+                    {{-- =========================================================
+                        GIP WORKSPACE
+                    ========================================================== --}}
+                    @elseif($user->isGip())
+
+                        <div class="tupad-nav-section">
+                            Project Management
+                        </div>
+
+                        <a
+                            href="{{ route('project-drafts.index') }}"
+                            class="{{ $navClass(request()->routeIs('project-drafts.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                        >
+                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M5 3h10l4 4v14H5z"></path><path d="M15 3v5h5"></path><path d="M8 13h8"></path><path d="M8 17h6"></path>
+                            </svg>
+                            <span>Project Drafts</span>
+                        </a>
+
                     @endif
 
-                    @if($user->isAdmin())
-                        <a href="{{ route('users.index') }}" class="{{ $navClass(request()->routeIs('users.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                            </svg>
-                            <span>Users</span>
-                        </a>
-                    @endif
                 </nav>
             </div>
 
@@ -174,18 +375,14 @@
                 </div>
 
                 <div class="ml-4 flex items-center gap-4">
-                    <button
-                        type="button"
-                        disabled
-                        title="Notifications are not yet enabled"
-                        aria-label="Notifications are not yet enabled"
-                        class="relative flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full text-slate-300"
-                    >
-                        <svg class="h-[21px] w-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
-                            <path d="M13.7 21a2 2 0 0 1-3.4 0"></path>
-                        </svg>
-                    </button>
+                    <div class="hidden text-right xl:block">
+                        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                            Current Workspace
+                        </div>
+                        <div class="mt-0.5 text-[11px] font-semibold text-[#355378]">
+                            {{ $workspaceLabel }}
+                        </div>
+                    </div>
 
                     <div class="hidden h-9 w-px bg-[#e0e7f0] sm:block"></div>
 
@@ -202,7 +399,75 @@
                 </div>
             </header>
 
+            <div class="border-b border-[#e6ebf2] bg-white px-4 py-3 md:hidden">
+                <form
+                    method="GET"
+                    action="{{ Route::has('search.index') ? route('search.index') : route('dashboard') }}"
+                    role="search"
+                >
+                    <label for="global-search-mobile" class="sr-only">
+                        Search the TUPAD Reporting System
+                    </label>
+
+                    <div class="tupad-input flex h-10 items-center rounded-lg px-3">
+                        <svg class="h-[17px] w-[17px] shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="m20 20-3.5-3.5"></path>
+                        </svg>
+
+                        <input
+                            id="global-search-mobile"
+                            name="q"
+                            type="search"
+                            value="{{ request()->routeIs('search.index') ? request('q') : '' }}"
+                            placeholder="Search project, ADL, location..."
+                            autocomplete="off"
+                            class="h-full w-full bg-transparent pl-3 text-[12px] outline-none"
+                        >
+                    </div>
+                </form>
+            </div>
+
             <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-[1660px] p-4 md:p-5 xl:p-6">
+
+                {{-- Global success/error feedback --}}
+                @if(session('success'))
+                    <div class="tupad-feedback tupad-feedback-success mb-5" role="status">
+                        <div class="tupad-feedback-icon">✓</div>
+
+                        <div>
+                            <div class="tupad-feedback-title">
+                                Action completed
+                            </div>
+
+                            <div class="tupad-feedback-message">
+                                {{ session('success') }}
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @if($errors->any())
+                    <div class="tupad-feedback tupad-feedback-error mb-5" role="alert">
+                        <div class="tupad-feedback-icon">!</div>
+
+                        <div class="min-w-0">
+                            <div class="tupad-feedback-title">
+                                Please review the highlighted information
+                            </div>
+
+                            <div class="tupad-feedback-message">
+                                {{ $errors->first() }}
+                            </div>
+
+                            @if($errors->count() > 1)
+                                <div class="mt-1 text-[11px] font-medium opacity-75">
+                                    {{ $errors->count() - 1 }} additional validation issue(s) are shown in the form.
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @endif
                 @yield('content')
             </main>
 

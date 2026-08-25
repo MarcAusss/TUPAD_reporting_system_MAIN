@@ -54,9 +54,7 @@
                     <option value="{{ $allocation->id }}" @selected(old('adl_allocation_id', $editing ? $draft->adl_allocation_id : null) == $allocation->id)>
                         {{ $allocation->adl->adl_number }}
                         —
-                        {{ $allocation->fund_sponsor }}
-                        /
-                        {{ $allocation->partner }}
+                        {{ $allocation->location }}
                         —
                         ₱{{ number_format($allocation->amount, 2) }}
                     </option>

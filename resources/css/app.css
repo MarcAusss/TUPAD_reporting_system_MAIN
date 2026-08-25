@@ -165,3 +165,273 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     main h1 { font-size: 20px !important; }
     main section.rounded-xl, main form.rounded-xl { border-radius: 10px !important; }
 }
+
+
+/* ============================================================
+   UX Foundation — role clarity, feedback, density, discoverability
+   ============================================================ */
+
+.tupad-nav-section {
+    margin-top: 18px;
+    padding: 0 16px 6px;
+    color: #8a98ab;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.tupad-nav-section:first-child {
+    margin-top: 0;
+}
+
+.tupad-nav-active,
+.tupad-nav-idle {
+    position: relative;
+}
+
+.tupad-nav-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 0 999px 999px 0;
+    background: rgba(255,255,255,.92);
+}
+
+/* One consistent place for operation and validation feedback. */
+.tupad-feedback {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    border: 1px solid;
+    border-radius: 10px;
+    padding: 13px 15px;
+    box-shadow: 0 1px 2px rgba(15, 35, 71, .035);
+}
+
+.tupad-feedback-icon {
+    display: flex;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.tupad-feedback-title {
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.tupad-feedback-message {
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.tupad-feedback-success {
+    border-color: #b9e3c8;
+    background: #f3fbf6;
+    color: #17643a;
+}
+
+.tupad-feedback-success .tupad-feedback-icon {
+    background: #daf1e2;
+    color: #17643a;
+}
+
+.tupad-feedback-error {
+    border-color: #efc1bd;
+    background: #fff6f5;
+    color: #9b2c23;
+}
+
+.tupad-feedback-error .tupad-feedback-icon {
+    background: #f7deda;
+    color: #9b2c23;
+}
+
+/* Government workflow forms should scan quickly. */
+main form label {
+    line-height: 1.25;
+}
+
+main input[readonly],
+main input:disabled,
+main select:disabled,
+main textarea:disabled {
+    cursor: not-allowed !important;
+    border-color: #e0e6ee !important;
+    background: #f7f9fc !important;
+    color: #64748b !important;
+}
+
+/* Tables: keep action columns and headers easy to scan. */
+main table th:last-child,
+main table td:last-child {
+    padding-right: 20px;
+}
+
+main table td:first-child,
+main table th:first-child {
+    padding-left: 20px;
+}
+
+/* Avoid weak "clickable text" affordance for major workflow actions. */
+main a[class*='rounded-lg'][class*='font-semibold'],
+main button[class*='rounded-lg'][class*='font-semibold'] {
+    min-height: 36px;
+}
+
+/* Better mobile density without turning pages into stacked cards. */
+@media (max-width: 767px) {
+    .tupad-nav-section {
+        margin-top: 14px;
+    }
+
+    .tupad-feedback {
+        padding: 12px;
+    }
+
+    main .overflow-x-auto {
+        margin-left: -2px;
+        margin-right: -2px;
+    }
+}
+
+
+/* ============================================================
+   R11 UX — long forms and project detail
+   ============================================================ */
+
+/* Automatically mark adjacent required controls without rewriting every label. */
+main form label:has(+ input[required])::after,
+main form label:has(+ select[required])::after,
+main form label:has(+ textarea[required])::after {
+    content: ' *';
+    color: #dc2626;
+    font-weight: 800;
+}
+
+main section[id] {
+    scroll-behavior: smooth;
+}
+
+/* Keep long form cards visually grouped while retaining government density. */
+#projectForm section[id] {
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+#projectForm section[id]:target {
+    border-color: #9cb8db;
+    box-shadow: 0 0 0 3px rgba(11, 87, 164, .06);
+}
+
+/* Better keyboard visibility for section navigation. */
+a[href^="#"]:focus-visible {
+    outline: 2px solid #0b57a4;
+    outline-offset: 2px;
+}
+
+
+/* ============================================================
+   R12 UX — dense government monitoring data
+   ============================================================ */
+
+.tupad-data-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #b9c5d5 #f4f7fa;
+}
+
+.tupad-data-scroll::-webkit-scrollbar {
+    height: 10px;
+}
+
+.tupad-data-scroll::-webkit-scrollbar-track {
+    background: #f4f7fa;
+}
+
+.tupad-data-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid #f4f7fa;
+    border-radius: 999px;
+    background: #b9c5d5;
+}
+
+.tupad-wide-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.tupad-wide-table tbody tr:hover td {
+    background-color: #f8fbff;
+}
+
+/* Sticky first identifier column keeps context while reading wide registers. */
+.tupad-wide-table th:first-child,
+.tupad-wide-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+}
+
+.tupad-wide-table thead th:first-child {
+    z-index: 7;
+}
+
+.tupad-wide-table tbody td:first-child {
+    background: #fff;
+    box-shadow: 1px 0 0 #e7edf4;
+}
+
+.tupad-wide-table tbody tr:hover td:first-child {
+    background: #f8fbff;
+}
+
+/* Financial figures should scan as tabular numbers. */
+.tupad-wide-table td.text-right,
+.tupad-wide-table th.text-right {
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+    .tupad-wide-table th:first-child,
+    .tupad-wide-table td:first-child {
+        min-width: 110px;
+    }
+}
+
+
+/* ============================================================
+   R13 UX — dashboard & final consistency
+   ============================================================ */
+
+.tupad-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 35, 71, .035);
+}
+
+/* Keep financial/dashboard figures aligned and easy to scan. */
+.tupad-card [class*='font-extrabold'],
+.tupad-card [class*='font-semibold'] {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Dashboard tables should behave like other system tables. */
+.tupad-table-row:hover {
+    background-color: #f8fafc;
+}
+
+@media (max-width: 640px) {
+    .tupad-card {
+        border-radius: 10px;
+    }
+}

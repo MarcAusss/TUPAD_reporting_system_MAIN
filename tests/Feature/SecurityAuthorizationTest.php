@@ -11,7 +11,6 @@ use App\Models\AdlAllocation;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
-use App\Models\ProjectBeneficiary;
 use App\Models\ProjectPostDocument;
 use App\Models\Province;
 use App\Models\User;
@@ -358,136 +357,26 @@ class SecurityAuthorizationTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | Beneficiary Nested Resource Protection
+    | Individual Beneficiary Registry Removed
     |--------------------------------------------------------------------------
     */
 
-    public function test_beneficiary_from_another_project_cannot_be_edited_through_wrong_project(): void
+    public function test_individual_beneficiary_routes_are_not_registered(): void
     {
-        $projectOne =
-            $this->createProject();
+        $routeNames = collect(app('router')->getRoutes()->getRoutes())
+            ->map(fn ($route) => $route->getName())
+            ->filter()
+            ->values();
 
-        $projectTwo =
-            $this->createProject();
-
-        $beneficiary = ProjectBeneficiary::create([
-            'project_id' =>
-                $projectOne->id,
-
-            'first_name' =>
-                'Juan',
-
-            'last_name' =>
-                'Dela Cruz',
-
-            'sex' =>
-                'male',
-
-            'encoded_by' =>
-                $this->tc->id,
-        ]);
-
-        $response = $this
-            ->actingAs($this->tc)
-            ->get(
-                route(
-                    'projects.beneficiaries.edit',
-                    [
-                        'project' =>
-                            $projectTwo,
-
-                        'beneficiary' =>
-                            $beneficiary,
-                    ]
-                )
-            );
-
-        $response->assertNotFound();
-    }
-
-    public function test_beneficiary_from_another_project_cannot_be_updated_through_wrong_project(): void
-    {
-        $projectOne =
-            $this->createProject();
-
-        $projectTwo =
-            $this->createProject();
-
-        $beneficiary = ProjectBeneficiary::create([
-            'project_id' =>
-                $projectOne->id,
-
-            'first_name' =>
-                'Juan',
-
-            'last_name' =>
-                'Dela Cruz',
-
-            'sex' =>
-                'male',
-
-            'encoded_by' =>
-                $this->tc->id,
-        ]);
-
-        $response = $this
-            ->actingAs($this->tc)
-            ->put(
-                route(
-                    'projects.beneficiaries.update',
-                    [
-                        'project' =>
-                            $projectTwo,
-
-                        'beneficiary' =>
-                            $beneficiary,
-                    ]
-                ),
-                [
-                    'first_name' =>
-                        'Changed',
-
-                    'middle_name' =>
-                        null,
-
-                    'last_name' =>
-                        'Name',
-
-                    'suffix' =>
-                        null,
-
-                    'sex' =>
-                        'female',
-
-                    'birth_date' =>
-                        null,
-
-                    'contact_number' =>
-                        null,
-
-                    'remarks' =>
-                        null,
-                ]
-            );
-
-        $response->assertNotFound();
-
-        $this->assertDatabaseHas(
-            'project_beneficiaries',
-            [
-                'id' =>
-                    $beneficiary->id,
-
-                'first_name' =>
-                    'Juan',
-
-                'last_name' =>
-                    'Dela Cruz',
-
-                'project_id' =>
-                    $projectOne->id,
-            ]
-        );
+        foreach ([
+            'projects.beneficiaries.index',
+            'projects.beneficiaries.store',
+            'projects.beneficiaries.edit',
+            'projects.beneficiaries.update',
+            'projects.beneficiaries.destroy',
+        ] as $routeName) {
+            $this->assertFalse($routeNames->contains($routeName));
+        }
     }
 
     /*

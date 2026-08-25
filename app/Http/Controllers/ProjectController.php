@@ -322,6 +322,50 @@ class ProjectController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
+                | Funding Ownership
+                |--------------------------------------------------------------------------
+                |
+                | Sponsor and Partner belong to the official project and are
+                | encoded by the TUPAD Coordinator.
+                |
+                */
+
+                'fund_sponsor' =>
+                    trim(
+                        $validated['fund_sponsor']
+                    ),
+
+                'partner' =>
+                    trim(
+                        $validated['partner']
+                    ),
+
+                /*
+                |--------------------------------------------------------------------------
+                | Project Series / TEVS Verification
+                |--------------------------------------------------------------------------
+                */
+
+                'project_series' =>
+                    trim(
+                        $validated['project_series']
+                    ),
+
+                'project_series_remarks' =>
+                    filled($validated['project_series_remarks'] ?? null)
+                        ? trim($validated['project_series_remarks'])
+                        : null,
+
+                'tevs_date_verified' =>
+                    $validated['tevs_date_verified'],
+
+                'tevs_remarks' =>
+                    filled($validated['tevs_remarks'] ?? null)
+                        ? trim($validated['tevs_remarks'])
+                        : null,
+
+                /*
+                |--------------------------------------------------------------------------
                 | Geographic References
                 |--------------------------------------------------------------------------
                 */
@@ -538,7 +582,6 @@ class ProjectController extends Controller
             'obligation.recorder',
             'payout.recorder',
 
-            'beneficiaries',
 
             'statusHistory.changer',
         ]);
@@ -590,6 +633,41 @@ class ProjectController extends Controller
 
             'nature_of_work' => [
                 'required',
+                'string',
+                'max:3000',
+            ],
+
+            'fund_sponsor' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'partner' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'project_series' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'project_series_remarks' => [
+                'nullable',
+                'string',
+                'max:3000',
+            ],
+
+            'tevs_date_verified' => [
+                'required',
+                'date',
+            ],
+
+            'tevs_remarks' => [
+                'nullable',
                 'string',
                 'max:3000',
             ],

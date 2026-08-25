@@ -1,16 +1,24 @@
 @extends('layouts.app')
 
-@section('title', 'Payment Queue')
+@section('title', 'Payment of Wages Queue')
 
 @section('content')
-<div class="mb-6">
-    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Payment Queue</h1>
-    <p class="mt-1 text-sm text-slate-500">
-        Projects ready for payment processing and completed payout records.
-    </p>
-</div>
+<x-page-header
+    eyebrow="Payment"
+    title="Payment of Wages Queue"
+    description="Review projects eligible for wage payment or obligation recording and open the project to complete the action."
+/>
 
 <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div>
+            <h2 class="text-sm font-semibold text-slate-900">Payment Processing</h2>
+            <p class="mt-1 text-xs text-slate-500">
+                {{ number_format($projects->total()) }} project record(s) in this queue
+            </p>
+        </div>
+    </div>
     <div class="overflow-x-auto">
         <table class="min-w-full">
             <thead class="bg-slate-50">
@@ -19,7 +27,7 @@
                     <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">ADL</th>
                     <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Partner</th>
                     <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Project Cost</th>
-                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Payment</th>
+                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Payment of Wages</th>
                     <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Status</th>
                     <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Action</th>
                 </tr>
@@ -42,7 +50,7 @@
                         </td>
 
                         <td class="px-5 py-4 text-sm text-slate-600">
-                            {{ $project->allocation->partner }}
+                            {{ $project->partner }}
                         </td>
 
                         <td class="px-5 py-4 text-right text-sm font-semibold text-slate-900">
@@ -51,13 +59,9 @@
 
                         <td class="px-5 py-4">
                             @if($project->obligation)
-                                <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                    Recorded
-                                </span>
+                                <x-status-badge tone="success">Recorded</x-status-badge>
                             @else
-                                <span class="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                    Pending
-                                </span>
+                                <x-status-badge tone="warning">Pending</x-status-badge>
                             @endif
                         </td>
 
@@ -71,16 +75,21 @@
                         </td>
 
                         <td class="px-5 py-4 text-right">
-                            <a href="{{ route('projects.show', $project) }}"
-                                class="text-sm font-semibold text-slate-700 hover:text-slate-950">
-                                View
+                            <a
+                                href="{{ route('projects.show', $project) }}"
+                                class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                            >
+                                Open Project
                             </a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-sm text-slate-400">
-                            No projects are currently waiting for payment.
+                        <td colspan="7" class="p-0">
+                            <x-empty-state
+                                title="No projects waiting for payment"
+                                message="Projects will appear here after post-documentary requirements are completed and the project reaches For Payment."
+                            />
                         </td>
                     </tr>
                 @endforelse

@@ -20,14 +20,14 @@ class ProjectPaymentController extends Controller
         ) {
             abort(
                 403,
-                'Payment information can only be recorded for projects with For Payment status.'
+                'Payment of Wages / obligation information can only be recorded for projects with For Payment status.'
             );
         }
 
         if ($project->obligation()->exists()) {
             return back()->withErrors([
                 'payee' =>
-                    'This project already has an obligation/payment record.',
+                    'This project already has a Payment of Wages / obligation record.',
             ]);
         }
 
@@ -76,14 +76,14 @@ class ProjectPaymentController extends Controller
             ) {
                 return back()->withErrors([
                     'amount' =>
-                        'This project is no longer available for payment processing.',
+                        'This project is no longer available for Payment of Wages processing.',
                 ]);
             }
 
             if ($lockedProject->obligation()->exists()) {
                 return back()->withErrors([
                     'payee' =>
-                        'This project already has an obligation/payment record.',
+                        'This project already has a Payment of Wages / obligation record.',
                 ]);
             }
 
@@ -109,7 +109,7 @@ class ProjectPaymentController extends Controller
                     ->withInput()
                     ->withErrors([
                         'amount' => sprintf(
-                            'Payment amount cannot exceed the total project cost of ₱%s.',
+                            'Payment of Wages amount cannot exceed the total project cost of ₱%s.',
                             number_format(
                                 $lockedProject->total_project_cost,
                                 2
@@ -126,14 +126,10 @@ class ProjectPaymentController extends Controller
                         ->adl_number,
 
                 'fund_sponsor' =>
-                    $lockedProject
-                        ->allocation
-                        ->fund_sponsor,
+                    $lockedProject->fund_sponsor,
 
                 'partner' =>
-                    $lockedProject
-                        ->allocation
-                        ->partner,
+                    $lockedProject->partner,
 
                 'project_location' =>
                     implode(', ', [
@@ -179,7 +175,7 @@ class ProjectPaymentController extends Controller
                 )
                 ->with(
                     'success',
-                    'Payment/obligation information recorded successfully.'
+                    'Payment of Wages / obligation information recorded successfully.'
                 );
         });
     }

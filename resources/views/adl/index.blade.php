@@ -4,32 +4,32 @@
 
 @section('content')
 
-    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">
-                ADL Management
-            </h1>
-
-            <p class="mt-1 text-sm text-slate-500">
-                Manage ADL grants, re-alignments and fund allocations.
-            </p>
-        </div>
-
-        <a href="{{ route('adl.create') }}"
-            class="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800">
-            Add ADL
-        </a>
-
-    </div>
-
-    @if (session('success'))
-        <div class="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {{ session('success') }}
-        </div>
-    @endif
+    <x-page-header
+        eyebrow="Fund Management"
+        title="ADL Management"
+        description="Manage ADL grant amounts, re-alignments, allocations, and remaining balances."
+    >
+        <x-slot:actions>
+            <a
+                href="{{ route('adl.create') }}"
+                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+                <span class="text-base leading-none">+</span>
+                Add ADL
+            </a>
+        </x-slot:actions>
+    </x-page-header>
 
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div>
+                <h2 class="text-sm font-semibold text-slate-900">ADL Registry</h2>
+                <p class="mt-1 text-xs text-slate-500">
+                    {{ number_format($adls->total()) }} ADL record(s)
+                </p>
+            </div>
+        </div>
 
         <div class="overflow-x-auto">
 
@@ -106,9 +106,11 @@
 
                             <td class="px-5 py-4 text-right">
 
-                                <a href="{{ route('adl.show', $adl) }}"
-                                    class="text-sm font-semibold text-slate-700 hover:text-slate-950">
-                                    View
+                                <a
+                                    href="{{ route('adl.show', $adl) }}"
+                                    class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                                >
+                                    Open ADL
                                 </a>
 
                             </td>
@@ -118,8 +120,20 @@
                     @empty
 
                         <tr>
-                            <td colspan="7" class="px-5 py-12 text-center text-sm text-slate-400">
-                                No ADL records have been created.
+                            <td colspan="7" class="p-0">
+                                <x-empty-state
+                                    title="No ADL records yet"
+                                    message="Create the first ADL record to begin fund allocation and monitoring."
+                                >
+                                    <x-slot:action>
+                                        <a
+                                            href="{{ route('adl.create') }}"
+                                            class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
+                                        >
+                                            Add ADL
+                                        </a>
+                                    </x-slot:action>
+                                </x-empty-state>
                             </td>
                         </tr>
                     @endforelse

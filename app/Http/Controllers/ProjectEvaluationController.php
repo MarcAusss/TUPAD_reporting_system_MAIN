@@ -24,23 +24,6 @@ class ProjectEvaluationController extends Controller
             );
         }
 
-        $registeredBeneficiaries = $project
-            ->beneficiaries()
-            ->count();
-
-        if (
-            $registeredBeneficiaries
-            !== (int) $project->beneficiaries_total
-        ) {
-            return back()->withErrors([
-                'beneficiaries' => sprintf(
-                    'Beneficiary registry is incomplete. The project declares %d beneficiaries but only %d beneficiary records have been encoded.',
-                    $project->beneficiaries_total,
-                    $registeredBeneficiaries,
-                ),
-            ]);
-        }
-
         $project->update([
             'status' => ProjectStatus::TSSD_EVALUATION,
             'updated_by' => $request->user()->id,
@@ -84,12 +67,14 @@ class ProjectEvaluationController extends Controller
             ],
 
             'findings' => [
+                'required_if:result,for_compliance',
                 'nullable',
                 'string',
                 'max:5000',
             ],
 
             'required_documents' => [
+                'required_if:result,for_compliance',
                 'nullable',
                 'string',
                 'max:5000',
@@ -102,25 +87,19 @@ class ProjectEvaluationController extends Controller
             ],
         ]);
 
-        if (
-            $validated['result'] === 'for_compliance'
-            && blank($validated['findings'] ?? null)
-            && blank($validated['required_documents'] ?? null)
-        ) {
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'findings' =>
-                        'Provide findings or required documents when returning the project for compliance.',
-                ]);
-        }
+        $isForCompliance =
+            $validated['result'] === 'for_compliance';
 
         $project->evaluations()->create([
             'findings' =>
-                $validated['findings'] ?? null,
+                $isForCompliance
+                    ? trim($validated['findings'])
+                    : null,
 
             'required_documents' =>
-                $validated['required_documents'] ?? null,
+                $isForCompliance
+                    ? trim($validated['required_documents'])
+                    : null,
 
             'remarks' =>
                 $validated['remarks'] ?? null,

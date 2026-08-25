@@ -1,10 +1,20 @@
 @extends('layouts.app')
 @section('title', $title)
 @section('content')
-<div class="mb-6"><h1 class="text-2xl font-bold text-slate-900">{{ $title }}</h1><p class="mt-1 text-sm text-slate-500">Regional fund summary generated from PER ADL and official projects.</p></div>
-<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">@foreach([
+<x-page-header
+    eyebrow="Monitoring"
+    :title="$title"
+    description="Regional fund summary generated from current PER ADL data and official project workflow records."
+/>
+<section>
+        <div class="mb-3">
+            <h2 class="text-sm font-semibold text-slate-900">Fund Position</h2>
+            <p class="mt-1 text-xs text-slate-500">Regional allocation, utilization, and balance totals.</p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">@foreach([
 ['Allocation Total',$totals['allocation_total']],['Target Grants',$totals['target_grants']],['Obligated / Accomplished',$totals['obligated_grants']],['Unutilized',$totals['unutilized']],['Wages',$totals['wages']],['PPE',$totals['ppe']],['Insurance',$totals['insurance']],['Available Balance',$totals['available_balance']]
 ] as [$l,$v])<div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div class="text-xs font-semibold uppercase text-slate-400">{{ $l }}</div><div class="mt-3 text-xl font-bold text-slate-900">₱{{ number_format($v,2) }}</div></div>@endforeach</div>
+</div></section>
 <div class="mt-5 grid gap-5 lg:grid-cols-3"><section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div class="text-xs text-slate-500">Utilization</div><div class="mt-2 text-3xl font-bold text-[#063b86]">{{ number_format($totals['utilization'],2) }}%</div></section><section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div class="text-xs text-slate-500">Target Beneficiaries</div><div class="mt-2 text-3xl font-bold text-slate-900">{{ number_format($totals['target_beneficiaries']) }}</div></section><section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div class="text-xs text-slate-500">Accomplished Beneficiaries / Female</div><div class="mt-2 text-3xl font-bold text-slate-900">{{ number_format($totals['beneficiaries']) }} <span class="text-base font-medium text-slate-400">/ {{ number_format($totals['female']) }}</span></div></section></div>
-<section class="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="text-sm font-semibold text-slate-900">On Process</h2><div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">@foreach(['for_payment'=>'IMSD / Payment','post_docs'=>'Implemented / Post-Docs','ongoing_implementation'=>'Ongoing Implementation','for_implementation'=>'With NTP / For Implementation','approved'=>'Approved','for_approval'=>'For Approval','under_evaluation'=>'Under Evaluation','remaining'=>'Remaining'] as $k=>$l)<div><div class="text-xs text-slate-500">{{ $l }}</div><div class="mt-1 text-sm font-bold">₱{{ number_format($totals[$k],2) }}</div></div>@endforeach</div></section>
+<section class="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="text-sm font-semibold text-slate-900">Workflow Exposure</h2><p class="mt-1 text-xs text-slate-500">Funds currently distributed across active workflow stages.</p><div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">@foreach(['for_payment'=>'IMSD / Payment','post_docs'=>'Implemented / Post-Docs','ongoing_implementation'=>'Ongoing Implementation','for_implementation'=>'With NTP / For Implementation','approved'=>'Approved','for_approval'=>'For Approval','under_evaluation'=>'Under Evaluation','remaining'=>'Remaining'] as $k=>$l)<div><div class="text-xs text-slate-500">{{ $l }}</div><div class="mt-1 text-sm font-bold">₱{{ number_format($totals[$k],2) }}</div></div>@endforeach</div></section>
 @endsection

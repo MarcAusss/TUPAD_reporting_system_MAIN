@@ -7,36 +7,6 @@
 @php
     /*
     |--------------------------------------------------------------------------
-    | Beneficiary Registry Summary
-    |--------------------------------------------------------------------------
-    */
-
-    $registeredBeneficiaries = $project->beneficiaries->count();
-
-    $registeredMale = $project
-        ->beneficiaries
-        ->where('sex', 'male')
-        ->count();
-
-    $registeredFemale = $project
-        ->beneficiaries
-        ->where('sex', 'female')
-        ->count();
-
-    $beneficiaryRegistryComplete =
-        $registeredBeneficiaries
-        === (int) $project->beneficiaries_total;
-
-    $beneficiaryRegistryPercent =
-        $project->beneficiaries_total > 0
-            ? min(
-                100,
-                ($registeredBeneficiaries / $project->beneficiaries_total) * 100
-            )
-            : 0;
-
-    /*
-    |--------------------------------------------------------------------------
     | Role-aware Back Link
     |--------------------------------------------------------------------------
     */
@@ -48,128 +18,199 @@
         $backUrl = route('projects.index');
         $backLabel = 'Project Management';
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | UX: Recommended Next Action
+    |--------------------------------------------------------------------------
+    */
+
+    $nextAction = match ($project->status) {
+        \App\Enums\ProjectStatus::ONGOING_PROFILING =>
+            'Submit the project for TSSD Evaluation.',
+
+        \App\Enums\ProjectStatus::TSSD_EVALUATION =>
+            'Record the TSSD evaluation result.',
+
+        \App\Enums\ProjectStatus::FOR_COMPLIANCE =>
+            'Review the compliance submission and record the next evaluation result.',
+
+        \App\Enums\ProjectStatus::FOR_APPROVAL =>
+            'Complete the project approval action.',
+
+        \App\Enums\ProjectStatus::APPROVED =>
+            'Complete the implementation preparation requirements.',
+
+        \App\Enums\ProjectStatus::FOR_IMPLEMENTATION =>
+            'Start implementation after all preparation requirements are complete.',
+
+        \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION =>
+            'Complete implementation and prepare the required post-documents.',
+
+        \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS =>
+            'Record the submitted post-documentary requirements.',
+
+        \App\Enums\ProjectStatus::FOR_PAYMENT =>
+            $project->obligation
+                ? 'Record the Release of Assistance to complete the project.'
+                : 'The Focal/Admin must record Payment of Wages / obligation information.',
+
+        \App\Enums\ProjectStatus::COMPLETED =>
+            'No pending workflow action. This project is complete.',
+    };
 @endphp
 
-<div class="mb-6">
+<x-page-header
+    eyebrow="Official Project"
+    :title="$project->project_title"
+    description="Review the project profile, current workflow status, and the action required to move the project forward."
+>
+    <x-slot:actions>
+        <a
+            href="{{ $backUrl }}"
+            class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+            ← {{ $backLabel }}
+        </a>
+    </x-slot:actions>
+</x-page-header>
 
-    {{-- Completed Banner --}}
-
-    @if($project->status === \App\Enums\ProjectStatus::COMPLETED)
-
-        <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-
-            <div class="flex items-center gap-3">
-
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-
-                    <svg
-                        class="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="m5 12 4 4L19 6"></path>
-                    </svg>
-
-                </div>
-
-                <div>
-
-                    <div class="text-sm font-semibold text-emerald-900">
-                        Project Completed
-                    </div>
-
-                    <p class="mt-1 text-xs text-emerald-700">
-                        Post-documentary requirements, payment, and payout have been recorded.
-                    </p>
-
-                </div>
-
+@if($project->status === \App\Enums\ProjectStatus::COMPLETED)
+    <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <div class="flex items-start gap-3">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                ✓
             </div>
 
+            <div>
+                <div class="text-sm font-semibold text-emerald-900">
+                    Project Completed
+                </div>
+
+                <p class="mt-1 text-xs leading-5 text-emerald-700">
+                    Post-documentary requirements, Payment of Wages, and Release of Assistance have been recorded.
+                </p>
+            </div>
         </div>
+    </div>
+@endif
 
-    @endif
+<div class="mb-5 grid gap-4 xl:grid-cols-[1fr_320px]">
 
-    {{-- Header --}}
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-        <div>
-
-            <a
-                href="{{ $backUrl }}"
-                class="text-sm font-medium text-slate-500 hover:text-slate-800"
+        <div class="flex flex-wrap items-center gap-2">
+            <x-status-badge
+                :tone="$project->status === \App\Enums\ProjectStatus::COMPLETED ? 'success' : ($project->status === \App\Enums\ProjectStatus::FOR_COMPLIANCE ? 'warning' : 'info')"
             >
-                ← {{ $backLabel }}
-            </a>
+                {{ $project->status->label() }}
+            </x-status-badge>
 
-            <h1 class="mt-3 text-2xl font-bold tracking-tight text-slate-900">
-                {{ $project->project_title }}
-            </h1>
+            <span class="text-xs font-semibold text-slate-500">
+                {{ $project->term->label() }}
+            </span>
 
-            <div class="mt-2 flex flex-wrap items-center gap-2">
-
-                <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                    {{ $project->status->label() }}
+            @if($project->approval?->project_code)
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                    {{ $project->approval->project_code }}
                 </span>
+            @endif
+        </div>
 
-                <span class="text-xs text-slate-500">
-                    {{ $project->term->label() }}
-                </span>
+        <div class="mt-4 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+            Recommended Next Action
+        </div>
 
-                @if($project->approval)
+        <div class="mt-1 text-sm font-semibold leading-6 text-slate-800">
+            {{ $nextAction }}
+        </div>
 
-                    <span class="text-xs text-slate-400">
-                        {{ $project->approval->project_code }}
-                    </span>
+    </div>
 
-                @endif
+    <div class="rounded-xl border border-blue-200 bg-blue-50 p-5">
 
+        <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-600">
+            Project Snapshot
+        </div>
+
+        <dl class="mt-3 space-y-2 text-xs">
+            <div class="flex items-center justify-between gap-4">
+                <dt class="text-blue-700">Beneficiaries</dt>
+                <dd class="font-semibold text-blue-950">{{ number_format($project->beneficiaries_total) }}</dd>
             </div>
 
-        </div>
+            <div class="flex items-center justify-between gap-4">
+                <dt class="text-blue-700">Duration</dt>
+                <dd class="font-semibold text-blue-950">{{ $project->number_of_days }} day(s)</dd>
+            </div>
+
+            <div class="flex items-center justify-between gap-4">
+                <dt class="text-blue-700">Total Cost</dt>
+                <dd class="font-semibold text-blue-950">₱{{ number_format($project->total_project_cost, 2) }}</dd>
+            </div>
+        </dl>
 
     </div>
 
 </div>
 
-{{-- Success Message --}}
+<div class="sticky top-[65px] z-20 mb-5 overflow-x-auto rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur">
 
-@if(session('success'))
+    <nav class="flex min-w-max items-center gap-1" aria-label="Project detail sections">
 
-    <div class="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-        {{ session('success') }}
-    </div>
+        <a href="#overview" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
+            Overview
+        </a>
 
-@endif
+        <a href="#evaluation" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
+            Evaluation
+        </a>
 
-{{-- Validation Errors --}}
+        @if(
+            in_array(
+                $project->status,
+                [
+                    \App\Enums\ProjectStatus::APPROVED,
+                    \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
+                    \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
+                    \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+                ],
+                true
+            )
+        )
+            <a href="#implementation" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
+                Implementation
+            </a>
+        @endif
 
-@if($errors->any())
+        @if(
+            in_array(
+                $project->status,
+                [
+                    \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+                    \App\Enums\ProjectStatus::FOR_PAYMENT,
+                    \App\Enums\ProjectStatus::COMPLETED,
+                ],
+                true
+            )
+        )
+            <a href="#final-workflow" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
+                Final Workflow
+            </a>
+        @endif
 
-    <div class="mb-5 rounded-lg border border-red-200 bg-red-50 p-4">
+        <a href="#history" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
+            History
+        </a>
 
-        <div class="text-sm font-semibold text-red-800">
-            Please correct the following:
-        </div>
+    </nav>
 
-        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
-
-            @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-
-        </ul>
-
-    </div>
-
-@endif
+</div>
 
 {{-- Financial Summary --}}
 
-<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+<div id="overview" class="scroll-mt-32 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
@@ -256,7 +297,7 @@
                 </dt>
 
                 <dd class="text-right text-sm font-medium text-slate-800">
-                    {{ $project->allocation->fund_sponsor }}
+                    {{ $project->fund_sponsor }}
                 </dd>
 
             </div>
@@ -268,7 +309,7 @@
                 </dt>
 
                 <dd class="text-right text-sm font-medium text-slate-800">
-                    {{ $project->allocation->partner }}
+                    {{ $project->partner }}
                 </dd>
 
             </div>
@@ -296,6 +337,54 @@
                 </dd>
 
             </div>
+
+            <div class="grid grid-cols-2 gap-4 px-5 py-3">
+
+                <dt class="text-xs text-slate-500">
+                    Project Series
+                </dt>
+
+                <dd class="text-right text-sm font-medium text-slate-800">
+                    {{ $project->project_series ?: '—' }}
+                </dd>
+
+            </div>
+
+            @if($project->project_series_remarks)
+                <div class="grid grid-cols-2 gap-4 px-5 py-3">
+                    <dt class="text-xs text-slate-500">
+                        Project Series Remarks
+                    </dt>
+
+                    <dd class="text-right text-sm font-medium text-slate-800">
+                        {{ $project->project_series_remarks }}
+                    </dd>
+                </div>
+            @endif
+
+            <div class="grid grid-cols-2 gap-4 px-5 py-3">
+
+                <dt class="text-xs text-slate-500">
+                    TEVS Date Verified
+                </dt>
+
+                <dd class="text-right text-sm font-medium text-slate-800">
+                    {{ $project->tevs_date_verified?->format('F d, Y') ?? '—' }}
+                </dd>
+
+            </div>
+
+            @if($project->tevs_remarks)
+                <div class="grid grid-cols-2 gap-4 px-5 py-3">
+                    <dt class="text-xs text-slate-500">
+                        TEVS Remarks
+                    </dt>
+
+                    <dd class="text-right text-sm font-medium text-slate-800">
+                        {{ $project->tevs_remarks }}
+                    </dd>
+                </div>
+            @endif
 
             @if($project->remarks)
 
@@ -463,157 +552,32 @@
 
 </section>
 
-{{-- Beneficiary Registry --}}
+{{-- Beneficiary Summary --}}
 
-@if(auth()->user()->isAdmin() || auth()->user()->isTc())
+<section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 px-5 py-4">
+        <h2 class="text-sm font-semibold text-slate-900">Beneficiary Summary</h2>
+        <p class="mt-1 text-xs text-slate-500">
+            Only aggregate beneficiary counts are recorded. Individual beneficiary personal records are not encoded.
+        </p>
+    </div>
 
-    <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
-        <div class="border-b border-slate-200 px-5 py-4">
-
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-                <div>
-
-                    <h2 class="text-sm font-semibold text-slate-900">
-                        Beneficiary Registry
-                    </h2>
-
-                    <p class="mt-1 text-xs text-slate-500">
-                        Individual beneficiary records encoded for this project.
-                    </p>
-
-                </div>
-
-                <div class="flex items-center gap-3">
-
-                    <span
-                        class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold
-                            {{ $beneficiaryRegistryComplete
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-amber-50 text-amber-700' }}"
-                    >
-                        {{ $beneficiaryRegistryComplete ? 'Complete' : 'Incomplete' }}
-                    </span>
-
-                    @if($project->status === \App\Enums\ProjectStatus::ONGOING_PROFILING)
-
-                        <a
-                            href="{{ route('projects.beneficiaries.index', $project) }}"
-                            class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
-                        >
-                            Manage Registry
-                        </a>
-
-                    @endif
-
-                </div>
-
-            </div>
-
+    <div class="grid gap-4 p-5 sm:grid-cols-2">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Beneficiaries</div>
+            <div class="mt-2 text-2xl font-bold text-slate-900">{{ number_format($project->beneficiaries_total) }}</div>
         </div>
 
-        <div class="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
-
-            <div>
-
-                <div class="text-xs text-slate-500">
-                    Declared
-                </div>
-
-                <div class="mt-1 text-lg font-bold text-slate-900">
-                    {{ number_format($project->beneficiaries_total) }}
-                </div>
-
-            </div>
-
-            <div>
-
-                <div class="text-xs text-slate-500">
-                    Registered
-                </div>
-
-                <div class="mt-1 text-lg font-bold text-slate-900">
-                    {{ number_format($registeredBeneficiaries) }}
-                </div>
-
-            </div>
-
-            <div>
-
-                <div class="text-xs text-slate-500">
-                    Male
-                </div>
-
-                <div class="mt-1 text-lg font-bold text-slate-900">
-                    {{ number_format($registeredMale) }}
-                </div>
-
-            </div>
-
-            <div>
-
-                <div class="text-xs text-slate-500">
-                    Female
-                </div>
-
-                <div class="mt-1 text-lg font-bold text-slate-900">
-                    {{ number_format($registeredFemale) }}
-                </div>
-
-            </div>
-
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Female Beneficiaries</div>
+            <div class="mt-2 text-2xl font-bold text-slate-900">{{ number_format($project->beneficiaries_female) }}</div>
         </div>
-
-        <div class="border-t border-slate-100 px-5 py-4">
-
-            <div class="flex items-center justify-between text-xs">
-
-                <span class="font-semibold text-slate-600">
-                    Registry Completion
-                </span>
-
-                <span class="font-semibold text-slate-800">
-                    {{ number_format($registeredBeneficiaries) }}
-                    /
-                    {{ number_format($project->beneficiaries_total) }}
-                </span>
-
-            </div>
-
-            <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-
-                <div
-                    class="h-full rounded-full bg-slate-800"
-                    style="width: {{ $beneficiaryRegistryPercent }}%;"
-                ></div>
-
-            </div>
-
-            @if(!$beneficiaryRegistryComplete)
-
-                <p class="mt-3 text-xs text-amber-700">
-                    Encode
-                    {{ number_format(
-                        max(
-                            0,
-                            $project->beneficiaries_total - $registeredBeneficiaries
-                        )
-                    ) }}
-                    more beneficiary record(s) before submitting for TSSD Evaluation.
-                </p>
-
-            @endif
-
-        </div>
-
-    </section>
-
-@endif
+    </div>
+</section>
 
 {{-- Evaluation & Approval --}}
 
-<section class="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+<section id="evaluation" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
 
     <div class="border-b border-slate-200 px-5 py-4">
 
@@ -632,73 +596,22 @@
         {{-- Ongoing Profiling --}}
 
         @if($project->status === \App\Enums\ProjectStatus::ONGOING_PROFILING)
+            <div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <div class="text-sm font-semibold text-blue-900">Project Profiling Ready</div>
 
-            <div
-                class="rounded-lg border p-4
-                    {{ $beneficiaryRegistryComplete
-                        ? 'border-blue-200 bg-blue-50'
-                        : 'border-amber-200 bg-amber-50' }}"
-            >
+                <p class="mt-1 text-xs leading-5 text-blue-700">
+                    This project uses aggregate beneficiary counts only. No individual beneficiary registry is required before TSSD Evaluation.
+                </p>
 
-                <div
-                    class="text-sm font-semibold
-                        {{ $beneficiaryRegistryComplete
-                            ? 'text-blue-800'
-                            : 'text-amber-800' }}"
-                >
-                    {{ $beneficiaryRegistryComplete
-                        ? 'Profiling Complete?'
-                        : 'Beneficiary Registry Incomplete' }}
-                </div>
-
-                @if($beneficiaryRegistryComplete)
-
-                    <p class="mt-1 text-xs leading-5 text-blue-700">
-                        The declared beneficiary count matches the individual beneficiary registry.
-                        Submit the project to move it into TSSD Evaluation.
-                    </p>
-
-                    <form
-                        method="POST"
-                        action="{{ route('projects.evaluation.start', $project) }}"
-                        class="mt-4"
-                    >
-
+                @if(auth()->user()->isAdmin() || auth()->user()->isTc())
+                    <form method="POST" action="{{ route('projects.evaluation.start', $project) }}" class="mt-4">
                         @csrf
-
-                        <button
-                            type="submit"
-                            class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
-                        >
+                        <button type="submit" class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
                             Submit for TSSD Evaluation
                         </button>
-
                     </form>
-
-                @else
-
-                    <p class="mt-1 text-xs leading-5 text-amber-700">
-                        {{ number_format($registeredBeneficiaries) }}
-                        of
-                        {{ number_format($project->beneficiaries_total) }}
-                        beneficiaries are currently registered.
-                    </p>
-
-                    @if(auth()->user()->isAdmin() || auth()->user()->isTc())
-
-                        <a
-                            href="{{ route('projects.beneficiaries.index', $project) }}"
-                            class="mt-4 inline-flex h-10 items-center rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800"
-                        >
-                            Complete Beneficiary Registry
-                        </a>
-
-                    @endif
-
                 @endif
-
             </div>
-
         @endif
 
         {{-- TSSD Evaluation / Compliance --}}
@@ -805,6 +718,7 @@
                             </label>
 
                             <select
+                                id="evaluation-result"
                                 name="result"
                                 required
                                 class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
@@ -834,34 +748,68 @@
 
                     </div>
 
-                    <div>
+                    <div
+                        id="for-approval-note"
+                        class="hidden rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3"
+                    >
+                        <div class="text-xs font-semibold text-emerald-900">
+                            Ready for Approval
+                        </div>
 
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Findings
-                        </label>
-
-                        <textarea
-                            name="findings"
-                            rows="3"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            placeholder="Evaluation findings..."
-                        >{{ old('findings') }}</textarea>
-
+                        <p class="mt-1 text-xs leading-5 text-emerald-700">
+                            Findings and Required Documents are not required when the evaluation result is For Approval.
+                        </p>
                     </div>
 
-                    <div>
+                    <div
+                        id="compliance-fields"
+                        class="space-y-4"
+                    >
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
 
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Required Documents
-                        </label>
+                            <div class="text-xs font-semibold text-amber-900">
+                                Compliance Details Required
+                            </div>
 
-                        <textarea
-                            name="required_documents"
-                            rows="3"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            placeholder="Required documentary compliance..."
-                        >{{ old('required_documents') }}</textarea>
+                            <p class="mt-1 text-xs leading-5 text-amber-700">
+                                Both Findings and Required Documents are required when the result is For Compliance.
+                            </p>
 
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Findings
+                                <span class="text-red-500">*</span>
+                            </label>
+
+                            <textarea
+                                id="evaluation-findings"
+                                name="findings"
+                                rows="3"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                placeholder="State the findings that require compliance..."
+                            >{{ old('findings') }}</textarea>
+
+                        </div>
+
+                        <div>
+
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Required Documents
+                                <span class="text-red-500">*</span>
+                            </label>
+
+                            <textarea
+                                id="evaluation-required-documents"
+                                name="required_documents"
+                                rows="3"
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                placeholder="List the documentary requirements to be complied with..."
+                            >{{ old('required_documents') }}</textarea>
+
+                        </div>
                     </div>
 
                     <div>
@@ -1153,7 +1101,7 @@
     )
 )
 
-    <section class="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section id="implementation" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
 
         <div class="border-b border-slate-200 px-5 py-4">
 
@@ -1272,6 +1220,18 @@
                         Insurance Enrollment
                     </h3>
 
+                    <div class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                        <div class="text-xs font-semibold text-blue-900">
+                            Approved project values are locked
+                        </div>
+
+                        <p class="mt-1 text-xs leading-5 text-blue-700">
+                            Beneficiary Count and Insurance Amount are taken from the approved project
+                            and cannot be changed during Insurance Enrollment. Only operational enrollment
+                            details may be updated.
+                        </p>
+                    </div>
+
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
 
                         <div>
@@ -1299,19 +1259,21 @@
                                 Beneficiaries
                             </label>
 
-                            <input
-                                name="beneficiary_count"
-                                type="number"
-                                min="1"
-                                max="{{ $project->beneficiaries_total }}"
-                                required
-                                value="{{ old(
-                                    'beneficiary_count',
-                                    $project->insuranceEnrollment?->beneficiary_count
-                                        ?? $project->beneficiaries_total
-                                ) }}"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                            <div
+                                class="flex h-10 w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"
                             >
+                                <span class="font-semibold text-slate-900">
+                                    {{ number_format($project->beneficiaries_total) }}
+                                </span>
+
+                                <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                    Locked
+                                </span>
+                            </div>
+
+                            <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                Uses the approved project beneficiary count.
+                            </p>
 
                         </div>
 
@@ -1321,19 +1283,21 @@
                                 Amount
                             </label>
 
-                            <input
-                                name="amount"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                required
-                                value="{{ old(
-                                    'amount',
-                                    $project->insuranceEnrollment?->amount
-                                        ?? $project->insurance_total
-                                ) }}"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                            <div
+                                class="flex h-10 w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"
                             >
+                                <span class="font-semibold text-slate-900">
+                                    ₱{{ number_format($project->insurance_total, 2) }}
+                                </span>
+
+                                <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                    Locked
+                                </span>
+                            </div>
+
+                            <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                Uses the approved project insurance amount.
+                            </p>
 
                         </div>
 
@@ -1676,11 +1640,21 @@
                     </h3>
 
                     <p class="mt-1 text-xs text-slate-500">
-                        Record the approved implementation start and end dates.
-                        The project's declared duration is
-                        {{ $project->number_of_days }}
-                        work day(s).
+                        Select the implementation Start Date.
+                        The system automatically calculates the End Date using the project's
+                        {{ $project->number_of_days }}-day duration.
                     </p>
+
+                    <div class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                        <div class="text-xs font-semibold text-blue-900">
+                            Automatic End Date
+                        </div>
+
+                        <p class="mt-1 text-xs leading-5 text-blue-700">
+                            End Date = Start Date + {{ $project->number_of_days }} day(s).
+                            The calculated End Date cannot be manually changed.
+                        </p>
+                    </div>
 
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
 
@@ -1691,9 +1665,11 @@
                             </label>
 
                             <input
+                                id="implementation-start-date"
                                 name="start_date"
                                 type="date"
                                 required
+                                data-duration-days="{{ $project->number_of_days }}"
                                 value="{{ old(
                                     'start_date',
                                     $project->implementation?->start_date?->format('Y-m-d')
@@ -1710,15 +1686,17 @@
                             </label>
 
                             <input
-                                name="end_date"
+                                id="implementation-end-date"
                                 type="date"
-                                required
-                                value="{{ old(
-                                    'end_date',
-                                    $project->implementation?->end_date?->format('Y-m-d')
-                                ) }}"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                                readonly
+                                tabindex="-1"
+                                value="{{ $project->implementation?->end_date?->format('Y-m-d') }}"
+                                class="h-10 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
                             >
+
+                            <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                Automatically calculated from the Start Date and approved project duration.
+                            </p>
 
                         </div>
 
@@ -1758,6 +1736,45 @@
 
 @endif
 
+{{-- Final Project Workflow Guide --}}
+<section id="final-workflow" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+        Final Project Workflow
+    </div>
+
+    <div class="mt-4 grid gap-3 md:grid-cols-3">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs font-semibold text-slate-500">1. TC / Admin</div>
+            <div class="mt-1 text-sm font-bold text-slate-900">
+                Post-Documentary Requirements
+            </div>
+            <p class="mt-1 text-xs leading-5 text-slate-500">
+                Record required post-implementation documents.
+            </p>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs font-semibold text-slate-500">2. Focal / Admin</div>
+            <div class="mt-1 text-sm font-bold text-slate-900">
+                Payment of Wages / Obligation
+            </div>
+            <p class="mt-1 text-xs leading-5 text-slate-500">
+                Record payment or obligation information for an eligible project.
+            </p>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs font-semibold text-slate-500">3. TC / Admin</div>
+            <div class="mt-1 text-sm font-bold text-slate-900">
+                Release of Assistance
+            </div>
+            <p class="mt-1 text-xs leading-5 text-slate-500">
+                Record the final release and complete the project.
+            </p>
+        </div>
+    </div>
+</section>
+
 {{-- Post-Documentary Requirements --}}
 
 @if(
@@ -1772,7 +1789,7 @@
     )
 )
 
-    <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section id="post-documents" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
         <div class="border-b border-slate-200 px-5 py-4">
 
@@ -1781,7 +1798,8 @@
             </h2>
 
             <p class="mt-1 text-xs text-slate-500">
-                Record submitted post-implementation documents.
+                TC/Admin records the submitted post-implementation documentary requirements.
+                Once complete, the project moves to Payment of Wages / obligation processing.
             </p>
 
         </div>
@@ -2002,7 +2020,7 @@
 
 @endif
 
-{{-- Payment / Obligation --}}
+{{-- Payment of Wages / Obligation --}}
 
 @if(
     in_array(
@@ -2015,13 +2033,17 @@
     )
 )
 
-    <section class="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section id="payment" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
 
         <div class="border-b border-slate-200 px-5 py-4">
 
             <h2 class="text-sm font-semibold text-slate-900">
-                Payment / Obligation
+                Payment of Wages / Obligation
             </h2>
+
+            <p class="mt-1 text-xs text-slate-500">
+                Focal/Admin records the wage payment or obligation information after post-documentary requirements are completed.
+            </p>
 
         </div>
 
@@ -2149,7 +2171,7 @@
                             </div>
 
                             <div class="mt-1 text-sm font-semibold text-slate-800">
-                                {{ $project->allocation->partner }}
+                                {{ $project->partner }}
                             </div>
 
                         </div>
@@ -2267,7 +2289,7 @@
                         type="submit"
                         class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800"
                     >
-                        Save Payment
+                        Record Payment of Wages
                     </button>
 
                 </div>
@@ -2277,7 +2299,7 @@
         @else
 
             <div class="p-5 text-sm text-slate-500">
-                Waiting for the Focal account to record payment information.
+                Waiting for the Focal/Admin account to record Payment of Wages / obligation information.
             </div>
 
         @endif
@@ -2286,7 +2308,7 @@
 
 @endif
 
-{{-- Release / Payout --}}
+{{-- Release of Assistance --}}
 
 @if(
     in_array(
@@ -2299,13 +2321,18 @@
     )
 )
 
-    <section class="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section id="release" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
 
         <div class="border-b border-slate-200 px-5 py-4">
 
             <h2 class="text-sm font-semibold text-slate-900">
-                Release of Assistance / Payout
+                Release of Assistance
             </h2>
+
+            <p class="mt-1 text-xs text-slate-500">
+                TC/Admin records the actual release after Payment of Wages / obligation information exists.
+                Saving this final step completes the project.
+            </p>
 
         </div>
 
@@ -2316,7 +2343,7 @@
                 <div class="grid grid-cols-2 gap-4 px-5 py-3">
 
                     <dt class="text-xs text-slate-500">
-                        Date of Payout
+                        Date of Release
                     </dt>
 
                     <dd class="text-right text-sm font-medium text-slate-800">
@@ -2328,7 +2355,7 @@
                 <div class="grid grid-cols-2 gap-4 px-5 py-3">
 
                     <dt class="text-xs text-slate-500">
-                        Mode of Payout
+                        Mode of Release
                     </dt>
 
                     <dd class="text-right text-sm font-medium text-slate-800">
@@ -2389,7 +2416,7 @@
                     <div>
 
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Date of Payout
+                            Date of Release
                         </label>
 
                         <input
@@ -2408,14 +2435,14 @@
                     <div>
 
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Mode of Payout
+                            Mode of Release
                         </label>
 
                         <input
                             name="payout_mode"
                             required
                             value="{{ old('payout_mode') }}"
-                            placeholder="Example: Cash Card / Direct Payout"
+                            placeholder="Example: Cash Card / Direct Release"
                             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         >
 
@@ -2458,7 +2485,7 @@
                         type="submit"
                         class="h-10 rounded-lg bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800"
                     >
-                        Record Payout & Complete Project
+                        Record Release & Complete Project
                     </button>
 
                 </div>
@@ -2471,7 +2498,7 @@
         )
 
             <div class="p-5 text-sm text-slate-500">
-                Payment/obligation information must be recorded before payout.
+                Payment of Wages / obligation information must be recorded before Release of Assistance.
             </div>
 
         @endif
@@ -2482,7 +2509,7 @@
 
 {{-- PPE Requirements --}}
 
-<section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+<section id="ppe-requirements" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
     <div class="border-b border-slate-200 px-5 py-4">
 
@@ -2577,7 +2604,7 @@
 
 {{-- Project Status History --}}
 
-<section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+<section id="history" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
     <div class="border-b border-slate-200 px-5 py-4">
 
@@ -2682,5 +2709,136 @@
     </div>
 
 </section>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const startInput =
+        document.getElementById('implementation-start-date');
+
+    const endInput =
+        document.getElementById('implementation-end-date');
+
+    if (!startInput || !endInput) {
+        return;
+    }
+
+    const durationDays =
+        Number.parseInt(
+            startInput.dataset.durationDays || '0',
+            10
+        );
+
+    const formatLocalDate = (date) => {
+        const year = date.getFullYear();
+
+        const month = String(
+            date.getMonth() + 1
+        ).padStart(2, '0');
+
+        const day = String(
+            date.getDate()
+        ).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
+
+    const refreshEndDate = () => {
+        if (
+            !startInput.value
+            || !Number.isFinite(durationDays)
+            || durationDays < 1
+        ) {
+            endInput.value = '';
+            return;
+        }
+
+        const [year, month, day] =
+            startInput.value
+                .split('-')
+                .map(Number);
+
+        const calculatedDate =
+            new Date(
+                year,
+                month - 1,
+                day
+            );
+
+        calculatedDate.setDate(
+            calculatedDate.getDate()
+            + durationDays
+        );
+
+        endInput.value =
+            formatLocalDate(
+                calculatedDate
+            );
+    };
+
+    startInput.addEventListener(
+        'change',
+        refreshEndDate
+    );
+
+    startInput.addEventListener(
+        'input',
+        refreshEndDate
+    );
+
+    refreshEndDate();
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const resultSelect = document.getElementById('evaluation-result');
+
+    if (!resultSelect) {
+        return;
+    }
+
+    const complianceFields = document.getElementById('compliance-fields');
+    const approvalNote = document.getElementById('for-approval-note');
+    const findings = document.getElementById('evaluation-findings');
+    const requiredDocuments = document.getElementById('evaluation-required-documents');
+
+    const syncEvaluationFields = () => {
+        const isCompliance =
+            resultSelect.value === 'for_compliance';
+
+        const isApproval =
+            resultSelect.value === 'for_approval';
+
+        complianceFields?.classList.toggle(
+            'hidden',
+            !isCompliance
+        );
+
+        approvalNote?.classList.toggle(
+            'hidden',
+            !isApproval
+        );
+
+        if (findings) {
+            findings.required = isCompliance;
+            findings.disabled = !isCompliance;
+        }
+
+        if (requiredDocuments) {
+            requiredDocuments.required = isCompliance;
+            requiredDocuments.disabled = !isCompliance;
+        }
+    };
+
+    resultSelect.addEventListener(
+        'change',
+        syncEvaluationFields
+    );
+
+    syncEvaluationFields();
+});
+</script>
 
 @endsection

@@ -12,8 +12,6 @@ class AdlAllocationController extends Controller
     public function store(Request $request, Adl $adl): RedirectResponse
     {
         $validated = $request->validate([
-            'fund_sponsor' => ['required', 'string', 'max:255'],
-            'partner' => ['required', 'string', 'max:255'],
             'local_chief_executive_partylist' => ['nullable', 'string', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:150'],
@@ -41,8 +39,10 @@ class AdlAllocationController extends Controller
             }
 
             $lockedAdl->allocations()->create([
-                'fund_sponsor' => trim($validated['fund_sponsor']),
-                'partner' => trim($validated['partner']),
+                // Sponsor / Partner are now owned by official projects.
+                // Keep legacy allocation columns null for new records.
+                'fund_sponsor' => null,
+                'partner' => null,
                 'local_chief_executive_partylist' => $validated['local_chief_executive_partylist'] ?? null,
                 'location' => trim($validated['location']),
                 'province' => $validated['province'] ?? null,

@@ -20,21 +20,21 @@ class ProjectPayoutController extends Controller
         ) {
             abort(
                 403,
-                'Payout may only be recorded for projects with For Payment status.'
+                'Release of Assistance may only be recorded for projects with For Payment status.'
             );
         }
 
         if (!$project->obligation()->exists()) {
             return back()->withErrors([
                 'payout_date' =>
-                    'Payment/obligation information must be recorded before payout.',
+                    'Payment of Wages / obligation information must be recorded before Release of Assistance.',
             ]);
         }
 
         if ($project->payout()->exists()) {
             return back()->withErrors([
                 'payout_date' =>
-                    'This project already has a payout record.',
+                    'This project already has a Release of Assistance record.',
             ]);
         }
 
@@ -76,21 +76,21 @@ class ProjectPayoutController extends Controller
             ) {
                 return back()->withErrors([
                     'payout_date' =>
-                        'The project is no longer available for payout.',
+                        'The project is no longer available for Release of Assistance.',
                 ]);
             }
 
             if (!$lockedProject->obligation()->exists()) {
                 return back()->withErrors([
                     'payout_date' =>
-                        'Payment/obligation information must exist before payout.',
+                        'Payment of Wages / obligation information must exist before Release of Assistance.',
                 ]);
             }
 
             if ($lockedProject->payout()->exists()) {
                 return back()->withErrors([
                     'payout_date' =>
-                        'This project already has a payout record.',
+                        'This project already has a Release of Assistance record.',
                 ]);
             }
 
@@ -140,7 +140,7 @@ class ProjectPayoutController extends Controller
                 )
                 ->with(
                     'success',
-                    'Payout recorded successfully. Project marked as Completed.'
+                    'Release of Assistance recorded successfully. Project marked as Completed.'
                 );
         });
     }

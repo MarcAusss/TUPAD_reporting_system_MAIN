@@ -250,154 +250,28 @@ class ProjectWorkflowTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | Beneficiary Registry
+    | Aggregate Beneficiaries / TSSD Evaluation
     |--------------------------------------------------------------------------
     */
 
-    public function test_tc_can_add_beneficiary_to_profiling_project(): void
+    public function test_project_uses_aggregate_beneficiary_counts_without_individual_registry(): void
     {
-        $project = $this->createProfilingProject();
+        $project = $this->createProfilingProject(beneficiaries: 50);
 
-        $response = $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.beneficiaries.store',
-                    $project
-                ),
-                [
-                    'first_name' => 'Juan',
-                    'middle_name' => 'Santos',
-                    'last_name' => 'Dela Cruz',
-                    'suffix' => null,
-                    'sex' => 'male',
-                    'birth_date' => '1990-01-01',
-                    'contact_number' => '09171234567',
-                    'remarks' => null,
-                ]
-            );
-
-        $response->assertRedirect();
-
-        $this->assertDatabaseHas(
-            'project_beneficiaries',
-            [
-                'project_id' => $project->id,
-                'first_name' => 'Juan',
-                'last_name' => 'Dela Cruz',
-                'sex' => 'male',
-            ]
-        );
+        $this->assertSame(50, (int) $project->beneficiaries_total);
+        $this->assertSame(0, (int) $project->beneficiaries_female);
+        $this->assertDatabaseCount('project_beneficiaries', 0);
     }
 
-    public function test_beneficiary_registry_cannot_exceed_declared_count(): void
+    public function test_project_can_enter_tssd_without_individual_beneficiary_registry(): void
     {
-        $project = $this->createProfilingProject(
-            beneficiaries: 1
-        );
+        $project = $this->createProfilingProject(beneficiaries: 2);
 
-        $project->beneficiaries()->create([
-            'first_name' => 'Juan',
-            'last_name' => 'Dela Cruz',
-            'sex' => 'male',
-            'encoded_by' => $this->tc->id,
-        ]);
+        $this->assertSame(0, $project->beneficiaries()->count());
 
         $response = $this
             ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.beneficiaries.store',
-                    $project
-                ),
-                [
-                    'first_name' => 'Maria',
-                    'last_name' => 'Santos',
-                    'sex' => 'female',
-                ]
-            );
-
-        $response
-            ->assertSessionHasErrors(
-                'first_name'
-            );
-
-        $this->assertSame(
-            1,
-            $project
-                ->beneficiaries()
-                ->count()
-        );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | TSSD Evaluation
-    |--------------------------------------------------------------------------
-    */
-
-    public function test_project_cannot_enter_tssd_with_incomplete_registry(): void
-    {
-        $project = $this->createProfilingProject(
-            beneficiaries: 2
-        );
-
-        $project->beneficiaries()->create([
-            'first_name' => 'Juan',
-            'last_name' => 'Dela Cruz',
-            'sex' => 'male',
-            'encoded_by' => $this->tc->id,
-        ]);
-
-        $response = $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.evaluation.start',
-                    $project
-                )
-            );
-
-        $response
-            ->assertSessionHasErrors(
-                'beneficiaries'
-            );
-
-        $this->assertSame(
-            ProjectStatus::ONGOING_PROFILING,
-            $project->fresh()->status
-        );
-    }
-
-    public function test_project_can_enter_tssd_when_registry_is_complete(): void
-    {
-        $project = $this->createProfilingProject(
-            beneficiaries: 2
-        );
-
-        $project->beneficiaries()->createMany([
-            [
-                'first_name' => 'Juan',
-                'last_name' => 'Dela Cruz',
-                'sex' => 'male',
-                'encoded_by' => $this->tc->id,
-            ],
-            [
-                'first_name' => 'Maria',
-                'last_name' => 'Santos',
-                'sex' => 'female',
-                'encoded_by' => $this->tc->id,
-            ],
-        ]);
-
-        $response = $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.evaluation.start',
-                    $project
-                )
-            );
+            ->post(route('projects.evaluation.start', $project));
 
         $response->assertRedirect();
 

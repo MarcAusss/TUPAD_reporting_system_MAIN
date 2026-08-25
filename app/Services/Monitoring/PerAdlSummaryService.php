@@ -61,11 +61,47 @@ class PerAdlSummaryService
         $realignmentAmount = $includeAdlRealignment ? (float) $adl->realignments->sum('amount') : 0.0;
         $latestMaf = $includeAdlRealignment ? $adl->realignments->sortByDesc('maf_date')->first() : null;
 
+        /*
+        |--------------------------------------------------------------------------
+        | Project-owned Sponsor / Partner
+        |--------------------------------------------------------------------------
+        |
+        | Focal monitoring does not encode these values. They are collected from
+        | the TC-created official projects linked to this allocation.
+        |
+        */
+        $fundSponsors = $projects
+            ->pluck('fund_sponsor')
+            ->filter()
+            ->map(fn ($value) => trim((string) $value))
+            ->unique()
+            ->values();
+
+        $partners = $projects
+            ->pluck('partner')
+            ->filter()
+            ->map(fn ($value) => trim((string) $value))
+            ->unique()
+            ->values();
+
         return [
             'adl_id' => $adl->id,
             'adl_number' => $adl->adl_number,
-            'fund_sponsor' => $allocation->fund_sponsor,
-            'lce_partylist' => $allocation->local_chief_executive_partylist ?: $allocation->partner,
+            'fund_sponsor' =>
+                $fundSponsors->isNotEmpty()
+                    ? $fundSponsors->implode(', ')
+                    : '—',
+
+            'partner' =>
+                $partners->isNotEmpty()
+                    ? $partners->implode(', ')
+                    : '—',
+
+            // Kept for older views until all monitoring templates use "partner".
+            'lce_partylist' =>
+                $partners->isNotEmpty()
+                    ? $partners->implode(', ')
+                    : ($allocation->local_chief_executive_partylist ?: '—'),
             'province' => $allocation->province ?: $projects->first()?->province,
             'district' => $allocation->district ?: $projects->first()?->district,
             'municipality' => $allocation->municipality ?: $projects->first()?->municipality ?: $allocation->location,

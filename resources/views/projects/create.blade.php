@@ -4,48 +4,90 @@
 
 @section('content')
 
-    <div class="mx-auto max-w-6xl">
+    <div class="mx-auto max-w-[1320px]">
 
-        <div class="mb-6">
+        <x-page-header
+            eyebrow="Project Management"
+            title="Add Official Project"
+            description="Encode the official project profile in sections. Required fields are marked automatically, and project cost previews update while you work."
+        >
+            <x-slot:actions>
+                <a
+                    href="{{ route('projects.index') }}"
+                    class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                    Cancel
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
-            <a href="{{ route('projects.index') }}" class="text-sm font-medium text-slate-500 hover:text-slate-800">
-                ← Project Management
-            </a>
-
-            <h1 class="mt-3 text-2xl font-bold tracking-tight text-slate-900">
-                Add Official Project
-            </h1>
-
-            <p class="mt-1 text-sm text-slate-500">
-                Create an official TUPAD project profile.
-            </p>
-
-        </div>
-
-        @if ($errors->any())
-
-            <div class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-4">
-
-                <div class="text-sm font-semibold text-red-700">
-                    Please correct the following:
-                </div>
-
-                <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-red-600">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-
+        <div class="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
+            <div class="text-xs font-bold uppercase tracking-[0.1em] text-blue-700">
+                Encoding Guide
             </div>
 
-        @endif
+            <p class="mt-1 text-xs leading-5 text-blue-800">
+                Complete the sections from top to bottom. Location fields load in sequence,
+                while Term, Wages, Insurance, PPE, and Total Project Cost are calculated as you encode.
+            </p>
+        </div>
 
         <form method="POST" action="{{ route('projects.store') }}" class="space-y-5" id="projectForm">
 
             @csrf
 
+            <div class="grid gap-6 xl:grid-cols-[230px_minmax(0,1fr)]">
+
+                <aside class="hidden xl:block">
+
+                    <div class="sticky top-[88px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+
+                        <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                            Project Sections
+                        </div>
+
+                        <nav class="mt-3 space-y-1" aria-label="Project form sections">
+
+                            @foreach([
+                                ['allocation', '1', 'ADL Allocation'],
+                                ['general', '2', 'General Information'],
+                                ['funding', '3', 'Funding Information'],
+                                ['verification', '4', 'Series & TEVS'],
+                                ['location', '5', 'Project Location'],
+                                ['implementation', '6', 'Implementation'],
+                                ['beneficiaries', '7', 'Beneficiaries & Wage'],
+                                ['ppe', '8', 'PPE Requirements'],
+                                ['costing', '9', 'Insurance & Cost'],
+                                ['remarks', '10', 'Remarks'],
+                            ] as [$sectionId, $sectionNumber, $sectionLabel])
+
+                                <a
+                                    href="#{{ $sectionId }}"
+                                    class="group flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                                >
+                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-500 group-hover:border-slate-300">
+                                        {{ $sectionNumber }}
+                                    </span>
+
+                                    <span>{{ $sectionLabel }}</span>
+                                </a>
+
+                            @endforeach
+
+                        </nav>
+
+                        <div class="mt-4 border-t border-slate-100 pt-4 text-[11px] leading-5 text-slate-500">
+                            Fields marked <span class="font-bold text-red-500">*</span> are required.
+                        </div>
+
+                    </div>
+
+                </aside>
+
+                <div class="min-w-0 space-y-5">
+
             {{-- ADL / Allocation --}}
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section id="allocation" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
                     <h2 class="text-sm font-semibold text-slate-900">
@@ -70,9 +112,7 @@
                             <option value="{{ $allocation->id }}" @selected(old('adl_allocation_id') == $allocation->id)>
                                 {{ $allocation->adl->adl_number }}
                                 —
-                                {{ $allocation->fund_sponsor }}
-                                /
-                                {{ $allocation->partner }}
+                                {{ $allocation->location }}
                                 —
                                 ₱{{ number_format($allocation->amount, 2) }}
                             </option>
@@ -81,7 +121,8 @@
                     </select>
 
                     <p class="mt-2 text-xs text-slate-500">
-                        Fund Sponsor and Partner are inherited from the selected ADL allocation.
+                        Select the ADL allocation that will fund this official project.
+                        Fund Sponsor and Partner are encoded below by the TUPAD Coordinator.
                     </p>
 
                 </div>
@@ -89,7 +130,7 @@
             </section>
 
             {{-- General --}}
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section id="general" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
                     <h2 class="text-sm font-semibold text-slate-900">
@@ -137,9 +178,141 @@
 
             </section>
 
+            {{-- Funding Information --}}
+            <section id="funding" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
+
+                <div class="border-b border-slate-200 px-6 py-4">
+                    <h2 class="text-sm font-semibold text-slate-900">
+                        Funding Information
+                    </h2>
+
+                    <p class="mt-1 text-xs text-slate-500">
+                        Sponsor and Partner are project-level information encoded by the TUPAD Coordinator.
+                        These values will automatically appear in the Focal ADL breakdown and monitoring views.
+                    </p>
+                </div>
+
+                <div class="grid gap-5 p-6 md:grid-cols-2">
+
+                    <div>
+                        <label for="fund_sponsor" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Fund Sponsor
+                        </label>
+
+                        <input
+                            id="fund_sponsor"
+                            name="fund_sponsor"
+                            value="{{ old('fund_sponsor') }}"
+                            required
+                            maxlength="255"
+                            placeholder="e.g. Department of Labor and Employment"
+                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="partner" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Partner
+                        </label>
+
+                        <input
+                            id="partner"
+                            name="partner"
+                            value="{{ old('partner') }}"
+                            required
+                            maxlength="255"
+                            placeholder="e.g. LGU / Accredited Co-Partner"
+                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        >
+                    </div>
+
+                </div>
+
+            </section>
+
+            {{-- Project Series / TEVS Verification --}}
+            <section id="verification" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
+
+                <div class="border-b border-slate-200 px-6 py-4">
+                    <h2 class="text-sm font-semibold text-slate-900">
+                        Project Series & TEVS Verification
+                    </h2>
+
+                    <p class="mt-1 text-xs text-slate-500">
+                        Encode the project series and TEVS verification details required for the official project record.
+                    </p>
+                </div>
+
+                <div class="grid gap-5 p-6 md:grid-cols-2">
+
+                    <div>
+                        <label for="project_series" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Project Series
+                        </label>
+
+                        <input
+                            id="project_series"
+                            name="project_series"
+                            value="{{ old('project_series') }}"
+                            required
+                            maxlength="100"
+                            placeholder="e.g. Regular TUPAD / Series 2026-01"
+                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="project_series_remarks" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Remarks for Project Series
+                        </label>
+
+                        <input
+                            id="project_series_remarks"
+                            name="project_series_remarks"
+                            value="{{ old('project_series_remarks') }}"
+                            maxlength="3000"
+                            placeholder="Optional remarks"
+                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="tevs_date_verified" class="mb-2 block text-sm font-semibold text-slate-700">
+                            TEVS Date Verified
+                        </label>
+
+                        <input
+                            id="tevs_date_verified"
+                            name="tevs_date_verified"
+                            type="date"
+                            value="{{ old('tevs_date_verified') }}"
+                            required
+                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="tevs_remarks" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Remarks for TEVS Date Verified
+                        </label>
+
+                        <input
+                            id="tevs_remarks"
+                            name="tevs_remarks"
+                            value="{{ old('tevs_remarks') }}"
+                            maxlength="3000"
+                            placeholder="Optional TEVS remarks"
+                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        >
+                    </div>
+
+                </div>
+
+            </section>
+
             {{-- <------------------------------------------- Project Location ------------------------------/> --}}
 
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section id="location" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
 
@@ -249,7 +422,7 @@
             </section>
 
             {{-- Implementation --}}
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section id="implementation" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
                     <h2 class="text-sm font-semibold text-slate-900">
@@ -310,7 +483,7 @@
             </section>
 
             {{-- Beneficiaries / Wage --}}
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section id="beneficiaries" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
                     <h2 class="text-sm font-semibold text-slate-900">
@@ -372,7 +545,7 @@
             </section>
 
             {{-- PPE --}}
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section id="ppe" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
 
@@ -418,7 +591,7 @@
             </section>
 
             {{-- Insurance / Total --}}
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section id="costing" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
                     <h2 class="text-sm font-semibold text-slate-900">
@@ -467,7 +640,7 @@
             </section>
 
             {{-- Remarks --}}
-            <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <section id="remarks" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
 
                 <label class="mb-2 block text-sm font-semibold text-slate-700">
                     Remarks
@@ -477,17 +650,43 @@
 
             </section>
 
-            <div class="flex justify-end gap-3">
+                    <div class="sticky bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur">
 
-                <a href="{{ route('projects.index') }}"
-                    class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-600">
-                    Cancel
-                </a>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-                <button type="submit"
-                    class="inline-flex h-11 items-center rounded-lg bg-slate-900 px-6 text-sm font-semibold text-white hover:bg-slate-800">
-                    Save Project
-                </button>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-700">
+                                    Ready to create the official project?
+                                </div>
+
+                                <p class="mt-1 text-[11px] text-slate-500">
+                                    Review calculated totals before saving. Validation will keep you on this page if required information is missing.
+                                </p>
+                            </div>
+
+                            <div class="flex shrink-0 gap-2">
+
+                                <a
+                                    href="{{ route('projects.index') }}"
+                                    class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                                >
+                                    Cancel
+                                </a>
+
+                                <button
+                                    type="submit"
+                                    class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800"
+                                >
+                                    Save Official Project
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
 
             </div>
 

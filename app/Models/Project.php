@@ -22,6 +22,14 @@ class Project extends Model
         'project_title',
         'nature_of_work',
 
+        'fund_sponsor',
+        'partner',
+
+        'project_series',
+        'project_series_remarks',
+        'tevs_date_verified',
+        'tevs_remarks',
+
         'province',
         'district',
         'municipality',
@@ -60,6 +68,7 @@ class Project extends Model
     {
         return [
             'date_received' => 'date',
+            'tevs_date_verified' => 'date',
 
             'implementation_mode' => ImplementationMode::class,
             'term' => ProjectTerm::class,
@@ -110,15 +119,6 @@ class Project extends Model
         return $this->allocation?->adl;
     }
 
-    public function getFundSponsorAttribute(): ?string
-    {
-        return $this->allocation?->fund_sponsor;
-    }
-
-    public function getPartnerAttribute(): ?string
-    {
-        return $this->allocation?->partner;
-    }
 
     public function evaluations(): HasMany
     {

@@ -16,8 +16,8 @@ use App\Http\Controllers\ProjectImplementationController;
 use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectPayoutController;
 use App\Http\Controllers\ProjectPostDocumentController;
+use App\Http\Controllers\ProjectWorkflowQueueController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\ProjectBeneficiaryController;
 use App\Http\Controllers\FundMonitoringController;
 use App\Http\Controllers\ProvinceMonitoringController;
 use Illuminate\Support\Facades\Route;
@@ -215,48 +215,27 @@ Route::middleware('auth')->group(function () {
             ->name('projects.index');
 
         /*
-|--------------------------------------------------------------------------
-| Beneficiary Registry
-|--------------------------------------------------------------------------
-*/
+        |--------------------------------------------------------------------------
+        | Discoverable Project Workflow Queues
+        |--------------------------------------------------------------------------
+        |
+        | These are filtered views of the SAME official projects.
+        | They do not create duplicate project records.
+        |
+        */
 
         Route::get(
-            '/projects/{project}/beneficiaries',
-            [ProjectBeneficiaryController::class, 'index']
+            '/project-workflow/{queue}',
+            [ProjectWorkflowQueueController::class, 'index']
         )
-            ->whereNumber('project')
-            ->name('projects.beneficiaries.index');
-
-        Route::post(
-            '/projects/{project}/beneficiaries',
-            [ProjectBeneficiaryController::class, 'store']
-        )
-            ->whereNumber('project')
-            ->name('projects.beneficiaries.store');
-
-        Route::get(
-            '/projects/{project}/beneficiaries/{beneficiary}/edit',
-            [ProjectBeneficiaryController::class, 'edit']
-        )
-            ->whereNumber('project')
-            ->whereNumber('beneficiary')
-            ->name('projects.beneficiaries.edit');
-
-        Route::put(
-            '/projects/{project}/beneficiaries/{beneficiary}',
-            [ProjectBeneficiaryController::class, 'update']
-        )
-            ->whereNumber('project')
-            ->whereNumber('beneficiary')
-            ->name('projects.beneficiaries.update');
-
-        Route::delete(
-            '/projects/{project}/beneficiaries/{beneficiary}',
-            [ProjectBeneficiaryController::class, 'destroy']
-        )
-            ->whereNumber('project')
-            ->whereNumber('beneficiary')
-            ->name('projects.beneficiaries.destroy');
+            ->whereIn('queue', [
+                'tssd-evaluation',
+                'for-approval',
+                'implementation',
+                'post-documents',
+                'release-of-assistance',
+            ])
+            ->name('project-workflow.index');
 
         /*
         | IMPORTANT:

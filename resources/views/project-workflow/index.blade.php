@@ -1,35 +1,91 @@
 @extends('layouts.app')
 
-@section('title', 'Project Management')
+@section('title', $queueTitle)
 
 @section('content')
 
 <x-page-header
-    eyebrow="Project Management"
-    title="Official Projects"
-    description="Create, review, and continue official TUPAD projects through their required workflow stages."
+    eyebrow="Project Workflow"
+    :title="$queueTitle"
+    :description="$queueDescription"
 >
     <x-slot:actions>
         <a
-            href="{{ route('projects.create') }}"
-            class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+            href="{{ route('projects.index') }}"
+            class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
-            <span class="text-base leading-none">+</span>
-            Add Project
+            View All Projects
         </a>
     </x-slot:actions>
 </x-page-header>
 
-<section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+<section class="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
 
-    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-        <div>
-            <h2 class="text-sm font-semibold text-slate-900">Project Registry</h2>
-            <p class="mt-1 text-xs text-slate-500">
-                {{ number_format($projects->total()) }} project record(s)
-            </p>
-        </div>
+    <div class="text-xs font-bold uppercase tracking-[0.1em] text-blue-700">
+        Responsible Account
     </div>
+
+    <div class="mt-1 text-sm font-semibold text-blue-950">
+        {{ $queueOwner }}
+    </div>
+
+    <p class="mt-1 text-xs leading-5 text-blue-700">
+        This queue is a filtered view of official project records.
+        Opening a project takes you to the existing Project Detail workflow.
+    </p>
+
+</section>
+
+<form
+    method="GET"
+    action="{{ route('project-workflow.index', ['queue' => $queue]) }}"
+    class="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+>
+
+    <div class="flex flex-col gap-3 sm:flex-row">
+
+        <div class="flex-1">
+
+            <label
+                for="workflow-search"
+                class="sr-only"
+            >
+                Search workflow projects
+            </label>
+
+            <input
+                id="workflow-search"
+                name="q"
+                value="{{ request('q') }}"
+                placeholder="Search project, code, province, municipality..."
+                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+            >
+
+        </div>
+
+        <button
+            type="submit"
+            class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800"
+        >
+            Search
+        </button>
+
+        @if(request()->filled('q'))
+
+            <a
+                href="{{ route('project-workflow.index', ['queue' => $queue]) }}"
+                class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+                Clear
+            </a>
+
+        @endif
+
+    </div>
+
+</form>
+
+<section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
     <div class="overflow-x-auto">
 
@@ -38,6 +94,7 @@
             <thead class="bg-slate-50">
 
                 <tr>
+
                     <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
                         Project
                     </th>
@@ -54,10 +111,6 @@
                         Beneficiaries
                     </th>
 
-                    <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
-                        Project Cost
-                    </th>
-
                     <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
                         Status
                     </th>
@@ -65,6 +118,7 @@
                     <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
                         Action
                     </th>
+
                 </tr>
 
             </thead>
@@ -82,7 +136,7 @@
                             </div>
 
                             <div class="mt-1 text-xs text-slate-400">
-                                {{ $project->date_received->format('M d, Y') }}
+                                {{ $project->project_code ?: 'No project code yet' }}
                             </div>
 
                         </td>
@@ -94,22 +148,21 @@
                             </div>
 
                             <div class="mt-1 text-xs text-slate-400">
-                                {{ $project->partner }}
+                                {{ $project->partner ?: '—' }}
                             </div>
 
                         </td>
 
                         <td class="px-5 py-4 text-sm text-slate-600">
-                            {{ $project->barangay }},
-                            {{ $project->municipality }}
+                            {{ collect([
+                                $project->barangay,
+                                $project->municipality,
+                                $project->province,
+                            ])->filter()->implode(', ') }}
                         </td>
 
                         <td class="px-5 py-4 text-right text-sm text-slate-700">
                             {{ number_format($project->beneficiaries_total) }}
-                        </td>
-
-                        <td class="px-5 py-4 text-right text-sm font-semibold text-slate-900">
-                            ₱{{ number_format($project->total_project_cost, 2) }}
                         </td>
 
                         <td class="px-5 py-4">
@@ -136,20 +189,11 @@
                 @empty
 
                     <tr>
-                        <td colspan="7" class="p-0">
+                        <td colspan="6" class="p-0">
                             <x-empty-state
-                                title="No official projects yet"
-                                message="Create the first official TUPAD project when an ADL allocation is ready."
-                            >
-                                <x-slot:action>
-                                    <a
-                                        href="{{ route('projects.create') }}"
-                                        class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
-                                    >
-                                        Add Project
-                                    </a>
-                                </x-slot:action>
-                            </x-empty-state>
+                                :title="$emptyMessage"
+                                message="Projects will appear here automatically when they reach this workflow stage."
+                            />
                         </td>
                     </tr>
 
