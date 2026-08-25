@@ -10,6 +10,7 @@ use App\Models\AdlAllocation;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
+use App\Models\ProjectLocation;
 use App\Models\Province;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,9 @@ class ProjectController extends Controller
                 'provinceReference',
                 'municipalityReference',
                 'barangayReference',
+                'projectLocations.province',
+                'projectLocations.municipality',
+                'projectLocations.barangays',
             ])
             ->latest('date_received')
             ->latest('id')
@@ -88,14 +92,52 @@ class ProjectController extends Controller
 
         $provinces = Province::query()
             ->where('is_active', true)
+            ->whereIn('name', [
+                'Albay',
+                'Camarines Norte',
+                'Camarines Sur',
+                'Catanduanes',
+                'Masbate',
+                'Sorsogon',
+            ])
             ->orderBy('name')
             ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Focal-maintained Sponsor / Partner choices
+        |--------------------------------------------------------------------------
+        */
+
+        $fundSponsorOptions = AdlAllocation::query()
+            ->whereNotNull('fund_sponsor')
+            ->where('fund_sponsor', '!=', '')
+            ->distinct()
+            ->orderBy('fund_sponsor')
+            ->pluck('fund_sponsor')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $partnerOptions = AdlAllocation::query()
+            ->whereNotNull('partner')
+            ->where('partner', '!=', '')
+            ->distinct()
+            ->orderBy('partner')
+            ->pluck('partner')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values();
 
         return view(
             'projects.create',
             [
                 'allocations' => $allocations,
                 'provinces' => $provinces,
+                'fundSponsorOptions' => $fundSponsorOptions,
+                'partnerOptions' => $partnerOptions,
                 'implementationModes' => ImplementationMode::cases(),
                 'ppeTypes' => PpeType::cases(),
             ]
@@ -111,6 +153,31 @@ class ProjectController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateProject($request);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Resolve Sponsor / Partner Selection
+        |--------------------------------------------------------------------------
+        |
+        | TC normally selects a Focal-maintained value. "Other" is allowed as a
+        | project-specific exception and does not modify Focal's reference list.
+        |
+        */
+
+        if (($validated['fund_sponsor'] ?? null) === '__other__') {
+            $validated['fund_sponsor'] =
+                trim($validated['fund_sponsor_other']);
+        }
+
+        if (($validated['partner'] ?? null) === '__other__') {
+            $validated['partner'] =
+                trim($validated['partner_other']);
+        }
+
+        unset(
+            $validated['fund_sponsor_other'],
+            $validated['partner_other']
+        );
 
         return DB::transaction(function () use (
             $request,
@@ -161,44 +228,74 @@ class ProjectController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | Validate Geographic Hierarchy
+            | Validate Multi-Location Geographic Hierarchy
             |--------------------------------------------------------------------------
-            |
-            | Province
-            |   ↓
-            | Municipality
-            |   ↓
-            | Barangay
-            |
-            | This prevents users from manually submitting mismatched IDs.
-            |
             */
 
             $province = Province::query()
                 ->where('is_active', true)
-                ->findOrFail(
-                    $validated['province_id']
-                );
+                ->findOrFail($validated['province_id']);
 
-            $municipality = Municipality::query()
-                ->where(
-                    'province_id',
-                    $province->id
-                )
-                ->where('is_active', true)
-                ->findOrFail(
-                    $validated['municipality_id']
-                );
+            $resolvedLocations = collect($validated['project_locations'])
+                ->values()
+                ->map(function (array $location, int $index) use ($province) {
+                    $municipality = Municipality::query()
+                        ->where('province_id', $province->id)
+                        ->where('district', $location['district'])
+                        ->where('is_active', true)
+                        ->findOrFail($location['municipality_id']);
 
-            $barangay = Barangay::query()
-                ->where(
-                    'municipality_id',
-                    $municipality->id
-                )
-                ->where('is_active', true)
-                ->findOrFail(
-                    $validated['barangay_id']
-                );
+                    $barangayIds = array_values(
+                        array_unique($location['barangay_ids'])
+                    );
+
+                    $barangays = Barangay::query()
+                        ->where('municipality_id', $municipality->id)
+                        ->where('is_active', true)
+                        ->whereIn('id', $barangayIds)
+                        ->get();
+
+                    if ($barangays->count() !== count($barangayIds)) {
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Geographic Hierarchy Violation
+                        |--------------------------------------------------------------------------
+                        |
+                        | Preserve the system's existing hardening behavior:
+                        | a barangay that does not belong to the selected municipality is
+                        | treated as an invalid geographic resource reference (404), not as
+                        | a normal form-validation redirect (302).
+                        |
+                        */
+
+                        abort(
+                            404,
+                            'One or more selected barangays do not belong to the selected municipality.'
+                        );
+                    }
+
+                    return [
+                        'municipality' => $municipality,
+                        'barangays' => $barangays,
+                        'district' => $municipality->district,
+                    ];
+                });
+
+            if (
+                $resolvedLocations
+                    ->pluck('municipality.id')
+                    ->duplicates()
+                    ->isNotEmpty()
+            ) {
+                throw ValidationException::withMessages([
+                    'project_locations' =>
+                        'Each municipality/city may only be added once. Select multiple barangays inside the same location card.',
+                ]);
+            }
+
+            $primaryLocation = $resolvedLocations->first();
+            $municipality = $primaryLocation['municipality'];
+            $barangay = $primaryLocation['barangays']->first();
 
             /*
             |--------------------------------------------------------------------------
@@ -497,6 +594,25 @@ class ProjectController extends Controller
 
             /*
             |--------------------------------------------------------------------------
+            | Create Multi-Location Records
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($resolvedLocations as $index => $resolvedLocation) {
+                $projectLocation = $project->projectLocations()->create([
+                    'province_id' => $province->id,
+                    'municipality_id' => $resolvedLocation['municipality']->id,
+                    'district' => $resolvedLocation['district'],
+                    'sort_order' => $index + 1,
+                ]);
+
+                $projectLocation->barangays()->sync(
+                    $resolvedLocation['barangays']->pluck('id')
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
             | Create PPE Items
             |--------------------------------------------------------------------------
             */
@@ -564,6 +680,10 @@ class ProjectController extends Controller
             'municipalityReference',
             'barangayReference',
 
+            'projectLocations.province',
+            'projectLocations.municipality',
+            'projectLocations.barangays',
+
             'ppeItems',
 
             'creator',
@@ -601,6 +721,27 @@ class ProjectController extends Controller
     private function validateProject(
         Request $request
     ): array {
+        if (
+            ! $request->has('project_locations')
+            && $request->filled('municipality_id')
+            && $request->filled('barangay_id')
+        ) {
+            $legacyMunicipality = Municipality::query()
+                ->find($request->integer('municipality_id'));
+
+            if ($legacyMunicipality) {
+                $request->merge([
+                    'project_locations' => [[
+                        'district' => $legacyMunicipality->district ?? 'Not Assigned',
+                        'municipality_id' => $request->integer('municipality_id'),
+                        'barangay_ids' => [
+                            $request->integer('barangay_id'),
+                        ],
+                    ]],
+                ]);
+            }
+        }
+
         return $request->validate([
             /*
             |--------------------------------------------------------------------------
@@ -643,8 +784,22 @@ class ProjectController extends Controller
                 'max:255',
             ],
 
+            'fund_sponsor_other' => [
+                'nullable',
+                'required_if:fund_sponsor,__other__',
+                'string',
+                'max:255',
+            ],
+
             'partner' => [
                 'required',
+                'string',
+                'max:255',
+            ],
+
+            'partner_other' => [
+                'nullable',
+                'required_if:partner,__other__',
                 'string',
                 'max:255',
             ],
@@ -684,15 +839,35 @@ class ProjectController extends Controller
                 'exists:provinces,id',
             ],
 
-            'municipality_id' => [
+            'project_locations' => [
+                'required',
+                'array',
+                'min:1',
+                'max:30',
+            ],
+
+            'project_locations.*.district' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'project_locations.*.municipality_id' => [
                 'required',
                 'integer',
                 'exists:municipalities,id',
             ],
 
-            'barangay_id' => [
+            'project_locations.*.barangay_ids' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+
+            'project_locations.*.barangay_ids.*' => [
                 'required',
                 'integer',
+                'distinct',
                 'exists:barangays,id',
             ],
 

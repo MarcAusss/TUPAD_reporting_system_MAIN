@@ -206,6 +206,12 @@ class Project extends Model
         );
     }
 
+    public function projectLocations(): HasMany
+    {
+        return $this->hasMany(ProjectLocation::class)
+            ->orderBy('sort_order');
+    }
+
     public function provinceReference(): BelongsTo
     {
         return $this->belongsTo(

@@ -12,6 +12,28 @@ class AdlAllocationController extends Controller
     public function store(Request $request, Adl $adl): RedirectResponse
     {
         $validated = $request->validate([
+            /*
+            |--------------------------------------------------------------------------
+            | Focal-owned Sponsor / Partner Reference
+            |--------------------------------------------------------------------------
+            |
+            | These values are encoded in the ADL breakdown and become reusable
+            | dropdown choices for the TUPAD Coordinator during Project Create.
+            |
+            */
+
+            'fund_sponsor' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'partner' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
             'local_chief_executive_partylist' => ['nullable', 'string', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:150'],
@@ -39,10 +61,25 @@ class AdlAllocationController extends Controller
             }
 
             $lockedAdl->allocations()->create([
-                // Sponsor / Partner are now owned by official projects.
-                // Keep legacy allocation columns null for new records.
-                'fund_sponsor' => null,
-                'partner' => null,
+                /*
+                |--------------------------------------------------------------------------
+                | Sponsor / Partner Reference
+                |--------------------------------------------------------------------------
+                |
+                | Focal owns the official reusable values at ADL allocation level.
+                | Project records still store their own final text snapshot.
+                |
+                */
+
+                'fund_sponsor' =>
+                    filled($validated['fund_sponsor'] ?? null)
+                        ? trim($validated['fund_sponsor'])
+                        : null,
+
+                'partner' =>
+                    filled($validated['partner'] ?? null)
+                        ? trim($validated['partner'])
+                        : null,
                 'local_chief_executive_partylist' => $validated['local_chief_executive_partylist'] ?? null,
                 'location' => trim($validated['location']),
                 'province' => $validated['province'] ?? null,

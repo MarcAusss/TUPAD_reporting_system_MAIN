@@ -87,9 +87,48 @@
 
 <div id="fund-actions" class="scroll-mt-28 mt-5 grid gap-5 xl:grid-cols-2">
 <section class="rounded-xl border border-slate-200 bg-white shadow-sm"><div class="border-b border-slate-200 px-5 py-4"><h2 class="text-sm font-semibold text-slate-900">Add Allocation</h2></div><form method="POST" action="{{ route('adl.allocations.store',$adl) }}" class="grid gap-4 p-5 md:grid-cols-2">@csrf
-    <div class="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
-        <b>Fund Sponsor and Partner are not encoded by the Focal account.</b>
-        They are entered by the TUPAD Coordinator on the official project and are automatically reflected in the ADL breakdown.
+    <div class="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">
+        <b>Focal reference ownership.</b>
+        Encode the official Fund Sponsor and Partner for this ADL breakdown.
+        These values become reusable choices in the TUPAD Coordinator's Project Create form.
+    </div>
+
+    <div>
+        <label for="fund_sponsor" class="mb-1 block text-xs font-semibold">
+            Fund Sponsor
+        </label>
+
+        <input
+            id="fund_sponsor"
+            name="fund_sponsor"
+            value="{{ old('fund_sponsor') }}"
+            maxlength="255"
+            placeholder="e.g. DOLE Regional Office V"
+            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+        >
+
+        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+            Added to the TC Sponsor dropdown.
+        </p>
+    </div>
+
+    <div>
+        <label for="partner" class="mb-1 block text-xs font-semibold">
+            Partner
+        </label>
+
+        <input
+            id="partner"
+            name="partner"
+            value="{{ old('partner') }}"
+            maxlength="255"
+            placeholder="e.g. LGU Legazpi City"
+            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+        >
+
+        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+            Added to the TC Partner dropdown.
+        </p>
     </div>
 
     <div class="md:col-span-2"><label class="mb-1 block text-xs font-semibold">Local Chief Executive / Party-list</label><input name="local_chief_executive_partylist" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
@@ -107,7 +146,9 @@
 <section id="allocation-records" class="scroll-mt-28 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
     <div class="border-b border-slate-200 px-5 py-4">
         <h2 class="text-sm font-semibold">Allocation Records</h2>
-        <p class="mt-1 text-xs text-slate-500">Sponsor and Partner are automatically derived from TC-created projects linked to each allocation.</p>
+        <p class="mt-1 text-xs text-slate-500">
+            Sponsor and Partner are maintained by Focal at allocation level and are available to TC as reusable Project Create choices.
+        </p>
     </div>
 
     <div class="overflow-x-auto">
@@ -126,17 +167,23 @@
             <tbody class="divide-y">
                 @foreach($adl->allocations as $a)
                     @php
-                        $allocationSponsors = $a->projects
-                            ->pluck('fund_sponsor')
-                            ->filter()
-                            ->unique()
-                            ->implode(', ');
+                        $allocationSponsors =
+                            filled($a->fund_sponsor)
+                                ? $a->fund_sponsor
+                                : $a->projects
+                                    ->pluck('fund_sponsor')
+                                    ->filter()
+                                    ->unique()
+                                    ->implode(', ');
 
-                        $allocationPartners = $a->projects
-                            ->pluck('partner')
-                            ->filter()
-                            ->unique()
-                            ->implode(', ');
+                        $allocationPartners =
+                            filled($a->partner)
+                                ? $a->partner
+                                : $a->projects
+                                    ->pluck('partner')
+                                    ->filter()
+                                    ->unique()
+                                    ->implode(', ');
                     @endphp
 
                     <tr>

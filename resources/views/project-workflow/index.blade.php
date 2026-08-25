@@ -4,20 +4,30 @@
 
 @section('content')
 
-<x-page-header
-    eyebrow="Project Workflow"
-    :title="$queueTitle"
-    :description="$queueDescription"
->
-    <x-slot:actions>
-        <a
-            href="{{ route('projects.index') }}"
-            class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-            View All Projects
-        </a>
-    </x-slot:actions>
-</x-page-header>
+<div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+
+    <div>
+        <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+            Project Workflow
+        </div>
+
+        <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+            {{ $queueTitle }}
+        </h1>
+
+        <p class="mt-1 max-w-3xl text-sm text-slate-500">
+            {{ $queueDescription }}
+        </p>
+    </div>
+
+    <a
+        href="{{ route('projects.index') }}"
+        class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+    >
+        View All Projects
+    </a>
+
+</div>
 
 <section class="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
 
@@ -177,7 +187,7 @@
 
                             <a
                                 href="{{ route('projects.show', $project) }}"
-                                class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                                class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800"
                             >
                                 Open Project
                             </a>
@@ -189,12 +199,22 @@
                 @empty
 
                     <tr>
-                        <td colspan="6" class="p-0">
-                            <x-empty-state
-                                :title="$emptyMessage"
-                                message="Projects will appear here automatically when they reach this workflow stage."
-                            />
+
+                        <td
+                            colspan="6"
+                            class="px-5 py-12 text-center"
+                        >
+
+                            <div class="text-sm font-semibold text-slate-700">
+                                {{ $emptyMessage }}
+                            </div>
+
+                            <p class="mt-1 text-xs text-slate-400">
+                                Projects will appear here automatically when they reach this workflow stage.
+                            </p>
+
                         </td>
+
                     </tr>
 
                 @endforelse

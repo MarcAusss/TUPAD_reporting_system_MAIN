@@ -179,6 +179,7 @@
             </section>
 
             {{-- Funding Information --}}
+
             <section id="funding" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
@@ -187,8 +188,8 @@
                     </h2>
 
                     <p class="mt-1 text-xs text-slate-500">
-                        Sponsor and Partner are project-level information encoded by the TUPAD Coordinator.
-                        These values will automatically appear in the Focal ADL breakdown and monitoring views.
+                        Select Sponsor and Partner values maintained by Focal from the ADL breakdown.
+                        If the needed value is not listed, choose Other and enter a project-specific value.
                     </p>
                 </div>
 
@@ -199,15 +200,58 @@
                             Fund Sponsor
                         </label>
 
-                        <input
+                        <select
                             id="fund_sponsor"
                             name="fund_sponsor"
-                            value="{{ old('fund_sponsor') }}"
                             required
+                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                        >
+                            <option value="">Select fund sponsor</option>
+
+                            @foreach($fundSponsorOptions as $option)
+                                <option
+                                    value="{{ $option }}"
+                                    @selected(old('fund_sponsor') === $option)
+                                >
+                                    {{ $option }}
+                                </option>
+                            @endforeach
+
+                            <option
+                                value="__other__"
+                                @selected(old('fund_sponsor') === '__other__')
+                            >
+                                Other — specify below
+                            </option>
+                        </select>
+
+                        @if($fundSponsorOptions->isEmpty())
+                            <p class="mt-1 text-[11px] leading-4 text-amber-600">
+                                No Focal-maintained sponsor reference exists yet. Select Other if needed.
+                            </p>
+                        @endif
+                    </div>
+
+                    <div
+                        id="fundSponsorOtherWrap"
+                        class="{{ old('fund_sponsor') === '__other__' ? '' : 'hidden' }}"
+                    >
+                        <label for="fund_sponsor_other" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Other Fund Sponsor
+                        </label>
+
+                        <input
+                            id="fund_sponsor_other"
+                            name="fund_sponsor_other"
+                            value="{{ old('fund_sponsor_other') }}"
                             maxlength="255"
-                            placeholder="e.g. Department of Labor and Employment"
+                            placeholder="Enter sponsor not listed above"
                             class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         >
+
+                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                            Project-specific only. Focal must add it to an ADL breakdown before it becomes reusable.
+                        </p>
                     </div>
 
                     <div>
@@ -215,15 +259,58 @@
                             Partner
                         </label>
 
-                        <input
+                        <select
                             id="partner"
                             name="partner"
-                            value="{{ old('partner') }}"
                             required
+                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                        >
+                            <option value="">Select partner</option>
+
+                            @foreach($partnerOptions as $option)
+                                <option
+                                    value="{{ $option }}"
+                                    @selected(old('partner') === $option)
+                                >
+                                    {{ $option }}
+                                </option>
+                            @endforeach
+
+                            <option
+                                value="__other__"
+                                @selected(old('partner') === '__other__')
+                            >
+                                Other — specify below
+                            </option>
+                        </select>
+
+                        @if($partnerOptions->isEmpty())
+                            <p class="mt-1 text-[11px] leading-4 text-amber-600">
+                                No Focal-maintained partner reference exists yet. Select Other if needed.
+                            </p>
+                        @endif
+                    </div>
+
+                    <div
+                        id="partnerOtherWrap"
+                        class="{{ old('partner') === '__other__' ? '' : 'hidden' }}"
+                    >
+                        <label for="partner_other" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Other Partner
+                        </label>
+
+                        <input
+                            id="partner_other"
+                            name="partner_other"
+                            value="{{ old('partner_other') }}"
                             maxlength="255"
-                            placeholder="e.g. LGU / Accredited Co-Partner"
+                            placeholder="Enter partner not listed above"
                             class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         >
+
+                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                            Project-specific only. It does not automatically become an official reusable reference.
+                        </p>
                     </div>
 
                 </div>
@@ -310,112 +397,153 @@
 
             </section>
 
-            {{-- <------------------------------------------- Project Location ------------------------------/> --}}
+            {{-- Project Location --}}
 
             <section id="location" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 <div class="border-b border-slate-200 px-6 py-4">
 
-                    <h2 class="text-sm font-semibold text-slate-900">
-                        Project Location
-                    </h2>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-                    <p class="mt-1 text-xs text-slate-500">
-                        Select the official geographic hierarchy for this project.
-                    </p>
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-900">
+                                Project Location
+                            </h2>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Select one Bicol province, then add all target locations covered by this project.
+                            </p>
+                        </div>
+
+                        <span class="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700">
+                            Region V only
+                        </span>
+
+                    </div>
 
                 </div>
 
-                <div class="grid gap-5 p-6 md:grid-cols-2 xl:grid-cols-5">
-
-                    {{-- Province --}}
+                <div class="grid gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_320px]">
 
                     <div>
 
-                        <label for="province_id" class="mb-2 block text-sm font-semibold text-slate-700">
-                            Province
-                        </label>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
 
-                        <select id="province_id" name="province_id" required
-                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            <div class="flex items-center gap-3">
+                                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-900 text-xs font-bold text-white">1</span>
+                                <div class="text-sm font-semibold text-slate-900">Select Province</div>
+                            </div>
 
-                            <option value="">
-                                Select province
-                            </option>
+                            <div class="mt-4 max-w-xl">
 
-                            @foreach ($provinces as $province)
-                                <option value="{{ $province->id }}" @selected(old('province_id') == $province->id)>
-                                    {{ $province->name }}
-                                </option>
-                            @endforeach
+                                <label for="province_id" class="mb-2 block text-sm font-semibold text-slate-700">
+                                    Province
+                                </label>
 
-                        </select>
+                                <select
+                                    id="province_id"
+                                    name="province_id"
+                                    required
+                                    class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                                >
+                                    <option value="">Select Bicol province</option>
 
-                    </div>
+                                    @foreach ($provinces as $province)
+                                        <option
+                                            value="{{ $province->id }}"
+                                            @selected(old('province_id') == $province->id)
+                                        >
+                                            {{ $province->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
 
-                    {{-- Municipality --}}
+                            </div>
 
-                    <div>
+                            <div class="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">
+                                Districts, municipalities/cities, and barangays are filtered to the selected province.
+                            </div>
 
-                        <label for="municipality_id" class="mb-2 block text-sm font-semibold text-slate-700">
-                            Municipality / City
-                        </label>
+                        </div>
 
-                        <select id="municipality_id" name="municipality_id" required disabled
-                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
+                        <div class="mt-5">
 
-                            <option value="">
-                                Select municipality
-                            </option>
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-                        </select>
+                                <div>
 
-                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-900 text-xs font-bold text-white">2</span>
+                                        <h3 class="text-sm font-semibold text-slate-900">Target Locations</h3>
+                                    </div>
 
-                    {{-- Barangay --}}
+                                    <p class="mt-1 pl-10 text-xs text-slate-500">
+                                        Add municipalities/cities from different districts inside the selected province.
+                                    </p>
 
-                    <div>
+                                </div>
 
-                        <label for="barangay_id" class="mb-2 block text-sm font-semibold text-slate-700">
-                            Barangay
-                        </label>
+                                <button
+                                    id="addProjectLocation"
+                                    type="button"
+                                    disabled
+                                    class="inline-flex h-10 items-center justify-center rounded-lg border border-blue-300 bg-white px-4 text-xs font-semibold text-blue-800 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    + Add Another Location
+                                </button>
 
-                        <select id="barangay_id" name="barangay_id" required disabled
-                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
+                            </div>
 
-                            <option value="">
-                                Select barangay
-                            </option>
+                            <div id="projectLocations" class="mt-4 space-y-4"></div>
 
-                        </select>
-
-                    </div>
-
-                    {{-- District --}}
-
-                    <div>
-
-                        <label for="districtPreview" class="mb-2 block text-sm font-semibold text-slate-700">
-                            District
-                        </label>
-
-                        <input id="districtPreview" type="text" readonly placeholder="Automatically assigned"
-                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
-
-                    </div>
-
-                    {{-- Income Class --}}
-
-                    <div>
-
-                        <label for="incomeClassPreview" class="mb-2 block text-sm font-semibold text-slate-700">
-                            Income Class
-                        </label>
-
-                        <input id="incomeClassPreview" type="text" readonly placeholder="Not yet assigned"
-                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+                        </div>
 
                     </div>
+
+                    <aside>
+
+                        <div class="sticky top-[90px] rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                            <h3 class="text-sm font-semibold text-slate-900">
+                                Location Summary
+                            </h3>
+
+                            <div
+                                id="locationSummaryEmpty"
+                                class="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center"
+                            >
+                                <div class="text-xs font-semibold text-slate-600">
+                                    No target location selected
+                                </div>
+
+                                <p class="mt-1 text-[11px] leading-5 text-slate-400">
+                                    Select a province and complete the first target location.
+                                </p>
+                            </div>
+
+                            <div id="locationSummary" class="mt-4 hidden">
+
+                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                                    <div class="text-xs font-semibold text-emerald-900">Total Areas Covered</div>
+                                    <div id="locationSummaryCount" class="mt-1 text-[11px] text-emerald-700"></div>
+                                </div>
+
+                                <div class="mt-4 border-t border-slate-100 pt-4">
+                                    <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Province</div>
+                                    <div id="locationSummaryProvince" class="mt-1 text-sm font-semibold text-slate-800"></div>
+                                </div>
+
+                                <div id="locationSummaryItems" class="mt-4 space-y-3"></div>
+
+                                <div class="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 text-[11px] leading-5 text-blue-700">
+                                    Multiple target locations may belong to different districts as long as all are inside the selected province.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </aside>
 
                 </div>
 
@@ -699,123 +827,494 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const fundSponsorSelect =
+                document.getElementById('fund_sponsor');
+
+            const fundSponsorOtherWrap =
+                document.getElementById('fundSponsorOtherWrap');
+
+            const fundSponsorOtherInput =
+                document.getElementById('fund_sponsor_other');
+
+            const partnerSelect =
+                document.getElementById('partner');
+
+            const partnerOtherWrap =
+                document.getElementById('partnerOtherWrap');
+
+            const partnerOtherInput =
+                document.getElementById('partner_other');
+
+            function toggleOtherFundingInput(
+                select,
+                wrapper,
+                input
+            ) {
+                const useOther =
+                    select?.value === '__other__';
+
+                wrapper?.classList.toggle(
+                    'hidden',
+                    !useOther
+                );
+
+                if (input) {
+                    input.required = useOther;
+
+                    if (!useOther) {
+                        input.value = '';
+                    }
+                }
+            }
+
+            fundSponsorSelect?.addEventListener(
+                'change',
+                () =>
+                    toggleOtherFundingInput(
+                        fundSponsorSelect,
+                        fundSponsorOtherWrap,
+                        fundSponsorOtherInput
+                    )
+            );
+
+            partnerSelect?.addEventListener(
+                'change',
+                () =>
+                    toggleOtherFundingInput(
+                        partnerSelect,
+                        partnerOtherWrap,
+                        partnerOtherInput
+                    )
+            );
+
+            toggleOtherFundingInput(
+                fundSponsorSelect,
+                fundSponsorOtherWrap,
+                fundSponsorOtherInput
+            );
+
+            toggleOtherFundingInput(
+                partnerSelect,
+                partnerOtherWrap,
+                partnerOtherInput
+            );
+
             const provinceSelect = document.getElementById('province_id');
-            const municipalitySelect = document.getElementById('municipality_id');
-            const barangaySelect = document.getElementById('barangay_id');
+            const projectLocations = document.getElementById('projectLocations');
+            const addProjectLocation = document.getElementById('addProjectLocation');
 
-            const districtPreview = document.getElementById('districtPreview');
-            const incomeClassPreview = document.getElementById('incomeClassPreview');
+            const locationSummary = document.getElementById('locationSummary');
+            const locationSummaryEmpty = document.getElementById('locationSummaryEmpty');
+            const locationSummaryCount = document.getElementById('locationSummaryCount');
+            const locationSummaryProvince = document.getElementById('locationSummaryProvince');
+            const locationSummaryItems = document.getElementById('locationSummaryItems');
 
-            async function loadMunicipalities(provinceId) {
-                municipalitySelect.innerHTML =
-                    '<option value="">Loading...</option>';
+            let locationIndex = 0;
+            let provinceDistricts = [];
 
-                municipalitySelect.disabled = true;
+            const escapeHtml = (value) => {
+                const div = document.createElement('div');
+                div.textContent = value ?? '';
+                return div.innerHTML;
+            };
 
-                barangaySelect.innerHTML =
-                    '<option value="">Select barangay</option>';
+            async function fetchLocationJson(url) {
+                const response = await fetch(url, {
+                    headers: { Accept: 'application/json' },
+                });
 
-                barangaySelect.disabled = true;
+                if (!response.ok) {
+                    throw new Error(`Location request failed (${response.status})`);
+                }
 
-                districtPreview.value = '';
-                incomeClassPreview.value = '';
+                return response.json();
+            }
+
+            async function resetForProvince() {
+                projectLocations.innerHTML = '';
+                locationIndex = 0;
+                provinceDistricts = [];
+
+                const provinceId = provinceSelect.value;
+                addProjectLocation.disabled = !provinceId;
 
                 if (!provinceId) {
+                    updateLocationSummary();
+                    return;
+                }
+
+                provinceDistricts = await fetchLocationJson(
+                    `/locations/provinces/${provinceId}/districts`
+                );
+
+                addLocationCard();
+                updateLocationSummary();
+            }
+
+            function addLocationCard() {
+                if (!provinceSelect.value) {
+                    return;
+                }
+
+                const index = locationIndex++;
+                const card = document.createElement('div');
+
+                card.className =
+                    'location-card rounded-xl border border-slate-200 bg-white p-5 shadow-sm';
+
+                card.dataset.index = index;
+
+                const districtOptions = provinceDistricts
+                    .map(
+                        district =>
+                            `<option value="${escapeHtml(district)}">${escapeHtml(district)}</option>`
+                    )
+                    .join('');
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-slate-300">⋮⋮</span>
+                            <div class="location-title text-sm font-semibold text-slate-900">
+                                Location ${index + 1}
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="remove-location text-xs font-semibold text-red-600 hover:text-red-700"
+                        >
+                            Remove
+                        </button>
+                    </div>
+
+                    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                        <div>
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                District
+                            </label>
+
+                            <select
+                                name="project_locations[${index}][district]"
+                                class="district-select h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                                required
+                            >
+                                <option value="">Select district</option>
+                                ${districtOptions}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Municipality / City
+                            </label>
+
+                            <select
+                                name="project_locations[${index}][municipality_id]"
+                                class="municipality-select h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100"
+                                required
+                                disabled
+                            >
+                                <option value="">Select municipality / city</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="mb-2 block text-xs font-semibold text-slate-700">
+                            Barangays
+                        </label>
+
+                        <div class="rounded-lg border border-slate-300 bg-white">
+                            <div class="border-b border-slate-200 p-2">
+                                <input
+                                    type="search"
+                                    class="barangay-search h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs outline-none focus:border-blue-300 focus:bg-white"
+                                    placeholder="Search and select barangays..."
+                                    disabled
+                                >
+                            </div>
+
+                            <div class="barangay-options max-h-48 overflow-y-auto p-2">
+                                <div class="px-2 py-5 text-center text-xs text-slate-400">
+                                    Select a municipality / city first.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="selected-barangays mt-2 flex flex-wrap gap-2"></div>
+                    </div>
+                `;
+
+                projectLocations.appendChild(card);
+                wireLocationCard(card);
+                renumberLocationCards();
+                updateLocationSummary();
+            }
+
+            function wireLocationCard(card) {
+                const districtSelect = card.querySelector('.district-select');
+                const municipalitySelect = card.querySelector('.municipality-select');
+                const barangaySearch = card.querySelector('.barangay-search');
+                const barangayOptions = card.querySelector('.barangay-options');
+                const selectedBarangays = card.querySelector('.selected-barangays');
+                const removeButton = card.querySelector('.remove-location');
+
+                districtSelect.addEventListener('change', async function() {
+                    municipalitySelect.disabled = true;
                     municipalitySelect.innerHTML =
-                        '<option value="">Select municipality</option>';
+                        '<option value="">Loading...</option>';
 
+                    barangaySearch.disabled = true;
+                    barangaySearch.value = '';
+                    barangayOptions.innerHTML =
+                        '<div class="px-2 py-5 text-center text-xs text-slate-400">Select a municipality / city first.</div>';
+                    selectedBarangays.innerHTML = '';
+
+                    if (!this.value) {
+                        municipalitySelect.innerHTML =
+                            '<option value="">Select municipality / city</option>';
+                        updateLocationSummary();
+                        return;
+                    }
+
+                    const provinceId = provinceSelect.value;
+                    const district = encodeURIComponent(this.value);
+
+                    const municipalities = await fetchLocationJson(
+                        `/locations/provinces/${provinceId}/municipalities?district=${district}`
+                    );
+
+                    municipalitySelect.innerHTML =
+                        '<option value="">Select municipality / city</option>';
+
+                    municipalities.forEach(municipality => {
+                        const option = document.createElement('option');
+                        option.value = municipality.id;
+                        option.textContent = municipality.name;
+                        municipalitySelect.appendChild(option);
+                    });
+
+                    municipalitySelect.disabled = false;
+                    updateLocationSummary();
+                });
+
+                municipalitySelect.addEventListener('change', async function() {
+                    barangaySearch.value = '';
+                    selectedBarangays.innerHTML = '';
+
+                    if (!this.value) {
+                        barangaySearch.disabled = true;
+                        barangayOptions.innerHTML =
+                            '<div class="px-2 py-5 text-center text-xs text-slate-400">Select a municipality / city first.</div>';
+                        updateLocationSummary();
+                        return;
+                    }
+
+                    barangayOptions.innerHTML =
+                        '<div class="px-2 py-5 text-center text-xs text-slate-400">Loading barangays...</div>';
+
+                    const barangays = await fetchLocationJson(
+                        `/locations/municipalities/${this.value}/barangays`
+                    );
+
+                    barangayOptions.innerHTML = '';
+
+                    barangays.forEach(barangay => {
+                        const label = document.createElement('label');
+
+                        label.className =
+                            'barangay-option flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-700 hover:bg-slate-50';
+
+                        label.dataset.search = barangay.name.toLowerCase();
+
+                        label.innerHTML = `
+                            <input
+                                type="checkbox"
+                                name="project_locations[${card.dataset.index}][barangay_ids][]"
+                                value="${barangay.id}"
+                                data-name="${escapeHtml(barangay.name)}"
+                                class="h-4 w-4 rounded border-slate-300 text-blue-700"
+                            >
+                            <span>${escapeHtml(barangay.name)}</span>
+                        `;
+
+                        barangayOptions.appendChild(label);
+                    });
+
+                    barangaySearch.disabled = false;
+
+                    barangayOptions
+                        .querySelectorAll('input[type="checkbox"]')
+                        .forEach(checkbox =>
+                            checkbox.addEventListener('change', () => {
+                                renderBarangayChips(card);
+                                updateLocationSummary();
+                            })
+                        );
+
+                    updateLocationSummary();
+                });
+
+                barangaySearch.addEventListener('input', function() {
+                    const query = this.value.trim().toLowerCase();
+
+                    barangayOptions
+                        .querySelectorAll('.barangay-option')
+                        .forEach(option => {
+                            option.classList.toggle(
+                                'hidden',
+                                !option.dataset.search.includes(query)
+                            );
+                        });
+                });
+
+                removeButton.addEventListener('click', function() {
+                    card.remove();
+                    renumberLocationCards();
+
+                    if (
+                        projectLocations.children.length === 0
+                        && provinceSelect.value
+                    ) {
+                        addLocationCard();
+                    }
+
+                    updateLocationSummary();
+                });
+            }
+
+            function renderBarangayChips(card) {
+                const selected = card.querySelector('.selected-barangays');
+                selected.innerHTML = '';
+
+                card
+                    .querySelectorAll(
+                        '.barangay-options input[type="checkbox"]:checked'
+                    )
+                    .forEach(checkbox => {
+                        const chip = document.createElement('span');
+
+                        chip.className =
+                            'inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-800';
+
+                        chip.textContent = checkbox.dataset.name;
+                        selected.appendChild(chip);
+                    });
+            }
+
+            function renumberLocationCards() {
+                projectLocations
+                    .querySelectorAll('.location-card')
+                    .forEach((card, visualIndex) => {
+                        const title = card.querySelector('.location-title');
+
+                        if (title) {
+                            title.textContent = `Location ${visualIndex + 1}`;
+                        }
+                    });
+            }
+
+            function updateLocationSummary() {
+                const provinceName =
+                    provinceSelect.options[
+                        provinceSelect.selectedIndex
+                    ]?.textContent?.trim();
+
+                const completeItems = Array.from(
+                    projectLocations.querySelectorAll('.location-card')
+                )
+                    .map(card => {
+                        const district =
+                            card.querySelector('.district-select')?.value;
+
+                        const municipality =
+                            card.querySelector('.municipality-select');
+
+                        const municipalityName =
+                            municipality?.options[
+                                municipality.selectedIndex
+                            ]?.textContent?.trim();
+
+                        const barangays = Array.from(
+                            card.querySelectorAll(
+                                '.barangay-options input[type="checkbox"]:checked'
+                            )
+                        ).map(input => input.dataset.name);
+
+                        if (
+                            !district
+                            || !municipality?.value
+                            || barangays.length === 0
+                        ) {
+                            return null;
+                        }
+
+                        return {
+                            district,
+                            municipalityName,
+                            barangays,
+                        };
+                    })
+                    .filter(Boolean);
+
+                const barangayCount = completeItems.reduce(
+                    (total, item) => total + item.barangays.length,
+                    0
+                );
+
+                const districtCount = new Set(
+                    completeItems.map(item => item.district)
+                ).size;
+
+                if (
+                    !provinceSelect.value
+                    || completeItems.length === 0
+                ) {
+                    locationSummary.classList.add('hidden');
+                    locationSummaryEmpty.classList.remove('hidden');
                     return;
                 }
 
-                const response = await fetch(
-                    `/locations/provinces/${provinceId}/municipalities`
-                );
+                locationSummaryEmpty.classList.add('hidden');
+                locationSummary.classList.remove('hidden');
 
-                const municipalities = await response.json();
+                locationSummaryProvince.textContent = provinceName;
 
-                municipalitySelect.innerHTML =
-                    '<option value="">Select municipality</option>';
+                locationSummaryCount.textContent =
+                    `${districtCount} district(s) · ${completeItems.length} municipality/city location(s) · ${barangayCount} barangay(s)`;
 
-                municipalities.forEach(function(municipality) {
-                    const option = document.createElement('option');
+                locationSummaryItems.innerHTML = completeItems
+                    .map(
+                        item => `
+                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <div class="text-[11px] font-bold text-blue-800">
+                                    ${escapeHtml(item.district)}
+                                </div>
 
-                    option.value = municipality.id;
-                    option.textContent = municipality.name;
+                                <div class="mt-1 text-xs font-semibold text-slate-800">
+                                    ${escapeHtml(item.municipalityName)}
+                                </div>
 
-                    option.dataset.district =
-                        municipality.district ?? '';
-
-                    option.dataset.incomeClass =
-                        municipality.income_class ?? '';
-
-                    municipalitySelect.appendChild(option);
-                });
-
-                municipalitySelect.disabled = false;
+                                <div class="mt-2 flex flex-wrap gap-1.5">
+                                    ${item.barangays.map(
+                                        barangay =>
+                                            `<span class="rounded-md bg-white px-2 py-1 text-[10px] font-medium text-slate-600 shadow-sm">${escapeHtml(barangay)}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        `
+                    )
+                    .join('');
             }
 
-            async function loadBarangays(municipalityId) {
-                barangaySelect.innerHTML =
-                    '<option value="">Loading...</option>';
+            provinceSelect.addEventListener('change', resetForProvince);
+            addProjectLocation.addEventListener('click', addLocationCard);
 
-                barangaySelect.disabled = true;
-
-                if (!municipalityId) {
-                    barangaySelect.innerHTML =
-                        '<option value="">Select barangay</option>';
-
-                    return;
-                }
-
-                const response = await fetch(
-                    `/locations/municipalities/${municipalityId}/barangays`
-                );
-
-                const barangays = await response.json();
-
-                barangaySelect.innerHTML =
-                    '<option value="">Select barangay</option>';
-
-                barangays.forEach(function(barangay) {
-                    const option = document.createElement('option');
-
-                    option.value = barangay.id;
-                    option.textContent = barangay.name;
-
-                    barangaySelect.appendChild(option);
-                });
-
-                barangaySelect.disabled = false;
+            if (provinceSelect.value) {
+                resetForProvince();
             }
 
-            provinceSelect.addEventListener(
-                'change',
-                function() {
-                    loadMunicipalities(
-                        this.value
-                    );
-                }
-            );
-
-            municipalitySelect.addEventListener(
-                'change',
-                function() {
-                    const selected =
-                        this.options[this.selectedIndex];
-
-                    districtPreview.value =
-                        selected?.dataset?.district ||
-                        'Not Assigned';
-
-                    incomeClassPreview.value =
-                        selected?.dataset?.incomeClass ||
-                        'Not Assigned';
-
-                    loadBarangays(
-                        this.value
-                    );
-                }
-            );
             const days = document.getElementById('numberOfDays');
             const beneficiaries = document.getElementById('beneficiariesTotal');
             const wageRate = document.getElementById('wageRate');

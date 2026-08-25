@@ -63,44 +63,59 @@ class PerAdlSummaryService
 
         /*
         |--------------------------------------------------------------------------
-        | Project-owned Sponsor / Partner
+        | Focal-owned Sponsor / Partner Reference
         |--------------------------------------------------------------------------
         |
-        | Focal monitoring does not encode these values. They are collected from
-        | the TC-created official projects linked to this allocation.
+        | Prefer the values maintained by Focal on the ADL allocation.
+        | Existing project values remain a compatibility fallback for older data.
         |
         */
-        $fundSponsors = $projects
+
+        $projectFundSponsors = $projects
             ->pluck('fund_sponsor')
             ->filter()
             ->map(fn ($value) => trim((string) $value))
             ->unique()
             ->values();
 
-        $partners = $projects
+        $projectPartners = $projects
             ->pluck('partner')
             ->filter()
             ->map(fn ($value) => trim((string) $value))
             ->unique()
             ->values();
 
+        $fundSponsor =
+            filled($allocation->fund_sponsor)
+                ? trim((string) $allocation->fund_sponsor)
+                : (
+                    $projectFundSponsors->isNotEmpty()
+                        ? $projectFundSponsors->implode(', ')
+                        : '—'
+                );
+
+        $partner =
+            filled($allocation->partner)
+                ? trim((string) $allocation->partner)
+                : (
+                    $projectPartners->isNotEmpty()
+                        ? $projectPartners->implode(', ')
+                        : '—'
+                );
+
         return [
             'adl_id' => $adl->id,
             'adl_number' => $adl->adl_number,
             'fund_sponsor' =>
-                $fundSponsors->isNotEmpty()
-                    ? $fundSponsors->implode(', ')
-                    : '—',
+                $fundSponsor,
 
             'partner' =>
-                $partners->isNotEmpty()
-                    ? $partners->implode(', ')
-                    : '—',
+                $partner,
 
             // Kept for older views until all monitoring templates use "partner".
             'lce_partylist' =>
-                $partners->isNotEmpty()
-                    ? $partners->implode(', ')
+                $partner !== '—'
+                    ? $partner
                     : ($allocation->local_chief_executive_partylist ?: '—'),
             'province' => $allocation->province ?: $projects->first()?->province,
             'district' => $allocation->district ?: $projects->first()?->district,

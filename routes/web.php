@@ -144,6 +144,11 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::get(
+        '/locations/provinces/{province}/districts',
+        [LocationController::class, 'districts']
+    )->name('locations.districts');
+
+    Route::get(
         '/locations/provinces/{province}/municipalities',
         [LocationController::class, 'municipalities']
     )->name('locations.municipalities');
@@ -219,8 +224,7 @@ Route::middleware('auth')->group(function () {
         | Discoverable Project Workflow Queues
         |--------------------------------------------------------------------------
         |
-        | These are filtered views of the SAME official projects.
-        | They do not create duplicate project records.
+        | These are filtered views of the SAME official project records.
         |
         */
 

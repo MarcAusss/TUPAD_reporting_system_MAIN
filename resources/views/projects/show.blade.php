@@ -575,6 +575,66 @@
     </div>
 </section>
 
+{{-- Project Location Coverage --}}
+
+@if($project->projectLocations->isNotEmpty())
+
+    <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="border-b border-slate-200 px-5 py-4">
+            <h2 class="text-sm font-semibold text-slate-900">
+                Project Location Coverage
+            </h2>
+
+            <p class="mt-1 text-xs text-slate-500">
+                All selected district, municipality/city, and barangay target areas for this project.
+            </p>
+        </div>
+
+        <div class="grid gap-3 p-5 lg:grid-cols-2">
+
+            @foreach($project->projectLocations as $location)
+
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+
+                    <div class="flex items-center justify-between gap-3">
+
+                        <div>
+                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700">
+                                {{ $location->district }}
+                            </div>
+
+                            <div class="mt-1 text-sm font-semibold text-slate-900">
+                                {{ $location->municipality->name }}
+                            </div>
+                        </div>
+
+                        <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500 shadow-sm">
+                            {{ $location->barangays->count() }} brgy
+                        </span>
+
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+
+                        @foreach($location->barangays as $barangay)
+                            <span class="rounded-md border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-800">
+                                {{ $barangay->name }}
+                            </span>
+                        @endforeach
+
+                    </div>
+
+                </div>
+
+            @endforeach
+
+        </div>
+
+    </section>
+
+@endif
+
 {{-- Evaluation & Approval --}}
 
 <section id="evaluation" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
