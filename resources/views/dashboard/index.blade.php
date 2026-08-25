@@ -32,7 +32,7 @@
 
             <article class="tupad-card p-5">
 
-                <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                     {{ $label }}
                 </div>
 
