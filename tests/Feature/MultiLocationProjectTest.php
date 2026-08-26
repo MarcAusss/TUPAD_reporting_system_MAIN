@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ImplementationMode;
+use App\Enums\ProjectStatus;
 use App\Enums\UserRole;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
@@ -134,6 +135,7 @@ class MultiLocationProjectTest extends TestCase
         $this->assertDatabaseHas('projects', [
             'project_title' => 'Albay Multi-District Project',
             'province_id' => $albay->id,
+            'status' => ProjectStatus::TSSD_EVALUATION->value,
 
             // First location is retained as compatibility snapshot.
             'municipality_id' => $tabaco->id,

@@ -274,10 +274,93 @@ class ProjectController extends Controller
                         );
                     }
 
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Exact Barangay Beneficiary Allocation
+                    |--------------------------------------------------------------------------
+                    |
+                    | New Project Create requests allocate the project beneficiary totals to
+                    | every selected barangay. Older integrations may omit the allocation
+                    | object; those requests remain supported for backward compatibility.
+                    |
+                    */
+
+                    $submittedAllocations = collect(
+                        $location['barangay_allocations'] ?? []
+                    );
+
+                    $beneficiaryAllocations = null;
+
+                    if ($submittedAllocations->isNotEmpty()) {
+                        $selectedBarangayIds = $barangays
+                            ->pluck('id')
+                            ->map(fn ($id) => (string) $id)
+                            ->values();
+
+                        $unexpectedBarangayIds = $submittedAllocations
+                            ->keys()
+                            ->map(fn ($id) => (string) $id)
+                            ->diff($selectedBarangayIds);
+
+                        if ($unexpectedBarangayIds->isNotEmpty()) {
+                            throw ValidationException::withMessages([
+                                "project_locations.{$index}.barangay_allocations" =>
+                                    'Beneficiary allocations may only be entered for selected barangays.',
+                            ]);
+                        }
+
+                        $beneficiaryAllocations = collect();
+
+                        foreach ($barangays as $barangay) {
+                            $allocation =
+                                $submittedAllocations->get((string) $barangay->id)
+                                ?? $submittedAllocations->get($barangay->id);
+
+                            if (! is_array($allocation)) {
+                                throw ValidationException::withMessages([
+                                    "project_locations.{$index}.barangay_allocations.{$barangay->id}" =>
+                                        "Enter the beneficiary allocation for {$barangay->name}.",
+                                ]);
+                            }
+
+                            $allocatedTotal =
+                                (int) ($allocation['beneficiaries_total'] ?? -1);
+
+                            $allocatedFemale =
+                                (int) ($allocation['beneficiaries_female'] ?? -1);
+
+                            if (
+                                $allocatedTotal < 0
+                                || $allocatedFemale < 0
+                            ) {
+                                throw ValidationException::withMessages([
+                                    "project_locations.{$index}.barangay_allocations.{$barangay->id}" =>
+                                        'Barangay beneficiary allocations cannot be negative.',
+                                ]);
+                            }
+
+                            if ($allocatedFemale > $allocatedTotal) {
+                                throw ValidationException::withMessages([
+                                    "project_locations.{$index}.barangay_allocations.{$barangay->id}.beneficiaries_female" =>
+                                        "Female beneficiaries for {$barangay->name} cannot exceed its total beneficiaries.",
+                                ]);
+                            }
+
+                            $beneficiaryAllocations->put(
+                                $barangay->id,
+                                [
+                                    'beneficiaries_total' => $allocatedTotal,
+                                    'beneficiaries_female' => $allocatedFemale,
+                                ]
+                            );
+                        }
+                    }
+
                     return [
                         'municipality' => $municipality,
                         'barangays' => $barangays,
                         'district' => $municipality->district,
+                        'beneficiary_allocations' => $beneficiaryAllocations,
                     ];
                 });
 
@@ -291,6 +374,110 @@ class ProjectController extends Controller
                     'project_locations' =>
                         'Each municipality/city may only be added once. Select multiple barangays inside the same location card.',
                 ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cross-location Beneficiary Allocation Integrity
+            |--------------------------------------------------------------------------
+            |
+            | If the new allocation payload is present, every selected location must
+            | participate and the barangay sums must exactly match the project totals.
+            | This is what makes Province -> Municipality -> Barangay reporting exact.
+            |
+            */
+
+            $locationsWithExactAllocation = $resolvedLocations
+                ->filter(
+                    fn (array $location) =>
+                        $location['beneficiary_allocations'] !== null
+                )
+                ->count();
+
+            $requiresExactBarangayAllocation =
+                $request->boolean(
+                    'exact_barangay_allocation'
+                );
+
+            if (
+                (
+                    $requiresExactBarangayAllocation
+                    && $locationsWithExactAllocation !== $resolvedLocations->count()
+                )
+                || (
+                    $locationsWithExactAllocation > 0
+                    && $locationsWithExactAllocation !== $resolvedLocations->count()
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    'project_locations' =>
+                        'Enter beneficiary allocations for every selected barangay in every project location.',
+                ]);
+            }
+
+            if ($locationsWithExactAllocation === $resolvedLocations->count()) {
+                $allocatedBeneficiaries = (int) $resolvedLocations
+                    ->sum(
+                        fn (array $location) =>
+                            $location['beneficiary_allocations']
+                                ->sum('beneficiaries_total')
+                    );
+
+                $allocatedFemaleBeneficiaries = (int) $resolvedLocations
+                    ->sum(
+                        fn (array $location) =>
+                            $location['beneficiary_allocations']
+                                ->sum('beneficiaries_female')
+                    );
+
+                if ($allocatedBeneficiaries !== $beneficiaries) {
+                    throw ValidationException::withMessages([
+                        'project_locations' => sprintf(
+                            'Barangay beneficiary allocations must total %s. The current allocation totals %s.',
+                            number_format($beneficiaries),
+                            number_format($allocatedBeneficiaries),
+                        ),
+                    ]);
+                }
+
+                if ($allocatedFemaleBeneficiaries !== $femaleBeneficiaries) {
+                    throw ValidationException::withMessages([
+                        'project_locations' => sprintf(
+                            'Barangay female beneficiary allocations must total %s. The current allocation totals %s.',
+                            number_format($femaleBeneficiaries),
+                            number_format($allocatedFemaleBeneficiaries),
+                        ),
+                    ]);
+                }
+            } elseif (
+                $resolvedLocations
+                    ->sum(
+                        fn (array $location) =>
+                            $location['barangays']->count()
+                    ) === 1
+            ) {
+                /*
+                 * Safe backward compatibility: when the whole project has only one
+                 * barangay, its exact allocation is unambiguous even if an older
+                 * client omitted the new allocation fields.
+                 */
+
+                $resolvedLocations = $resolvedLocations
+                    ->map(function (array $location) use (
+                        $beneficiaries,
+                        $femaleBeneficiaries
+                    ) {
+                        $barangay = $location['barangays']->first();
+
+                        $location['beneficiary_allocations'] = collect([
+                            $barangay->id => [
+                                'beneficiaries_total' => $beneficiaries,
+                                'beneficiaries_female' => $femaleBeneficiaries,
+                            ],
+                        ]);
+
+                        return $location;
+                    });
             }
 
             $primaryLocation = $resolvedLocations->first();
@@ -589,7 +776,7 @@ class ProjectController extends Controller
                 */
 
                 'status' =>
-                    ProjectStatus::ONGOING_PROFILING,
+                    ProjectStatus::TSSD_EVALUATION,
 
                 'remarks' =>
                     $validated['remarks'] ?? null,
@@ -618,8 +805,27 @@ class ProjectController extends Controller
                     'sort_order' => $index + 1,
                 ]);
 
+                $beneficiaryAllocations =
+                    $resolvedLocation['beneficiary_allocations'];
+
+                $syncPayload = $resolvedLocation['barangays']
+                    ->mapWithKeys(function ($barangay) use ($beneficiaryAllocations) {
+                        $allocation = $beneficiaryAllocations?->get($barangay->id);
+
+                        return [
+                            $barangay->id => [
+                                'beneficiaries_total' =>
+                                    $allocation['beneficiaries_total'] ?? null,
+
+                                'beneficiaries_female' =>
+                                    $allocation['beneficiaries_female'] ?? null,
+                            ],
+                        ];
+                    })
+                    ->all();
+
                 $projectLocation->barangays()->sync(
-                    $resolvedLocation['barangays']->pluck('id')
+                    $syncPayload
                 );
             }
 
@@ -644,7 +850,7 @@ class ProjectController extends Controller
                 )
                 ->with(
                     'success',
-                    'Project profile created successfully.'
+                    'Project profile saved successfully and moved to TSSD Evaluation.'
                 );
         });
     }
@@ -851,6 +1057,11 @@ class ProjectController extends Controller
                 'exists:provinces,id',
             ],
 
+            'exact_barangay_allocation' => [
+                'nullable',
+                'boolean',
+            ],
+
             'project_locations' => [
                 'required',
                 'array',
@@ -881,6 +1092,28 @@ class ProjectController extends Controller
                 'integer',
                 'distinct',
                 'exists:barangays,id',
+            ],
+
+            'project_locations.*.barangay_allocations' => [
+                'nullable',
+                'array',
+            ],
+
+            'project_locations.*.barangay_allocations.*' => [
+                'nullable',
+                'array',
+            ],
+
+            'project_locations.*.barangay_allocations.*.beneficiaries_total' => [
+                'nullable',
+                'integer',
+                'min:0',
+            ],
+
+            'project_locations.*.barangay_allocations.*.beneficiaries_female' => [
+                'nullable',
+                'integer',
+                'min:0',
             ],
 
             /*

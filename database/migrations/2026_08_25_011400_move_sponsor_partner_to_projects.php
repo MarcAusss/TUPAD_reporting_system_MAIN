@@ -5,8 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::table('projects', function (Blueprint $table) {
@@ -66,7 +65,7 @@ return new class extends Migration
                         $project->adl_allocation_id
                     );
 
-                    if (! $allocation) {
+                    if (!$allocation) {
                         continue;
                     }
 

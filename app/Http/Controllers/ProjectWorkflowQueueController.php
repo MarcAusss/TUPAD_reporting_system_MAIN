@@ -30,6 +30,7 @@ class ProjectWorkflowQueueController extends Controller
             ->with([
                 'allocation.adl',
                 'approval',
+                'evaluations',
                 'obligation',
                 'payout',
             ])
@@ -257,14 +258,25 @@ class ProjectWorkflowQueueController extends Controller
             'tssd-evaluation' => [
                 'title' => 'TSSD Evaluation',
                 'description' =>
-                    'Projects requiring TSSD evaluation or compliance review.',
+                    'Projects waiting for a TSSD evaluation result.',
                 'owner' => 'TUPAD Coordinator / Administrator',
                 'statuses' => [
                     ProjectStatus::TSSD_EVALUATION->value,
+                ],
+                'empty' =>
+                    'No projects are currently waiting for TSSD evaluation.',
+            ],
+
+            'for-compliance' => [
+                'title' => 'Projects for Compliance',
+                'description' =>
+                    'Projects with TSSD findings that require compliance before approval.',
+                'owner' => 'TUPAD Coordinator / Administrator',
+                'statuses' => [
                     ProjectStatus::FOR_COMPLIANCE->value,
                 ],
                 'empty' =>
-                    'No projects currently require TSSD evaluation or compliance review.',
+                    'No projects are currently waiting for compliance.',
             ],
 
             'for-approval' => [

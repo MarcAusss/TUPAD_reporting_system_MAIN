@@ -46,6 +46,7 @@ class RoleNavigationUxTest extends TestCase
         $response->assertSee('Project Management');
         $response->assertSee('Project Workflow');
         $response->assertSee('TSSD Evaluation');
+        $response->assertSee('For Compliance');
         $response->assertSee('For Approval');
         $response->assertSee('Implementation');
         $response->assertSee('Post-Documents');

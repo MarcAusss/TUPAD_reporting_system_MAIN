@@ -97,7 +97,12 @@ class ProjectFormDetailUxTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Recommended Next Action');
-        $response->assertSee('Submit the project for TSSD Evaluation.');
+        $response->assertSee(
+            'Legacy profiling record — new profiles now enter TSSD Evaluation automatically.'
+        );
+        $response->assertDontSee(
+            'Submit the project for TSSD Evaluation.'
+        );
         $response->assertSee('Project Snapshot');
         $response->assertSee('href="#overview"', false);
         $response->assertSee('href="#evaluation"', false);

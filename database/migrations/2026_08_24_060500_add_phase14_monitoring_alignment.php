@@ -94,15 +94,26 @@ return new class extends Migration {
         Schema::table('adl_allocations', function (Blueprint $table) {
             $table->dropIndex('adl_allocations_province_municipality_index');
             $table->dropColumn([
-                'local_chief_executive_partylist', 'province', 'district', 'municipality',
-                'grant_amount', 'admin_cost_amount', 'total_amount',
+                'local_chief_executive_partylist',
+                'province',
+                'district',
+                'municipality',
+                'grant_amount',
+                'admin_cost_amount',
+                'total_amount',
             ]);
         });
 
         Schema::table('adls', function (Blueprint $table) {
             $table->dropColumn([
-                'date_received', 'batch', 'tranche', 'sponsor_reference',
-                'nfa_date', 'nfa_number', 'nta_date', 'nta_number',
+                'date_received',
+                'batch',
+                'tranche',
+                'sponsor_reference',
+                'nfa_date',
+                'nfa_number',
+                'nta_date',
+                'nta_number',
             ]);
         });
     }

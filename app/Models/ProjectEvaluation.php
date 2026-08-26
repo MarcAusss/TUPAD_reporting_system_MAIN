@@ -18,12 +18,17 @@ class ProjectEvaluation extends Model
         'result',
         'evaluated_by',
         'evaluated_at',
+        'compliance_date',
+        'complied_by',
+        'complied_at',
     ];
 
     protected function casts(): array
     {
         return [
             'evaluated_at' => 'datetime',
+            'compliance_date' => 'date',
+            'complied_at' => 'datetime',
         ];
     }
 
@@ -37,6 +42,14 @@ class ProjectEvaluation extends Model
         return $this->belongsTo(
             User::class,
             'evaluated_by'
+        );
+    }
+
+    public function complier(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'complied_by'
         );
     }
 }

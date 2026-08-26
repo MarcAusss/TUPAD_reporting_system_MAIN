@@ -28,13 +28,13 @@
 
     $nextAction = match ($project->status) {
         \App\Enums\ProjectStatus::ONGOING_PROFILING =>
-            'Submit the project for TSSD Evaluation.',
+            'Legacy profiling record — new profiles now enter TSSD Evaluation automatically.',
 
         \App\Enums\ProjectStatus::TSSD_EVALUATION =>
             'Record the TSSD evaluation result.',
 
         \App\Enums\ProjectStatus::FOR_COMPLIANCE =>
-            'Review the compliance submission and record the next evaluation result.',
+            'Record the Date of Compliance. Saving moves the project directly to For Approval.',
 
         \App\Enums\ProjectStatus::FOR_APPROVAL =>
             'Complete the project approval action.',
@@ -656,21 +656,12 @@
         {{-- Ongoing Profiling --}}
 
         @if($project->status === \App\Enums\ProjectStatus::ONGOING_PROFILING)
-            <div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <div class="text-sm font-semibold text-blue-900">Project Profiling Ready</div>
+            <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div class="text-sm font-semibold text-amber-900">Legacy Profiling Record</div>
 
-                <p class="mt-1 text-xs leading-5 text-blue-700">
-                    This project uses aggregate beneficiary counts only. No individual beneficiary registry is required before TSSD Evaluation.
+                <p class="mt-1 text-xs leading-5 text-amber-800">
+                    New project profiles move directly to TSSD Evaluation when saved. This Ongoing Profiling status is retained only for older records created before the revised workflow.
                 </p>
-
-                @if(auth()->user()->isAdmin() || auth()->user()->isTc())
-                    <form method="POST" action="{{ route('projects.evaluation.start', $project) }}" class="mt-4">
-                        @csrf
-                        <button type="submit" class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
-                            Submit for TSSD Evaluation
-                        </button>
-                    </form>
-                @endif
             </div>
         @endif
 
@@ -689,71 +680,143 @@
 
             @if($project->status === \App\Enums\ProjectStatus::FOR_COMPLIANCE)
 
-                <div class="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                @php
+                    $latestEvaluation = $project
+                        ->evaluations
+                        ->where('result', 'for_compliance')
+                        ->sortByDesc('evaluated_at')
+                        ->first();
 
-                    <div class="text-sm font-semibold text-amber-800">
-                        Project requires compliance
+                    $complianceAgingDays =
+                        $latestEvaluation?->evaluated_at
+                            ? (int) $latestEvaluation
+                                ->evaluated_at
+                                ->copy()
+                                ->startOfDay()
+                                ->diffInDays(
+                                    now()->startOfDay()
+                                )
+                            : 0;
+                @endphp
+
+                <div class="mb-5 overflow-hidden rounded-xl border border-amber-200 bg-amber-50">
+
+                    <div class="border-b border-amber-200 px-4 py-3">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                            <div>
+                                <div class="text-sm font-semibold text-amber-900">
+                                    Project for Compliance
+                                </div>
+
+                                <p class="mt-1 text-xs leading-5 text-amber-700">
+                                    Record the Date of Compliance. Saving automatically moves this project to For Approval.
+                                </p>
+                            </div>
+
+                            <div class="rounded-lg border border-amber-300 bg-white px-4 py-2 text-right">
+                                <div class="text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                                    Aging
+                                </div>
+
+                                <div class="mt-0.5 text-lg font-bold text-amber-900">
+                                    {{ number_format($complianceAgingDays) }}
+                                    <span class="text-xs font-semibold">
+                                        day(s)
+                                    </span>
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
 
-                    @php
-                        $latestEvaluation = $project
-                            ->evaluations
-                            ->sortByDesc('evaluated_at')
-                            ->first();
-                    @endphp
+                    <div class="p-4">
 
-                    @if($latestEvaluation)
+                        @if($latestEvaluation)
 
-                        @if($latestEvaluation->findings)
+                            <div class="grid gap-4 lg:grid-cols-2">
 
-                            <div class="mt-3">
+                                <div class="rounded-lg border border-amber-200 bg-white p-4">
+                                    <div class="text-xs font-semibold text-amber-800">
+                                        Findings
+                                    </div>
 
-                                <div class="text-xs font-semibold text-amber-800">
-                                    Findings
+                                    <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-700">
+                                        {{ $latestEvaluation->findings ?: '—' }}
+                                    </p>
                                 </div>
 
-                                <p class="mt-1 whitespace-pre-line text-sm text-amber-700">
-                                    {{ $latestEvaluation->findings }}
-                                </p>
+                                <div class="rounded-lg border border-amber-200 bg-white p-4">
+                                    <div class="text-xs font-semibold text-amber-800">
+                                        Required Documents
+                                    </div>
 
+                                    <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-700">
+                                        {{ $latestEvaluation->required_documents ?: '—' }}
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <div class="mt-4 text-xs text-amber-700">
+                                Compliance requested:
+                                <span class="font-semibold">
+                                    {{ $latestEvaluation->evaluated_at->format('F d, Y') }}
+                                </span>
                             </div>
 
                         @endif
 
-                        @if($latestEvaluation->required_documents)
-
-                            <div class="mt-3">
-
-                                <div class="text-xs font-semibold text-amber-800">
-                                    Required Documents
-                                </div>
-
-                                <p class="mt-1 whitespace-pre-line text-sm text-amber-700">
-                                    {{ $latestEvaluation->required_documents }}
-                                </p>
-
-                            </div>
-
-                        @endif
-
-                    @endif
-
-                    <form
-                        method="POST"
-                        action="{{ route('projects.evaluation.resubmit', $project) }}"
-                        class="mt-4"
-                    >
-
-                        @csrf
-
-                        <button
-                            type="submit"
-                            class="h-10 rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800"
+                        <form
+                            method="POST"
+                            action="{{ route('projects.compliance.store', $project) }}"
+                            class="mt-5"
                         >
-                            Resubmit for Evaluation
-                        </button>
 
-                    </form>
+                            @csrf
+
+                            <div class="grid gap-4 md:grid-cols-2 md:items-end">
+
+                                <div>
+                                    <label
+                                        for="compliance-date"
+                                        class="mb-2 block text-xs font-semibold text-slate-700"
+                                    >
+                                        Date of Compliance
+                                        <span class="text-rose-600">*</span>
+                                    </label>
+
+                                    <input
+                                        id="compliance-date"
+                                        name="compliance_date"
+                                        type="date"
+                                        required
+                                        min="{{ $latestEvaluation?->evaluated_at?->toDateString() }}"
+                                        value="{{ old('compliance_date', now()->toDateString()) }}"
+                                        class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                                    >
+
+                                    @error('compliance_date')
+                                        <p class="mt-1 text-[10px] font-semibold text-rose-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+
+                                <div class="flex md:justify-end">
+                                    <button
+                                        type="submit"
+                                        class="h-10 rounded-lg bg-amber-700 px-5 text-sm font-semibold text-white hover:bg-amber-800"
+                                    >
+                                        Save Compliance
+                                    </button>
+                                </div>
+
+                            </div>
+
+                        </form>
+
+                    </div>
 
                 </div>
 
@@ -915,6 +978,7 @@
 
                 <p class="mt-1 text-xs leading-5 text-emerald-700">
                     Assign the official Project Code during approval. One project receives one Project Code, and that code cannot be reused by another project.
+                    Saving approval automatically updates the project status to Approved.
                 </p>
 
             </div>
@@ -1133,6 +1197,39 @@
                                         ? 'For Approval'
                                         : 'For Compliance' }}
                                 </span>
+
+                                @if($evaluation->result === 'for_compliance')
+                                    @php
+                                        $evaluationAging =
+                                            $evaluation->compliance_date
+                                                ? (int) $evaluation
+                                                    ->evaluated_at
+                                                    ->copy()
+                                                    ->startOfDay()
+                                                    ->diffInDays(
+                                                        $evaluation
+                                                            ->compliance_date
+                                                            ->copy()
+                                                            ->startOfDay()
+                                                    )
+                                                : null;
+                                    @endphp
+
+                                    <div class="mt-2 text-[10px] leading-4 text-slate-500">
+                                        @if($evaluation->compliance_date)
+                                            Compliance:
+                                            <span class="font-semibold text-slate-700">
+                                                {{ $evaluation->compliance_date->format('M d, Y') }}
+                                            </span>
+                                            · Aging:
+                                            <span class="font-semibold text-slate-700">
+                                                {{ number_format($evaluationAging) }} day(s)
+                                            </span>
+                                        @else
+                                            Compliance pending
+                                        @endif
+                                    </div>
+                                @endif
 
                             </td>
 

@@ -8,21 +8,32 @@ use Tests\TestCase;
 class ProvinceSummaryBladeSyntaxRegressionTest extends TestCase
 {
     #[Test]
-    public function province_summary_page_header_uses_valid_blade_component_attributes(): void
+    public function province_summary_page_header_uses_valid_computed_blade_component_attributes(): void
     {
-        $view = file_get_contents(
-            resource_path(
-                'views/projects/province-summary.blade.php'
-            )
-        );
+        $view =
+            file_get_contents(
+                resource_path(
+                    'views/projects/province-summary.blade.php'
+                )
+            );
 
         $this->assertStringContainsString(
-            ':title="$province->name . \' Province Summary\'"',
+            '$summaryPageTitle = $isSingleProjectSummary',
             $view
         );
 
         $this->assertStringContainsString(
-            'description="{{ $province->name }} Project Summary',
+            '$summaryPageDescription = $isSingleProjectSummary',
+            $view
+        );
+
+        $this->assertStringContainsString(
+            ':title="$summaryPageTitle"',
+            $view
+        );
+
+        $this->assertStringContainsString(
+            ':description="$summaryPageDescription"',
             $view
         );
 

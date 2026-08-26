@@ -25,6 +25,7 @@ class ProjectWorkflowQueueTest extends TestCase
 
         foreach ([
             'tssd-evaluation',
+            'for-compliance',
             'for-approval',
             'implementation',
             'post-documents',
@@ -60,7 +61,7 @@ class ProjectWorkflowQueueTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_tssd_queue_only_shows_evaluation_and_compliance_projects(): void
+    public function test_tssd_queue_only_shows_projects_waiting_for_tssd_evaluation(): void
     {
         $tc = User::factory()->create([
             'role' => UserRole::TC,
@@ -79,12 +80,6 @@ class ProjectWorkflowQueueTest extends TestCase
             'Compliance Project'
         );
 
-        $approval = $this->createProject(
-            $tc,
-            ProjectStatus::FOR_APPROVAL,
-            'Approval Project'
-        );
-
         $response = $this
             ->actingAs($tc)
             ->get(
@@ -95,9 +90,50 @@ class ProjectWorkflowQueueTest extends TestCase
             );
 
         $response->assertOk();
-        $response->assertSee($evaluation->project_title);
-        $response->assertSee($compliance->project_title);
-        $response->assertDontSee($approval->project_title);
+        $response->assertSee(
+            $evaluation->project_title
+        );
+        $response->assertDontSee(
+            $compliance->project_title
+        );
+    }
+
+    public function test_for_compliance_queue_only_shows_projects_waiting_for_compliance(): void
+    {
+        $tc = User::factory()->create([
+            'role' => UserRole::TC,
+            'is_active' => true,
+        ]);
+
+        $evaluation = $this->createProject(
+            $tc,
+            ProjectStatus::TSSD_EVALUATION,
+            'Evaluation Project'
+        );
+
+        $compliance = $this->createProject(
+            $tc,
+            ProjectStatus::FOR_COMPLIANCE,
+            'Compliance Project'
+        );
+
+        $response = $this
+            ->actingAs($tc)
+            ->get(
+                route(
+                    'project-workflow.index',
+                    ['queue' => 'for-compliance']
+                )
+            );
+
+        $response->assertOk();
+        $response->assertSee(
+            $compliance->project_title
+        );
+        $response->assertDontSee(
+            $evaluation->project_title
+        );
+        $response->assertSee('Aging');
     }
 
     public function test_release_queue_only_shows_for_payment_projects_with_obligation_and_without_payout(): void

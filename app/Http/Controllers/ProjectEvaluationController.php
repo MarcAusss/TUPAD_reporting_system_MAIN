@@ -6,6 +6,8 @@ use App\Enums\ProjectStatus;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ProjectEvaluationController extends Controller
@@ -20,7 +22,7 @@ class ProjectEvaluationController extends Controller
         ) {
             abort(
                 403,
-                'Only projects under Ongoing Profiling may be submitted for TSSD Evaluation.'
+                'Only legacy Ongoing Profiling projects may be submitted for TSSD Evaluation.'
             );
         }
 
@@ -42,18 +44,12 @@ class ProjectEvaluationController extends Controller
         Project $project
     ): RedirectResponse {
         if (
-            !in_array(
-                $project->status,
-                [
-                    ProjectStatus::TSSD_EVALUATION,
-                    ProjectStatus::FOR_COMPLIANCE,
-                ],
-                true
-            )
+            $project->status
+            !== ProjectStatus::TSSD_EVALUATION
         ) {
             abort(
                 403,
-                'This project cannot currently be evaluated.'
+                'Only projects under TSSD Evaluation may be evaluated.'
             );
         }
 
@@ -65,21 +61,18 @@ class ProjectEvaluationController extends Controller
                     'for_approval',
                 ]),
             ],
-
             'findings' => [
                 'required_if:result,for_compliance',
                 'nullable',
                 'string',
                 'max:5000',
             ],
-
             'required_documents' => [
                 'required_if:result,for_compliance',
                 'nullable',
                 'string',
                 'max:5000',
             ],
-
             'remarks' => [
                 'nullable',
                 'string',
@@ -95,29 +88,24 @@ class ProjectEvaluationController extends Controller
                 $isForCompliance
                     ? trim($validated['findings'])
                     : null,
-
             'required_documents' =>
                 $isForCompliance
                     ? trim($validated['required_documents'])
                     : null,
-
             'remarks' =>
                 $validated['remarks'] ?? null,
-
             'result' =>
                 $validated['result'],
-
             'evaluated_by' =>
                 $request->user()->id,
-
             'evaluated_at' =>
                 now(),
         ]);
 
         $newStatus =
-            $validated['result'] === 'for_compliance'
-            ? ProjectStatus::FOR_COMPLIANCE
-            : ProjectStatus::FOR_APPROVAL;
+            $isForCompliance
+                ? ProjectStatus::FOR_COMPLIANCE
+                : ProjectStatus::FOR_APPROVAL;
 
         $project->update([
             'status' => $newStatus,
@@ -129,12 +117,12 @@ class ProjectEvaluationController extends Controller
             ->with(
                 'success',
                 $newStatus === ProjectStatus::FOR_COMPLIANCE
-                ? 'Project returned for compliance.'
-                : 'Project moved to For Approval.'
+                    ? 'Project moved to For Compliance.'
+                    : 'Project moved to For Approval.'
             );
     }
 
-    public function resubmit(
+    public function compliance(
         Request $request,
         Project $project
     ): RedirectResponse {
@@ -144,20 +132,134 @@ class ProjectEvaluationController extends Controller
         ) {
             abort(
                 403,
-                'Only projects under For Compliance may be resubmitted.'
+                'Only projects under For Compliance may record compliance.'
             );
         }
 
-        $project->update([
-            'status' => ProjectStatus::TSSD_EVALUATION,
-            'updated_by' => $request->user()->id,
+        $latestCompliance =
+            $project
+                ->evaluations()
+                ->where(
+                    'result',
+                    'for_compliance'
+                )
+                ->latest('evaluated_at')
+                ->latest('id')
+                ->first();
+
+        if (! $latestCompliance) {
+            abort(
+                422,
+                'No TSSD compliance finding is available for this project.'
+            );
+        }
+
+        $validated = $request->validate([
+            'compliance_date' => [
+                'required',
+                'date',
+                'after_or_equal:'
+                    . $latestCompliance
+                        ->evaluated_at
+                        ->toDateString(),
+            ],
         ]);
 
-        return redirect()
-            ->route('projects.show', $project)
-            ->with(
-                'success',
-                'Project resubmitted for TSSD Evaluation.'
-            );
+        return DB::transaction(
+            function () use (
+                $request,
+                $project,
+                $validated
+            ) {
+                $lockedProject =
+                    Project::query()
+                        ->lockForUpdate()
+                        ->findOrFail(
+                            $project->id
+                        );
+
+                if (
+                    $lockedProject->status
+                    !== ProjectStatus::FOR_COMPLIANCE
+                ) {
+                    return back()->withErrors([
+                        'compliance_date' =>
+                            'This project is no longer under For Compliance.',
+                    ]);
+                }
+
+                $evaluation =
+                    $lockedProject
+                        ->evaluations()
+                        ->where(
+                            'result',
+                            'for_compliance'
+                        )
+                        ->latest('evaluated_at')
+                        ->latest('id')
+                        ->first();
+
+                if (! $evaluation) {
+                    abort(
+                        422,
+                        'No TSSD compliance finding is available for this project.'
+                    );
+                }
+
+                $complianceDate =
+                    Carbon::parse(
+                        $validated[
+                            'compliance_date'
+                        ]
+                    )->startOfDay();
+
+                $agingDays =
+                    (int) $evaluation
+                        ->evaluated_at
+                        ->copy()
+                        ->startOfDay()
+                        ->diffInDays(
+                            $complianceDate
+                        );
+
+                $evaluation->update([
+                    'compliance_date' =>
+                        $validated[
+                            'compliance_date'
+                        ],
+                    'complied_by' =>
+                        $request->user()->id,
+                    'complied_at' =>
+                        now(),
+                ]);
+
+                $lockedProject->update([
+                    'status' =>
+                        ProjectStatus::FOR_APPROVAL,
+                    'updated_by' =>
+                        $request->user()->id,
+                ]);
+
+                return redirect()
+                    ->route(
+                        'projects.show',
+                        $lockedProject
+                    )
+                    ->with(
+                        'success',
+                        "Compliance recorded. Project moved to For Approval. Aging: {$agingDays} day(s)."
+                    );
+            }
+        );
+    }
+
+    public function resubmit(
+        Request $request,
+        Project $project
+    ): RedirectResponse {
+        return $this->compliance(
+            $request,
+            $project
+        );
     }
 }

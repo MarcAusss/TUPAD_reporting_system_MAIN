@@ -10,7 +10,7 @@
 
     $summaryPageDescription = $isSingleProjectSummary
         ? $province->name . ' Project Summary — only the selected project is shown. Its municipalities and districts are expanded below.'
-        : $province->name . ' Project Summary — official province project register and project-driven municipality / barangay beneficiary coverage.';
+        : $province->name . ' Project Summary — official province project register with exact municipality / barangay beneficiary allocation.';
 @endphp
 
 @section('title', $summaryPageTitle)
@@ -706,7 +706,11 @@
 
                                                 <div class="border-t border-slate-100 bg-slate-50 px-3 py-2">
 
-                                                    @foreach($barangay['projects'] as $coveredProject)
+                                                    @foreach($barangay['project_entries'] as $projectEntry)
+
+                                                        @php
+                                                            $coveredProject = $projectEntry['project'];
+                                                        @endphp
 
                                                         <div class="flex flex-col gap-2 border-b border-slate-100 py-2 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
 
@@ -717,19 +721,21 @@
                                                                     {{ $coveredProject->project_title }}
                                                                 </div>
 
-                                                                <div class="mt-0.5 text-[9px] text-slate-400">
-                                                                    Project-level beneficiary coverage
+                                                                <div class="mt-0.5 text-[9px] {{ $projectEntry['is_exact'] ? 'font-semibold text-emerald-600' : 'text-amber-600' }}">
+                                                                    {{ $projectEntry['is_exact']
+                                                                        ? 'Exact barangay beneficiary allocation'
+                                                                        : 'Legacy project-level beneficiary coverage' }}
                                                                 </div>
                                                             </div>
 
                                                             <div class="flex gap-3 text-[10px]">
                                                                 <span class="font-semibold text-slate-700">
-                                                                    {{ number_format($coveredProject->beneficiaries_total) }}
+                                                                    {{ number_format($projectEntry['beneficiaries']) }}
                                                                     benef.
                                                                 </span>
 
                                                                 <span class="font-semibold text-slate-500">
-                                                                    {{ number_format($coveredProject->beneficiaries_female) }}
+                                                                    {{ number_format($projectEntry['female_beneficiaries']) }}
                                                                     female
                                                                 </span>
                                                             </div>
@@ -780,11 +786,17 @@
 
     </div>
 
-    <div class="border-t border-amber-200 bg-amber-50 px-5 py-3 text-[10px] leading-5 text-amber-800">
-        <b>Barangay beneficiary figures are coverage totals.</b>
-        The current project schema stores beneficiary counts at project level.
-        For projects covering multiple barangays, barangay values are beneficiary coverage and are not summed into the province total.
-    </div>
+    @if($provinceStats['has_legacy_coverage'])
+        <div class="border-t border-amber-200 bg-amber-50 px-5 py-3 text-[10px] leading-5 text-amber-800">
+            <b>Barangay beneficiary figures are coverage totals only for legacy projects without exact allocation.</b>
+            New projects use saved Total and Female beneficiary counts per barangay. Legacy multi-barangay records remain marked as coverage because their historical project total cannot be divided safely without source data.
+        </div>
+    @else
+        <div class="border-t border-emerald-200 bg-emerald-50 px-5 py-3 text-[10px] leading-5 text-emerald-800">
+            <b>Exact beneficiary allocation is complete.</b>
+            Barangay figures come from the saved project-location allocation, and municipality / district totals are rolled up from those barangay values.
+        </div>
+    @endif
 
 </section>
 

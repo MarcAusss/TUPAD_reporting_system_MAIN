@@ -32,6 +32,17 @@ class ProjectApprovalController extends Controller
             ]);
         }
 
+        $request->merge([
+            'project_code' =>
+                strtoupper(
+                    trim(
+                        (string) $request->input(
+                            'project_code'
+                        )
+                    )
+                ),
+        ]);
+
         $validated = $request->validate([
             'approval_date' => [
                 'required',

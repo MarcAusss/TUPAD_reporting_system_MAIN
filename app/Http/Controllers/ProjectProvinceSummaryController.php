@@ -185,432 +185,399 @@ class ProjectProvinceSummaryController extends Controller
     ): View {
         /*
         |--------------------------------------------------------------------------
-        | Only geographic areas represented by project data
+        | Project-driven geography with exact beneficiary allocation
         |--------------------------------------------------------------------------
         |
-        | The previous version displayed every municipality and barangay from
-        | the geographic reference table. This report is project-driven:
-        |
-        | Province
-        | -> Districts represented by projects
-        | -> Municipalities/Cities represented by projects
-        | -> Barangays represented by projects
+        | New projects store beneficiary totals on the project/location/barangay
+        | pivot. Older multi-barangay projects may still have NULL allocation
+        | values because their historic project total cannot be split safely.
         |
         */
 
         $province->load([
             'municipalities' => fn ($query) =>
                 $query
-                    ->where(
-                        'is_active',
-                        true
-                    )
+                    ->where('is_active', true)
                     ->orderBy('district')
                     ->orderBy('name'),
 
             'municipalities.barangays' => fn ($query) =>
                 $query
-                    ->where(
-                        'is_active',
-                        true
-                    )
+                    ->where('is_active', true)
                     ->orderBy('name'),
         ]);
 
-        $projects =
-            $sourceProject
-                ? $this->singleProjectCollection(
-                    $sourceProject
-                )
-                : $this->projectsForProvince(
-                    $province
-                );
+        $projects = $sourceProject
+            ? $this->singleProjectCollection(
+                $sourceProject
+            )
+            : $this->projectsForProvince(
+                $province
+            );
 
-        $coverageByBarangay = [];
-        $coverageByMunicipality = [];
+        $entriesByBarangay = [];
+        $entriesByMunicipality = [];
+        $hasLegacyCoverage = false;
 
-        foreach (
-            $projects
-            as $provinceProject
-        ) {
-            $municipalityIds =
-                collect();
+        foreach ($projects as $provinceProject) {
+            $hasStructuredLocation = false;
 
-            $barangayIds =
-                collect();
+            foreach ($provinceProject->projectLocations as $location) {
+                $hasStructuredLocation = true;
 
-            foreach (
-                $provinceProject->projectLocations
-                as $location
-            ) {
-                if (
-                    $location->municipality_id
-                ) {
-                    $municipalityIds->push(
-                        $location->municipality_id
+                $locationHasExactAllocation =
+                    $location->barangays->isNotEmpty()
+                    && $location->barangays->every(
+                        fn ($barangay) =>
+                            $barangay->pivot->beneficiaries_total !== null
+                            && $barangay->pivot->beneficiaries_female !== null
                     );
+
+                if (! $locationHasExactAllocation) {
+                    $hasLegacyCoverage = true;
                 }
 
-                $barangayIds->push(
-                    ...$location
-                        ->barangays
-                        ->pluck('id')
-                        ->all()
-                );
+                $municipalityBeneficiaries = $locationHasExactAllocation
+                    ? (int) $location->barangays->sum(
+                        fn ($barangay) =>
+                            (int) $barangay->pivot->beneficiaries_total
+                    )
+                    : (int) $provinceProject->beneficiaries_total;
+
+                $municipalityFemaleBeneficiaries = $locationHasExactAllocation
+                    ? (int) $location->barangays->sum(
+                        fn ($barangay) =>
+                            (int) $barangay->pivot->beneficiaries_female
+                    )
+                    : (int) $provinceProject->beneficiaries_female;
+
+                if ($location->municipality_id) {
+                    $entriesByMunicipality[
+                        $location->municipality_id
+                    ] ??= collect();
+
+                    $entriesByMunicipality[
+                        $location->municipality_id
+                    ]->push([
+                        'project' => $provinceProject,
+                        'beneficiaries' => $municipalityBeneficiaries,
+                        'female_beneficiaries' =>
+                            $municipalityFemaleBeneficiaries,
+                        'is_exact' => $locationHasExactAllocation,
+                    ]);
+                }
+
+                foreach ($location->barangays as $barangay) {
+                    $barangayHasExactAllocation =
+                        $barangay->pivot->beneficiaries_total !== null
+                        && $barangay->pivot->beneficiaries_female !== null;
+
+                    if (! $barangayHasExactAllocation) {
+                        $hasLegacyCoverage = true;
+                    }
+
+                    $entriesByBarangay[
+                        $barangay->id
+                    ] ??= collect();
+
+                    $entriesByBarangay[
+                        $barangay->id
+                    ]->push([
+                        'project' => $provinceProject,
+
+                        'beneficiaries' =>
+                            $barangayHasExactAllocation
+                                ? (int) $barangay->pivot->beneficiaries_total
+                                : (int) $provinceProject->beneficiaries_total,
+
+                        'female_beneficiaries' =>
+                            $barangayHasExactAllocation
+                                ? (int) $barangay->pivot->beneficiaries_female
+                                : (int) $provinceProject->beneficiaries_female,
+
+                        'is_exact' => $barangayHasExactAllocation,
+                    ]);
+                }
             }
 
-            if (
-                $municipalityIds->isEmpty()
-                && $provinceProject->municipality_id
-            ) {
-                $municipalityIds->push(
-                    $provinceProject->municipality_id
-                );
-            }
-
-            if (
-                $barangayIds->isEmpty()
-                && $provinceProject->barangay_id
-            ) {
-                $barangayIds->push(
-                    $provinceProject->barangay_id
-                );
+            if ($hasStructuredLocation) {
+                continue;
             }
 
             /*
-             * Legacy fallback for old records whose location IDs were not
-             * populated but whose text fields still identify the location.
+             * Legacy fallback for records created before project_locations.
              */
+            $hasLegacyCoverage = true;
+
+            $municipalityId = $provinceProject->municipality_id;
+            $barangayId = $provinceProject->barangay_id;
+
             if (
-                $municipalityIds->isEmpty()
-                && filled(
-                    $provinceProject->municipality
-                )
+                ! $municipalityId
+                && filled($provinceProject->municipality)
             ) {
-                $matchedMunicipality =
-                    $province
-                        ->municipalities
-                        ->first(
-                            fn ($municipality) =>
-                                mb_strtolower(
-                                    trim(
-                                        $municipality->name
-                                    )
-                                )
-                                ===
-                                mb_strtolower(
-                                    trim(
-                                        $provinceProject->municipality
-                                    )
-                                )
-                        );
-
-                if ($matchedMunicipality) {
-                    $municipalityIds->push(
-                        $matchedMunicipality->id
-                    );
-                }
+                $municipalityId = $province
+                    ->municipalities
+                    ->first(
+                        fn ($municipality) =>
+                            mb_strtolower(trim($municipality->name))
+                            === mb_strtolower(
+                                trim($provinceProject->municipality)
+                            )
+                    )
+                    ?->id;
             }
 
-            foreach (
-                $municipalityIds
-                    ->filter()
-                    ->unique()
-                as $municipalityId
-            ) {
-                $coverageByMunicipality[
+            if ($municipalityId) {
+                $entriesByMunicipality[
                     $municipalityId
                 ] ??= collect();
 
-                $coverageByMunicipality[
+                $entriesByMunicipality[
                     $municipalityId
-                ]->push(
-                    $provinceProject
-                );
+                ]->push([
+                    'project' => $provinceProject,
+                    'beneficiaries' =>
+                        (int) $provinceProject->beneficiaries_total,
+                    'female_beneficiaries' =>
+                        (int) $provinceProject->beneficiaries_female,
+                    'is_exact' => false,
+                ]);
             }
 
-            foreach (
-                $barangayIds
-                    ->filter()
-                    ->unique()
-                as $barangayId
-            ) {
-                $coverageByBarangay[
+            if ($barangayId) {
+                $entriesByBarangay[
                     $barangayId
                 ] ??= collect();
 
-                $coverageByBarangay[
+                $entriesByBarangay[
                     $barangayId
-                ]->push(
-                    $provinceProject
-                );
+                ]->push([
+                    'project' => $provinceProject,
+                    'beneficiaries' =>
+                        (int) $provinceProject->beneficiaries_total,
+                    'female_beneficiaries' =>
+                        (int) $provinceProject->beneficiaries_female,
+                    'is_exact' => false,
+                ]);
             }
         }
 
-        $districts =
-            $province
-                ->municipalities
-                ->map(
-                    function (
-                        $municipality
-                    ) use (
-                        $coverageByBarangay,
-                        $coverageByMunicipality
-                    ) {
-                        $barangayNodes =
-                            $municipality
-                                ->barangays
-                                ->map(
-                                    function (
-                                        $barangay
-                                    ) use (
-                                        $coverageByBarangay
-                                    ) {
-                                        $projects =
-                                            (
-                                                $coverageByBarangay[
-                                                    $barangay->id
-                                                ]
-                                                ?? collect()
-                                            )
-                                            ->unique('id')
-                                            ->values();
-
-                                        return [
-                                            'id' =>
-                                                $barangay->id,
-
-                                            'name' =>
-                                                $barangay->name,
-
-                                            'project_count' =>
-                                                $projects->count(),
-
-                                            /*
-                                             * Beneficiary coverage:
-                                             * the current schema stores a
-                                             * project aggregate, not a true
-                                             * barangay allocation.
-                                             */
-                                            'beneficiaries' =>
-                                                (int) $projects
-                                                    ->sum(
-                                                        'beneficiaries_total'
-                                                    ),
-
-                                            'female_beneficiaries' =>
-                                                (int) $projects
-                                                    ->sum(
-                                                        'beneficiaries_female'
-                                                    ),
-
-                                            'projects' =>
-                                                $projects,
-                                        ];
-                                    }
+        $districts = $province
+            ->municipalities
+            ->map(
+                function ($municipality) use (
+                    $entriesByBarangay,
+                    $entriesByMunicipality
+                ) {
+                    $barangayNodes = $municipality
+                        ->barangays
+                        ->map(
+                            function ($barangay) use ($entriesByBarangay) {
+                                $entries = collect(
+                                    $entriesByBarangay[$barangay->id]
+                                    ?? []
                                 )
-                                ->filter(
-                                    fn (array $barangay) =>
-                                        $barangay[
-                                            'project_count'
-                                        ] > 0
-                                )
-                                ->values();
-
-                        $municipalityProjects =
-                            collect(
-                                $coverageByMunicipality[
-                                    $municipality->id
-                                ]
-                                ?? []
-                            )
-                            ->merge(
-                                $barangayNodes
-                                    ->pluck(
-                                        'projects'
+                                    ->unique(
+                                        fn (array $entry) =>
+                                            $entry['project']->id
                                     )
-                                    ->flatten(1)
-                            )
-                            ->unique('id')
-                            ->values();
+                                    ->values();
 
-                        if (
-                            $municipalityProjects
-                                ->isEmpty()
-                        ) {
-                            return null;
-                        }
+                                if ($entries->isEmpty()) {
+                                    return null;
+                                }
 
-                        return [
-                            'id' =>
-                                $municipality->id,
-
-                            'name' =>
-                                $municipality->name,
-
-                            'is_city' =>
-                                (bool) $municipality->is_city,
-
-                            'district' =>
-                                $municipality->district
-                                ?: 'Unassigned District',
-
-                            'barangay_count' =>
-                                $barangayNodes->count(),
-
-                            'project_count' =>
-                                $municipalityProjects->count(),
-
-                            'beneficiaries' =>
-                                (int) $municipalityProjects
-                                    ->sum(
-                                        'beneficiaries_total'
-                                    ),
-
-                            'female_beneficiaries' =>
-                                (int) $municipalityProjects
-                                    ->sum(
-                                        'beneficiaries_female'
-                                    ),
-
-                            'amount_assisted' =>
-                                (float) $municipalityProjects
-                                    ->sum(
-                                        'total_project_cost'
-                                    ),
-
-                            'barangays' =>
-                                $barangayNodes,
-
-                            'projects' =>
-                                $municipalityProjects,
-                        ];
-                    }
-                )
-                ->filter()
-                ->groupBy(
-                    'district'
-                )
-                ->map(
-                    function (
-                        Collection $municipalities,
-                        string $districtName
-                    ) {
-                        $districtProjects =
-                            $municipalities
-                                ->pluck(
-                                    'projects'
-                                )
-                                ->flatten(1)
-                                ->unique('id')
-                                ->values();
-
-                        return [
-                            'name' =>
-                                $districtName,
-
-                            'municipality_count' =>
-                                $municipalities
-                                    ->count(),
-
-                            'barangay_count' =>
-                                (int) $municipalities
-                                    ->sum(
-                                        'barangay_count'
-                                    ),
-
-                            'project_count' =>
-                                $districtProjects
-                                    ->count(),
-
-                            'beneficiaries' =>
-                                (int) $districtProjects
-                                    ->sum(
-                                        'beneficiaries_total'
-                                    ),
-
-                            'female_beneficiaries' =>
-                                (int) $districtProjects
-                                    ->sum(
-                                        'beneficiaries_female'
-                                    ),
-
-                            'amount_assisted' =>
-                                (float) $districtProjects
-                                    ->sum(
-                                        'total_project_cost'
-                                    ),
-
-                            'municipalities' =>
-                                $municipalities
-                                    ->sortBy('name')
-                                    ->values(),
-                        ];
-                    }
-                )
-                ->sortBy(
-                    fn (array $district) =>
-                        $this->districtSortKey(
-                            $district['name']
+                                return [
+                                    'id' => $barangay->id,
+                                    'name' => $barangay->name,
+                                    'project_count' => $entries->count(),
+                                    'beneficiaries' =>
+                                        (int) $entries->sum('beneficiaries'),
+                                    'female_beneficiaries' =>
+                                        (int) $entries->sum(
+                                            'female_beneficiaries'
+                                        ),
+                                    'has_legacy_coverage' =>
+                                        $entries->contains(
+                                            fn (array $entry) =>
+                                                ! $entry['is_exact']
+                                        ),
+                                    'project_entries' => $entries,
+                                    'projects' => $entries
+                                        ->pluck('project')
+                                        ->unique('id')
+                                        ->values(),
+                                ];
+                            }
                         )
-                )
-                ->values();
+                        ->filter()
+                        ->values();
+
+                    $municipalityEntries = collect(
+                        $entriesByMunicipality[$municipality->id]
+                        ?? []
+                    )
+                        ->unique(
+                            fn (array $entry) =>
+                                $entry['project']->id
+                        )
+                        ->values();
+
+                    if (
+                        $municipalityEntries->isEmpty()
+                        && $barangayNodes->isNotEmpty()
+                    ) {
+                        $municipalityEntries = $barangayNodes
+                            ->pluck('project_entries')
+                            ->flatten(1)
+                            ->groupBy(
+                                fn (array $entry) =>
+                                    $entry['project']->id
+                            )
+                            ->map(function (Collection $entries) {
+                                $project = $entries->first()['project'];
+                                $isExact = $entries->every(
+                                    fn (array $entry) =>
+                                        $entry['is_exact']
+                                );
+
+                                return [
+                                    'project' => $project,
+                                    'beneficiaries' => $isExact
+                                        ? (int) $entries->sum(
+                                            'beneficiaries'
+                                        )
+                                        : (int) $project->beneficiaries_total,
+                                    'female_beneficiaries' => $isExact
+                                        ? (int) $entries->sum(
+                                            'female_beneficiaries'
+                                        )
+                                        : (int) $project->beneficiaries_female,
+                                    'is_exact' => $isExact,
+                                ];
+                            })
+                            ->values();
+                    }
+
+                    if ($municipalityEntries->isEmpty()) {
+                        return null;
+                    }
+
+                    $municipalityProjects = $municipalityEntries
+                        ->pluck('project')
+                        ->unique('id')
+                        ->values();
+
+                    return [
+                        'id' => $municipality->id,
+                        'name' => $municipality->name,
+                        'is_city' => (bool) $municipality->is_city,
+                        'district' => $municipality->district
+                            ?: 'Unassigned District',
+                        'barangay_count' => $barangayNodes->count(),
+                        'project_count' => $municipalityProjects->count(),
+                        'beneficiaries' =>
+                            (int) $municipalityEntries->sum(
+                                'beneficiaries'
+                            ),
+                        'female_beneficiaries' =>
+                            (int) $municipalityEntries->sum(
+                                'female_beneficiaries'
+                            ),
+                        'amount_assisted' =>
+                            (float) $municipalityProjects->sum(
+                                'total_project_cost'
+                            ),
+                        'has_legacy_coverage' =>
+                            $municipalityEntries->contains(
+                                fn (array $entry) =>
+                                    ! $entry['is_exact']
+                            ),
+                        'barangays' => $barangayNodes,
+                        'projects' => $municipalityProjects,
+                    ];
+                }
+            )
+            ->filter()
+            ->groupBy('district')
+            ->map(
+                function (
+                    Collection $municipalities,
+                    string $districtName
+                ) {
+                    $districtProjects = $municipalities
+                        ->pluck('projects')
+                        ->flatten(1)
+                        ->unique('id')
+                        ->values();
+
+                    return [
+                        'name' => $districtName,
+                        'municipality_count' => $municipalities->count(),
+                        'barangay_count' =>
+                            (int) $municipalities->sum('barangay_count'),
+                        'project_count' => $districtProjects->count(),
+                        'beneficiaries' =>
+                            (int) $municipalities->sum(
+                                'beneficiaries'
+                            ),
+                        'female_beneficiaries' =>
+                            (int) $municipalities->sum(
+                                'female_beneficiaries'
+                            ),
+                        'amount_assisted' =>
+                            (float) $districtProjects->sum(
+                                'total_project_cost'
+                            ),
+                        'has_legacy_coverage' =>
+                            $municipalities->contains(
+                                fn (array $municipality) =>
+                                    $municipality['has_legacy_coverage']
+                            ),
+                        'municipalities' => $municipalities
+                            ->sortBy('name')
+                            ->values(),
+                    ];
+                }
+            )
+            ->sortBy(
+                fn (array $district) =>
+                    $this->districtSortKey(
+                        $district['name']
+                    )
+            )
+            ->values();
 
         $provinceStats = [
-            'project_count' =>
-                $projects->count(),
-
-            'district_count' =>
-                $districts->count(),
-
+            'project_count' => $projects->count(),
+            'district_count' => $districts->count(),
             'municipality_count' =>
-                (int) $districts
-                    ->sum(
-                        'municipality_count'
-                    ),
-
+                (int) $districts->sum('municipality_count'),
             'barangay_count' =>
-                (int) $districts
-                    ->sum(
-                        'barangay_count'
-                    ),
+                (int) $districts->sum('barangay_count'),
 
+            /*
+             * Province total remains the authoritative project aggregate.
+             * For exact projects it equals the sum of all barangay allocations.
+             */
             'beneficiaries' =>
-                (int) $projects
-                    ->sum(
-                        'beneficiaries_total'
-                    ),
-
+                (int) $projects->sum('beneficiaries_total'),
             'female_beneficiaries' =>
-                (int) $projects
-                    ->sum(
-                        'beneficiaries_female'
-                    ),
-
+                (int) $projects->sum('beneficiaries_female'),
             'amount_assisted' =>
-                (float) $projects
-                    ->sum(
-                        'total_project_cost'
-                    ),
+                (float) $projects->sum('total_project_cost'),
+            'has_legacy_coverage' => $hasLegacyCoverage,
         ];
 
         return view(
             'projects.province-summary',
             [
-                'sourceProject' =>
-                    $sourceProject,
-
-                'province' =>
-                    $province,
-
-                'projects' =>
-                    $projects,
-
-                'districts' =>
-                    $districts,
-
-                'provinceStats' =>
-                    $provinceStats,
+                'sourceProject' => $sourceProject,
+                'province' => $province,
+                'projects' => $projects,
+                'districts' => $districts,
+                'provinceStats' => $provinceStats,
             ]
         );
     }

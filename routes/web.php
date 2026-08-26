@@ -282,6 +282,7 @@ Route::middleware('auth')->group(function () {
         )
             ->whereIn('queue', [
                 'tssd-evaluation',
+                'for-compliance',
                 'for-approval',
                 'implementation',
                 'post-documents',
@@ -305,6 +306,9 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/projects/{project}/evaluation', [ProjectEvaluationController::class, 'store'])
             ->name('projects.evaluation.store');
+
+        Route::post('/projects/{project}/compliance', [ProjectEvaluationController::class, 'compliance'])
+            ->name('projects.compliance.store');
 
         Route::post('/projects/{project}/evaluation/resubmit', [ProjectEvaluationController::class, 'resubmit'])
             ->name('projects.evaluation.resubmit');
