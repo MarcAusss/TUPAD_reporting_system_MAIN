@@ -1,96 +1,81 @@
 TUPAD REPORTING SYSTEM
-PHASE 12.1 - PSGC MUNICIPALITY NAME COMPATIBILITY HOTFIX
+PHASE 13 - SIDEBAR LAYOUT STABILITY FIX
 
-ERROR
+ISSUE
 -----
-CurrentSystemDemoSeeder failed at:
+On desktop the main content still reserves the correct sidebar space, but
+the actual sidebar children can collapse to a very narrow strip.
 
-CurrentSystemDemoSeeder.php:349
-Municipality::firstOrFail()
-
-after BicolLocationSeeder successfully downloaded and seeded all Bicol
-municipalities/cities.
-
-CAUSE
------
-BicolLocationSeeder stores the raw municipality/city name returned by PSGC.
-
-For cities, PSGC can use names such as:
-
-City of Tabaco
-City of Legazpi
-City of Naga
-City of Sorsogon
-
-The demo seeder was searching with common display forms such as:
-
-Tabaco City
-Legazpi City
-Naga City
-Sorsogon City
-
-The records represent the same locations, but an exact WHERE name = ...
-comparison cannot match the two forms.
+Visible symptoms:
+- Navigation labels disappear.
+- Sidebar scrollbar appears near the far-left edge.
+- Signed-in card becomes extremely narrow and wraps every word.
+- Header/logo may still look normal while the navigation body is broken.
 
 FIX
 ---
-CurrentSystemDemoSeeder now resolves municipalities through a normalized
-PSGC-compatible lookup.
+The sidebar is now explicitly hardened as a fixed 252px desktop column.
 
-Examples treated as equivalent:
+Desktop rules:
+- Sidebar width: exactly 252px.
+- min-width/max-width: 252px.
+- Sidebar children are forced to stretch to full width.
+- Navigation scroll area cannot horizontally collapse/scroll.
+- Navigation links consume full width.
+- Icons do not shrink.
+- Long labels use ellipsis instead of changing the sidebar width.
+- Signed-in footer card remains full width.
+- Main shell is explicitly offset by the same 252px.
 
-City of Tabaco   = Tabaco City
-City of Legazpi  = Legazpi City
-City of Naga     = Naga City
-City of Sorsogon = Sorsogon City
+Mobile:
+- Sidebar remains off-canvas.
+- Width is capped to the viewport so it still fits small screens.
+- Existing open/close overlay behavior is preserved.
 
-The same resolver is used in BOTH:
-1. the project's primary municipality lookup
-2. the project's multi-location municipality lookup
+FILES MODIFIED
+--------------
+resources/views/layouts/app.blade.php
+resources/css/app.css
 
-The resolver also normalizes accents/punctuation consistently with the
-existing BicolLocationSeeder approach.
+FILE ADDED
+----------
+tests/Feature/SidebarLayoutStabilityTest.php
 
-If a municipality still cannot be resolved, the exception now reports the
-requested municipality and all active PSGC names in that province instead of
-only throwing ModelNotFoundException.
-
+NO ROUTE CHANGE.
+NO DATABASE CHANGE.
 NO MIGRATION.
-NO DATABASE SCHEMA CHANGE.
-NO BUSINESS LOGIC CHANGE.
-
-FILES
------
-database/seeders/CurrentSystemDemoSeeder.php
-tests/Feature/CurrentSystemDemoSeederPsgcCompatibilityTest.php
 
 APPLY
 -----
 Extract this ZIP into the Laravel project root and allow overwrite.
 
-You already ran migrate:fresh and the process stopped during seeding.
-The simplest clean retry is:
+IMPORTANT:
+This fix changes CSS, so rebuild Vite.
 
-php artisan migrate:fresh --seed
+Run:
 
-This will drop/recreate the development database again.
+php artisan optimize:clear
+npm run build
 
-Then run:
-
-php artisan test --filter=CurrentSystemDemoSeederPsgcCompatibilityTest
-php artisan test --filter=CurrentSystemDemoSeederTest
+php artisan test --filter=SidebarLayoutStabilityTest
+php artisan test --filter=RoleNavigationUxTest
 php artisan test
 
-EXPECTED
---------
-BicolLocationSeeder completes.
+Then hard-refresh the browser:
 
-CurrentSystemDemoSeeder should continue past the former line 349 failure and
-create:
-- Albay Multi-District Community Works
-- Albay Urban Drainage Clearing
-- Camarines Sur Community Rehabilitation
-- Catanduanes Coastal Rehabilitation
-- Sorsogon Public Area Rehabilitation
+Chrome / Edge:
+Ctrl + Shift + R
 
-STOP AFTER TESTING THIS HOTFIX.
+MANUAL CHECK
+------------
+1. Login as TUPAD Coordinator.
+2. Open Project Workflow -> Implementation.
+3. Sidebar must remain a full 252px wide.
+4. Dashboard, Projects, GIP Draft Reviews, Project Summary and all Workflow
+   links must be fully visible.
+5. Signed-in card must use the full sidebar width.
+6. Main content must begin immediately after the sidebar with no overlap.
+7. Resize below 1024px and confirm the sidebar returns to off-canvas/mobile
+   behavior.
+
+STOP AFTER PHASE 13 TESTING.

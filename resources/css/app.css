@@ -435,3 +435,83 @@ a[href^="#"]:focus-visible {
         border-radius: 10px;
     }
 }
+
+
+/* ============================================================
+   Sidebar layout stability
+   ------------------------------------------------------------
+   The desktop navigation is a fixed 252px government sidebar.
+   Explicit sizing on the sidebar and its direct children prevents
+   flex cross-axis/min-content collapse that can reduce the visible
+   navigation to a narrow strip while the main content still keeps
+   its 252px left offset.
+   ============================================================ */
+
+.tupad-desktop-sidebar {
+    width: 252px !important;
+    min-width: 252px !important;
+    max-width: 252px !important;
+    align-items: stretch !important;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.tupad-desktop-sidebar > .tupad-sidebar-header,
+.tupad-desktop-sidebar > .tupad-sidebar-scroll,
+.tupad-desktop-sidebar > .tupad-sidebar-footer {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    align-self: stretch !important;
+}
+
+.tupad-sidebar-scroll {
+    overflow-x: hidden !important;
+}
+
+.tupad-sidebar-scroll nav {
+    width: 100%;
+    min-width: 0;
+}
+
+.tupad-sidebar-scroll nav > a {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.tupad-sidebar-scroll nav > a > svg {
+    flex: 0 0 auto;
+}
+
+.tupad-sidebar-scroll nav > a > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tupad-sidebar-footer > div {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+    .tupad-main-shell {
+        padding-left: 252px !important;
+    }
+
+    .tupad-desktop-sidebar {
+        transform: translateX(0) !important;
+    }
+}
+
+@media (max-width: 1023px) {
+    .tupad-desktop-sidebar {
+        width: min(252px, calc(100vw - 32px)) !important;
+        min-width: min(252px, calc(100vw - 32px)) !important;
+        max-width: min(252px, calc(100vw - 32px)) !important;
+    }
+}
