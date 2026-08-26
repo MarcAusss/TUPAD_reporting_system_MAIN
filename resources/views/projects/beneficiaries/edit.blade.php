@@ -57,8 +57,7 @@
                         First Name
                     </label>
 
-                    <input name="first_name" required
-                        value="{{ old('first_name', $beneficiary->first_name) }}"
+                    <input name="first_name" required value="{{ old('first_name', $beneficiary->first_name) }}"
                         class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                 </div>
@@ -69,8 +68,7 @@
                         Middle Name
                     </label>
 
-                    <input name="middle_name"
-                        value="{{ old('middle_name', $beneficiary->middle_name) }}"
+                    <input name="middle_name" value="{{ old('middle_name', $beneficiary->middle_name) }}"
                         class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                 </div>
@@ -81,8 +79,7 @@
                         Last Name
                     </label>
 
-                    <input name="last_name" required
-                        value="{{ old('last_name', $beneficiary->last_name) }}"
+                    <input name="last_name" required value="{{ old('last_name', $beneficiary->last_name) }}"
                         class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                 </div>
@@ -93,8 +90,7 @@
                         Suffix
                     </label>
 
-                    <input name="suffix"
-                        value="{{ old('suffix', $beneficiary->suffix) }}"
+                    <input name="suffix" value="{{ old('suffix', $beneficiary->suffix) }}"
                         class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                 </div>
@@ -138,19 +134,24 @@
                         Contact Number
                     </label>
 
-                    <input name="contact_number"
-                        value="{{ old('contact_number', $beneficiary->contact_number) }}"
+                    <input name="contact_number" value="{{ old('contact_number', $beneficiary->contact_number) }}"
                         class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                 </div>
 
                 <div>
                     <label class="mb-2 block text-sm font-semibold text-slate-700">Grant Amount (optional)</label>
-                    <input name="grant_amount" type="number" min="0" step="0.01" value="{{ old('grant_amount', $beneficiary->grant_amount) }}" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                    <input name="grant_amount" type="number" min="0" step="0.01"
+                        value="{{ old('grant_amount', $beneficiary->grant_amount) }}"
+                        class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
                 </div>
                 <div class="flex items-center gap-6 pt-7">
-                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" name="is_pwd" value="1" @checked(old('is_pwd', $beneficiary->is_pwd)) class="rounded border-slate-300"> PWD</label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" name="is_rebel_returnee" value="1" @checked(old('is_rebel_returnee', $beneficiary->is_rebel_returnee)) class="rounded border-slate-300"> Rebel Returnee</label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox"
+                            name="is_pwd" value="1" @checked(old('is_pwd', $beneficiary->is_pwd)) class="rounded border-slate-300">
+                        PWD</label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox"
+                            name="is_rebel_returnee" value="1" @checked(old('is_rebel_returnee', $beneficiary->is_rebel_returnee))
+                            class="rounded border-slate-300"> Rebel Returnee</label>
                 </div>
 
                 <div>
@@ -159,8 +160,7 @@
                         Remarks
                     </label>
 
-                    <input name="remarks"
-                        value="{{ old('remarks', $beneficiary->remarks) }}"
+                    <input name="remarks" value="{{ old('remarks', $beneficiary->remarks) }}"
                         class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                 </div>

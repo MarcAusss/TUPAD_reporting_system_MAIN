@@ -4,11 +4,8 @@
 
 @section('content')
 
-    <x-page-header
-        eyebrow="Reporting"
-        title="Reports"
-        description="Filter, review, export, and print official TUPAD project records."
-    />
+    <x-page-header eyebrow="Reporting" title="Reports"
+        description="Filter, review, export, and print official TUPAD project records." />
 
     {{-- Filters --}}
 

@@ -1,18 +1,73 @@
 @extends('layouts.app')
 @section('title', 'Project Monitoring Details')
 @section('content')
-<div class="mx-auto max-w-6xl"><div class="mb-6"><a href="{{ route('project-monitoring.province',['province'=>str($project->province)->slug()]) }}" class="text-sm font-medium text-slate-500">← {{ $project->province }} Monitoring</a><h1 class="mt-3 text-2xl font-bold text-slate-900">Provincial Register Details</h1><p class="mt-1 text-sm text-slate-500">{{ $project->project_title }}</p></div><x-page-alerts />
-<form method="POST" action="{{ route('projects.monitoring.update',$project) }}" class="space-y-5">@csrf @method('PUT')
-@php($d=$project->monitoringDetail)
-<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="text-sm font-semibold">Receipt / Project Register</h2><div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-<div><label class="mb-1 block text-xs font-semibold">Project Series</label><input name="project_series" value="{{ old('project_series',$d?->project_series) }}" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div><div><label class="mb-1 block text-xs font-semibold">Proponent</label><input name="proponent" value="{{ old('proponent',$d?->proponent) }}" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div><div><label class="mb-1 block text-xs font-semibold">Receipt Month</label><input name="receipt_month" value="{{ old('receipt_month',$d?->receipt_month) }}" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div><div><label class="mb-1 block text-xs font-semibold">Receipt Date & Time</label><input type="datetime-local" name="receipt_datetime" value="{{ old('receipt_datetime',$d?->receipt_datetime?->format('Y-m-d\\TH:i')) }}" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div><div><label class="mb-1 block text-xs font-semibold">Process Cycle Days</label><input type="number" min="0" name="process_cycle_days" value="{{ old('process_cycle_days',$d?->process_cycle_days) }}" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
-</div></section>
-<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="text-sm font-semibold">Compliance / Agreement / Replacement</h2><div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-@foreach([['compliance_date','Compliance Date','date'],['compliance_reference','Compliance Reference','text'],['agreement_date','Agreement Date','date'],['agreement_reference','Agreement Reference','text'],['replacement_request_date','Replacement Request','date'],['replacement_ntp_date','Replacement NTP','date']] as [$n,$l,$t])<div><label class="mb-1 block text-xs font-semibold">{{ $l }}</label><input type="{{ $t }}" name="{{ $n }}" value="{{ old($n, $t==='date' ? $d?->{$n}?->format('Y-m-d') : $d?->{$n}) }}" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>@endforeach
-<div><label class="mb-1 block text-xs font-semibold">Agreement Type</label><select name="agreement_type" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="">Select</option>@foreach(['COS','MOA','MOU'] as $type)<option @selected(old('agreement_type',$d?->agreement_type)===$type)>{{ $type }}</option>@endforeach</select></div>
-</div></section>
-<section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="text-sm font-semibold">Voucher / NAFA / Reports</h2><div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-@foreach([['voucher_date','Voucher Date','date'],['voucher_number','Voucher Number','text'],['nafa_date','NAFA Date','date'],['nafa_number','NAFA Number','text'],['sprs_date','SPRS Date','date'],['cqpr_date','CQPR Date','date'],['transparency_seal_date','Transparency Seal Date','date']] as [$n,$l,$t])<div><label class="mb-1 block text-xs font-semibold">{{ $l }}</label><input type="{{ $t }}" name="{{ $n }}" value="{{ old($n, $t==='date' ? $d?->{$n}?->format('Y-m-d') : $d?->{$n}) }}" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>@endforeach
-<div class="md:col-span-2 xl:col-span-4"><label class="mb-1 block text-xs font-semibold">Monitoring Remarks</label><textarea name="monitoring_remarks" rows="3" class="w-full rounded-lg border border-slate-300 p-3 text-sm">{{ old('monitoring_remarks',$d?->monitoring_remarks) }}</textarea></div></div></section>
-<div class="flex justify-end"><button class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white">Save Monitoring Details</button></div></form></div>
+    <div class="mx-auto max-w-6xl">
+        <div class="mb-6"><a href="{{ route('project-monitoring.province', ['province' => str($project->province)->slug()]) }}"
+                class="text-sm font-medium text-slate-500">← {{ $project->province }} Monitoring</a>
+            <h1 class="mt-3 text-2xl font-bold text-slate-900">Provincial Register Details</h1>
+            <p class="mt-1 text-sm text-slate-500">{{ $project->project_title }}</p>
+        </div><x-page-alerts />
+        <form method="POST" action="{{ route('projects.monitoring.update', $project) }}" class="space-y-5">@csrf
+            @method('PUT')
+            @php($d = $project->monitoringDetail)
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="text-sm font-semibold">Receipt / Project Register</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div><label class="mb-1 block text-xs font-semibold">Project Series</label><input name="project_series"
+                            value="{{ old('project_series', $d?->project_series) }}"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
+                    <div><label class="mb-1 block text-xs font-semibold">Proponent</label><input name="proponent"
+                            value="{{ old('proponent', $d?->proponent) }}"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
+                    <div><label class="mb-1 block text-xs font-semibold">Receipt Month</label><input name="receipt_month"
+                            value="{{ old('receipt_month', $d?->receipt_month) }}"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
+                    <div><label class="mb-1 block text-xs font-semibold">Receipt Date & Time</label><input
+                            type="datetime-local" name="receipt_datetime"
+                            value="{{ old('receipt_datetime', $d?->receipt_datetime?->format('Y-m-d\\TH:i')) }}"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
+                    <div><label class="mb-1 block text-xs font-semibold">Process Cycle Days</label><input type="number"
+                            min="0" name="process_cycle_days"
+                            value="{{ old('process_cycle_days', $d?->process_cycle_days) }}"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
+                </div>
+            </section>
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="text-sm font-semibold">Compliance / Agreement / Replacement</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    @foreach ([['compliance_date', 'Compliance Date', 'date'], ['compliance_reference', 'Compliance Reference', 'text'], ['agreement_date', 'Agreement Date', 'date'], ['agreement_reference', 'Agreement Reference', 'text'], ['replacement_request_date', 'Replacement Request', 'date'], ['replacement_ntp_date', 'Replacement NTP', 'date']] as [$n, $l, $t])
+                        <div><label class="mb-1 block text-xs font-semibold">{{ $l }}</label><input
+                                type="{{ $t }}" name="{{ $n }}"
+                                value="{{ old($n, $t === 'date' ? $d?->{$n}?->format('Y-m-d') : $d?->{$n}) }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
+                    @endforeach
+                    <div><label class="mb-1 block text-xs font-semibold">Agreement Type</label><select name="agreement_type"
+                            class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            <option value="">Select</option>
+                            @foreach (['COS', 'MOA', 'MOU'] as $type)
+                                <option @selected(old('agreement_type', $d?->agreement_type) === $type)>{{ $type }}</option>
+                            @endforeach
+                        </select></div>
+                </div>
+            </section>
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="text-sm font-semibold">Voucher / NAFA / Reports</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    @foreach ([['voucher_date', 'Voucher Date', 'date'], ['voucher_number', 'Voucher Number', 'text'], ['nafa_date', 'NAFA Date', 'date'], ['nafa_number', 'NAFA Number', 'text'], ['sprs_date', 'SPRS Date', 'date'], ['cqpr_date', 'CQPR Date', 'date'], ['transparency_seal_date', 'Transparency Seal Date', 'date']] as [$n, $l, $t])
+                        <div><label class="mb-1 block text-xs font-semibold">{{ $l }}</label><input
+                                type="{{ $t }}" name="{{ $n }}"
+                                value="{{ old($n, $t === 'date' ? $d?->{$n}?->format('Y-m-d') : $d?->{$n}) }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
+                    @endforeach
+                    <div class="md:col-span-2 xl:col-span-4"><label class="mb-1 block text-xs font-semibold">Monitoring
+                            Remarks</label>
+                        <textarea name="monitoring_remarks" rows="3" class="w-full rounded-lg border border-slate-300 p-3 text-sm">{{ old('monitoring_remarks', $d?->monitoring_remarks) }}</textarea>
+                    </div>
+                </div>
+            </section>
+            <div class="flex justify-end"><button
+                    class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white">Save Monitoring
+                    Details</button></div>
+        </form>
+    </div>
 @endsection

@@ -469,606 +469,581 @@
 </div>
 
 @push('scripts')
-
-<script>
-document.addEventListener('DOMContentLoaded', async function () {
-    /*
-    |--------------------------------------------------------------------------
-    | Location Elements
-    |--------------------------------------------------------------------------
-    */
-
-    const provinceSelect =
-        document.getElementById('province_id');
-
-    const municipalitySelect =
-        document.getElementById('municipality_id');
-
-    const barangaySelect =
-        document.getElementById('barangay_id');
-
-    const districtPreview =
-        document.getElementById('districtPreview');
-
-    const incomeClassPreview =
-        document.getElementById('incomeClassPreview');
-
-    /*
-    |--------------------------------------------------------------------------
-    | Project Computation Elements
-    |--------------------------------------------------------------------------
-    */
-
-    const days =
-        document.getElementById('numberOfDays');
-
-    const beneficiaries =
-        document.getElementById('beneficiariesTotal');
-
-    const wageRate =
-        document.getElementById('wageRate');
-
-    const insuranceRate =
-        document.getElementById('insuranceRate');
-
-    const termPreview =
-        document.getElementById('termPreview');
-
-    const wagesPreview =
-        document.getElementById('wagesPreview');
-
-    const insurancePreview =
-        document.getElementById('insurancePreview');
-
-    const ppeTotalPreview =
-        document.getElementById('ppeTotalPreview');
-
-    const projectTotalPreview =
-        document.getElementById('projectTotalPreview');
-
-    const ppeItems =
-        document.getElementById('ppeItems');
-
-    const addPpeItem =
-        document.getElementById('addPpeItem');
-
-    /*
-    |--------------------------------------------------------------------------
-    | Existing Values
-    |--------------------------------------------------------------------------
-    */
-
-    const initialProvinceId = @json(
-        old(
-            'province_id',
-            $editing
-                ? $draft->province_id
-                : null
-        )
-    );
-
-    const initialMunicipalityId = @json(
-        old(
-            'municipality_id',
-            $editing
-                ? $draft->municipality_id
-                : null
-        )
-    );
-
-    const initialBarangayId = @json(
-        old(
-            'barangay_id',
-            $editing
-                ? $draft->barangay_id
-                : null
-        )
-    );
-
-    const existingPpeItems =
-        @json($existingPpeItems);
-
-    let ppeIndex = 0;
-
-    /*
-    |--------------------------------------------------------------------------
-    | Currency Formatter
-    |--------------------------------------------------------------------------
-    */
-
-    function currency(value) {
-        return new Intl.NumberFormat(
-            'en-PH',
-            {
-                style: 'currency',
-                currency: 'PHP',
-            }
-        ).format(
-            Number(value) || 0
-        );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Load Municipalities
-    |--------------------------------------------------------------------------
-    */
-
-    async function loadMunicipalities(
-        provinceId,
-        selectedMunicipalityId = null
-    ) {
-        municipalitySelect.innerHTML =
-            '<option value="">Loading...</option>';
-
-        municipalitySelect.disabled = true;
-
-        barangaySelect.innerHTML =
-            '<option value="">Select barangay</option>';
-
-        barangaySelect.disabled = true;
-
-        districtPreview.value = '';
-        incomeClassPreview.value = '';
-
-        if (!provinceId) {
-            municipalitySelect.innerHTML =
-                '<option value="">Select municipality</option>';
-
-            return;
-        }
-
-        try {
-            const response = await fetch(
-                `/locations/provinces/${provinceId}/municipalities`,
-                {
-                    method: 'GET',
-
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(
-                    `Unable to load municipalities. HTTP ${response.status}`
-                );
-            }
-
-            const municipalities =
-                await response.json();
-
-            municipalitySelect.innerHTML =
-                '<option value="">Select municipality</option>';
-
-            municipalities.forEach(
-                function (municipality) {
-                    const option =
-                        document.createElement(
-                            'option'
-                        );
-
-                    option.value =
-                        municipality.id;
-
-                    option.textContent =
-                        municipality.name;
-
-                    option.dataset.district =
-                        municipality.district
-                        ?? '';
-
-                    option.dataset.incomeClass =
-                        municipality.income_class
-                        ?? '';
-
-                    if (
-                        selectedMunicipalityId
-                        && String(municipality.id)
-                            === String(
-                                selectedMunicipalityId
-                            )
-                    ) {
-                        option.selected = true;
-                    }
-
-                    municipalitySelect
-                        .appendChild(option);
-                }
-            );
-
-            municipalitySelect.disabled = false;
-
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
             /*
             |--------------------------------------------------------------------------
-            | Restore District / Income Class When Editing
+            | Location Elements
             |--------------------------------------------------------------------------
             */
 
-            if (selectedMunicipalityId) {
-                const selectedOption =
-                    municipalitySelect.options[
-                        municipalitySelect.selectedIndex
-                    ];
+            const provinceSelect =
+                document.getElementById('province_id');
 
-                districtPreview.value =
-                    selectedOption
-                        ?.dataset
-                        ?.district
-                    || 'Not Assigned';
+            const municipalitySelect =
+                document.getElementById('municipality_id');
 
-                incomeClassPreview.value =
-                    selectedOption
-                        ?.dataset
-                        ?.incomeClass
-                    || 'Not Assigned';
-            }
-        } catch (error) {
-            console.error(
-                'Municipality loading error:',
-                error
-            );
+            const barangaySelect =
+                document.getElementById('barangay_id');
 
-            municipalitySelect.innerHTML =
-                '<option value="">Unable to load municipalities</option>';
+            const districtPreview =
+                document.getElementById('districtPreview');
 
-            municipalitySelect.disabled = true;
-        }
-    }
+            const incomeClassPreview =
+                document.getElementById('incomeClassPreview');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Load Barangays
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | Project Computation Elements
+            |--------------------------------------------------------------------------
+            */
 
-    async function loadBarangays(
-        municipalityId,
-        selectedBarangayId = null
-    ) {
-        barangaySelect.innerHTML =
-            '<option value="">Loading...</option>';
+            const days =
+                document.getElementById('numberOfDays');
 
-        barangaySelect.disabled = true;
+            const beneficiaries =
+                document.getElementById('beneficiariesTotal');
 
-        if (!municipalityId) {
-            barangaySelect.innerHTML =
-                '<option value="">Select barangay</option>';
+            const wageRate =
+                document.getElementById('wageRate');
 
-            return;
-        }
+            const insuranceRate =
+                document.getElementById('insuranceRate');
 
-        try {
-            const response = await fetch(
-                `/locations/municipalities/${municipalityId}/barangays`,
-                {
-                    method: 'GET',
+            const termPreview =
+                document.getElementById('termPreview');
 
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                }
-            );
+            const wagesPreview =
+                document.getElementById('wagesPreview');
 
-            if (!response.ok) {
-                throw new Error(
-                    `Unable to load barangays. HTTP ${response.status}`
+            const insurancePreview =
+                document.getElementById('insurancePreview');
+
+            const ppeTotalPreview =
+                document.getElementById('ppeTotalPreview');
+
+            const projectTotalPreview =
+                document.getElementById('projectTotalPreview');
+
+            const ppeItems =
+                document.getElementById('ppeItems');
+
+            const addPpeItem =
+                document.getElementById('addPpeItem');
+
+            /*
+            |--------------------------------------------------------------------------
+            | Existing Values
+            |--------------------------------------------------------------------------
+            */
+
+            const initialProvinceId = @json(old('province_id', $editing ? $draft->province_id : null));
+
+            const initialMunicipalityId = @json(old('municipality_id', $editing ? $draft->municipality_id : null));
+
+            const initialBarangayId = @json(old('barangay_id', $editing ? $draft->barangay_id : null));
+
+            const existingPpeItems =
+                @json($existingPpeItems);
+
+            let ppeIndex = 0;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Currency Formatter
+            |--------------------------------------------------------------------------
+            */
+
+            function currency(value) {
+                return new Intl.NumberFormat(
+                    'en-PH', {
+                        style: 'currency',
+                        currency: 'PHP',
+                    }
+                ).format(
+                    Number(value) || 0
                 );
             }
 
-            const barangays =
-                await response.json();
+            /*
+            |--------------------------------------------------------------------------
+            | Load Municipalities
+            |--------------------------------------------------------------------------
+            */
 
-            barangaySelect.innerHTML =
-                '<option value="">Select barangay</option>';
+            async function loadMunicipalities(
+                provinceId,
+                selectedMunicipalityId = null
+            ) {
+                municipalitySelect.innerHTML =
+                    '<option value="">Loading...</option>';
 
-            barangays.forEach(
-                function (barangay) {
-                    const option =
-                        document.createElement(
-                            'option'
+                municipalitySelect.disabled = true;
+
+                barangaySelect.innerHTML =
+                    '<option value="">Select barangay</option>';
+
+                barangaySelect.disabled = true;
+
+                districtPreview.value = '';
+                incomeClassPreview.value = '';
+
+                if (!provinceId) {
+                    municipalitySelect.innerHTML =
+                        '<option value="">Select municipality</option>';
+
+                    return;
+                }
+
+                try {
+                    const response = await fetch(
+                        `/locations/provinces/${provinceId}/municipalities`, {
+                            method: 'GET',
+
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(
+                            `Unable to load municipalities. HTTP ${response.status}`
                         );
-
-                    option.value =
-                        barangay.id;
-
-                    option.textContent =
-                        barangay.name;
-
-                    if (
-                        selectedBarangayId
-                        && String(barangay.id)
-                            === String(
-                                selectedBarangayId
-                            )
-                    ) {
-                        option.selected = true;
                     }
 
-                    barangaySelect
-                        .appendChild(option);
+                    const municipalities =
+                        await response.json();
+
+                    municipalitySelect.innerHTML =
+                        '<option value="">Select municipality</option>';
+
+                    municipalities.forEach(
+                        function(municipality) {
+                            const option =
+                                document.createElement(
+                                    'option'
+                                );
+
+                            option.value =
+                                municipality.id;
+
+                            option.textContent =
+                                municipality.name;
+
+                            option.dataset.district =
+                                municipality.district ??
+                                '';
+
+                            option.dataset.incomeClass =
+                                municipality.income_class ??
+                                '';
+
+                            if (
+                                selectedMunicipalityId &&
+                                String(municipality.id) ===
+                                String(
+                                    selectedMunicipalityId
+                                )
+                            ) {
+                                option.selected = true;
+                            }
+
+                            municipalitySelect
+                                .appendChild(option);
+                        }
+                    );
+
+                    municipalitySelect.disabled = false;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Restore District / Income Class When Editing
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (selectedMunicipalityId) {
+                        const selectedOption =
+                            municipalitySelect.options[
+                                municipalitySelect.selectedIndex
+                            ];
+
+                        districtPreview.value =
+                            selectedOption
+                            ?.dataset
+                            ?.district ||
+                            'Not Assigned';
+
+                        incomeClassPreview.value =
+                            selectedOption
+                            ?.dataset
+                            ?.incomeClass ||
+                            'Not Assigned';
+                    }
+                } catch (error) {
+                    console.error(
+                        'Municipality loading error:',
+                        error
+                    );
+
+                    municipalitySelect.innerHTML =
+                        '<option value="">Unable to load municipalities</option>';
+
+                    municipalitySelect.disabled = true;
                 }
-            );
+            }
 
-            barangaySelect.disabled = false;
-        } catch (error) {
-            console.error(
-                'Barangay loading error:',
-                error
-            );
+            /*
+            |--------------------------------------------------------------------------
+            | Load Barangays
+            |--------------------------------------------------------------------------
+            */
 
-            barangaySelect.innerHTML =
-                '<option value="">Unable to load barangays</option>';
+            async function loadBarangays(
+                municipalityId,
+                selectedBarangayId = null
+            ) {
+                barangaySelect.innerHTML =
+                    '<option value="">Loading...</option>';
 
-            barangaySelect.disabled = true;
-        }
-    }
+                barangaySelect.disabled = true;
 
-    /*
-    |--------------------------------------------------------------------------
-    | Province Change
-    |--------------------------------------------------------------------------
-    */
+                if (!municipalityId) {
+                    barangaySelect.innerHTML =
+                        '<option value="">Select barangay</option>';
 
-    if (provinceSelect) {
-        provinceSelect.addEventListener(
-            'change',
-            async function () {
-                await loadMunicipalities(
-                    this.value
+                    return;
+                }
+
+                try {
+                    const response = await fetch(
+                        `/locations/municipalities/${municipalityId}/barangays`, {
+                            method: 'GET',
+
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(
+                            `Unable to load barangays. HTTP ${response.status}`
+                        );
+                    }
+
+                    const barangays =
+                        await response.json();
+
+                    barangaySelect.innerHTML =
+                        '<option value="">Select barangay</option>';
+
+                    barangays.forEach(
+                        function(barangay) {
+                            const option =
+                                document.createElement(
+                                    'option'
+                                );
+
+                            option.value =
+                                barangay.id;
+
+                            option.textContent =
+                                barangay.name;
+
+                            if (
+                                selectedBarangayId &&
+                                String(barangay.id) ===
+                                String(
+                                    selectedBarangayId
+                                )
+                            ) {
+                                option.selected = true;
+                            }
+
+                            barangaySelect
+                                .appendChild(option);
+                        }
+                    );
+
+                    barangaySelect.disabled = false;
+                } catch (error) {
+                    console.error(
+                        'Barangay loading error:',
+                        error
+                    );
+
+                    barangaySelect.innerHTML =
+                        '<option value="">Unable to load barangays</option>';
+
+                    barangaySelect.disabled = true;
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Province Change
+            |--------------------------------------------------------------------------
+            */
+
+            if (provinceSelect) {
+                provinceSelect.addEventListener(
+                    'change',
+                    async function() {
+                        await loadMunicipalities(
+                            this.value
+                        );
+                    }
                 );
             }
-        );
-    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Municipality Change
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | Municipality Change
+            |--------------------------------------------------------------------------
+            */
 
-    if (municipalitySelect) {
-        municipalitySelect.addEventListener(
-            'change',
-            async function () {
-                const selectedOption =
-                    this.options[
-                        this.selectedIndex
-                    ];
+            if (municipalitySelect) {
+                municipalitySelect.addEventListener(
+                    'change',
+                    async function() {
+                        const selectedOption =
+                            this.options[
+                                this.selectedIndex
+                            ];
 
-                districtPreview.value =
-                    selectedOption
-                        ?.dataset
-                        ?.district
-                    || 'Not Assigned';
+                        districtPreview.value =
+                            selectedOption
+                            ?.dataset
+                            ?.district ||
+                            'Not Assigned';
 
-                incomeClassPreview.value =
-                    selectedOption
-                        ?.dataset
-                        ?.incomeClass
-                    || 'Not Assigned';
+                        incomeClassPreview.value =
+                            selectedOption
+                            ?.dataset
+                            ?.incomeClass ||
+                            'Not Assigned';
 
-                await loadBarangays(
-                    this.value
+                        await loadBarangays(
+                            this.value
+                        );
+                    }
                 );
             }
-        );
-    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Restore Location During Edit / Validation Error
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | Restore Location During Edit / Validation Error
+            |--------------------------------------------------------------------------
+            */
 
-    if (
-        provinceSelect
-        && initialProvinceId
-    ) {
-        provinceSelect.value =
-            String(initialProvinceId);
-
-        await loadMunicipalities(
-            initialProvinceId,
-            initialMunicipalityId
-        );
-
-        if (initialMunicipalityId) {
-            await loadBarangays(
-                initialMunicipalityId,
-                initialBarangayId
-            );
-        }
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Project Calculation
-    |--------------------------------------------------------------------------
-    */
-
-    function calculate() {
-        const dayValue =
-            Number(days?.value || 0);
-
-        const beneficiaryValue =
-            Number(
-                beneficiaries?.value
-                || 0
-            );
-
-        const wageValue =
-            Number(
-                wageRate?.value
-                || 0
-            );
-
-        const insuranceValue =
-            Number(
-                insuranceRate?.value
-                || 0
-            );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Term
-        |--------------------------------------------------------------------------
-        */
-
-        if (termPreview) {
             if (
-                dayValue >= 10
-                && dayValue <= 30
+                provinceSelect &&
+                initialProvinceId
             ) {
-                termPreview.value =
-                    'Short-Term';
-            } else if (
-                dayValue >= 31
-                && dayValue <= 90
-            ) {
-                termPreview.value =
-                    'Long-Term';
-            } else {
-                termPreview.value = '';
-            }
-        }
+                provinceSelect.value =
+                    String(initialProvinceId);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Wages
-        |--------------------------------------------------------------------------
-        */
-
-        const wages =
-            dayValue
-            * beneficiaryValue
-            * wageValue;
-
-        /*
-        |--------------------------------------------------------------------------
-        | Insurance
-        |--------------------------------------------------------------------------
-        */
-
-        const insurance =
-            beneficiaryValue
-            * insuranceValue;
-
-        /*
-        |--------------------------------------------------------------------------
-        | PPE
-        |--------------------------------------------------------------------------
-        */
-
-        let ppeTotal = 0;
-
-        document
-            .querySelectorAll(
-                '[data-ppe-row]'
-            )
-            .forEach(
-                function (row) {
-                    const count =
-                        Number(
-                            row
-                                .querySelector(
-                                    '[data-ppe-count]'
-                                )
-                                ?.value
-                            || 0
-                        );
-
-                    const unit =
-                        Number(
-                            row
-                                .querySelector(
-                                    '[data-ppe-unit]'
-                                )
-                                ?.value
-                            || 0
-                        );
-
-                    const total =
-                        count * unit;
-
-                    const totalInput =
-                        row.querySelector(
-                            '[data-ppe-total]'
-                        );
-
-                    if (totalInput) {
-                        totalInput.value =
-                            currency(total);
-                    }
-
-                    ppeTotal += total;
-                }
-            );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Preview Outputs
-        |--------------------------------------------------------------------------
-        */
-
-        if (wagesPreview) {
-            wagesPreview.value =
-                currency(wages);
-        }
-
-        if (insurancePreview) {
-            insurancePreview.value =
-                currency(insurance);
-        }
-
-        if (ppeTotalPreview) {
-            ppeTotalPreview.textContent =
-                currency(ppeTotal);
-        }
-
-        if (projectTotalPreview) {
-            projectTotalPreview.value =
-                currency(
-                    wages
-                    + insurance
-                    + ppeTotal
+                await loadMunicipalities(
+                    initialProvinceId,
+                    initialMunicipalityId
                 );
-        }
-    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Add PPE Row
-    |--------------------------------------------------------------------------
-    */
+                if (initialMunicipalityId) {
+                    await loadBarangays(
+                        initialMunicipalityId,
+                        initialBarangayId
+                    );
+                }
+            }
 
-    function addRow(item = null) {
-        if (!ppeItems) {
-            return;
-        }
+            /*
+            |--------------------------------------------------------------------------
+            | Project Calculation
+            |--------------------------------------------------------------------------
+            */
 
-        const index =
-            ppeIndex++;
+            function calculate() {
+                const dayValue =
+                    Number(days?.value || 0);
 
-        const row =
-            document.createElement(
-                'div'
-            );
+                const beneficiaryValue =
+                    Number(
+                        beneficiaries?.value ||
+                        0
+                    );
 
-        row.dataset.ppeRow =
-            'true';
+                const wageValue =
+                    Number(
+                        wageRate?.value ||
+                        0
+                    );
 
-        row.className =
-            'grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1.5fr_1fr_1fr_1fr_auto]';
+                const insuranceValue =
+                    Number(
+                        insuranceRate?.value ||
+                        0
+                    );
 
-        const selectedType =
-            item?.ppe_type
-            ?? 'non_hazardous';
+                /*
+                |--------------------------------------------------------------------------
+                | Term
+                |--------------------------------------------------------------------------
+                */
 
-        row.innerHTML = `
+                if (termPreview) {
+                    if (
+                        dayValue >= 10 &&
+                        dayValue <= 30
+                    ) {
+                        termPreview.value =
+                            'Short-Term';
+                    } else if (
+                        dayValue >= 31 &&
+                        dayValue <= 90
+                    ) {
+                        termPreview.value =
+                            'Long-Term';
+                    } else {
+                        termPreview.value = '';
+                    }
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Wages
+                |--------------------------------------------------------------------------
+                */
+
+                const wages =
+                    dayValue *
+                    beneficiaryValue *
+                    wageValue;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Insurance
+                |--------------------------------------------------------------------------
+                */
+
+                const insurance =
+                    beneficiaryValue *
+                    insuranceValue;
+
+                /*
+                |--------------------------------------------------------------------------
+                | PPE
+                |--------------------------------------------------------------------------
+                */
+
+                let ppeTotal = 0;
+
+                document
+                    .querySelectorAll(
+                        '[data-ppe-row]'
+                    )
+                    .forEach(
+                        function(row) {
+                            const count =
+                                Number(
+                                    row
+                                    .querySelector(
+                                        '[data-ppe-count]'
+                                    )
+                                    ?.value ||
+                                    0
+                                );
+
+                            const unit =
+                                Number(
+                                    row
+                                    .querySelector(
+                                        '[data-ppe-unit]'
+                                    )
+                                    ?.value ||
+                                    0
+                                );
+
+                            const total =
+                                count * unit;
+
+                            const totalInput =
+                                row.querySelector(
+                                    '[data-ppe-total]'
+                                );
+
+                            if (totalInput) {
+                                totalInput.value =
+                                    currency(total);
+                            }
+
+                            ppeTotal += total;
+                        }
+                    );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Preview Outputs
+                |--------------------------------------------------------------------------
+                */
+
+                if (wagesPreview) {
+                    wagesPreview.value =
+                        currency(wages);
+                }
+
+                if (insurancePreview) {
+                    insurancePreview.value =
+                        currency(insurance);
+                }
+
+                if (ppeTotalPreview) {
+                    ppeTotalPreview.textContent =
+                        currency(ppeTotal);
+                }
+
+                if (projectTotalPreview) {
+                    projectTotalPreview.value =
+                        currency(
+                            wages +
+                            insurance +
+                            ppeTotal
+                        );
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Add PPE Row
+            |--------------------------------------------------------------------------
+            */
+
+            function addRow(item = null) {
+                if (!ppeItems) {
+                    return;
+                }
+
+                const index =
+                    ppeIndex++;
+
+                const row =
+                    document.createElement(
+                        'div'
+                    );
+
+                row.dataset.ppeRow =
+                    'true';
+
+                row.className =
+                    'grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1.5fr_1fr_1fr_1fr_auto]';
+
+                const selectedType =
+                    item?.ppe_type ??
+                    'non_hazardous';
+
+                row.innerHTML = `
             <select
                 name="ppe_items[${index}][ppe_type]"
                 class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
@@ -1131,113 +1106,112 @@ document.addEventListener('DOMContentLoaded', async function () {
             </button>
         `;
 
-        ppeItems.appendChild(row);
+                ppeItems.appendChild(row);
 
-        /*
-        |--------------------------------------------------------------------------
-        | PPE Recalculation Events
-        |--------------------------------------------------------------------------
-        */
+                /*
+                |--------------------------------------------------------------------------
+                | PPE Recalculation Events
+                |--------------------------------------------------------------------------
+                */
 
-        row
-            .querySelectorAll(
-                'input, select'
-            )
-            .forEach(
-                function (element) {
-                    element.addEventListener(
-                        'input',
-                        calculate
+                row
+                    .querySelectorAll(
+                        'input, select'
+                    )
+                    .forEach(
+                        function(element) {
+                            element.addEventListener(
+                                'input',
+                                calculate
+                            );
+
+                            element.addEventListener(
+                                'change',
+                                calculate
+                            );
+                        }
                     );
 
-                    element.addEventListener(
-                        'change',
-                        calculate
+                /*
+                |--------------------------------------------------------------------------
+                | Remove PPE
+                |--------------------------------------------------------------------------
+                */
+
+                const removeButton =
+                    row.querySelector(
+                        '[data-remove-ppe]'
+                    );
+
+                if (removeButton) {
+                    removeButton.addEventListener(
+                        'click',
+                        function() {
+                            row.remove();
+                            calculate();
+                        }
                     );
                 }
-            );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Remove PPE
-        |--------------------------------------------------------------------------
-        */
-
-        const removeButton =
-            row.querySelector(
-                '[data-remove-ppe]'
-            );
-
-        if (removeButton) {
-            removeButton.addEventListener(
-                'click',
-                function () {
-                    row.remove();
-                    calculate();
-                }
-            );
-        }
-
-        calculate();
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Add PPE Button
-    |--------------------------------------------------------------------------
-    */
-
-    if (addPpeItem) {
-        addPpeItem.addEventListener(
-            'click',
-            function () {
-                addRow();
+                calculate();
             }
-        );
-    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Calculation Listeners
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | Add PPE Button
+            |--------------------------------------------------------------------------
+            */
 
-    [
-        days,
-        beneficiaries,
-        wageRate,
-        insuranceRate,
-    ]
-        .filter(Boolean)
-        .forEach(
-            function (element) {
-                element.addEventListener(
-                    'input',
-                    calculate
+            if (addPpeItem) {
+                addPpeItem.addEventListener(
+                    'click',
+                    function() {
+                        addRow();
+                    }
                 );
             }
-        );
 
-    /*
-    |--------------------------------------------------------------------------
-    | Restore PPE Rows
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | Calculation Listeners
+            |--------------------------------------------------------------------------
+            */
 
-    existingPpeItems.forEach(
-        function (item) {
-            addRow(item);
-        }
-    );
+            [
+                days,
+                beneficiaries,
+                wageRate,
+                insuranceRate,
+            ]
+            .filter(Boolean)
+                .forEach(
+                    function(element) {
+                        element.addEventListener(
+                            'input',
+                            calculate
+                        );
+                    }
+                );
 
-    /*
-    |--------------------------------------------------------------------------
-    | Initial Calculation
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | Restore PPE Rows
+            |--------------------------------------------------------------------------
+            */
 
-    calculate();
-});
-</script>
+            existingPpeItems.forEach(
+                function(item) {
+                    addRow(item);
+                }
+            );
 
+            /*
+            |--------------------------------------------------------------------------
+            | Initial Calculation
+            |--------------------------------------------------------------------------
+            */
+
+            calculate();
+        });
+    </script>
 @endpush

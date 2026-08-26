@@ -144,8 +144,7 @@
                         {{ $label }}
                     </label>
 
-                    <input name="{{ $field }}"
-                        value="{{ old($field, $editing ? $draft->{$field} : '') }}"
+                    <input name="{{ $field }}" value="{{ old($field, $editing ? $draft->{$field} : '') }}"
                         @if ($field !== 'income_class') required @endif
                         class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
@@ -347,8 +346,7 @@
                 </label>
 
                 <input id="insuranceRate" name="insurance_rate" type="number" min="0" step="0.01"
-                    required
-                    value="{{ old('insurance_rate', $editing ? $draft->insurance_rate : 50) }}"
+                    required value="{{ old('insurance_rate', $editing ? $draft->insurance_rate : 50) }}"
                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
             </div>
