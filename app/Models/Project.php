@@ -166,11 +166,16 @@ class Project extends Model
         );
     }
 
-    public function implementationPreparationComplete(): bool
+    public function preImplementationRequirementsComplete(): bool
     {
         return $this->insuranceEnrollment()->exists()
             && $this->ppeDelivery()->exists()
-            && $this->noticeToProceed()->exists()
+            && $this->noticeToProceed()->exists();
+    }
+
+    public function implementationPreparationComplete(): bool
+    {
+        return $this->preImplementationRequirementsComplete()
             && $this->orientation()->exists()
             && $this->implementation()->exists();
     }

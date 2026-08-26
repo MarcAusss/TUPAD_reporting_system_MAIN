@@ -292,6 +292,11 @@ class MergedImplementationRequirementsTest extends TestCase
                     '2026-08-26 00:00:00',
             ]
         );
+
+        $this->assertSame(
+            ProjectStatus::FOR_IMPLEMENTATION,
+            $this->project->fresh()->status
+        );
     }
 
     public function test_invalid_requirement_prevents_all_three_records_from_being_saved(): void

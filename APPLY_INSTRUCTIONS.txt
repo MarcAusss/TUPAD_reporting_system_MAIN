@@ -1,0 +1,179 @@
+TUPAD REPORTING SYSTEM
+MAJOR REVISION — PHASE 4
+SUBMISSION OF POST-DOCUMENTARY REQUIREMENTS
+
+DOCUMENT BASIS
+--------------
+Revised TUPAD 360 workflow:
+
+Submission of Post-Documentary Requirements (TC Account)
+1. Date Received
+2. Attachments Received
+3. Date Forwarded to IMSD
+4. Save -> Auto-update Status: For Payment
+
+IMPLEMENTED
+-----------
+The old single "Document Type + optional Attachment" form is replaced in the
+normal UI by one complete submission form containing exactly the revised core
+inputs:
+
+- Date Received
+- Attachments Received
+- Date Forwarded to IMSD
+- optional Remarks
+
+ATTACHMENTS RECEIVED
+--------------------
+Multiple files can be selected in one submission.
+
+Supported:
+PDF
+JPG/JPEG
+PNG
+DOC/DOCX
+XLS/XLSX
+
+Maximum:
+10 MB per file
+20 files per submission
+
+Each selected file is stored as its own project_post_documents row so the
+existing private secure-download architecture remains intact.
+
+The visible document label becomes the original attachment filename.
+
+AUTO-UPDATE STATUS
+------------------
+All three official inputs are required.
+
+A successful save therefore means the submission is complete and immediately
+updates:
+
+FOR SUBMISSION OF POST-DOCS
+-> FOR PAYMENT
+
+There is no separate manual transition.
+
+DATE RULE
+---------
+Date Forwarded to IMSD cannot be earlier than Date Received.
+
+ATOMIC SAVE
+-----------
+The database work is wrapped in a transaction.
+
+If an exception occurs after files have been written, newly stored files are
+deleted so the request does not leave orphan upload files.
+
+BACKWARD COMPATIBILITY
+----------------------
+The controller still accepts the older single-file payload:
+
+document_type
+attachment
+
+This is retained for old integrations/tests.
+
+The revised UI uses:
+
+attachments[]
+
+with multiple file selection.
+
+NO DATABASE MIGRATION REQUIRED.
+
+FILES MODIFIED
+--------------
+app/Http/Controllers/ProjectPostDocumentController.php
+resources/views/projects/show.blade.php
+
+FILE ADDED
+----------
+tests/Feature/MajorRevisionPhase4PostDocumentaryRequirementsTest.php
+
+IMPORTANT
+---------
+The Project Detail file in this overlay is based on the latest Phase 3 view
+including the corrected text:
+
+"Complete Insurance, PPE, and Notice to Proceed first."
+
+Therefore this overlay does not revert the Phase 3 merged-requirements UX
+hotfix.
+
+APPLY
+-----
+Extract into the Laravel project root and allow overwrite.
+
+Then run:
+
+php artisan optimize:clear
+php artisan view:clear
+npm run build
+
+PHASE 4 TESTS
+-------------
+php artisan test --filter=MajorRevisionPhase4PostDocumentaryRequirementsTest
+php artisan test --filter=SecurityAuthorizationTest
+php artisan test --filter=ProjectWorkflowQueueTest
+php artisan test --filter=ProjectWorkflowTest
+php artisan test --filter=FinalProjectWorkflowTerminologyTest
+
+Then:
+
+php artisan test
+
+MANUAL TEST
+-----------
+1. Login as TC.
+2. Open a project in For Submission of Post-Docs.
+3. Open Submission of Post-Documentary Requirements.
+4. Set Date Received.
+5. Select multiple attachments.
+6. Set Date Forwarded to IMSD.
+7. Save.
+8. Confirm all selected files appear in the attachment table.
+9. Confirm status automatically becomes For Payment.
+10. Confirm the project becomes available to the Focal payment workflow.
+11. Confirm each attachment can be downloaded through the existing secure
+    download link.
+
+INVALID DATE TEST
+-----------------
+Set Date Received = 2026-08-26
+Set Date Forwarded to IMSD = 2026-08-25
+
+Expected:
+- validation error
+- no files/rows saved
+- project remains For Submission of Post-Docs
+
+STOP AFTER PHASE 4 TESTING.
+
+NEXT PHASE
+----------
+Major Revision Phase 5:
+Payment of Wages
+
+A. Obligation
+- First Payment
+- ADL Number
+- Fund Sponsor
+- Partner
+- Project Location
+- Term
+- Beneficiaries Total/Female
+- Amount
+- Date
+- Payee
+- Save -> Obligated
+- Add button for 2nd tranche
+- up to 5 payment tranches
+
+B. Disbursement
+- First Payment
+- Date Disbursed
+- LDAP No. / Check No.
+- same tranche structure
+- partial / completed payment handling

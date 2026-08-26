@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Services\Projects\ImplementationStageService;
@@ -138,6 +139,10 @@ class ProjectWorkflowQueueController extends Controller
                         ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS->value,
                     ]
                 )
+                ->where(
+                    'implementation_mode',
+                    ImplementationMode::DIRECT_ADMINISTRATION->value
+                )
                 ->when(
                     $request->filled('q'),
                     function ($query) use ($request) {
@@ -240,7 +245,7 @@ class ProjectWorkflowQueueController extends Controller
                     $config['title'],
 
                 'queueDescription' =>
-                    'Projects automatically move between implementation stages according to their approved work period.',
+                    'Direct Administration projects automatically move between implementation stages according to their approved work period.',
 
                 'queueOwner' =>
                     $config['owner'],
@@ -294,7 +299,7 @@ class ProjectWorkflowQueueController extends Controller
             'implementation' => [
                 'title' => 'Implementation',
                 'description' =>
-                    'Approved projects requiring implementation preparation, active implementation monitoring, or post-document transition.',
+                    'Direct Administration projects requiring implementation preparation, active implementation monitoring, or post-document transition.',
                 'owner' => 'TUPAD Coordinator / Administrator',
                 'statuses' => [
                     ProjectStatus::APPROVED->value,

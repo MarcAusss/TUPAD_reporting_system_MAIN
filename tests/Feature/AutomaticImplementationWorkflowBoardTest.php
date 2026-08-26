@@ -90,7 +90,12 @@ class AutomaticImplementationWorkflowBoardTest extends TestCase
         );
 
         $response->assertSee(
-            'Set Work Period'
+            'Complete Requirements'
+        );
+
+        $response->assertDontSee(
+            'data-project-title="No Work Period Project"',
+            false
         );
     }
 

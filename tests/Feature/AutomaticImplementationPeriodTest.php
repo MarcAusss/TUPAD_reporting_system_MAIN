@@ -278,7 +278,7 @@ class AutomaticImplementationPeriodTest extends TestCase
                 (50 * $duration * 455) + 2500,
 
             'status' =>
-                ProjectStatus::APPROVED,
+                ProjectStatus::FOR_IMPLEMENTATION,
 
             'created_by' =>
                 $this->tc->id,

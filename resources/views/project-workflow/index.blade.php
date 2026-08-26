@@ -430,7 +430,22 @@
                                             View
                                         </a>
 
-                                        @if(! $implementation)
+                                        @if(
+                                            ! $implementation
+                                            && $project->status === \App\Enums\ProjectStatus::APPROVED
+                                        )
+
+                                            <a
+                                                href="{{ route('projects.show', $project) }}#implementation"
+                                                class="inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-semibold {{ $columnMeta['primary_button'] }}"
+                                            >
+                                                Complete Requirements
+                                            </a>
+
+                                        @elseif(
+                                            ! $implementation
+                                            && $project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION
+                                        )
 
                                             <button
                                                 type="button"

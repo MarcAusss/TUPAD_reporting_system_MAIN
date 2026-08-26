@@ -1268,6 +1268,8 @@
         ],
         true
     )
+    && $project->implementation_mode
+        === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION
 )
 
     <section id="implementation" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -1279,11 +1281,11 @@
                 <div>
 
                     <h2 class="text-sm font-semibold text-slate-900">
-                        Implementation Preparation
+                        Project Implementation
                     </h2>
 
                     <p class="mt-1 text-xs text-slate-500">
-                        Complete the required preparation before project implementation.
+                        Direct Administration workflow: Insurance, PPE, Notice to Proceed, Orientation, and Work Period.
                     </p>
 
                 </div>
@@ -1392,8 +1394,8 @@
                                 </h3>
 
                                 <p class="mt-1 text-xs leading-5 text-slate-500">
-                                    Complete Insurance Enrollment, PPE Delivery, and Notice to Proceed,
-                                    then save all three requirements using one submission.
+                                    Record Insurance, PPE, and Notice to Proceed for this Direct Administration project.
+                                    Saving all three complete requirements automatically moves the project to For Implementation.
                                 </p>
                             </div>
 
@@ -1771,7 +1773,7 @@
 
                     <div class="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs leading-5 text-slate-500">
-                            Saving will update all three implementation requirements together.
+                            Saving updates all three requirements together. Once complete, status automatically becomes For Implementation.
                         </p>
 
                         <button
@@ -1782,6 +1784,18 @@
                         </button>
                     </div>
                 </form>
+
+                @if($project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION)
+
+                    <div class="xl:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+                        <div class="text-xs font-semibold text-emerald-900">
+                            Pre-Implementation Requirements Complete
+                        </div>
+                        <p class="mt-1 text-xs leading-5 text-emerald-800">
+                            The project is now For Implementation. Record the Orientation and Work Period.
+                            Once both are complete, the actual date controls the automatic implementation status.
+                        </p>
+                    </div>
 
                 {{-- Orientation --}}
 
@@ -1945,10 +1959,48 @@
 
                 </form>
 
+                @elseif($project->status === \App\Enums\ProjectStatus::APPROVED)
+
+                    <div class="xl:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+                        <div class="text-xs font-semibold text-amber-900">
+                            Orientation and Work Period are not open yet
+                        </div>
+                        <p class="mt-1 text-xs leading-5 text-amber-800">
+                            Complete Insurance, PPE, and Notice to Proceed first. When all three are complete,
+                            the project automatically moves to For Implementation and scheduling becomes available.
+                        </p>
+                    </div>
+
+                @endif
+
             </div>
 
         @endif
 
+    </section>
+
+@elseif(
+    in_array(
+        $project->status,
+        [
+            \App\Enums\ProjectStatus::APPROVED,
+            \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
+            \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
+            \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+        ],
+        true
+    )
+    && $project->implementation_mode
+        === \App\Enums\ImplementationMode::THROUGH_ACP
+)
+
+    <section id="implementation" class="scroll-mt-32 mt-5 rounded-xl border border-violet-200 bg-violet-50 p-5">
+        <div class="text-sm font-semibold text-violet-950">
+            Through ACP Project
+        </div>
+        <p class="mt-1 text-xs leading-5 text-violet-800">
+            The Insurance, PPE, Notice to Proceed, Orientation, and Work Period forms in this implementation workflow apply only to Direct Administration projects.
+        </p>
     </section>
 
 @endif
@@ -2006,23 +2058,42 @@
     )
 )
 
-    <section id="post-documents" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section
+        id="post-documents"
+        class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+    >
 
         <div class="border-b border-slate-200 px-5 py-4">
 
-            <h2 class="text-sm font-semibold text-slate-900">
-                Post-Documentary Requirements
-            </h2>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
-            <p class="mt-1 text-xs text-slate-500">
-                TC/Admin records the submitted post-implementation documentary requirements.
-                Once complete, the project moves to Payment of Wages / obligation processing.
-            </p>
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-900">
+                        Submission of Post-Documentary Requirements
+                    </h2>
+
+                    <p class="mt-1 text-xs leading-5 text-slate-500">
+                        TC/Admin records the Date Received, Attachments Received, and Date Forwarded to IMSD.
+                        Saving a complete submission automatically moves the project to For Payment.
+                    </p>
+                </div>
+
+                @if(
+                    $project->status
+                    === \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
+                )
+                    <span class="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        Auto-update → For Payment
+                    </span>
+                @endif
+
+            </div>
 
         </div>
 
         @if(
-            $project->status === \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
+            $project->status
+            === \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
             && (
                 auth()->user()->isAdmin()
                 || auth()->user()->isTc()
@@ -2038,7 +2109,7 @@
 
                 @csrf
 
-                <div class="grid gap-4 md:grid-cols-2">
+                <div class="grid gap-5 lg:grid-cols-3">
 
                     <div>
 
@@ -2054,39 +2125,44 @@
                             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         >
 
-                    </div>
-
-                    <div>
-
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Document Type
-                        </label>
-
-                        <input
-                            name="document_type"
-                            required
-                            value="{{ old('document_type') }}"
-                            placeholder="Example: Accomplishment Report"
-                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                        >
+                        @error('date_received')
+                            <p class="mt-1 text-xs text-red-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
 
                     </div>
 
                     <div>
 
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Attachment
+                            Attachments Received
                         </label>
 
                         <input
                             type="file"
-                            name="attachment"
+                            name="attachments[]"
+                            multiple
+                            required
+                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
                             class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                         >
 
-                        <p class="mt-1 text-[11px] text-slate-400">
-                            Maximum 10 MB.
+                        <p class="mt-1 text-[11px] leading-4 text-slate-400">
+                            Select one or more received post-documentary files. Maximum 10 MB per file.
                         </p>
+
+                        @error('attachments')
+                            <p class="mt-1 text-xs text-red-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
+
+                        @error('attachments.*')
+                            <p class="mt-1 text-xs text-red-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
 
                     </div>
 
@@ -2099,13 +2175,24 @@
                         <input
                             type="date"
                             name="date_forwarded_to_imsd"
+                            required
                             value="{{ old('date_forwarded_to_imsd') }}"
                             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         >
 
+                        <p class="mt-1 text-[11px] leading-4 text-slate-400">
+                            Cannot be earlier than Date Received.
+                        </p>
+
+                        @error('date_forwarded_to_imsd')
+                            <p class="mt-1 text-xs text-red-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
+
                     </div>
 
-                    <div class="md:col-span-2">
+                    <div class="lg:col-span-3">
 
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
                             Remarks
@@ -2115,19 +2202,25 @@
                             name="remarks"
                             rows="3"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="Optional remarks about the received post-documentary requirements."
                         >{{ old('remarks') }}</textarea>
 
                     </div>
 
                 </div>
 
-                <div class="mt-4 flex justify-end">
+                <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+
+                    <p class="text-xs leading-5 text-slate-500">
+                        A successful save records all selected attachments and automatically updates the project status to
+                        <span class="font-semibold text-slate-700">For Payment</span>.
+                    </p>
 
                     <button
                         type="submit"
-                        class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+                        class="h-10 shrink-0 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]"
                     >
-                        Save Post-Document
+                        Save Post-Documentary Requirements
                     </button>
 
                 </div>
@@ -2149,15 +2242,15 @@
                         </th>
 
                         <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
-                            Document
+                            Attachment Received
                         </th>
 
                         <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
-                            Forwarded to IMSD
+                            Date Forwarded to IMSD
                         </th>
 
                         <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
-                            Attachment
+                            File
                         </th>
 
                     </tr>

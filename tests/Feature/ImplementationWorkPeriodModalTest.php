@@ -143,7 +143,7 @@ class ImplementationWorkPeriodModalTest extends TestCase
                     457500,
 
                 'status' =>
-                    ProjectStatus::APPROVED,
+                    ProjectStatus::FOR_IMPLEMENTATION,
 
                 'created_by' =>
                     $tc->id,

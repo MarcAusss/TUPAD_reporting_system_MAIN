@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Services\Projects\ImplementationStageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -12,6 +14,11 @@ use Illuminate\Validation\Rule;
 
 class ProjectImplementationController extends Controller
 {
+    public function __construct(
+        private readonly ImplementationStageService $implementationStageService
+    ) {
+    }
+
     /**
      * Save Insurance Enrollment, PPE Delivery, and Notice to Proceed
      * as one implementation-requirements submission.
@@ -230,7 +237,7 @@ class ProjectImplementationController extends Controller
                 |
                 */
 
-                $this->refreshPreparationStatus(
+                $this->refreshPreImplementationStatus(
                     $project,
                     $request->user()->id
                 );
@@ -291,9 +298,15 @@ class ProjectImplementationController extends Controller
             ]
         );
 
-        $this->refreshPreparationStatus($project, $request->user()->id);
+        $this->refreshPreImplementationStatus(
+            $project,
+            $request->user()->id
+        );
 
-        return back()->with('success', 'Insurance enrollment saved successfully.');
+        return back()->with(
+            'success',
+            'Insurance enrollment saved successfully.'
+        );
     }
 
     public function ppe(Request $request, Project $project): RedirectResponse
@@ -317,9 +330,15 @@ class ProjectImplementationController extends Controller
             ]
         );
 
-        $this->refreshPreparationStatus($project, $request->user()->id);
+        $this->refreshPreImplementationStatus(
+            $project,
+            $request->user()->id
+        );
 
-        return back()->with('success', 'PPE delivery information saved successfully.');
+        return back()->with(
+            'success',
+            'PPE delivery information saved successfully.'
+        );
     }
 
     public function noticeToProceed(Request $request, Project $project): RedirectResponse
@@ -340,14 +359,20 @@ class ProjectImplementationController extends Controller
             ]
         );
 
-        $this->refreshPreparationStatus($project, $request->user()->id);
+        $this->refreshPreImplementationStatus(
+            $project,
+            $request->user()->id
+        );
 
-        return back()->with('success', 'Notice to Proceed saved successfully.');
+        return back()->with(
+            'success',
+            'Notice to Proceed saved successfully.'
+        );
     }
 
     public function orientation(Request $request, Project $project): RedirectResponse
     {
-        $this->ensurePreparationAllowed($project);
+        $this->ensureSchedulingAllowed($project);
 
         $validated = $request->validate([
             'orientation_date' => ['required', 'date'],
@@ -362,14 +387,20 @@ class ProjectImplementationController extends Controller
             ]
         );
 
-        $this->refreshPreparationStatus($project, $request->user()->id);
+        $this->synchronizeImplementationStatus(
+            $project,
+            $request->user()->id
+        );
 
-        return back()->with('success', 'Orientation information saved successfully.');
+        return back()->with(
+            'success',
+            'Orientation information saved successfully.'
+        );
     }
 
     public function implementationPeriod(Request $request, Project $project): RedirectResponse
     {
-        $this->ensurePreparationAllowed($project);
+        $this->ensureSchedulingAllowed($project);
 
         $validated = $request->validate([
             'start_date' => ['required', 'date'],
@@ -428,7 +459,7 @@ class ProjectImplementationController extends Controller
             ]
         );
 
-        $this->refreshPreparationStatus(
+        $this->synchronizeImplementationStatus(
             $project,
             $request->user()->id
         );
@@ -443,32 +474,79 @@ class ProjectImplementationController extends Controller
         );
     }
 
-    private function ensurePreparationAllowed(Project $project): void
+    private function ensureDirectAdministration(Project $project): void
     {
-        if (! in_array(
-            $project->status,
-            [ProjectStatus::APPROVED, ProjectStatus::FOR_IMPLEMENTATION],
-            true
-        )) {
+        if (
+            $project->implementation_mode
+            !== ImplementationMode::DIRECT_ADMINISTRATION
+        ) {
             abort(
                 403,
-                'Implementation preparation can only be modified for Approved or For Implementation projects.'
+                'Project Implementation records in this workflow apply only to Direct Administration projects.'
             );
         }
     }
 
-    private function refreshPreparationStatus(Project $project, int $userId): void
+    private function ensurePreparationAllowed(Project $project): void
     {
+        $this->ensureDirectAdministration($project);
+
+        if (! in_array(
+            $project->status,
+            [
+                ProjectStatus::APPROVED,
+                ProjectStatus::FOR_IMPLEMENTATION,
+            ],
+            true
+        )) {
+            abort(
+                403,
+                'Insurance, PPE, and Notice to Proceed can only be modified for Approved or For Implementation projects.'
+            );
+        }
+    }
+
+    private function ensureSchedulingAllowed(Project $project): void
+    {
+        $this->ensureDirectAdministration($project);
+
+        if ($project->status !== ProjectStatus::FOR_IMPLEMENTATION) {
+            abort(
+                403,
+                'Orientation and the Implementation Work Period can only be recorded after the project reaches For Implementation.'
+            );
+        }
+    }
+
+    private function refreshPreImplementationStatus(
+        Project $project,
+        int $userId
+    ): void {
         $project->refresh();
 
         if (
             $project->status === ProjectStatus::APPROVED
-            && $project->implementationPreparationComplete()
+            && $project->preImplementationRequirementsComplete()
         ) {
             $project->update([
-                'status' => ProjectStatus::FOR_IMPLEMENTATION,
-                'updated_by' => $userId,
+                'status' =>
+                    ProjectStatus::FOR_IMPLEMENTATION,
+
+                'updated_by' =>
+                    $userId,
             ]);
         }
+    }
+
+    private function synchronizeImplementationStatus(
+        Project $project,
+        int $userId
+    ): void {
+        $project->refresh();
+
+        $this->implementationStageService->synchronize(
+            $project,
+            $userId
+        );
     }
 }
