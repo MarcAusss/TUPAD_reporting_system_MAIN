@@ -67,12 +67,13 @@ class ApprovedInsuranceLockTest extends TestCase
             'term' => 'short_term',
             'beneficiaries_total' => 50,
             'beneficiaries_female' => 25,
+            'insurance_beneficiaries' => 35,
             'wage_rate' => 455,
             'wages_total' => 455000,
             'ppe_total' => 0,
             'insurance_rate' => 50,
-            'insurance_total' => 2500,
-            'total_project_cost' => 457500,
+            'insurance_total' => 1750,
+            'total_project_cost' => 456750,
             'status' => ProjectStatus::APPROVED,
             'created_by' => $this->tc->id,
         ]);
@@ -102,7 +103,7 @@ class ApprovedInsuranceLockTest extends TestCase
         );
 
         $response->assertSee(
-            'Uses the approved project beneficiary count.'
+            'Uses the approved insurance beneficiary count'
         );
 
         $response->assertSee(
@@ -132,7 +133,7 @@ class ApprovedInsuranceLockTest extends TestCase
 
         $response->assertSee(
             number_format(
-                $this->project->beneficiaries_total
+                $this->project->insurance_beneficiaries
             )
         );
 
@@ -187,8 +188,8 @@ class ApprovedInsuranceLockTest extends TestCase
             'project_insurance_enrollments',
             [
                 'project_id' => $this->project->id,
-                'beneficiary_count' => 50,
-                'amount' => 2500,
+                'beneficiary_count' => 35,
+                'amount' => 1750,
                 'payment_mode' => 'ca',
                 'or_number' => 'OR-UPDATED',
                 'policy_number' => 'POL-UPDATED',
@@ -197,5 +198,31 @@ class ApprovedInsuranceLockTest extends TestCase
         );
     }
 
+    public function test_insurance_form_does_not_render_editable_beneficiary_or_amount_inputs(): void
+    {
+        $response = $this
+            ->actingAs($this->tc)
+            ->get(
+                route(
+                    'projects.show',
+                    $this->project
+                )
+            );
 
+        $response->assertOk();
+
+        $response->assertSee(
+            'Approved project values are locked'
+        );
+
+        $response->assertDontSee(
+            'name="beneficiary_count"',
+            false
+        );
+
+        $response->assertDontSee(
+            'name="amount"',
+            false
+        );
+    }
 }

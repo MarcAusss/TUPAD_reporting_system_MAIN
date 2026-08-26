@@ -10,8 +10,13 @@ class AdlRealignment extends Model
 {
     use HasFactory;
 
+    public const DIRECTION_TUPAD_TO_GIP = 'tupad_to_gip';
+
+    public const DIRECTION_GIP_TO_TUPAD = 'gip_to_tupad';
+
     protected $fillable = [
         'adl_id',
+        'direction',
         'amount',
         'reference_number',
         'realignment_date',
@@ -28,6 +33,27 @@ class AdlRealignment extends Model
             'realignment_date' => 'date',
             'maf_date' => 'date',
         ];
+    }
+
+    public function getDirectionLabelAttribute(): string
+    {
+        return match ($this->direction) {
+            self::DIRECTION_TUPAD_TO_GIP =>
+                'TUPAD to GIP',
+
+            self::DIRECTION_GIP_TO_TUPAD =>
+                'GIP to TUPAD',
+
+            default =>
+                'Legacy Realignment',
+        };
+    }
+
+    public function getAbsoluteAmountAttribute(): float
+    {
+        return abs(
+            (float) $this->amount
+        );
     }
 
     public function adl(): BelongsTo

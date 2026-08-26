@@ -326,9 +326,18 @@ class ProjectController extends Controller
                 2
             );
 
+            $insuranceBeneficiaries =
+                array_key_exists(
+                    'insurance_beneficiaries',
+                    $validated
+                )
+                && $validated['insurance_beneficiaries'] !== null
+                    ? (int) $validated['insurance_beneficiaries']
+                    : (int) $validated['beneficiaries_total'];
+
             $insuranceTotal = round(
                 $insuranceRate
-                * $beneficiaries,
+                * $insuranceBeneficiaries,
                 2
             );
 
@@ -557,6 +566,9 @@ class ProjectController extends Controller
 
                 'insurance_rate' =>
                     $insuranceRate,
+
+                'insurance_beneficiaries' =>
+                    $insuranceBeneficiaries,
 
                 'insurance_total' =>
                     $insuranceTotal,
@@ -925,6 +937,23 @@ class ProjectController extends Controller
                 'required',
                 'numeric',
                 'min:0',
+            ],
+
+            'insurance_beneficiaries' => [
+                /*
+                |--------------------------------------------------------------------------
+                | Backward Compatibility
+                |--------------------------------------------------------------------------
+                |
+                | The Project Create UI requires this field, but older tests,
+                | integrations, and existing server-side payloads may omit it.
+                | When omitted, store() falls back to beneficiaries_total.
+                |
+                */
+                'nullable',
+                'integer',
+                'min:0',
+                'lte:beneficiaries_total',
             ],
 
             /*

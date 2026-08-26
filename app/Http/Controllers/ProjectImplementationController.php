@@ -7,10 +7,242 @@ use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ProjectImplementationController extends Controller
 {
+    /**
+     * Save Insurance Enrollment, PPE Delivery, and Notice to Proceed
+     * as one implementation-requirements submission.
+     */
+    public function preparationRequirements(
+        Request $request,
+        Project $project
+    ): RedirectResponse {
+        $this->ensurePreparationAllowed($project);
+
+        $validated = $request->validate([
+            /*
+            |--------------------------------------------------------------------------
+            | Insurance Enrollment
+            |--------------------------------------------------------------------------
+            */
+
+            'insurance.date_enrolled' => [
+                'required',
+                'date',
+            ],
+
+            'insurance.payment_mode' => [
+                'required',
+                Rule::in([
+                    'voucher',
+                    'ca',
+                ]),
+            ],
+
+            'insurance.or_number' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+            'insurance.policy_number' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+            'insurance.remarks' => [
+                'nullable',
+                'string',
+                'max:3000',
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | PPE Delivery
+            |--------------------------------------------------------------------------
+            */
+
+            'ppe.delivery_receipt_date' => [
+                'required',
+                'date',
+            ],
+
+            'ppe.ppe_provided' => [
+                'required',
+                'string',
+                'max:5000',
+            ],
+
+            'ppe.remarks' => [
+                'nullable',
+                'string',
+                'max:3000',
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Notice to Proceed
+            |--------------------------------------------------------------------------
+            */
+
+            'ntp.date_issued' => [
+                'required',
+                'date',
+            ],
+
+            'ntp.date_released' => [
+                'required',
+                'date',
+                'after_or_equal:ntp.date_issued',
+            ],
+
+            'ntp.remarks' => [
+                'nullable',
+                'string',
+                'max:3000',
+            ],
+        ]);
+
+        DB::transaction(
+            function () use (
+                $request,
+                $project,
+                $validated
+            ) {
+                /*
+                |--------------------------------------------------------------------------
+                | Insurance - approved values stay locked
+                |--------------------------------------------------------------------------
+                */
+
+                $project
+                    ->insuranceEnrollment()
+                    ->updateOrCreate(
+                        [
+                            'project_id' =>
+                                $project->id,
+                        ],
+                        [
+                            'date_enrolled' =>
+                                $validated['insurance']['date_enrolled'],
+
+                            'beneficiary_count' =>
+                                (int) (
+                                    $project->insurance_beneficiaries
+                                    ?? $project->beneficiaries_total
+                                ),
+
+                            'amount' =>
+                                (float) $project->insurance_total,
+
+                            'payment_mode' =>
+                                $validated['insurance']['payment_mode'],
+
+                            'or_number' =>
+                                $validated['insurance']['or_number']
+                                    ?? null,
+
+                            'policy_number' =>
+                                $validated['insurance']['policy_number']
+                                    ?? null,
+
+                            'remarks' =>
+                                $validated['insurance']['remarks']
+                                    ?? null,
+
+                            'recorded_by' =>
+                                $request->user()->id,
+                        ]
+                    );
+
+                /*
+                |--------------------------------------------------------------------------
+                | PPE Delivery
+                |--------------------------------------------------------------------------
+                */
+
+                $project
+                    ->ppeDelivery()
+                    ->updateOrCreate(
+                        [
+                            'project_id' =>
+                                $project->id,
+                        ],
+                        [
+                            'delivery_receipt_date' =>
+                                $validated['ppe']['delivery_receipt_date'],
+
+                            'ppe_provided' =>
+                                $validated['ppe']['ppe_provided'],
+
+                            'inventory_reference' =>
+                                null,
+
+                            'remarks' =>
+                                $validated['ppe']['remarks']
+                                    ?? null,
+
+                            'recorded_by' =>
+                                $request->user()->id,
+                        ]
+                    );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Notice to Proceed
+                |--------------------------------------------------------------------------
+                */
+
+                $project
+                    ->noticeToProceed()
+                    ->updateOrCreate(
+                        [
+                            'project_id' =>
+                                $project->id,
+                        ],
+                        [
+                            'date_issued' =>
+                                $validated['ntp']['date_issued'],
+
+                            'date_released' =>
+                                $validated['ntp']['date_released'],
+
+                            'remarks' =>
+                                $validated['ntp']['remarks']
+                                    ?? null,
+
+                            'recorded_by' =>
+                                $request->user()->id,
+                        ]
+                    );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Refresh Preparation Status Once
+                |--------------------------------------------------------------------------
+                |
+                | The three requirement records are committed together. If one
+                | save fails, none of the three remains partially saved.
+                |
+                */
+
+                $this->refreshPreparationStatus(
+                    $project,
+                    $request->user()->id
+                );
+            }
+        );
+
+        return back()->with(
+            'success',
+            'Implementation requirements saved successfully.'
+        );
+    }
+
     public function insurance(Request $request, Project $project): RedirectResponse
     {
         $this->ensurePreparationAllowed($project);
@@ -46,7 +278,10 @@ class ProjectImplementationController extends Controller
                 */
 
                 'beneficiary_count' =>
-                    (int) $project->beneficiaries_total,
+                    (int) (
+                        $project->insurance_beneficiaries
+                        ?? $project->beneficiaries_total
+                    ),
 
                 'amount' =>
                     (float) $project->insurance_total,

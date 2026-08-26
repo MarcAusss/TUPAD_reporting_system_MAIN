@@ -4,7 +4,7 @@
 
 @section('content')
 
-    <div class="mx-auto max-w-[1320px]">
+    <div class="mx-auto max-w-330">
 
         <x-page-header
             eyebrow="Project Management"
@@ -22,7 +22,7 @@
         </x-page-header>
 
         <div class="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
-            <div class="text-xs font-bold uppercase tracking-[0.1em] text-blue-700">
+            <div class="text-xs font-bold uppercase tracking-widest text-blue-700">
                 Encoding Guide
             </div>
 
@@ -40,7 +40,7 @@
 
                 <aside class="hidden xl:block">
 
-                    <div class="sticky top-[88px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="sticky top-22 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 
                         <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                             Project Sections
@@ -727,17 +727,60 @@
                     </h2>
                 </div>
 
-                <div class="grid gap-5 p-6 md:grid-cols-3">
+                <div class="grid gap-5 p-6 md:grid-cols-2 xl:grid-cols-4">
 
                     <div>
 
-                        <label class="mb-2 block text-sm font-semibold text-slate-700">
+                        <label
+                            for="insuranceRate"
+                            class="mb-2 block text-sm font-semibold text-slate-700"
+                        >
                             Insurance Rate / Beneficiary
                         </label>
 
-                        <input id="insuranceRate" name="insurance_rate" type="number" min="0" step="0.01"
-                            value="{{ old('insurance_rate', 50) }}" required
-                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                        <input
+                            id="insuranceRate"
+                            name="insurance_rate"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value="{{ old('insurance_rate', 50) }}"
+                            required
+                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        >
+
+                    </div>
+
+                    <div>
+
+                        <label
+                            for="insuranceBeneficiaries"
+                            class="mb-2 block text-sm font-semibold text-slate-700"
+                        >
+                            Insurance Beneficiaries
+                        </label>
+
+                        <input
+                            id="insuranceBeneficiaries"
+                            name="insurance_beneficiaries"
+                            type="number"
+                            min="0"
+                            value="{{ old('insurance_beneficiaries') }}"
+                            placeholder="Beneficiaries requiring insurance"
+                            required
+                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        >
+
+                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                            Enter only beneficiaries who require project-funded insurance.
+                            This cannot exceed Total Beneficiaries.
+                        </p>
+
+                        @error('insurance_beneficiaries')
+                            <p class="mt-1 text-xs font-medium text-red-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
 
                     </div>
 
@@ -747,8 +790,16 @@
                             Insurance Total
                         </label>
 
-                        <input id="insurancePreview" readonly value="₱0.00"
-                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold">
+                        <input
+                            id="insurancePreview"
+                            readonly
+                            value="₱0.00"
+                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold"
+                        >
+
+                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                            Insurance Rate × Insurance Beneficiaries
+                        </p>
 
                     </div>
 
@@ -758,8 +809,16 @@
                             Total Project Cost
                         </label>
 
-                        <input id="projectTotalPreview" readonly value="₱0.00"
-                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-bold">
+                        <input
+                            id="projectTotalPreview"
+                            readonly
+                            value="₱0.00"
+                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-bold"
+                        >
+
+                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                            Wages + PPE + Insurance
+                        </p>
 
                     </div>
 
@@ -1319,6 +1378,7 @@
             const beneficiaries = document.getElementById('beneficiariesTotal');
             const wageRate = document.getElementById('wageRate');
             const insuranceRate = document.getElementById('insuranceRate');
+            const insuranceBeneficiaries = document.getElementById('insuranceBeneficiaries');
 
             const termPreview = document.getElementById('termPreview');
             const wagesPreview = document.getElementById('wagesPreview');
@@ -1343,6 +1403,21 @@
                 const beneficiaryValue = Number(beneficiaries.value || 0);
                 const wageValue = Number(wageRate.value || 0);
                 const insuranceValue = Number(insuranceRate.value || 0);
+                const insuranceBeneficiaryValue = Number(
+                    insuranceBeneficiaries.value || 0
+                );
+
+                insuranceBeneficiaries.max = String(
+                    Math.max(0, beneficiaryValue)
+                );
+
+                if (insuranceBeneficiaryValue > beneficiaryValue) {
+                    insuranceBeneficiaries.setCustomValidity(
+                        'Insurance beneficiaries cannot exceed total project beneficiaries.'
+                    );
+                } else {
+                    insuranceBeneficiaries.setCustomValidity('');
+                }
 
                 if (dayValue >= 10 && dayValue <= 30) {
                     termPreview.value = 'Short-Term';
@@ -1353,7 +1428,10 @@
                 }
 
                 const wages = dayValue * beneficiaryValue * wageValue;
-                const insurance = beneficiaryValue * insuranceValue;
+
+                const insurance =
+                    insuranceBeneficiaryValue
+                    * insuranceValue;
 
                 let ppeTotal = 0;
 
@@ -1470,6 +1548,7 @@
                 beneficiaries,
                 wageRate,
                 insuranceRate,
+                insuranceBeneficiaries,
             ].forEach(function(element) {
                 element.addEventListener(
                     'input',

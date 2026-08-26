@@ -1266,364 +1266,412 @@
 
             <div class="grid gap-5 p-5 xl:grid-cols-2">
 
-                {{-- Insurance --}}
+                {{-- Combined Implementation Requirements --}}
 
                 <form
                     method="POST"
-                    action="{{ route('projects.implementation.insurance', $project) }}"
-                    class="rounded-xl border border-slate-200 p-5"
+                    action="{{ route('projects.implementation.requirements', $project) }}"
+                    class="xl:col-span-2 overflow-hidden rounded-xl border border-slate-200 bg-white"
                 >
-
                     @csrf
 
-                    <h3 class="text-sm font-semibold text-slate-900">
-                        Insurance Enrollment
-                    </h3>
+                    <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-slate-900">
+                                    Implementation Requirements
+                                </h3>
 
-                    <div class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-                        <div class="text-xs font-semibold text-blue-900">
-                            Approved project values are locked
+                                <p class="mt-1 text-xs leading-5 text-slate-500">
+                                    Complete Insurance Enrollment, PPE Delivery, and Notice to Proceed,
+                                    then save all three requirements using one submission.
+                                </p>
+                            </div>
+
+                            <span class="inline-flex w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                Single Submission
+                            </span>
                         </div>
+                    </div>
 
-                        <p class="mt-1 text-xs leading-5 text-blue-700">
-                            Beneficiary Count and Insurance Amount are taken from the approved project
-                            and cannot be changed during Insurance Enrollment. Only operational enrollment
-                            details may be updated.
+                    <div class="grid gap-5 p-5 xl:grid-cols-3">
+
+                        {{-- Insurance Enrollment --}}
+
+                        <section class="rounded-xl border border-slate-200 p-5">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                                        Requirement 1
+                                    </div>
+
+                                    <h4 class="mt-1 text-sm font-semibold text-slate-900">
+                                        Insurance Enrollment
+                                    </h4>
+                                </div>
+
+                                @if($project->insuranceEnrollment)
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                        Saved
+                                    </span>
+                                @endif
+                            </div>
+
+                            <div class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                                <div class="text-xs font-semibold text-blue-900">
+                                    Approved project values are locked
+                                </div>
+
+                                <p class="mt-1 text-xs leading-5 text-blue-700">
+                                    Insurance Beneficiaries and Insurance Amount use the approved
+                                    project values and cannot be edited here.
+                                </p>
+                            </div>
+
+                            <div class="mt-4 grid gap-4">
+
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                        Date Enrolled
+                                    </label>
+
+                                    <input
+                                        name="insurance[date_enrolled]"
+                                        type="date"
+                                        required
+                                        value="{{ old(
+                                            'insurance.date_enrolled',
+                                            $project->insuranceEnrollment?->date_enrolled?->format('Y-m-d')
+                                        ) }}"
+                                        class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                                    >
+
+                                    @error('insurance.date_enrolled')
+                                        <p class="mt-1 text-xs font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+
+                                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                                    <div>
+                                        <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                            Insurance Beneficiaries
+                                        </label>
+
+                                        <div class="flex h-10 items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm">
+                                            <span class="font-semibold text-slate-900">
+                                                {{ number_format(
+                                                    $project->insurance_beneficiaries
+                                                    ?? $project->beneficiaries_total
+                                                ) }}
+                                            </span>
+
+                                            <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                                Locked
+                                            </span>
+                                        </div>
+
+                                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                            Uses the approved insurance beneficiary count.
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                            Insurance Amount
+                                        </label>
+
+                                        <div class="flex h-10 items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm">
+                                            <span class="font-semibold text-slate-900">
+                                                ₱{{ number_format($project->insurance_total, 2) }}
+                                            </span>
+
+                                            <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                                Locked
+                                            </span>
+                                        </div>
+
+                                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                            Uses the approved project insurance amount.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                        Mode of Payment
+                                    </label>
+
+                                    <select
+                                        name="insurance[payment_mode]"
+                                        required
+                                        class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                                    >
+                                        <option value="">
+                                            Select mode
+                                        </option>
+
+                                        <option
+                                            value="voucher"
+                                            @selected(
+                                                old(
+                                                    'insurance.payment_mode',
+                                                    $project->insuranceEnrollment?->payment_mode
+                                                ) === 'voucher'
+                                            )
+                                        >
+                                            Voucher
+                                        </option>
+
+                                        <option
+                                            value="ca"
+                                            @selected(
+                                                old(
+                                                    'insurance.payment_mode',
+                                                    $project->insuranceEnrollment?->payment_mode
+                                                ) === 'ca'
+                                            )
+                                        >
+                                            CA
+                                        </option>
+                                    </select>
+
+                                    @error('insurance.payment_mode')
+                                        <p class="mt-1 text-xs font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                        OR Number
+                                    </label>
+
+                                    <input
+                                        name="insurance[or_number]"
+                                        value="{{ old(
+                                            'insurance.or_number',
+                                            $project->insuranceEnrollment?->or_number
+                                        ) }}"
+                                        class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                                    >
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                        Policy Number
+                                    </label>
+
+                                    <input
+                                        name="insurance[policy_number]"
+                                        value="{{ old(
+                                            'insurance.policy_number',
+                                            $project->insuranceEnrollment?->policy_number
+                                        ) }}"
+                                        class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                                    >
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                        Remarks
+                                    </label>
+
+                                    <textarea
+                                        name="insurance[remarks]"
+                                        rows="2"
+                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                    >{{ old(
+                                        'insurance.remarks',
+                                        $project->insuranceEnrollment?->remarks
+                                    ) }}</textarea>
+                                </div>
+
+                            </div>
+                        </section>
+
+                        {{-- PPE Delivery --}}
+
+                        <section class="rounded-xl border border-slate-200 p-5">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                                        Requirement 2
+                                    </div>
+
+                                    <h4 class="mt-1 text-sm font-semibold text-slate-900">
+                                        PPE Delivery
+                                    </h4>
+                                </div>
+
+                                @if($project->ppeDelivery)
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                        Saved
+                                    </span>
+                                @endif
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                    Date of Delivery Receipt
+                                </label>
+
+                                <input
+                                    name="ppe[delivery_receipt_date]"
+                                    type="date"
+                                    required
+                                    value="{{ old(
+                                        'ppe.delivery_receipt_date',
+                                        $project->ppeDelivery?->delivery_receipt_date?->format('Y-m-d')
+                                    ) }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                                >
+
+                                @error('ppe.delivery_receipt_date')
+                                    <p class="mt-1 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                    PPE Provided
+                                </label>
+
+                                <textarea
+                                    name="ppe[ppe_provided]"
+                                    rows="5"
+                                    required
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                >{{ old(
+                                    'ppe.ppe_provided',
+                                    $project->ppeDelivery?->ppe_provided
+                                ) }}</textarea>
+
+                                @error('ppe.ppe_provided')
+                                    <p class="mt-1 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                    Remarks
+                                </label>
+
+                                <textarea
+                                    name="ppe[remarks]"
+                                    rows="2"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                >{{ old(
+                                    'ppe.remarks',
+                                    $project->ppeDelivery?->remarks
+                                ) }}</textarea>
+                            </div>
+                        </section>
+
+                        {{-- Notice to Proceed --}}
+
+                        <section class="rounded-xl border border-slate-200 p-5">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                                        Requirement 3
+                                    </div>
+
+                                    <h4 class="mt-1 text-sm font-semibold text-slate-900">
+                                        Notice to Proceed
+                                    </h4>
+                                </div>
+
+                                @if($project->noticeToProceed)
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                        Saved
+                                    </span>
+                                @endif
+                            </div>
+
+                            <div class="mt-4 grid gap-4">
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                        Date Issued
+                                    </label>
+
+                                    <input
+                                        name="ntp[date_issued]"
+                                        type="date"
+                                        required
+                                        value="{{ old(
+                                            'ntp.date_issued',
+                                            $project->noticeToProceed?->date_issued?->format('Y-m-d')
+                                        ) }}"
+                                        class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                                    >
+
+                                    @error('ntp.date_issued')
+                                        <p class="mt-1 text-xs font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                        Date Released
+                                    </label>
+
+                                    <input
+                                        name="ntp[date_released]"
+                                        type="date"
+                                        required
+                                        value="{{ old(
+                                            'ntp.date_released',
+                                            $project->noticeToProceed?->date_released?->format('Y-m-d')
+                                        ) }}"
+                                        class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                                    >
+
+                                    @error('ntp.date_released')
+                                        <p class="mt-1 text-xs font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                    Remarks
+                                </label>
+
+                                <textarea
+                                    name="ntp[remarks]"
+                                    rows="2"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                >{{ old(
+                                    'ntp.remarks',
+                                    $project->noticeToProceed?->remarks
+                                ) }}</textarea>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-xs leading-5 text-slate-500">
+                            Saving will update all three implementation requirements together.
                         </p>
-                    </div>
 
-                    <div class="mt-4 grid gap-4 md:grid-cols-2">
-
-                        <div>
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                Date Enrolled
-                            </label>
-
-                            <input
-                                name="date_enrolled"
-                                type="date"
-                                required
-                                value="{{ old(
-                                    'date_enrolled',
-                                    $project->insuranceEnrollment?->date_enrolled?->format('Y-m-d')
-                                ) }}"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                            >
-
-                        </div>
-
-                        <div>
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                Beneficiaries
-                            </label>
-
-                            <div
-                                class="flex h-10 w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"
-                            >
-                                <span class="font-semibold text-slate-900">
-                                    {{ number_format($project->beneficiaries_total) }}
-                                </span>
-
-                                <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                    Locked
-                                </span>
-                            </div>
-
-                            <p class="mt-1 text-[11px] leading-4 text-slate-500">
-                                Uses the approved project beneficiary count.
-                            </p>
-
-                        </div>
-
-                        <div>
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                Amount
-                            </label>
-
-                            <div
-                                class="flex h-10 w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"
-                            >
-                                <span class="font-semibold text-slate-900">
-                                    ₱{{ number_format($project->insurance_total, 2) }}
-                                </span>
-
-                                <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                    Locked
-                                </span>
-                            </div>
-
-                            <p class="mt-1 text-[11px] leading-4 text-slate-500">
-                                Uses the approved project insurance amount.
-                            </p>
-
-                        </div>
-
-                        <div>
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                Mode of Payment
-                            </label>
-
-                            <select
-                                name="payment_mode"
-                                required
-                                class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
-                            >
-
-                                <option value="">
-                                    Select
-                                </option>
-
-                                <option
-                                    value="voucher"
-                                    @selected(
-                                        old(
-                                            'payment_mode',
-                                            $project->insuranceEnrollment?->payment_mode
-                                        ) === 'voucher'
-                                    )
-                                >
-                                    Voucher
-                                </option>
-
-                                <option
-                                    value="ca"
-                                    @selected(
-                                        old(
-                                            'payment_mode',
-                                            $project->insuranceEnrollment?->payment_mode
-                                        ) === 'ca'
-                                    )
-                                >
-                                    CA
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                        <div>
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                OR Number
-                            </label>
-
-                            <input
-                                name="or_number"
-                                value="{{ old(
-                                    'or_number',
-                                    $project->insuranceEnrollment?->or_number
-                                ) }}"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                            >
-
-                        </div>
-
-                        <div>
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                Policy Number
-                            </label>
-
-                            <input
-                                name="policy_number"
-                                value="{{ old(
-                                    'policy_number',
-                                    $project->insuranceEnrollment?->policy_number
-                                ) }}"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                            >
-
-                        </div>
-
-                    </div>
-
-                    <div class="mt-4">
-
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Remarks
-                        </label>
-
-                        <textarea
-                            name="remarks"
-                            rows="2"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        >{{ old(
-                            'remarks',
-                            $project->insuranceEnrollment?->remarks
-                        ) }}</textarea>
-
-                    </div>
-
-                    <button
-                        type="submit"
-                        class="mt-4 h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
-                    >
-                        Save Insurance
-                    </button>
-
-                </form>
-
-                {{-- PPE Delivery --}}
-
-                <form
-                    method="POST"
-                    action="{{ route('projects.implementation.ppe', $project) }}"
-                    class="rounded-xl border border-slate-200 p-5"
-                >
-
-                    @csrf
-
-                    <h3 class="text-sm font-semibold text-slate-900">
-                        PPE Delivery
-                    </h3>
-
-                    <div class="mt-4">
-
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Date of Delivery Receipt
-                        </label>
-
-                        <input
-                            name="delivery_receipt_date"
-                            type="date"
-                            required
-                            value="{{ old(
-                                'delivery_receipt_date',
-                                $project->ppeDelivery?->delivery_receipt_date?->format('Y-m-d')
-                            ) }}"
-                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                        <button
+                            type="submit"
+                            class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]"
                         >
-
+                            Save Implementation Requirements
+                        </button>
                     </div>
-
-                    <div class="mt-4">
-
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            PPE Provided
-                        </label>
-
-                        <textarea
-                            name="ppe_provided"
-                            rows="4"
-                            required
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        >{{ old(
-                            'ppe_provided',
-                            $project->ppeDelivery?->ppe_provided
-                        ) }}</textarea>
-
-                    </div>
-
-                    <div class="mt-4">
-
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Remarks
-                        </label>
-
-                        <textarea
-                            name="remarks"
-                            rows="2"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        >{{ old(
-                            'remarks',
-                            $project->ppeDelivery?->remarks
-                        ) }}</textarea>
-
-                    </div>
-
-                    <button
-                        type="submit"
-                        class="mt-4 h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
-                    >
-                        Save PPE Delivery
-                    </button>
-
-                </form>
-
-                {{-- Notice to Proceed --}}
-
-                <form
-                    method="POST"
-                    action="{{ route('projects.implementation.ntp', $project) }}"
-                    class="rounded-xl border border-slate-200 p-5"
-                >
-
-                    @csrf
-
-                    <h3 class="text-sm font-semibold text-slate-900">
-                        Notice to Proceed
-                    </h3>
-
-                    <div class="mt-4 grid gap-4 md:grid-cols-2">
-
-                        <div>
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                Date Issued
-                            </label>
-
-                            <input
-                                name="date_issued"
-                                type="date"
-                                required
-                                value="{{ old(
-                                    'date_issued',
-                                    $project->noticeToProceed?->date_issued?->format('Y-m-d')
-                                ) }}"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                            >
-
-                        </div>
-
-                        <div>
-
-                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                Date Released
-                            </label>
-
-                            <input
-                                name="date_released"
-                                type="date"
-                                required
-                                value="{{ old(
-                                    'date_released',
-                                    $project->noticeToProceed?->date_released?->format('Y-m-d')
-                                ) }}"
-                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                            >
-
-                        </div>
-
-                    </div>
-
-                    <div class="mt-4">
-
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Remarks
-                        </label>
-
-                        <textarea
-                            name="remarks"
-                            rows="2"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        >{{ old(
-                            'remarks',
-                            $project->noticeToProceed?->remarks
-                        ) }}</textarea>
-
-                    </div>
-
-                    <button
-                        type="submit"
-                        class="mt-4 h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
-                    >
-                        Save Notice to Proceed
-                    </button>
-
                 </form>
 
                 {{-- Orientation --}}

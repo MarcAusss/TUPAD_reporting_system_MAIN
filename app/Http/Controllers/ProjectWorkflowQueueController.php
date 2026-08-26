@@ -4,16 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Services\Projects\ImplementationStageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class ProjectWorkflowQueueController extends Controller
 {
     public function index(
         Request $request,
-        string $queue
+        string $queue,
+        ImplementationStageService $implementationStageService
     ): View {
         $config = $this->queueConfig($queue);
+
+        if ($queue === 'implementation') {
+            return $this->implementationBoard(
+                $request,
+                $config,
+                $implementationStageService
+            );
+        }
 
         $projects = Project::query()
             ->with([
@@ -96,6 +107,139 @@ class ProjectWorkflowQueueController extends Controller
         );
     }
 
+    private function implementationBoard(
+        Request $request,
+        array $config,
+        ImplementationStageService $implementationStageService
+    ): View {
+        $projects =
+            Project::query()
+                ->with([
+                    'allocation.adl',
+                    'insuranceEnrollment',
+                    'ppeDelivery',
+                    'noticeToProceed',
+                    'orientation',
+                    'implementation',
+                ])
+                ->whereIn(
+                    'status',
+                    [
+                        ProjectStatus::APPROVED->value,
+                        ProjectStatus::FOR_IMPLEMENTATION->value,
+                        ProjectStatus::ONGOING_IMPLEMENTATION->value,
+                        ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS->value,
+                    ]
+                )
+                ->when(
+                    $request->filled('q'),
+                    function ($query) use ($request) {
+                        $search =
+                            trim(
+                                (string) $request->string('q')
+                            );
+
+                        $query->where(
+                            function ($subQuery) use ($search) {
+                                $subQuery
+                                    ->where(
+                                        'project_title',
+                                        'like',
+                                        "%{$search}%"
+                                    )
+                                    ->orWhere(
+                                        'project_code',
+                                        'like',
+                                        "%{$search}%"
+                                    )
+                                    ->orWhere(
+                                        'province',
+                                        'like',
+                                        "%{$search}%"
+                                    )
+                                    ->orWhere(
+                                        'municipality',
+                                        'like',
+                                        "%{$search}%"
+                                    )
+                                    ->orWhere(
+                                        'barangay',
+                                        'like',
+                                        "%{$search}%"
+                                    );
+                            }
+                        );
+                    }
+                )
+                ->latest('updated_at')
+                ->latest('id')
+                ->get();
+
+        $board = [
+            ProjectStatus::FOR_IMPLEMENTATION->value =>
+                collect(),
+
+            ProjectStatus::ONGOING_IMPLEMENTATION->value =>
+                collect(),
+
+            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS->value =>
+                collect(),
+        ];
+
+        foreach ($projects as $project) {
+            $stage =
+                $implementationStageService
+                    ->synchronize(
+                        $project,
+                        (int) $request->user()->id
+                    );
+
+            $project->setAttribute(
+                'implementation_board_stage',
+                $stage->value
+            );
+
+            $project->setAttribute(
+                'implementation_preparation_complete',
+                $implementationStageService
+                    ->preparationComplete(
+                        $project
+                    )
+            );
+
+            $board[$stage->value]
+                ->push(
+                    $project
+                );
+        }
+
+        return view(
+            'project-workflow.index',
+            [
+                'projects' =>
+                    $projects,
+
+                'implementationBoard' =>
+                    $board,
+
+                'queue' =>
+                    'implementation',
+
+                'queueTitle' =>
+                    $config['title'],
+
+                'queueDescription' =>
+                    'Projects automatically move between implementation stages according to their approved work period.',
+
+                'queueOwner' =>
+                    $config['owner'],
+
+                'emptyMessage' =>
+                    $config['empty'],
+            ]
+        );
+    }
+
     private function queueConfig(
         string $queue
     ): array {
@@ -128,12 +272,13 @@ class ProjectWorkflowQueueController extends Controller
             'implementation' => [
                 'title' => 'Implementation',
                 'description' =>
-                    'Approved projects requiring implementation preparation or implementation monitoring.',
+                    'Approved projects requiring implementation preparation, active implementation monitoring, or post-document transition.',
                 'owner' => 'TUPAD Coordinator / Administrator',
                 'statuses' => [
                     ProjectStatus::APPROVED->value,
                     ProjectStatus::FOR_IMPLEMENTATION->value,
                     ProjectStatus::ONGOING_IMPLEMENTATION->value,
+                    ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS->value,
                 ],
                 'empty' =>
                     'No projects currently require implementation action.',

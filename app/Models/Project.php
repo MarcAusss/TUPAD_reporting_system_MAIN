@@ -49,6 +49,7 @@ class Project extends Model
         'ppe_total',
 
         'insurance_rate',
+        'insurance_beneficiaries',
         'insurance_total',
 
         'total_project_cost',
@@ -79,6 +80,7 @@ class Project extends Model
             'ppe_total' => 'decimal:2',
 
             'insurance_rate' => 'decimal:2',
+            'insurance_beneficiaries' => 'integer',
             'insurance_total' => 'decimal:2',
 
             'total_project_cost' => 'decimal:2',

@@ -264,6 +264,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/projects/{project}/approval', [ProjectApprovalController::class, 'store'])
             ->name('projects.approval.store');
 
+        Route::post('/projects/{project}/implementation/requirements', [ProjectImplementationController::class, 'preparationRequirements'])
+            ->name('projects.implementation.requirements');
+
         Route::post('/projects/{project}/implementation/insurance', [ProjectImplementationController::class, 'insurance'])
             ->name('projects.implementation.insurance');
 
