@@ -238,8 +238,8 @@
 
                             <a href="{{ route('adl.index') }}"
                                 class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.8">
                                     <path d="M12 3v18"></path>
                                     <path
                                         d="M17 7.5C17 5.57 14.76 4 12 4S7 5.57 7 7.5 9.24 11 12 11s5 1.57 5 3.5S14.76 18 12 18s-5-1.57-5-3.5">
@@ -327,8 +327,8 @@
 
                             <a href="{{ route('payments.index') }}"
                                 class="{{ $navClass(request()->routeIs('payments.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.8">
                                     <rect x="3" y="5" width="18" height="14" rx="2"></rect>
                                     <path d="M3 10h18"></path>
                                     <path d="M7 15h4"></path>
@@ -360,8 +360,8 @@
 
                             <a href="{{ route('users.index') }}"
                                 class="{{ $navClass(request()->routeIs('users.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.8">
                                     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
                                     <circle cx="9" cy="7" r="4"></circle>
                                     <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
