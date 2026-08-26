@@ -11,10 +11,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             BicolLocationSeeder::class,
-
-            DevelopmentDataSeeder::class,
+            CurrentSystemDemoSeeder::class,
             ProjectStatusHistorySeeder::class,
-            ProvincialProjectSeeder::class,
         ]);
     }
 }

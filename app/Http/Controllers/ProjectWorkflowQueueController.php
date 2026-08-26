@@ -29,6 +29,7 @@ class ProjectWorkflowQueueController extends Controller
         $projects = Project::query()
             ->with([
                 'allocation.adl',
+                'approval',
                 'obligation',
                 'payout',
             ])
@@ -65,10 +66,14 @@ class ProjectWorkflowQueueController extends Controller
                                     'like',
                                     "%{$search}%"
                                 )
-                                ->orWhere(
-                                    'project_code',
-                                    'like',
-                                    "%{$search}%"
+                                ->orWhereHas(
+                                    'approval',
+                                    fn ($approvalQuery) =>
+                                        $approvalQuery->where(
+                                            'project_code',
+                                            'like',
+                                            "%{$search}%"
+                                        )
                                 )
                                 ->orWhere(
                                     'province',
@@ -116,6 +121,7 @@ class ProjectWorkflowQueueController extends Controller
             Project::query()
                 ->with([
                     'allocation.adl',
+                    'approval',
                     'insuranceEnrollment',
                     'ppeDelivery',
                     'noticeToProceed',
@@ -147,10 +153,14 @@ class ProjectWorkflowQueueController extends Controller
                                         'like',
                                         "%{$search}%"
                                     )
-                                    ->orWhere(
-                                        'project_code',
-                                        'like',
-                                        "%{$search}%"
+                                    ->orWhereHas(
+                                        'approval',
+                                        fn ($approvalQuery) =>
+                                            $approvalQuery->where(
+                                                'project_code',
+                                                'like',
+                                                "%{$search}%"
+                                            )
                                     )
                                     ->orWhere(
                                         'province',

@@ -10,13 +10,15 @@
     description="Create, review, and continue official TUPAD projects through their required workflow stages."
 >
     <x-slot:actions>
-        <a
-            href="{{ route('projects.create') }}"
-            class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
-        >
-            <span class="text-base leading-none">+</span>
-            Add Project
-        </a>
+        @if(auth()->user()->isAdmin() || auth()->user()->isTc())
+            <a
+                href="{{ route('projects.create') }}"
+                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+                <span class="text-base leading-none">+</span>
+                Add Project
+            </a>
+        @endif
     </x-slot:actions>
 </x-page-header>
 
@@ -122,12 +124,52 @@
 
                         <td class="px-5 py-4 text-right">
 
-                            <a
-                                href="{{ route('projects.show', $project) }}"
-                                class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950"
-                            >
-                                Open Project
-                            </a>
+                            @php
+                                $canOpenProject =
+                                    ! auth()->user()->isFocal()
+                                    || in_array(
+                                        $project->status,
+                                        [
+                                            \App\Enums\ProjectStatus::FOR_PAYMENT,
+                                            \App\Enums\ProjectStatus::COMPLETED,
+                                        ],
+                                        true
+                                    );
+                            @endphp
+
+                            <div class="flex justify-end gap-2">
+
+                                @if($canOpenProject)
+                                    <a
+                                        href="{{ route('projects.show', $project) }}"
+                                        class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                                    >
+                                        Open Project
+                                    </a>
+                                @endif
+
+                                <a
+                                    href="{{ route('projects.summary', $project) }}"
+                                    class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                                    title="Open province project summary"
+                                >
+                                    <svg
+                                        class="h-3.5 w-3.5"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                    >
+                                        <path d="M4 19V9"></path>
+                                        <path d="M10 19V5"></path>
+                                        <path d="M16 19v-7"></path>
+                                        <path d="M22 19H2"></path>
+                                    </svg>
+
+                                    Summary
+                                </a>
+
+                            </div>
 
                         </td>
 

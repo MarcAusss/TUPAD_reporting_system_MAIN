@@ -1,0 +1,96 @@
+TUPAD REPORTING SYSTEM
+PHASE 12.1 - PSGC MUNICIPALITY NAME COMPATIBILITY HOTFIX
+
+ERROR
+-----
+CurrentSystemDemoSeeder failed at:
+
+CurrentSystemDemoSeeder.php:349
+Municipality::firstOrFail()
+
+after BicolLocationSeeder successfully downloaded and seeded all Bicol
+municipalities/cities.
+
+CAUSE
+-----
+BicolLocationSeeder stores the raw municipality/city name returned by PSGC.
+
+For cities, PSGC can use names such as:
+
+City of Tabaco
+City of Legazpi
+City of Naga
+City of Sorsogon
+
+The demo seeder was searching with common display forms such as:
+
+Tabaco City
+Legazpi City
+Naga City
+Sorsogon City
+
+The records represent the same locations, but an exact WHERE name = ...
+comparison cannot match the two forms.
+
+FIX
+---
+CurrentSystemDemoSeeder now resolves municipalities through a normalized
+PSGC-compatible lookup.
+
+Examples treated as equivalent:
+
+City of Tabaco   = Tabaco City
+City of Legazpi  = Legazpi City
+City of Naga     = Naga City
+City of Sorsogon = Sorsogon City
+
+The same resolver is used in BOTH:
+1. the project's primary municipality lookup
+2. the project's multi-location municipality lookup
+
+The resolver also normalizes accents/punctuation consistently with the
+existing BicolLocationSeeder approach.
+
+If a municipality still cannot be resolved, the exception now reports the
+requested municipality and all active PSGC names in that province instead of
+only throwing ModelNotFoundException.
+
+NO MIGRATION.
+NO DATABASE SCHEMA CHANGE.
+NO BUSINESS LOGIC CHANGE.
+
+FILES
+-----
+database/seeders/CurrentSystemDemoSeeder.php
+tests/Feature/CurrentSystemDemoSeederPsgcCompatibilityTest.php
+
+APPLY
+-----
+Extract this ZIP into the Laravel project root and allow overwrite.
+
+You already ran migrate:fresh and the process stopped during seeding.
+The simplest clean retry is:
+
+php artisan migrate:fresh --seed
+
+This will drop/recreate the development database again.
+
+Then run:
+
+php artisan test --filter=CurrentSystemDemoSeederPsgcCompatibilityTest
+php artisan test --filter=CurrentSystemDemoSeederTest
+php artisan test
+
+EXPECTED
+--------
+BicolLocationSeeder completes.
+
+CurrentSystemDemoSeeder should continue past the former line 349 failure and
+create:
+- Albay Multi-District Community Works
+- Albay Urban Drainage Clearing
+- Camarines Sur Community Rehabilitation
+- Catanduanes Coastal Rehabilitation
+- Sorsogon Public Area Rehabilitation
+
+STOP AFTER TESTING THIS HOTFIX.

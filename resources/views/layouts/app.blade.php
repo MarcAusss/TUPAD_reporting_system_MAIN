@@ -36,15 +36,15 @@
         {{-- Sidebar --}}
         <aside
             id="sidebar"
-            class="tupad-desktop-sidebar fixed inset-y-0 left-0 z-50 flex w-[252px] -translate-x-full flex-col border-r border-[#dfe6f0] bg-white transition-transform duration-200 lg:translate-x-0"
+            class="tupad-desktop-sidebar fixed inset-y-0 left-0 z-50 flex w-6 -translate-x-full flex-col border-r border-[#dfe6f0] bg-white transition-transform duration-200 lg:translate-x-0"
         >
-            <div class="flex h-[98px] shrink-0 items-center border-b border-[#e4eaf2] px-6">
+            <div class="flex h-24.5 shrink-0 items-center border-b border-[#e4eaf2] px-6">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                    <div class="grid h-11 w-11 grid-cols-2 gap-[3px] rounded-xl bg-[#063b86] p-2.5 shadow-sm">
-                        <span class="rounded-[2px] bg-white"></span>
-                        <span class="rounded-[2px] bg-white/75"></span>
-                        <span class="rounded-[2px] bg-white/75"></span>
-                        <span class="rounded-[2px] bg-white"></span>
+                    <div class="grid h-11 w-11 grid-cols-2 gap-0.75 rounded-xl bg-[#063b86] p-2.5 shadow-sm">
+                        <span class="rounded-xs] bg-white"></span>
+                        <span class="rounded-xs] bg-white/75"></span>
+                        <span class="rounded-xs] bg-white/75"></span>
+                        <span class="rounded-xs] bg-white"></span>
                     </div>
 
                     <div>
@@ -68,7 +68,7 @@
             <div class="tupad-scrollbar flex-1 overflow-y-auto px-3 py-5">
                 <nav class="space-y-1.5" aria-label="Primary navigation">
 
-                    <div class="tupad-nav-section !pt-0">
+                    <div class="tupad-nav-section pt-0!">
                         Main
                     </div>
 
@@ -76,7 +76,7 @@
                         href="{{ route('dashboard') }}"
                         class="{{ $navClass(request()->routeIs('dashboard')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                     >
-                        <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <rect x="3" y="3" width="7" height="7" rx="1"></rect>
                             <rect x="14" y="3" width="7" height="7" rx="1"></rect>
                             <rect x="3" y="14" width="7" height="7" rx="1"></rect>
@@ -92,6 +92,60 @@
                     @if($user->isFocal())
 
                         <div class="tupad-nav-section">
+                            Project Management
+                        </div>
+
+                        <a
+                            href="{{ route('projects.index') }}"
+                            class="{{ $navClass(
+                                request()->routeIs('projects.index')
+                                || request()->routeIs('projects.create')
+                                || request()->routeIs('projects.show')
+                            ) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                        >
+                            <svg
+                                class="h-4.75 w-4.75"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                            >
+                                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <rect x="3" y="7" width="18" height="13" rx="2"></rect>
+                                <path d="M3 12h18"></path>
+                            </svg>
+
+                            <span>Projects</span>
+                        </a>
+
+                        <div class="tupad-nav-section">
+                            Project Summary
+                        </div>
+
+                        <a
+                            href="{{ route('project-summary.index') }}"
+                            class="{{ $navClass(
+                                request()->routeIs('project-summary.*')
+                                || request()->routeIs('projects.summary')
+                            ) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                        >
+                            <svg
+                                class="h-4.75 w-4.75"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                            >
+                                <path d="M4 19V9"></path>
+                                <path d="M10 19V5"></path>
+                                <path d="M16 19v-7"></path>
+                                <path d="M22 19H2"></path>
+                            </svg>
+
+                            <span>Provincial Summary</span>
+                        </a>
+
+                        <div class="tupad-nav-section">
                             Fund Management
                         </div>
 
@@ -99,7 +153,7 @@
                             href="{{ route('adl.index') }}"
                             class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                         >
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M12 3v18"></path>
                                 <path d="M17 7.5C17 5.57 14.76 4 12 4S7 5.57 7 7.5 9.24 11 12 11s5 1.57 5 3.5S14.76 18 12 18s-5-1.57-5-3.5"></path>
                             </svg>
@@ -116,7 +170,7 @@
                                 href="{{ route('fund-monitoring.per-adl-current') }}"
                                 class="{{ $navClass(request()->routeIs('fund-monitoring.per-adl-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
                             >
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path>
                                 </svg>
                                 <span>PER ADL (Current)</span>
@@ -128,7 +182,7 @@
                                 href="{{ route('fund-monitoring.summary') }}"
                                 class="{{ $navClass(request()->routeIs('fund-monitoring.summary')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                             >
-                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 9h8"></path><path d="M8 13h5"></path><path d="M8 17h7"></path>
                                 </svg>
                                 <span>Summary</span>
@@ -140,7 +194,7 @@
                                 href="{{ route('fund-monitoring.summary-current') }}"
                                 class="{{ $navClass(request()->routeIs('fund-monitoring.summary-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
                             >
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>
                                 </svg>
                                 <span>Summary (Current)</span>
@@ -152,7 +206,7 @@
                                 href="{{ route('fund-monitoring.per-province-current') }}"
                                 class="{{ $navClass(request()->routeIs('fund-monitoring.per-province-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
                             >
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <path d="M3 21h18"></path><path d="M5 21V9l7-5 7 5v12"></path><path d="M9 21v-6h6v6"></path>
                                 </svg>
                                 <span>Per Province (Current)</span>
@@ -167,7 +221,7 @@
                             href="{{ route('payments.index') }}"
                             class="{{ $navClass(request()->routeIs('payments.*') || request()->routeIs('projects.payment.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
                         >
-                            <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="h-4.75 w-4.75 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path><path d="M7 15h4"></path>
                             </svg>
                             <span>Payment of Wages</span>
@@ -181,7 +235,7 @@
                             href="{{ route('reports.index') }}"
                             class="{{ $navClass(request()->routeIs('reports.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                         >
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path>
                             </svg>
                             <span>Reports</span>
@@ -201,7 +255,7 @@
                                 href="{{ route('adl.index') }}"
                                 class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                             >
-                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <path d="M12 3v18"></path><path d="M17 7.5C17 5.57 14.76 4 12 4S7 5.57 7 7.5 9.24 11 12 11s5 1.57 5 3.5S14.76 18 12 18s-5-1.57-5-3.5"></path>
                                 </svg>
                                 <span>ADL</span>
@@ -214,9 +268,13 @@
 
                         <a
                             href="{{ route('projects.index') }}"
-                            class="{{ $navClass(request()->routeIs('projects.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                            class="{{ $navClass(
+                                request()->routeIs('projects.index')
+                                || request()->routeIs('projects.create')
+                                || request()->routeIs('projects.show')
+                            ) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                         >
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M3 12h18"></path>
                             </svg>
                             <span>Projects</span>
@@ -226,10 +284,37 @@
                             href="{{ route('project-draft-reviews.index') }}"
                             class="{{ $navClass(request()->routeIs('project-draft-reviews.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
                         >
-                            <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="h-4.75 w-4.75 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
                             </svg>
                             <span>GIP Draft Reviews</span>
+                        </a>
+
+                        <div class="tupad-nav-section">
+                            Project Summary
+                        </div>
+
+                        <a
+                            href="{{ route('project-summary.index') }}"
+                            class="{{ $navClass(
+                                request()->routeIs('project-summary.*')
+                                || request()->routeIs('projects.summary')
+                            ) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
+                        >
+                            <svg
+                                class="h-4.75 w-4.75"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                            >
+                                <path d="M4 19V9"></path>
+                                <path d="M10 19V5"></path>
+                                <path d="M16 19v-7"></path>
+                                <path d="M22 19H2"></path>
+                            </svg>
+
+                            <span>Provincial Summary</span>
                         </a>
 
                         <div class="tupad-nav-section">
@@ -251,7 +336,7 @@
                                 href="{{ route('project-workflow.index', ['queue' => $queueKey]) }}"
                                 class="{{ $navClass(request()->routeIs('project-workflow.index') && $workflowQueue === $queueKey) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
                             >
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <path d="{{ $queueIcon }}"></path>
                                 </svg>
                                 <span>{{ $queueLabel }}</span>
@@ -267,7 +352,7 @@
                                 href="{{ route('payments.index') }}"
                                 class="{{ $navClass(request()->routeIs('payments.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition"
                             >
-                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path><path d="M7 15h4"></path>
                                 </svg>
                                 <span>Payment of Wages</span>
@@ -282,7 +367,7 @@
                             href="{{ route('reports.index') }}"
                             class="{{ $navClass(request()->routeIs('reports.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                         >
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path>
                             </svg>
                             <span>Reports</span>
@@ -297,7 +382,7 @@
                                 href="{{ route('users.index') }}"
                                 class="{{ $navClass(request()->routeIs('users.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                             >
-                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
                                 </svg>
                                 <span>Users</span>
@@ -317,7 +402,7 @@
                             href="{{ route('project-drafts.index') }}"
                             class="{{ $navClass(request()->routeIs('project-drafts.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition"
                         >
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                 <path d="M5 3h10l4 4v14H5z"></path><path d="M15 3v5h5"></path><path d="M8 13h8"></path><path d="M8 17h6"></path>
                             </svg>
                             <span>Project Drafts</span>
@@ -347,17 +432,17 @@
         <div id="sidebarOverlay" class="fixed inset-0 z-40 hidden bg-slate-950/35 lg:hidden"></div>
 
         {{-- Main shell --}}
-        <div class="min-h-screen lg:pl-[252px]">
-            <header class="sticky top-0 z-30 flex h-[86px] items-center border-b border-[#dfe6f0] bg-white/95 px-4 backdrop-blur md:px-6 xl:px-8">
+        <div class="min-h-screen lg:pl-63">
+            <header class="sticky top-0 z-30 flex h-21.5 items-center border-b border-[#dfe6f0] bg-white/95 px-4 backdrop-blur md:px-6 xl:px-8">
                 <button type="button" id="sidebarToggle" class="mr-3 flex h-10 w-10 items-center justify-center rounded-lg text-[#17325c] hover:bg-slate-100 lg:hidden" aria-label="Open sidebar">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path></svg>
                 </button>
 
                 <div class="flex min-w-0 flex-1 items-center">
-                    <form method="GET" action="{{ Route::has('search.index') ? route('search.index') : route('dashboard') }}" role="search" class="hidden w-full max-w-[520px] md:block">
+                    <form method="GET" action="{{ Route::has('search.index') ? route('search.index') : route('dashboard') }}" role="search" class="hidden w-full max-w-130 md:block">
                         <label for="global-search" class="sr-only">Search the TUPAD Reporting System</label>
                         <div class="tupad-input flex h-11 items-center rounded-lg px-3.5 focus-within:ring-2 focus-within:ring-[#1765d8]/30">
-                            <svg class="h-[18px] w-[18px] shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <svg class="h-4.5 w-4.5 shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                 <circle cx="11" cy="11" r="7"></circle>
                                 <path d="m20 20-3.5-3.5"></path>
                             </svg>
@@ -376,7 +461,7 @@
 
                 <div class="ml-4 flex items-center gap-4">
                     <div class="hidden text-right xl:block">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                             Current Workspace
                         </div>
                         <div class="mt-0.5 text-[11px] font-semibold text-[#355378]">
@@ -391,7 +476,7 @@
                             {{ $user->initials() }}
                         </div>
                         <div class="hidden min-w-0 md:block">
-                            <div class="max-w-[180px] truncate text-[12px] font-bold text-[#10294f]">{{ $user->name }}</div>
+                            <div class="max-w-45 truncate text-[12px] font-bold text-[#10294f]">{{ $user->name }}</div>
                             <div class="mt-0.5 text-[10px] text-[#6f7f98]">{{ $user->roleLabel() }}</div>
                         </div>
                         <svg class="hidden h-4 w-4 text-[#48617f] md:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"></path></svg>
@@ -410,7 +495,7 @@
                     </label>
 
                     <div class="tupad-input flex h-10 items-center rounded-lg px-3">
-                        <svg class="h-[17px] w-[17px] shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <svg class="h-4.25] w-4.25 shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <circle cx="11" cy="11" r="7"></circle>
                             <path d="m20 20-3.5-3.5"></path>
                         </svg>

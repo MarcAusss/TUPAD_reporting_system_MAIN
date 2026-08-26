@@ -914,7 +914,7 @@
                 </div>
 
                 <p class="mt-1 text-xs leading-5 text-emerald-700">
-                    Enter the official approval date and Project Code.
+                    Assign the official Project Code during approval. One project receives one Project Code, and that code cannot be reused by another project.
                 </p>
 
             </div>
@@ -948,17 +948,29 @@
                     <div>
 
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Project Code Number
+                            Official Project Code
+                            <span class="text-rose-600">*</span>
                         </label>
 
                         <input
                             name="project_code"
                             type="text"
                             required
+                            autocomplete="off"
                             value="{{ old('project_code') }}"
-                            placeholder="Example: TUPAD-2026-001"
-                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm uppercase"
+                            placeholder="Example: TUPAD-ALB-2026-001"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-semibold uppercase tracking-wide"
                         >
+
+                        <p class="mt-1.5 text-[10px] leading-4 text-slate-500">
+                            This becomes the single official Project Code for this project after approval.
+                        </p>
+
+                        @error('project_code')
+                            <p class="mt-1 text-[10px] font-semibold text-rose-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
 
                     </div>
 

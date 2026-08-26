@@ -9,6 +9,7 @@ use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ProjectApprovalController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectProvinceSummaryController;
 use App\Http\Controllers\ProjectDraftController;
 use App\Http\Controllers\ProjectDraftReviewController;
 use App\Http\Controllers\ProjectEvaluationController;
@@ -210,14 +211,61 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Official Project Registry / Provincial Summary — Admin, TC & Focal
+    |--------------------------------------------------------------------------
+    |
+    | Focal receives read access to the Project Registry and Province Summary.
+    | Project creation and workflow mutations remain Admin/TC only.
+    |
+    */
+
+    Route::middleware('role:admin,tc,focal')->group(function () {
+
+        Route::get(
+            '/projects',
+            [ProjectController::class, 'index']
+        )->name('projects.index');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Project Summary
+        |--------------------------------------------------------------------------
+        |
+        | Sidebar:
+        | Project Summary -> Province selector
+        |
+        | Project Registry:
+        | Summary -> selected project's province
+        |
+        */
+
+        Route::get(
+            '/project-summary',
+            [ProjectProvinceSummaryController::class, 'index']
+        )->name('project-summary.index');
+
+        Route::get(
+            '/project-summary/provinces/{province}',
+            [ProjectProvinceSummaryController::class, 'province']
+        )
+            ->whereNumber('province')
+            ->name('project-summary.province');
+
+        Route::get(
+            '/projects/{project}/summary',
+            [ProjectProvinceSummaryController::class, 'show']
+        )
+            ->whereNumber('project')
+            ->name('projects.summary');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Official Project Workflow — Admin & TC
     |--------------------------------------------------------------------------
     */
 
     Route::middleware('role:admin,tc')->group(function () {
-
-        Route::get('/projects', [ProjectController::class, 'index'])
-            ->name('projects.index');
 
         /*
         |--------------------------------------------------------------------------
