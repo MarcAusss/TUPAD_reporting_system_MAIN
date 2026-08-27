@@ -104,13 +104,22 @@ class ProjectApprovalController extends Controller
                         now(),
                 ]);
 
-            $lockedProject->update([
+            $lockedProject->setStatusTransitionContext(
+                actorId: (int) $request->user()->id,
+                remarks: sprintf(
+                    'Project approved on %s with official Project Code %s.',
+                    $approval->approval_date->toDateString(),
+                    $approval->project_code,
+                ),
+            )->update([
                 'status' =>
                     ProjectStatus::APPROVED,
 
                 'updated_by' =>
                     $request->user()->id,
             ]);
+
+            $lockedProject->clearStatusTransitionContext();
 
             return redirect()
                 ->route(

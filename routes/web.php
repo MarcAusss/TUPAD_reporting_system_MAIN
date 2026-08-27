@@ -5,17 +5,19 @@ use App\Http\Controllers\AdlController;
 use App\Http\Controllers\AdlRealignmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ProjectApprovalController;
+use App\Http\Controllers\ProjectClassificationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectProvinceSummaryController;
 use App\Http\Controllers\ProjectDraftController;
 use App\Http\Controllers\ProjectDraftReviewController;
+use App\Http\Controllers\ProjectDisbursementController;
 use App\Http\Controllers\ProjectEvaluationController;
 use App\Http\Controllers\ProjectImplementationController;
 use App\Http\Controllers\ProjectPaymentController;
-use App\Http\Controllers\ProjectPayoutController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ProjectWorkflowQueueController;
 use App\Http\Controllers\ReportController;
@@ -49,6 +51,18 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    Route::middleware('role:admin,focal,tc')->group(function () {
+        Route::get(
+            '/executive-dashboard',
+            [ExecutiveDashboardController::class, 'index']
+        )->name('executive-dashboard.index');
+
+        Route::get(
+            '/executive-dashboard/presentation',
+            [ExecutiveDashboardController::class, 'presentation']
+        )->name('executive-dashboard.presentation');
+    });
 
     Route::get('/search', [GlobalSearchController::class, 'index'])
         ->name('search.index');
@@ -133,6 +147,16 @@ Route::middleware('auth')->group(function () {
         )->name('reports.export.csv');
 
         Route::get(
+            '/reports/export/excel',
+            [ReportController::class, 'exportExcel']
+        )->name('reports.export.excel');
+
+        Route::get(
+            '/reports/export/pdf',
+            [ReportController::class, 'exportPdf']
+        )->name('reports.export.pdf');
+
+        Route::get(
             '/reports/print',
             [ReportController::class, 'print']
         )->name('reports.print');
@@ -205,8 +229,21 @@ Route::middleware('auth')->group(function () {
         Route::get('/payments', [ProjectController::class, 'paymentQueue'])
             ->name('payments.index');
 
+        Route::get('/payments/{project}', [ProjectPaymentController::class, 'show'])
+            ->whereNumber('project')
+            ->name('payments.show');
+
         Route::post('/projects/{project}/payment', [ProjectPaymentController::class, 'store'])
+            ->whereNumber('project')
             ->name('projects.payment.store');
+
+        Route::post(
+            '/payments/{project}/tranches/{obligation}/disbursements',
+            [ProjectDisbursementController::class, 'store']
+        )
+            ->whereNumber('project')
+            ->whereNumber('obligation')
+            ->name('projects.payment.disbursements.store');
     });
 
     /*
@@ -286,7 +323,6 @@ Route::middleware('auth')->group(function () {
                 'for-approval',
                 'implementation',
                 'post-documents',
-                'release-of-assistance',
             ])
             ->name('project-workflow.index');
 
@@ -300,6 +336,27 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/projects', [ProjectController::class, 'store'])
             ->name('projects.store');
+
+        Route::get(
+            '/projects/{project}/classifications',
+            [ProjectClassificationController::class, 'show']
+        )
+            ->whereNumber('project')
+            ->name('projects.classifications.show');
+
+        Route::put(
+            '/projects/{project}/classifications',
+            [ProjectClassificationController::class, 'updateClassification']
+        )
+            ->whereNumber('project')
+            ->name('projects.classifications.update');
+
+        Route::post(
+            '/projects/{project}/labor-market-referrals',
+            [ProjectClassificationController::class, 'storeLaborMarketReferral']
+        )
+            ->whereNumber('project')
+            ->name('projects.labor-market-referrals.store');
 
         Route::post('/projects/{project}/evaluation/start', [ProjectEvaluationController::class, 'start'])
             ->name('projects.evaluation.start');
@@ -337,8 +394,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/projects/{project}/post-documents', [ProjectPostDocumentController::class, 'store'])
             ->name('projects.post-documents.store');
 
-        Route::post('/projects/{project}/payout', [ProjectPayoutController::class, 'store'])
-            ->name('projects.payout.store');
     });
 
     /*

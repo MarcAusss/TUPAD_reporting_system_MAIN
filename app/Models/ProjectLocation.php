@@ -41,6 +41,11 @@ class ProjectLocation extends Model
         return $this->belongsToMany(
             Barangay::class,
             'project_location_barangay'
-        )->withTimestamps();
+        )
+            ->withPivot([
+                'beneficiaries_total',
+                'beneficiaries_female',
+            ])
+            ->withTimestamps();
     }
 }

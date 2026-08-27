@@ -7,10 +7,13 @@ use App\Models\AdlAllocation;
 use App\Models\AdlRealignment;
 use App\Models\Project;
 use App\Models\ProjectApproval;
+use App\Models\ProjectBeneficiarySector;
 use App\Models\ProjectDraft;
+use App\Models\ProjectDisbursement;
 use App\Models\ProjectEvaluation;
 use App\Models\ProjectImplementation;
 use App\Models\ProjectInsuranceEnrollment;
+use App\Models\ProjectLaborMarketReferral;
 use App\Models\ProjectNoticeToProceed;
 use App\Models\ProjectObligation;
 use App\Models\ProjectOrientation;
@@ -66,7 +69,11 @@ class AppServiceProvider extends ServiceProvider
 
             ProjectPostDocument::class,
             ProjectObligation::class,
+            ProjectDisbursement::class,
             ProjectPayout::class,
+
+            ProjectBeneficiarySector::class,
+            ProjectLaborMarketReferral::class,
 
             User::class,
             ProjectBeneficiary::class,

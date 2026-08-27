@@ -7,7 +7,6 @@ use App\Enums\UserRole;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
 use App\Models\Project;
-use App\Models\ProjectObligation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -29,7 +28,6 @@ class ProjectWorkflowQueueTest extends TestCase
             'for-approval',
             'implementation',
             'post-documents',
-            'release-of-assistance',
         ] as $queue) {
             $this
                 ->actingAs($tc)
@@ -136,99 +134,17 @@ class ProjectWorkflowQueueTest extends TestCase
         $response->assertSee('Aging');
     }
 
-    public function test_release_queue_only_shows_for_payment_projects_with_obligation_and_without_payout(): void
+    public function test_release_of_assistance_queue_is_deprecated(): void
     {
         $tc = User::factory()->create([
             'role' => UserRole::TC,
             'is_active' => true,
         ]);
 
-        $ready = $this->createProject(
-            $tc,
-            ProjectStatus::FOR_PAYMENT,
-            'Ready for Release'
-        );
-
-        $notReady = $this->createProject(
-            $tc,
-            ProjectStatus::FOR_PAYMENT,
-            'Waiting for Payment'
-        );
-
-        ProjectObligation::create([
-            'project_id' =>
-                $ready->id,
-
-            /*
-            |--------------------------------------------------------------------------
-            | Payment Snapshot
-            |--------------------------------------------------------------------------
-            |
-            | Match the actual project_obligations schema used by the system.
-            |
-            */
-
-            'adl_number' =>
-                $ready->allocation->adl->adl_number,
-
-            'fund_sponsor' =>
-                $ready->fund_sponsor,
-
-            'partner' =>
-                $ready->partner,
-
-            'project_location' =>
-                collect([
-                    $ready->barangay,
-                    $ready->municipality,
-                    $ready->province,
-                ])
-                    ->filter()
-                    ->implode(', '),
-
-            'term' =>
-                $ready->term?->value
-                ?? (string) $ready->term,
-
-            'beneficiaries_total' =>
-                $ready->beneficiaries_total,
-
-            'beneficiaries_female' =>
-                $ready->beneficiaries_female,
-
-            'amount' =>
-                $ready->total_project_cost,
-
-            'obligation_date' =>
-                now()->toDateString(),
-
-            'month' =>
-                now()->format('F Y'),
-
-            'payee' =>
-                'TUPAD Beneficiaries',
-
-            'remarks' =>
-                'R7 release queue test obligation.',
-
-            'recorded_by' =>
-                $tc->id,
-        ]);
-
-        $response = $this
-            ->actingAs($tc)
-            ->get(
-                route(
-                    'project-workflow.index',
-                    ['queue' => 'release-of-assistance']
-                )
-            );
-
-        $response->assertOk();
-        $response->assertSee($ready->project_title);
-        $response->assertDontSee($notReady->project_title);
+        $this->actingAs($tc)
+            ->get('/project-workflow/release-of-assistance')
+            ->assertNotFound();
     }
-
     private function createProject(
         User $tc,
         ProjectStatus $status,

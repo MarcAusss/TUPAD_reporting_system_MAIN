@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProjectObligation extends Model
 {
@@ -12,6 +13,7 @@ class ProjectObligation extends Model
 
     protected $fillable = [
         'project_id',
+        'tranche_number',
 
         'adl_number',
         'fund_sponsor',
@@ -36,6 +38,7 @@ class ProjectObligation extends Model
     protected function casts(): array
     {
         return [
+            'tranche_number' => 'integer',
             'amount' => 'decimal:2',
             'obligation_date' => 'date',
         ];
@@ -52,5 +55,12 @@ class ProjectObligation extends Model
             User::class,
             'recorded_by'
         );
+    }
+
+    public function disbursements(): HasMany
+    {
+        return $this->hasMany(ProjectDisbursement::class)
+            ->orderBy('date_disbursed')
+            ->orderBy('id');
     }
 }

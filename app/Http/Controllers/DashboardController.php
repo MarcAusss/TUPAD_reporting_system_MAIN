@@ -206,17 +206,6 @@ class DashboardController extends Controller
                         'status',
                         ProjectStatus::FOR_PAYMENT
                     )
-                    ->whereDoesntHave('obligation')
-                    ->count(),
-
-            'release' =>
-                Project::query()
-                    ->where(
-                        'status',
-                        ProjectStatus::FOR_PAYMENT
-                    )
-                    ->whereHas('obligation')
-                    ->whereDoesntHave('payout')
                     ->count(),
         ];
 

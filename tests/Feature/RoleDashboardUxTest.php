@@ -33,7 +33,7 @@ class RoleDashboardUxTest extends TestCase
         );
 
         $response->assertSee(
-            'Payment of Wages / obligation'
+            'Projects requiring obligation or disbursement action.'
         );
 
         $response->assertDontSee(
@@ -66,9 +66,7 @@ class RoleDashboardUxTest extends TestCase
             'TSSD Evaluation'
         );
 
-        $response->assertSee(
-            'Release of Assistance'
-        );
+        $response->assertDontSee('Release of Assistance');
     }
 
     public function test_gip_dashboard_is_draft_focused(): void

@@ -26,10 +26,15 @@ class ProjectEvaluationController extends Controller
             );
         }
 
-        $project->update([
+        $project->setStatusTransitionContext(
+            actorId: (int) $request->user()->id,
+            remarks: 'Legacy profiling record submitted for TSSD Evaluation.',
+        )->update([
             'status' => ProjectStatus::TSSD_EVALUATION,
             'updated_by' => $request->user()->id,
         ]);
+
+        $project->clearStatusTransitionContext();
 
         return redirect()
             ->route('projects.show', $project)
@@ -107,10 +112,17 @@ class ProjectEvaluationController extends Controller
                 ? ProjectStatus::FOR_COMPLIANCE
                 : ProjectStatus::FOR_APPROVAL;
 
-        $project->update([
+        $project->setStatusTransitionContext(
+            actorId: (int) $request->user()->id,
+            remarks: $isForCompliance
+                ? 'TSSD evaluation recorded findings and required compliance documents.'
+                : 'TSSD evaluation completed and recommended the project for approval.',
+        )->update([
             'status' => $newStatus,
             'updated_by' => $request->user()->id,
         ]);
+
+        $project->clearStatusTransitionContext();
 
         return redirect()
             ->route('projects.show', $project)
@@ -233,12 +245,21 @@ class ProjectEvaluationController extends Controller
                         now(),
                 ]);
 
-                $lockedProject->update([
+                $lockedProject->setStatusTransitionContext(
+                    actorId: (int) $request->user()->id,
+                    remarks: sprintf(
+                        'Compliance recorded on %s after %d day(s); project forwarded for approval.',
+                        $complianceDate->toDateString(),
+                        $agingDays,
+                    ),
+                )->update([
                     'status' =>
                         ProjectStatus::FOR_APPROVAL,
                     'updated_by' =>
                         $request->user()->id,
                 ]);
+
+                $lockedProject->clearStatusTransitionContext();
 
                 return redirect()
                     ->route(

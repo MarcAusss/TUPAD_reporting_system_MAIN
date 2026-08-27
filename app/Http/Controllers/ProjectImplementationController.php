@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
-use App\Services\Projects\ImplementationStageService;
+use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
 class ProjectImplementationController extends Controller
 {
     public function __construct(
-        private readonly ImplementationStageService $implementationStageService
+        private readonly ProjectStatusEngine $statusEngine
     ) {
     }
 
@@ -522,31 +522,19 @@ class ProjectImplementationController extends Controller
         Project $project,
         int $userId
     ): void {
-        $project->refresh();
-
-        if (
-            $project->status === ProjectStatus::APPROVED
-            && $project->preImplementationRequirementsComplete()
-        ) {
-            $project->update([
-                'status' =>
-                    ProjectStatus::FOR_IMPLEMENTATION,
-
-                'updated_by' =>
-                    $userId,
-            ]);
-        }
+        $this->statusEngine->synchronize(
+            $project,
+            actorId: $userId,
+        );
     }
 
     private function synchronizeImplementationStatus(
         Project $project,
         int $userId
     ): void {
-        $project->refresh();
-
-        $this->implementationStageService->synchronize(
+        $this->statusEngine->synchronize(
             $project,
-            $userId
+            actorId: $userId,
         );
     }
 }

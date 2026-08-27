@@ -83,9 +83,14 @@ class AuditObserver
             )
             : null;
 
+        $userId = $model instanceof \App\Models\Project
+            && $model->hasStatusTransitionContext()
+            ? $model->statusTransitionActorId()
+            : auth()->id();
+
         AuditLog::create([
             'user_id' =>
-                auth()->id(),
+                $userId,
 
             'action' =>
                 $action,
@@ -161,14 +166,23 @@ class AuditObserver
             $model instanceof \App\Models\ProjectObligation =>
             'Payment / Obligation',
 
+            $model instanceof \App\Models\ProjectDisbursement =>
+            'Payment / Disbursement',
+
             $model instanceof \App\Models\ProjectPayout =>
-            'Payout',
+            'Legacy Payout',
 
             $model instanceof \App\Models\User =>
             'User Management',
 
             $model instanceof \App\Models\ProjectBeneficiary =>
             'Beneficiary Registry',
+
+            $model instanceof \App\Models\ProjectBeneficiarySector =>
+            'Beneficiary Sector Classification',
+
+            $model instanceof \App\Models\ProjectLaborMarketReferral =>
+            'Active Labor Market Referral',
 
             default =>
             class_basename($model),

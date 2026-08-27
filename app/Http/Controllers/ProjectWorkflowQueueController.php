@@ -6,6 +6,7 @@ use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Services\Projects\ImplementationStageService;
+use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -15,7 +16,8 @@ class ProjectWorkflowQueueController extends Controller
     public function index(
         Request $request,
         string $queue,
-        ImplementationStageService $implementationStageService
+        ImplementationStageService $implementationStageService,
+        ProjectStatusEngine $statusEngine,
     ): View {
         $config = $this->queueConfig($queue);
 
@@ -23,7 +25,8 @@ class ProjectWorkflowQueueController extends Controller
             return $this->implementationBoard(
                 $request,
                 $config,
-                $implementationStageService
+                $implementationStageService,
+                $statusEngine,
             );
         }
 
@@ -32,27 +35,8 @@ class ProjectWorkflowQueueController extends Controller
                 'allocation.adl',
                 'approval',
                 'evaluations',
-                'obligation',
-                'payout',
             ])
-            ->when(
-                $queue === 'release-of-assistance',
-                function ($query) {
-                    $query
-                        ->where(
-                            'status',
-                            ProjectStatus::FOR_PAYMENT->value
-                        )
-                        ->whereHas('obligation')
-                        ->whereDoesntHave('payout');
-                },
-                function ($query) use ($config) {
-                    $query->whereIn(
-                        'status',
-                        $config['statuses']
-                    );
-                }
-            )
+            ->whereIn('status', $config['statuses'])
             ->when(
                 $request->filled('q'),
                 function ($query) use ($request) {
@@ -117,7 +101,8 @@ class ProjectWorkflowQueueController extends Controller
     private function implementationBoard(
         Request $request,
         array $config,
-        ImplementationStageService $implementationStageService
+        ImplementationStageService $implementationStageService,
+        ProjectStatusEngine $statusEngine,
     ): View {
         $projects =
             Project::query()
@@ -203,12 +188,24 @@ class ProjectWorkflowQueueController extends Controller
         ];
 
         foreach ($projects as $project) {
+            $statusEngine->synchronize($project);
+
+            if (! in_array(
+                $project->status,
+                [
+                    ProjectStatus::APPROVED,
+                    ProjectStatus::FOR_IMPLEMENTATION,
+                    ProjectStatus::ONGOING_IMPLEMENTATION,
+                    ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+                ],
+                true,
+            )) {
+                continue;
+            }
+
             $stage =
                 $implementationStageService
-                    ->synchronize(
-                        $project,
-                        (int) $request->user()->id
-                    );
+                    ->stageFor($project);
 
             $project->setAttribute(
                 'implementation_board_stage',
@@ -321,18 +318,6 @@ class ProjectWorkflowQueueController extends Controller
                 ],
                 'empty' =>
                     'No projects are currently waiting for post-documentary requirements.',
-            ],
-
-            'release-of-assistance' => [
-                'title' => 'Release of Assistance',
-                'description' =>
-                    'For Payment projects whose Payment of Wages / obligation has already been recorded and are ready for final release.',
-                'owner' => 'TUPAD Coordinator / Administrator',
-                'statuses' => [
-                    ProjectStatus::FOR_PAYMENT->value,
-                ],
-                'empty' =>
-                    'No projects are currently ready for Release of Assistance.',
             ],
 
             default => abort(404),

@@ -23,13 +23,28 @@ class ProjectObserver
             return;
         }
 
-        $oldStatus = $project->getOriginal('status');
-        $newStatus = $project->getRawOriginal('status');
+        /*
+        |--------------------------------------------------------------------------
+        | Updated Event State
+        |--------------------------------------------------------------------------
+        |
+        | During Eloquent's "updated" event, original attributes still contain
+        | the previous value while getChanges() contains the value just written.
+        |
+        */
+
+        $oldStatus = $project->getRawOriginal('status');
+        $newStatus = $project->getChanges()['status'];
 
         $project->statusHistory()->create([
             'from_status' => $oldStatus,
             'to_status' => $newStatus,
-            'changed_by' => auth()->id(),
+            'changed_by' =>
+                $project->hasStatusTransitionContext()
+                    ? $project->statusTransitionActorId()
+                    : auth()->id(),
+            'remarks' =>
+                $project->statusTransitionRemarks(),
             'changed_at' => now(),
         ]);
     }

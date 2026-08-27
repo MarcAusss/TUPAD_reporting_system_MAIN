@@ -50,7 +50,7 @@ class RoleNavigationUxTest extends TestCase
         $response->assertSee('For Approval');
         $response->assertSee('Implementation');
         $response->assertSee('Post-Documents');
-        $response->assertSee('Release of Assistance');
+        $response->assertDontSee('Release of Assistance');
     }
 
     public function test_layout_has_no_dead_notifications_control(): void

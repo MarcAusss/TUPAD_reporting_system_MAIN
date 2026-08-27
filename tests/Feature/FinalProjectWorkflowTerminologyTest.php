@@ -9,51 +9,29 @@ use App\Models\AdlAllocation;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class FinalProjectWorkflowTerminologyTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_payment_of_wages_must_exist_before_release_of_assistance(): void
+    public function test_old_release_of_assistance_action_is_deprecated(): void
     {
+        $this->assertFalse(Route::has('projects.payout.store'));
+
         $tc = User::factory()->create([
             'role' => UserRole::TC,
             'is_active' => true,
         ]);
 
-        $focal = User::factory()->create([
-            'role' => UserRole::FOCAL,
-            'is_active' => true,
-        ]);
-
-        $project = $this->createForPaymentProject($tc, $focal);
-
-        $response = $this
-            ->actingAs($tc)
-            ->post(
-                route(
-                    'projects.payout.store',
-                    $project
-                ),
-                [
-                    'payout_date' => now()->toDateString(),
-                    'payout_mode' => 'Cash Card',
-                    'venue' => 'Legazpi City',
-                ]
-            );
-
-        $response->assertSessionHasErrors([
-            'payout_date',
-        ]);
-
-        $this->assertDatabaseCount(
-            'project_payouts',
-            0
-        );
+        $this->actingAs($tc)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('Release of Assistance');
     }
 
-    public function test_focal_records_payment_then_tc_records_release_and_completes_project(): void
+    public function test_focal_obligation_and_full_disbursement_complete_project(): void
     {
         $tc = User::factory()->create([
             'role' => UserRole::TC,
@@ -68,53 +46,35 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
         $project = $this->createForPaymentProject($tc, $focal);
 
         $this->actingAs($focal)
-            ->post(
-                route(
-                    'projects.payment.store',
-                    $project
-                ),
-                [
-                    'amount' => 457500,
-                    'obligation_date' => now()->toDateString(),
-                    'month' => now()->format('F Y'),
-                    'payee' => 'TUPAD Beneficiaries',
-                    'remarks' => 'Payment of Wages processed.',
-                ]
-            )
-            ->assertRedirect();
-
-        $this->assertDatabaseHas(
-            'project_obligations',
-            [
-                'project_id' => $project->id,
-                'amount' => 457500,
+            ->post(route('projects.payment.store', $project), [
+                'tranche_number' => 1,
+                'amount' => '455000.00',
+                'obligation_date' => now()->toDateString(),
                 'payee' => 'TUPAD Beneficiaries',
-            ]
-        );
+            ])
+            ->assertRedirect(route('payments.show', $project));
 
-        $this->actingAs($tc)
+        $obligation = $project->obligations()->firstOrFail();
+
+        $this->actingAs($focal)
             ->post(
                 route(
-                    'projects.payout.store',
-                    $project
+                    'projects.payment.disbursements.store',
+                    [$project, $obligation]
                 ),
                 [
-                    'payout_date' => now()->toDateString(),
-                    'payout_mode' => 'Cash Card',
-                    'venue' => 'Legazpi City',
-                    'remarks' => 'Release of Assistance completed.',
+                    'amount' => '455000.00',
+                    'date_disbursed' => now()->toDateString(),
+                    'ldap_check_number' => 'LDAP-FINAL-WORKFLOW',
                 ]
             )
-            ->assertRedirect();
+            ->assertRedirect(route('payments.show', $project));
 
-        $this->assertDatabaseHas(
-            'project_payouts',
-            [
-                'project_id' => $project->id,
-                'payout_mode' => 'Cash Card',
-                'venue' => 'Legazpi City',
-            ]
-        );
+        $this->assertDatabaseHas('project_disbursements', [
+            'project_obligation_id' => $obligation->id,
+            'amount' => 455000,
+            'ldap_check_number' => 'LDAP-FINAL-WORKFLOW',
+        ]);
 
         $this->assertSame(
             ProjectStatus::COMPLETED,
@@ -136,8 +96,8 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
 
         $allocation = AdlAllocation::create([
             'adl_id' => $adl->id,
-            'fund_sponsor' => null,
-            'partner' => null,
+            'fund_sponsor' => 'DOLE Regional Office V',
+            'partner' => 'LGU Albay',
             'location' => 'Albay',
             'amount' => 1000000,
             'created_by' => $focal->id,

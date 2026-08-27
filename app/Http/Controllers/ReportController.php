@@ -2,582 +2,307 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BeneficiarySectorCategory;
+use App\Enums\LaborMarketProgram;
+use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
+use App\Enums\ProjectTerm;
+use App\Enums\ReportDimension;
+use App\Enums\ReportType;
+use App\Models\Adl;
+use App\Models\Barangay;
+use App\Models\Municipality;
 use App\Models\Project;
-use Illuminate\Database\Eloquent\Builder;
+use App\Models\Province;
+use App\Reports\ReportFilters;
+use App\Services\Exports\PdfTableWriter;
+use App\Services\Exports\XlsxTableWriter;
+use App\Services\Reports\ReportGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Report Index
-    |--------------------------------------------------------------------------
-    */
+    public function __construct(
+        private readonly ReportGenerationService $reports,
+        private readonly PdfTableWriter $pdf,
+        private readonly XlsxTableWriter $xlsx,
+    ) {}
 
     public function index(Request $request): View
     {
-        $validated = $this->validateFilters(
-            $request
-        );
+        [$type, $dimension, $filters] = $this->reportRequest($request);
 
-        $query = $this->buildFilteredQuery(
-            $validated
-        );
-
-        $summaryQuery = clone $query;
-
-        $summary = $this->buildSummary(
-            $summaryQuery
-        );
-
-        $projects = $query
-            ->latest('date_received')
-            ->latest('id')
-            ->paginate(20)
-            ->withQueryString();
-
-        return view(
-            'reports.index',
-            [
-                'projects' =>
-                    $projects,
-
-                'summary' =>
-                    $summary,
-
-                'provinces' =>
-                    $this->provinceOptions(),
-
-                'municipalities' =>
-                    $this->municipalityOptions(
-                        $validated['province']
-                        ?? null
-                    ),
-
-                'statuses' =>
-                    ProjectStatus::cases(),
-
-                'geographicSummary' =>
-                    $this->buildGeographicSummary(
-                        $validated
-                    ),
-            ]
-        );
+        return view('reports.index', [
+            'report' => $this->reports->generate($type, $dimension, $filters),
+            'options' => $this->options(),
+            'query' => $this->cleanQuery($request),
+        ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CSV Export
-    |--------------------------------------------------------------------------
-    */
-
-    public function exportCsv(
-        Request $request
-    ): StreamedResponse {
-        $validated = $this->validateFilters(
-            $request
-        );
-
-        $projects = $this
-            ->buildFilteredQuery(
-                $validated
-            )
-            ->orderBy('province')
-            ->orderBy('municipality')
-            ->orderBy('barangay')
-            ->orderBy('project_title')
-            ->get();
-
-        $filename =
-            'tupad-project-report-'
-            . now()->format('Y-m-d-His')
-            . '.csv';
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $report = $this->generate($request);
+        $filename = $report['file_base_name'].'.csv';
 
         return response()->streamDownload(
-            function () use ($projects) {
-                $handle = fopen(
-                    'php://output',
-                    'w'
-                );
+            function () use ($report): void {
+                $handle = fopen('php://output', 'w');
 
-                /*
-                |--------------------------------------------------------------------------
-                | UTF-8 BOM
-                |--------------------------------------------------------------------------
-                |
-                | Helps Excel display UTF-8 content correctly.
-                |
-                */
+                if ($handle === false) {
+                    return;
+                }
 
-                fwrite(
-                    $handle,
-                    "\xEF\xBB\xBF"
-                );
+                fwrite($handle, "\xEF\xBB\xBF");
+                fputcsv($handle, [$report['title']]);
+                fputcsv($handle, [
+                    'Generated',
+                    $report['generated_at']->format('Y-m-d H:i:s'),
+                ]);
 
+                foreach ($report['criteria'] as $label => $value) {
+                    fputcsv($handle, [$label, $this->csvValue((string) $value)]);
+                }
+
+                if ($report['warning']) {
+                    fputcsv($handle, ['Note', $this->csvValue($report['warning'])]);
+                }
+
+                fputcsv($handle, []);
                 fputcsv(
                     $handle,
-                    [
-                        'Project Code',
-                        'Project Title',
-                        'ADL Number',
-                        'Partner',
-                        'Province',
-                        'Municipality',
-                        'Barangay',
-                        'District',
-                        'Income Class',
-                        'Status',
-                        'Date Received',
-                        'Beneficiaries',
-                        'Female Beneficiaries',
-                        'Registered Beneficiaries',
-                        'Wage Rate',
-                        'Wages Total',
-                        'PPE Total',
-                        'Insurance Total',
-                        'Total Project Cost',
-                    ]
+                    collect($report['columns'])->pluck('label')->all(),
                 );
 
-                foreach ($projects as $project) {
+                foreach ($report['display_rows'] as $row) {
                     fputcsv(
                         $handle,
-                        [
-                            $project
-                                ->approval
-                                    ?->project_code
-                            ?? '',
-
-                            $project
-                                ->project_title,
-
-                            $project
-                                ->allocation
-                                ->adl
-                                ->adl_number,
-
-                            $project
-                                ->allocation
-                                ->partner,
-
-                            $project
-                                ->province,
-
-                            $project
-                                ->municipality,
-
-                            $project
-                                ->barangay,
-
-                            $project
-                                ->district,
-
-                            $project
-                                ->income_class
-                            ?? '',
-
-                            $project
-                                ->status
-                                ->label(),
-
-                            $project
-                                ->date_received
-                                ->format('Y-m-d'),
-
-                            $project
-                                ->beneficiaries_total,
-
-                            $project
-                                ->beneficiaries_female,
-
-                            $project
-                                ->beneficiaries_count,
-
-                            $project
-                                ->wage_rate,
-
-                            $project
-                                ->wages_total,
-
-                            $project
-                                ->ppe_total,
-
-                            $project
-                                ->insurance_total,
-
-                            $project
-                                ->total_project_cost,
-                        ]
+                        collect($report['columns'])
+                            ->map(fn (array $column): string =>
+                                $this->csvValue((string) ($row[$column['key']] ?? '—')))
+                            ->all(),
                     );
                 }
 
                 fclose($handle);
             },
             $filename,
-            [
-                'Content-Type' =>
-                    'text/csv; charset=UTF-8',
-            ]
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Printable Report
-    |--------------------------------------------------------------------------
-    */
+    public function exportPdf(Request $request): Response
+    {
+        $report = $this->generate($request);
 
-    public function print(
-        Request $request
-    ): View {
-        $validated = $this->validateFilters(
-            $request
-        );
-
-        $query = $this->buildFilteredQuery(
-            $validated
-        );
-
-        $projects = $query
-            ->orderBy('province')
-            ->orderBy('municipality')
-            ->orderBy('barangay')
-            ->orderBy('project_title')
-            ->get();
-
-        return view(
-            'reports.print',
-            [
-                'projects' =>
-                    $projects,
-
-                'summary' =>
-                    $this->buildSummary(
-                        clone $query
-                    ),
-
-                'filters' =>
-                    $validated,
-            ]
-        );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Filter Validation
-    |--------------------------------------------------------------------------
-    */
-
-    private function validateFilters(
-        Request $request
-    ): array {
-        return $request->validate([
-            'province' => [
-                'nullable',
-                'string',
-                'max:150',
-            ],
-
-            'municipality' => [
-                'nullable',
-                'string',
-                'max:150',
-            ],
-
-            'barangay' => [
-                'nullable',
-                'string',
-                'max:150',
-            ],
-
-            'status' => [
-                'nullable',
-                'string',
-            ],
-
-            'date_from' => [
-                'nullable',
-                'date',
-            ],
-
-            'date_to' => [
-                'nullable',
-                'date',
-                'after_or_equal:date_from',
-            ],
+        return response($this->pdf->render($report), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf(
+                'attachment; filename="%s.pdf"',
+                $report['file_base_name'],
+            ),
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Base Filtered Query
-    |--------------------------------------------------------------------------
-    */
+    public function exportExcel(Request $request): BinaryFileResponse
+    {
+        $report = $this->generate($request);
+        $path = $this->xlsx->write($report);
 
-    private function buildFilteredQuery(
-        array $validated
-    ): Builder {
-        $query = Project::query()
-            ->with([
-                'allocation.adl',
-                'approval',
-
-                'provinceReference',
-                'municipalityReference',
-                'barangayReference',
-            ])
-            ->withCount(
-                'beneficiaries'
-            );
-
-        if (
-            filled(
-                $validated['province']
-                ?? null
+        return response()
+            ->download(
+                $path,
+                $report['file_base_name'].'.xlsx',
+                [
+                    'Content-Type' =>
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'X-Content-Type-Options' => 'nosniff',
+                ],
             )
-        ) {
-            $query->where(
-                'province',
-                $validated['province']
-            );
-        }
-
-        if (
-            filled(
-                $validated['municipality']
-                ?? null
-            )
-        ) {
-            $query->where(
-                'municipality',
-                $validated['municipality']
-            );
-        }
-
-        if (
-            filled(
-                $validated['barangay']
-                ?? null
-            )
-        ) {
-            $query->where(
-                'barangay',
-                $validated['barangay']
-            );
-        }
-
-        if (
-            filled(
-                $validated['status']
-                ?? null
-            )
-        ) {
-            $query->where(
-                'status',
-                $validated['status']
-            );
-        }
-
-        if (
-            filled(
-                $validated['date_from']
-                ?? null
-            )
-        ) {
-            $query->whereDate(
-                'date_received',
-                '>=',
-                $validated['date_from']
-            );
-        }
-
-        if (
-            filled(
-                $validated['date_to']
-                ?? null
-            )
-        ) {
-            $query->whereDate(
-                'date_received',
-                '<=',
-                $validated['date_to']
-            );
-        }
-
-        return $query;
+            ->deleteFileAfterSend(true);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Summary
-    |--------------------------------------------------------------------------
-    */
+    public function print(Request $request): View
+    {
+        return view('reports.print', [
+            'report' => $this->generate($request),
+        ]);
+    }
 
-    private function buildSummary(
-        Builder $query
-    ): array {
+    private function generate(Request $request): array
+    {
+        [$type, $dimension, $filters] = $this->reportRequest($request);
+
+        return $this->reports->generate($type, $dimension, $filters);
+    }
+
+    /** @return array{0: ReportType, 1: ReportDimension, 2: ReportFilters} */
+    private function reportRequest(Request $request): array
+    {
+        $rawType = $request->query('report_type');
+        $requestedType = is_string($rawType)
+            ? ReportType::tryFrom($rawType)
+            : null;
+        $defaultType = $requestedType ?? ReportType::PHYSICAL_FINANCIAL;
+        $input = array_merge(
+            [
+                'report_type' => $defaultType->value,
+                'group_by' => $defaultType->defaultDimension()->value,
+            ],
+            $request->query(),
+        );
+
+        $validator = Validator::make($input, [
+            'report_type' => ['required', Rule::enum(ReportType::class)],
+            'group_by' => ['required', Rule::enum(ReportDimension::class)],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'fiscal_year' => [
+                'nullable',
+                'integer',
+                'between:2000,2100',
+                'required_with:quarter,month',
+            ],
+            'quarter' => [
+                'nullable',
+                'integer',
+                'between:1,4',
+            ],
+            'month' => [
+                'nullable',
+                'integer',
+                'between:1,12',
+            ],
+            'term' => ['nullable', Rule::enum(ProjectTerm::class)],
+            'status' => ['nullable', Rule::enum(ProjectStatus::class)],
+            'adl_id' => ['nullable', 'integer', 'exists:adls,id'],
+            'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
+            'district' => ['nullable', 'string', 'max:100'],
+            'municipality_id' => [
+                'nullable',
+                'integer',
+                'exists:municipalities,id',
+            ],
+            'barangay_id' => ['nullable', 'integer', 'exists:barangays,id'],
+            'sponsor' => ['nullable', 'string', 'max:255'],
+            'partner' => ['nullable', 'string', 'max:255'],
+            'project_code' => ['nullable', 'string', 'max:255'],
+            'sector' => [
+                'nullable',
+                Rule::enum(BeneficiarySectorCategory::class),
+            ],
+            'intervention_focus' => [
+                'nullable',
+                Rule::enum(ProjectInterventionFocus::class),
+            ],
+            'labor_market_program' => [
+                'nullable',
+                Rule::enum(LaborMarketProgram::class),
+            ],
+        ]);
+
+        $validator->after(function ($validator) use ($input): void {
+            $hasQuarter = array_key_exists('quarter', $input)
+                && $input['quarter'] !== null
+                && $input['quarter'] !== '';
+            $hasMonth = array_key_exists('month', $input)
+                && $input['month'] !== null
+                && $input['month'] !== '';
+
+            if ($hasQuarter && $hasMonth) {
+                $validator->errors()->add(
+                    'quarter',
+                    'Quarter and month cannot be used at the same time.'
+                );
+                $validator->errors()->add(
+                    'month',
+                    'Month and quarter cannot be used at the same time.'
+                );
+            }
+        });
+
+        $validated = $validator->validate();
+
+        $type = ReportType::from($validated['report_type']);
+        $dimension = ReportDimension::from($validated['group_by']);
+
+        if (! $type->allows($dimension)) {
+            throw ValidationException::withMessages([
+                'group_by' => sprintf(
+                    '%s cannot be grouped by %s.',
+                    $type->label(),
+                    $dimension->label(),
+                ),
+            ]);
+        }
+
+        return [$type, $dimension, ReportFilters::fromArray($validated)];
+    }
+
+    private function options(): array
+    {
         return [
-            'projects' =>
-                (clone $query)->count(),
-
-            'beneficiaries' =>
-                (int) (clone $query)
-                    ->sum(
-                        'beneficiaries_total'
-                    ),
-
-            'female_beneficiaries' =>
-                (int) (clone $query)
-                    ->sum(
-                        'beneficiaries_female'
-                    ),
-
-            'project_cost' =>
-                (float) (clone $query)
-                    ->sum(
-                        'total_project_cost'
-                    ),
-
-            'wages' =>
-                (float) (clone $query)
-                    ->sum(
-                        'wages_total'
-                    ),
-
-            'ppe' =>
-                (float) (clone $query)
-                    ->sum(
-                        'ppe_total'
-                    ),
-
-            'insurance' =>
-                (float) (clone $query)
-                    ->sum(
-                        'insurance_total'
-                    ),
-
-            'completed' =>
-                (clone $query)
-                    ->where(
-                        'status',
-                        ProjectStatus::COMPLETED
-                    )
-                    ->count(),
+            'report_types' => ReportType::cases(),
+            'dimensions' => ReportDimension::cases(),
+            'terms' => ProjectTerm::cases(),
+            'statuses' => ProjectStatus::cases(),
+            'sectors' => BeneficiarySectorCategory::cases(),
+            'intervention_focuses' => ProjectInterventionFocus::cases(),
+            'labor_market_programs' => LaborMarketProgram::cases(),
+            'adls' => Adl::query()
+                ->orderByDesc('date_received')
+                ->orderBy('adl_number')
+                ->get(['id', 'adl_number']),
+            'provinces' => Province::query()
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'municipalities' => Municipality::query()
+                ->with('province:id,name')
+                ->orderBy('name')
+                ->get(['id', 'province_id', 'name']),
+            'barangays' => Barangay::query()
+                ->with('municipality:id,province_id,name')
+                ->orderBy('name')
+                ->get(['id', 'municipality_id', 'name']),
+            'districts' => Project::query()
+                ->whereNotNull('district')
+                ->where('district', '!=', '')
+                ->distinct()
+                ->orderBy('district')
+                ->pluck('district'),
+            'sponsors' => Project::query()
+                ->whereNotNull('fund_sponsor')
+                ->where('fund_sponsor', '!=', '')
+                ->distinct()
+                ->orderBy('fund_sponsor')
+                ->pluck('fund_sponsor'),
+            'partners' => Project::query()
+                ->whereNotNull('partner')
+                ->where('partner', '!=', '')
+                ->distinct()
+                ->orderBy('partner')
+                ->pluck('partner'),
         ];
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Province Filter Options
-    |--------------------------------------------------------------------------
-    */
-
-    private function provinceOptions(): Collection
+    private function cleanQuery(Request $request): array
     {
-        return Project::query()
-            ->whereNotNull('province')
-            ->distinct()
-            ->orderBy('province')
-            ->pluck('province');
+        return collect($request->query())
+            ->filter(fn (mixed $value): bool => $value !== null && $value !== '')
+            ->all();
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Municipality Filter Options
-    |--------------------------------------------------------------------------
-    */
-
-    private function municipalityOptions(
-        ?string $province
-    ): Collection {
-        return Project::query()
-            ->when(
-                filled($province),
-                fn(Builder $query) =>
-                $query->where(
-                    'province',
-                    $province
-                )
-            )
-            ->whereNotNull(
-                'municipality'
-            )
-            ->distinct()
-            ->orderBy(
-                'municipality'
-            )
-            ->pluck(
-                'municipality'
-            );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Geographic Summary
-    |--------------------------------------------------------------------------
-    */
-
-    private function buildGeographicSummary(
-        array $validated
-    ): Collection {
-        $query = $this->buildFilteredQuery(
-            $validated
-        );
-
-        return $query
-            ->get()
-            ->groupBy(
-                fn(Project $project) =>
-                implode(
-                    '|',
-                    [
-                        $project->province,
-                        $project->municipality,
-                    ]
-                )
-            )
-            ->map(
-                function (Collection $projects) {
-                    $first =
-                        $projects->first();
-
-                    return [
-                        'province' =>
-                            $first->province,
-
-                        'municipality' =>
-                            $first->municipality,
-
-                        'projects' =>
-                            $projects->count(),
-
-                        'beneficiaries' =>
-                            $projects->sum(
-                                'beneficiaries_total'
-                            ),
-
-                        'female' =>
-                            $projects->sum(
-                                'beneficiaries_female'
-                            ),
-
-                        'project_cost' =>
-                            $projects->sum(
-                                'total_project_cost'
-                            ),
-                    ];
-                }
-            )
-            ->values()
-            ->sortBy([
-                ['province', 'asc'],
-                ['municipality', 'asc'],
-            ])
-            ->values();
+    private function csvValue(string $value): string
+    {
+        return preg_match('/^[=+\-@]/', ltrim($value))
+            ? "'".$value
+            : $value;
     }
 }

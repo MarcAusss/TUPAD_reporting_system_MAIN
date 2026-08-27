@@ -19,7 +19,7 @@ class ProvinceMonitoringController extends Controller
             ->with([
                 'allocation.adl', 'approval', 'monitoringDetail', 'beneficiaries',
                 'insuranceEnrollment', 'ppeDelivery', 'noticeToProceed', 'implementation',
-                'obligation', 'postDocuments',
+                'obligations', 'postDocuments',
             ])
             ->latest('date_received')
             ->paginate(25)

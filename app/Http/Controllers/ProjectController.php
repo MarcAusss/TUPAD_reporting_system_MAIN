@@ -65,8 +65,12 @@ class ProjectController extends Controller
             ])
             ->with([
                 'allocation.adl',
-                'obligation',
+                'approval',
+                'obligations.disbursements',
                 'payout',
+                'projectLocations.province',
+                'projectLocations.municipality',
+                'projectLocations.barangays',
             ])
             ->latest('updated_at')
             ->paginate(15);
@@ -902,6 +906,11 @@ class ProjectController extends Controller
             'projectLocations.municipality',
             'projectLocations.barangays',
 
+            'beneficiarySectors.recorder',
+            'beneficiarySectors.updater',
+            'laborMarketReferrals.recorder',
+            'laborMarketReferrals.updater',
+
             'ppeItems',
 
             'creator',
@@ -918,6 +927,8 @@ class ProjectController extends Controller
 
             'postDocuments.recorder',
             'obligation.recorder',
+            'obligations.recorder',
+            'obligations.disbursements.recorder',
             'payout.recorder',
 
 

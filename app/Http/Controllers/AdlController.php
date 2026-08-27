@@ -65,7 +65,7 @@ class AdlController extends Controller
         $adl->load([
             'realignments.creator',
             'allocations.creator',
-            'allocations.projects.obligation',
+            'allocations.projects.obligations',
             'allocations.projects.approval',
         ]);
 

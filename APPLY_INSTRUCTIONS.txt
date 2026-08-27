@@ -1,179 +1,101 @@
-TUPAD REPORTING SYSTEM
-MAJOR REVISION — PHASE 4
-SUBMISSION OF POST-DOCUMENTARY REQUIREMENTS
+TUPAD Reporting System
+Major Revision Phase 10 - Hotfix 01
+Executive Dashboard / Phase 9 Report Regression Fix
 
-DOCUMENT BASIS
---------------
-Revised TUPAD 360 workflow:
+PURPOSE
+-------
+This hotfix addresses the exact failures reported after applying the Phase 10 overlay:
 
-Submission of Post-Documentary Requirements (TC Account)
-1. Date Received
-2. Attachments Received
-3. Date Forwarded to IMSD
-4. Save -> Auto-update Status: For Payment
+1. Laravel throws:
+   Method Illuminate\Validation\Validator::validateProhibitedWith does not exist.
 
-IMPLEMENTED
+   Cause:
+   The project used the unsupported validation rule "prohibited_with" in both the
+   Phase 10 ExecutiveDashboardRequest and the existing Phase 9 ReportController.
+
+   Fix:
+   The unsupported rule is removed and quarter/month mutual exclusivity is enforced
+   in an explicit validator after-hook. Existing required_with:fiscal_year behavior is
+   preserved.
+
+2. Phase 9 reports throw:
+   Class "CarbonCarbonImmutable" not found.
+
+   Cause:
+   resources/views/reports/index.blade.php contains a malformed class reference.
+
+   Fix:
+   It now uses the correct fully qualified class:
+   \Carbon\CarbonImmutable
+
+FILES TO REPLACE
+----------------
+1. app/Http/Requests/ExecutiveDashboardRequest.php
+2. app/Http/Controllers/ReportController.php
+3. resources/views/reports/index.blade.php
+
+ADDED FILES
 -----------
-The old single "Document Type + optional Attachment" form is replaced in the
-normal UI by one complete submission form containing exactly the revised core
-inputs:
+None.
 
-- Date Received
-- Attachments Received
-- Date Forwarded to IMSD
-- optional Remarks
-
-ATTACHMENTS RECEIVED
---------------------
-Multiple files can be selected in one submission.
-
-Supported:
-PDF
-JPG/JPEG
-PNG
-DOC/DOCX
-XLS/XLSX
-
-Maximum:
-10 MB per file
-20 files per submission
-
-Each selected file is stored as its own project_post_documents row so the
-existing private secure-download architecture remains intact.
-
-The visible document label becomes the original attachment filename.
-
-AUTO-UPDATE STATUS
-------------------
-All three official inputs are required.
-
-A successful save therefore means the submission is complete and immediately
-updates:
-
-FOR SUBMISSION OF POST-DOCS
--> FOR PAYMENT
-
-There is no separate manual transition.
-
-DATE RULE
----------
-Date Forwarded to IMSD cannot be earlier than Date Received.
-
-ATOMIC SAVE
------------
-The database work is wrapped in a transaction.
-
-If an exception occurs after files have been written, newly stored files are
-deleted so the request does not leave orphan upload files.
-
-BACKWARD COMPATIBILITY
-----------------------
-The controller still accepts the older single-file payload:
-
-document_type
-attachment
-
-This is retained for old integrations/tests.
-
-The revised UI uses:
-
-attachments[]
-
-with multiple file selection.
-
-NO DATABASE MIGRATION REQUIRED.
-
-FILES MODIFIED
---------------
-app/Http/Controllers/ProjectPostDocumentController.php
-resources/views/projects/show.blade.php
-
-FILE ADDED
+MIGRATIONS
 ----------
-tests/Feature/MajorRevisionPhase4PostDocumentaryRequirementsTest.php
+None added. Do NOT run migrate:fresh.
 
-IMPORTANT
----------
-The Project Detail file in this overlay is based on the latest Phase 3 view
-including the corrected text:
-
-"Complete Insurance, PPE, and Notice to Proceed first."
-
-Therefore this overlay does not revert the Phase 3 merged-requirements UX
-hotfix.
+DEPENDENCIES
+------------
+No Composer dependencies added.
+No npm dependencies added.
+No npm build is required for this hotfix.
 
 APPLY
 -----
-Extract into the Laravel project root and allow overwrite.
+From this hotfix overlay, copy the three replacement files into the matching paths
+inside your latest TUPAD Reporting System project and allow them to replace the
+existing files.
 
-Then run:
+Then run from the project root:
 
-php artisan optimize:clear
-php artisan view:clear
-npm run build
+    php artisan optimize:clear
 
-PHASE 4 TESTS
--------------
-php artisan test --filter=MajorRevisionPhase4PostDocumentaryRequirementsTest
-php artisan test --filter=SecurityAuthorizationTest
-php artisan test --filter=ProjectWorkflowQueueTest
-php artisan test --filter=ProjectWorkflowTest
-php artisan test --filter=FinalProjectWorkflowTerminologyTest
+The optimize clear is important because the Phase 9 failure occurred inside a
+compiled Blade view under storage/framework/views.
 
-Then:
+FOCUSED VERIFICATION
+--------------------
+Run these commands in this order:
 
-php artisan test
+    php artisan test tests/Feature/MajorRevisionPhase10ExecutiveDashboardTest.php
+    php artisan test tests/Feature/MajorRevisionPhase8ReportingDataLayerTest.php
+    php artisan test tests/Feature/MajorRevisionPhase9ReportGenerationTest.php
 
-MANUAL TEST
------------
-1. Login as TC.
-2. Open a project in For Submission of Post-Docs.
-3. Open Submission of Post-Documentary Requirements.
-4. Set Date Received.
-5. Select multiple attachments.
-6. Set Date Forwarded to IMSD.
-7. Save.
-8. Confirm all selected files appear in the attachment table.
-9. Confirm status automatically becomes For Payment.
-10. Confirm the project becomes available to the Focal payment workflow.
-11. Confirm each attachment can be downloaded through the existing secure
-    download link.
+Expected result:
+- Phase 10 executive dashboard test: all tests pass.
+- Phase 8 reporting data layer test: remains green.
+- Phase 9 report generation test: all tests pass.
 
-INVALID DATE TEST
------------------
-Set Date Received = 2026-08-26
-Set Date Forwarded to IMSD = 2026-08-25
+OPTIONAL BROADER REGRESSION
+---------------------------
+After the three focused suites are green, run the relevant authorization,
+navigation, workflow, and security suites required by the Phase 10 instructions.
+Do not proceed to Phase 11 until the Phase 10 / Phase 8 / Phase 9 results are green.
 
-Expected:
-- validation error
-- no files/rows saved
-- project remains For Submission of Post-Docs
+MANUAL CHECK
+------------
+1. Sign in as admin.
+2. Open Report Generation.
+3. Confirm the report page renders and the Month dropdown shows January-December.
+4. Generate a report with fiscal year + month only.
+5. Generate a report with fiscal year + quarter only.
+6. Try supplying both month and quarter; validation must reject the combination
+   instead of returning HTTP 500.
+7. Open Executive Dashboard with fiscal year + month.
+8. Open Presentation Mode with the same filters.
+9. Confirm both render successfully and show the same filtered totals.
+10. Confirm no write/edit controls are introduced in Presentation Mode.
 
-STOP AFTER PHASE 4 TESTING.
-
-NEXT PHASE
-----------
-Major Revision Phase 5:
-Payment of Wages
-
-A. Obligation
-- First Payment
-- ADL Number
-- Fund Sponsor
-- Partner
-- Project Location
-- Term
-- Beneficiaries Total/Female
-- Amount
-- Date
-- Payee
-- Save -> Obligated
-- Add button for 2nd tranche
-- up to 5 payment tranches
-
-B. Disbursement
-- First Payment
-- Date Disbursed
-- LDAP No. / Check No.
-- same tranche structure
-- partial / completed payment handling
+HOTFIX SCOPE
+------------
+This hotfix changes validation compatibility and one Blade class reference only.
+It does not change reporting calculations, financial aggregation, geographic
+allocation logic, authorization, project status behavior, or database data.

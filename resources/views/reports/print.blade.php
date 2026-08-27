@@ -1,358 +1,108 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>
-        TUPAD Project Report
-    </title>
+    <title>{{ $report['title'] }} | TUPAD</title>
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            padding: 24px;
-            font-family: Arial, sans-serif;
-            font-size: 11px;
-            color: #111827;
-            background: #ffffff;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 18px;
-        }
-
-        .header p {
-            margin: 5px 0 0;
-            font-size: 11px;
-            color: #4b5563;
-        }
-
-        .filters {
-            margin-bottom: 18px;
-            border: 1px solid #d1d5db;
-            padding: 10px;
-        }
-
-        .summary {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-bottom: 18px;
-        }
-
-        .summary-item {
-            border: 1px solid #d1d5db;
-            padding: 8px;
-        }
-
-        .summary-label {
-            font-size: 9px;
-            color: #6b7280;
-            text-transform: uppercase;
-        }
-
-        .summary-value {
-            margin-top: 4px;
-            font-weight: bold;
-            font-size: 13px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
-            border: 1px solid #d1d5db;
-            padding: 6px;
-            vertical-align: top;
-        }
-
-        th {
-            background: #f3f4f6;
-            text-align: left;
-            font-size: 9px;
-            text-transform: uppercase;
-        }
-
-        .number {
-            text-align: right;
-        }
-
-        .footer {
-            margin-top: 18px;
-            font-size: 9px;
-            color: #6b7280;
-        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 22px; font-family: Arial, sans-serif; font-size: 10px; color: #111827; }
+        .toolbar { margin-bottom: 16px; text-align: right; }
+        .toolbar button { border: 1px solid #94a3b8; border-radius: 4px; background: #fff; padding: 8px 14px; cursor: pointer; }
+        .masthead { border-bottom: 2px solid #153e75; padding-bottom: 12px; text-align: center; }
+        .agency { font-size: 9px; font-weight: bold; letter-spacing: .12em; text-transform: uppercase; color: #475569; }
+        h1 { margin: 5px 0 0; font-size: 18px; color: #153e75; }
+        .subtitle { margin-top: 5px; color: #475569; }
+        .criteria { margin-top: 12px; border: 1px solid #cbd5e1; padding: 8px 10px; }
+        .criteria span { display: inline-block; margin: 2px 14px 2px 0; }
+        .summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 12px 0; }
+        .summary-item { border: 1px solid #cbd5e1; padding: 7px; }
+        .summary-label { color: #64748b; font-size: 8px; font-weight: bold; text-transform: uppercase; }
+        .summary-value { margin-top: 4px; font-size: 12px; font-weight: bold; }
+        .warning { margin: 10px 0; border: 1px solid #f59e0b; background: #fffbeb; padding: 8px; color: #78350f; }
+        table { width: 100%; border-collapse: collapse; table-layout: auto; }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; }
+        th, td { border: 1px solid #cbd5e1; padding: 5px; vertical-align: top; overflow-wrap: anywhere; }
+        th { background: #e8eef7; color: #153e75; font-size: 8px; text-align: left; text-transform: uppercase; }
+        .right { text-align: right; white-space: nowrap; }
+        .empty { padding: 20px; text-align: center; color: #64748b; }
+        .footer { margin-top: 12px; color: #64748b; font-size: 8px; }
 
         @media print {
-            body {
-                padding: 0;
-            }
-
-            .no-print {
-                display: none;
-            }
-
-            @page {
-                size: landscape;
-                margin: 10mm;
-            }
+            body { padding: 0; }
+            .no-print { display: none; }
+            @page { size: A4 landscape; margin: 9mm; }
         }
     </style>
-
 </head>
 
 <body>
-
-    <div class="no-print" style="margin-bottom: 16px; text-align: right;">
-
-        <button onclick="window.print()"
-            style="
-                border: 1px solid #9ca3af;
-                background: white;
-                padding: 8px 14px;
-                cursor: pointer;
-            ">
-            Print
-        </button>
-
+    <div class="toolbar no-print">
+        <button type="button" onclick="window.print()">Print Report</button>
     </div>
 
-    <header class="header">
-
-        <h1>
-            TUPAD Project Monitoring Report
-        </h1>
-
-        <p>
-            Generated:
-            {{ now()->format('F d, Y g:i A') }}
-        </p>
-
+    <header class="masthead">
+        <div class="agency">Department of Labor and Employment | TUPAD Reporting System</div>
+        <h1>{{ $report['title'] }}</h1>
+        <div class="subtitle">
+            Grouped by {{ $report['dimension']->label() }} · Generated
+            {{ $report['generated_at']->format('F d, Y h:i A') }}
+        </div>
     </header>
 
-    @if (filled($filters['province'] ?? null) ||
-            filled($filters['municipality'] ?? null) ||
-            filled($filters['barangay'] ?? null) ||
-            filled($filters['status'] ?? null) ||
-            filled($filters['date_from'] ?? null) ||
-            filled($filters['date_to'] ?? null))
+    <section class="criteria">
+        @foreach ($report['criteria'] as $label => $value)
+            <span><strong>{{ $label }}:</strong> {{ $value }}</span>
+        @endforeach
+    </section>
 
-        <div class="filters">
+    <section class="summary">
+        @foreach ($report['summary_cards'] as $card)
+            <div class="summary-item">
+                <div class="summary-label">{{ $card['label'] }}</div>
+                <div class="summary-value">{{ $card['display_value'] }}</div>
+            </div>
+        @endforeach
+    </section>
 
-            <strong>
-                Applied Filters:
-            </strong>
-
-            @if (filled($filters['province'] ?? null))
-                Province:
-                {{ $filters['province'] }};
-            @endif
-
-            @if (filled($filters['municipality'] ?? null))
-                Municipality:
-                {{ $filters['municipality'] }};
-            @endif
-
-            @if (filled($filters['barangay'] ?? null))
-                Barangay:
-                {{ $filters['barangay'] }};
-            @endif
-
-            @if (filled($filters['status'] ?? null))
-                @php
-                    $status = \App\Enums\ProjectStatus::tryFrom($filters['status']);
-                @endphp
-
-                Status:
-                {{ $status?->label() ?? $filters['status'] }};
-            @endif
-
-            @if (filled($filters['date_from'] ?? null))
-                From:
-                {{ $filters['date_from'] }};
-            @endif
-
-            @if (filled($filters['date_to'] ?? null))
-                To:
-                {{ $filters['date_to'] }};
-            @endif
-
-        </div>
-
+    @if ($report['warning'])
+        <div class="warning"><strong>Data note:</strong> {{ $report['warning'] }}</div>
     @endif
 
-    <div class="summary">
-
-        <div class="summary-item">
-
-            <div class="summary-label">
-                Projects
-            </div>
-
-            <div class="summary-value">
-                {{ number_format($summary['projects']) }}
-            </div>
-
-        </div>
-
-        <div class="summary-item">
-
-            <div class="summary-label">
-                Beneficiaries
-            </div>
-
-            <div class="summary-value">
-                {{ number_format($summary['beneficiaries']) }}
-            </div>
-
-        </div>
-
-        <div class="summary-item">
-
-            <div class="summary-label">
-                Female
-            </div>
-
-            <div class="summary-value">
-                {{ number_format($summary['female_beneficiaries']) }}
-            </div>
-
-        </div>
-
-        <div class="summary-item">
-
-            <div class="summary-label">
-                Total Project Cost
-            </div>
-
-            <div class="summary-value">
-                ₱{{ number_format($summary['project_cost'], 2) }}
-            </div>
-
-        </div>
-
-    </div>
-
     <table>
-
         <thead>
-
             <tr>
-
-                <th>
-                    Project Code
-                </th>
-
-                <th>
-                    Project
-                </th>
-
-                <th>
-                    ADL / Partner
-                </th>
-
-                <th>
-                    Location
-                </th>
-
-                <th class="number">
-                    Beneficiaries
-                </th>
-
-                <th class="number">
-                    Registered
-                </th>
-
-                <th class="number">
-                    Project Cost
-                </th>
-
-                <th>
-                    Status
-                </th>
-
+                @foreach ($report['columns'] as $column)
+                    <th class="{{ $column['align'] === 'right' ? 'right' : '' }}">{{ $column['label'] }}</th>
+                @endforeach
             </tr>
-
         </thead>
-
         <tbody>
-
-            @forelse($projects as $project)
+            @forelse ($report['display_rows'] as $row)
                 <tr>
-
-                    <td>
-                        {{ $project->approval?->project_code ?? '—' }}
-                    </td>
-
-                    <td>
-                        {{ $project->project_title }}
-                    </td>
-
-                    <td>
-                        {{ $project->allocation->adl->adl_number }}
-                        <br>
-                        {{ $project->allocation->partner }}
-                    </td>
-
-                    <td>
-                        {{ $project->full_location }}
-                    </td>
-
-                    <td class="number">
-                        {{ number_format($project->beneficiaries_total) }}
-                    </td>
-
-                    <td class="number">
-                        {{ number_format($project->beneficiaries_count) }}
-                    </td>
-
-                    <td class="number">
-                        ₱{{ number_format($project->total_project_cost, 2) }}
-                    </td>
-
-                    <td>
-                        {{ $project->status->label() }}
-                    </td>
-
+                    @foreach ($report['columns'] as $column)
+                        <td class="{{ $column['align'] === 'right' ? 'right' : '' }}">
+                            {{ $row[$column['key']] ?? '—' }}
+                        </td>
+                    @endforeach
                 </tr>
-
             @empty
-
                 <tr>
-
-                    <td colspan="8" style="text-align: center; padding: 20px;">
-                        No records match the selected filters.
+                    <td class="empty" colspan="{{ count($report['columns']) }}">
+                        No records match the selected report criteria.
                     </td>
-
                 </tr>
             @endforelse
-
         </tbody>
-
     </table>
 
-    <div class="footer">
-        TUPAD Reporting System — Official project report
-    </div>
-
+    <footer class="footer">
+        {{ number_format($report['rows']->count()) }} reporting row(s). Generated from the validated
+        Phase 8 reporting data layer; no project reference values were accepted from the browser.
+    </footer>
 </body>
 
 </html>

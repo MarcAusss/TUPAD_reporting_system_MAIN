@@ -246,9 +246,9 @@
 
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 
-                    @foreach ([['tssd-evaluation', 'TSSD Evaluation', $workflowCounts['tssd']], ['for-approval', 'For Approval', $workflowCounts['approval']], ['implementation', 'Implementation', $workflowCounts['implementation']], ['post-documents', 'Post-Documents', $workflowCounts['post_documents']], ['release-of-assistance', 'Release of Assistance', $workflowCounts['release']]] as [$queue, $label, $count])
+                    @foreach ([['tssd-evaluation', 'TSSD Evaluation', $workflowCounts['tssd']], ['for-approval', 'For Approval', $workflowCounts['approval']], ['implementation', 'Implementation', $workflowCounts['implementation']], ['post-documents', 'Post-Documents', $workflowCounts['post_documents']]] as [$queue, $label, $count])
                         <a href="{{ route('project-workflow.index', ['queue' => $queue]) }}"
                             class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
 
@@ -333,7 +333,7 @@
                         </div>
 
                         <div class="mt-1 text-xs text-slate-500">
-                            Projects waiting for Payment of Wages / obligation.
+                            Projects requiring obligation or disbursement action.
                         </div>
                     </a>
 

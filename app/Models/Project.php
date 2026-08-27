@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ImplementationMode;
+use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
 use App\Enums\ProjectTerm;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +16,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Project extends Model
 {
     use HasFactory;
+
+    private ?int $statusTransitionActorId = null;
+
+    private ?string $statusTransitionRemarks = null;
+
+    private bool $statusTransitionContextSet = false;
 
     protected $fillable = [
         'adl_allocation_id',
@@ -39,6 +46,7 @@ class Project extends Model
         'implementation_mode',
         'number_of_days',
         'term',
+        'intervention_focus',
 
         'beneficiaries_total',
         'beneficiaries_female',
@@ -73,6 +81,7 @@ class Project extends Model
 
             'implementation_mode' => ImplementationMode::class,
             'term' => ProjectTerm::class,
+            'intervention_focus' => ProjectInterventionFocus::class,
             'status' => ProjectStatus::class,
 
             'wage_rate' => 'decimal:2',
@@ -190,7 +199,13 @@ class Project extends Model
     {
         return $this->hasOne(
             ProjectObligation::class
-        );
+        )->oldestOfMany('tranche_number');
+    }
+
+    public function obligations(): HasMany
+    {
+        return $this->hasMany(ProjectObligation::class)
+            ->orderBy('tranche_number');
     }
 
     public function payout(): HasOne
@@ -213,10 +228,59 @@ class Project extends Model
         );
     }
 
+    public function setStatusTransitionContext(
+        ?int $actorId,
+        ?string $remarks,
+    ): self {
+        $this->statusTransitionActorId = $actorId;
+        $this->statusTransitionRemarks = $remarks;
+        $this->statusTransitionContextSet = true;
+
+        return $this;
+    }
+
+    public function clearStatusTransitionContext(): self
+    {
+        $this->statusTransitionActorId = null;
+        $this->statusTransitionRemarks = null;
+        $this->statusTransitionContextSet = false;
+
+        return $this;
+    }
+
+    public function statusTransitionActorId(): ?int
+    {
+        return $this->statusTransitionActorId;
+    }
+
+    public function hasStatusTransitionContext(): bool
+    {
+        return $this->statusTransitionContextSet;
+    }
+
+    public function statusTransitionRemarks(): ?string
+    {
+        return $this->statusTransitionRemarks;
+    }
+
     public function projectLocations(): HasMany
     {
         return $this->hasMany(ProjectLocation::class)
             ->orderBy('sort_order');
+    }
+
+    public function beneficiarySectors(): HasMany
+    {
+        return $this->hasMany(ProjectBeneficiarySector::class)
+            ->orderBy('sector_group')
+            ->orderBy('sector_key');
+    }
+
+    public function laborMarketReferrals(): HasMany
+    {
+        return $this->hasMany(ProjectLaborMarketReferral::class)
+            ->orderByDesc('reporting_month')
+            ->orderBy('program');
     }
 
     public function provinceReference(): BelongsTo
@@ -266,6 +330,37 @@ class Project extends Model
             ])
         );
     }
+
+    public function getPaymentLocationSummaryAttribute(): string
+    {
+        $this->loadMissing([
+            'projectLocations.province',
+            'projectLocations.municipality',
+            'projectLocations.barangays',
+        ]);
+
+        if ($this->projectLocations->isEmpty()) {
+            return $this->full_location;
+        }
+
+        return $this->projectLocations
+            ->map(function (ProjectLocation $location): string {
+                $barangays = $location->barangays
+                    ->pluck('name')
+                    ->filter()
+                    ->implode(', ');
+
+                return collect([
+                    $barangays,
+                    $location->municipality?->name,
+                    $location->district,
+                    $location->province?->name,
+                ])->filter()->implode(' / ');
+            })
+            ->filter()
+            ->implode('; ');
+    }
+
     public function monitoringDetail(): HasOne
     {
         return $this->hasOne(ProjectMonitoringDetail::class);

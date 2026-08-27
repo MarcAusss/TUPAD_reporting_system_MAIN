@@ -62,6 +62,14 @@ class CurrentSystemDemoSeeder extends Seeder
                 amount: 30_000_000,
             );
 
+            $camarinesNorteAllocation = $this->allocation(
+                adl: $adl,
+                focal: $focal,
+                provinceName: 'Camarines Norte',
+                partner: 'Provincial Government of Camarines Norte',
+                amount: 30_000_000,
+            );
+
             $camarinesSurAllocation = $this->allocation(
                 adl: $adl,
                 focal: $focal,
@@ -75,6 +83,14 @@ class CurrentSystemDemoSeeder extends Seeder
                 focal: $focal,
                 provinceName: 'Catanduanes',
                 partner: 'Provincial Government of Catanduanes',
+                amount: 5_000_000,
+            );
+
+            $masbateAllocation = $this->allocation(
+                adl: $adl,
+                focal: $focal,
+                provinceName: 'Masbate',
+                partner: 'Provincial Government of Masbate',
                 amount: 5_000_000,
             );
 
@@ -149,32 +165,29 @@ class CurrentSystemDemoSeeder extends Seeder
 
             $projectB = $this->project(
                 tc: $tc,
-                allocation: $albayAllocation,
-                title: 'Albay Urban Drainage Clearing',
-                provinceName: 'Albay',
-                primaryMunicipalityName: 'Legazpi City',
+                allocation: $camarinesNorteAllocation,
+                title: 'Cam Norte Urban Drainage Clearing',
+                provinceName: 'Camarines Norte',
+                primaryMunicipalityName: 'Daet',
                 beneficiaries: 70,
                 femaleBeneficiaries: 36,
                 numberOfDays: 15,
                 status: ProjectStatus::APPROVED,
-                partner: 'City Government of Legazpi',
-                remarks: 'Second Albay demo project. It must not appear inside Project A summary.',
+                partner: 'Local Government Unit of Daet',
+                remarks: 'Second Camarines Norte demo project. It must not appear inside Project A summary.',
             );
 
             $this->syncLocations(
                 project: $projectB,
-                provinceName: 'Albay',
+                provinceName: 'Camarines Norte',
                 municipalityNames: [
-                    'Legazpi City',
+                    'Daet',
+                    'Labo',
+                    'Vinzons',
                 ],
-                barangaysPerMunicipality: 2,
+                barangaysPerMunicipality: 6,
             );
 
-            $this->approval(
-                project: $projectB,
-                tc: $tc,
-                code: 'TUPAD-ALB-2026-002',
-            );
 
             /*
             |------------------------------------------------------------------
@@ -256,6 +269,33 @@ class CurrentSystemDemoSeeder extends Seeder
                 project: $projectD,
                 tc: $tc,
                 startDate: CarbonImmutable::today()->subDays(5),
+            );
+
+
+            $projectD = $this->project(
+                tc: $tc,
+                allocation: $masbateAllocation,
+                title: 'Masbate Coastal Rehabilitation',
+                provinceName: 'Masbate',
+                primaryMunicipalityName: 'San Pascual',
+                beneficiaries: 80,
+                femaleBeneficiaries: 41,
+                numberOfDays: 20,
+                status: ProjectStatus::ONGOING_IMPLEMENTATION,
+                partner: 'LGU Masbate',
+                remarks: 'Implementation board demo: currently ongoing.',
+            );
+
+            $this->syncLocations(
+                project: $projectD,
+                provinceName: 'Masbate',
+                municipalityNames: [
+                    'San Pascual',
+                    'Esperanza',
+                    'Milagros',
+                    'Balud',
+                ],
+                barangaysPerMunicipality: 5,
             );
 
             /*
@@ -509,10 +549,10 @@ class CurrentSystemDemoSeeder extends Seeder
             ->orderBy('name')
             ->get()
             ->first(
-                fn (Municipality $candidate): bool =>
-                    $this->normalizeMunicipalityName(
-                        $candidate->name
-                    ) === $requestedKey
+                fn(Municipality $candidate): bool =>
+                $this->normalizeMunicipalityName(
+                    $candidate->name
+                ) === $requestedKey
             );
 
         if ($municipality) {

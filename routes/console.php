@@ -9,5 +9,8 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command(
-    'projects:sync-implementation-statuses'
-)->dailyAt('00:05');
+    'projects:sync-statuses'
+)
+    ->dailyAt('00:05')
+    ->timezone('Asia/Manila')
+    ->withoutOverlapping();

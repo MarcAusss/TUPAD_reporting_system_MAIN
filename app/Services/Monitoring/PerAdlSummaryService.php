@@ -14,7 +14,7 @@ class PerAdlSummaryService
     {
         $adl->loadMissing([
             'realignments',
-            'allocations.projects.obligation',
+            'allocations.projects.obligations',
             'allocations.projects.approval',
         ]);
 
@@ -32,8 +32,13 @@ class PerAdlSummaryService
         $divisor = max(1, (float) config('tupad.target_cost_per_beneficiary', 4356));
         $targetBeneficiaries = (int) floor($targetGrants / $divisor);
 
-        $obligatedProjects = $projects->filter(fn (Project $project) => $project->obligation !== null);
-        $obligatedGrants = (float) $obligatedProjects->sum(fn (Project $p) => (float) $p->obligation->amount);
+        $obligatedProjects = $projects->filter(
+            fn (Project $project) => $project->obligations->isNotEmpty()
+        );
+        $obligatedGrants = (float) $obligatedProjects->sum(
+            fn (Project $project) =>
+                (float) $project->obligations->sum('amount')
+        );
         $wages = (float) $obligatedProjects->sum('wages_total');
         $ppe = (float) $obligatedProjects->sum('ppe_total');
         $insurance = (float) $obligatedProjects->sum('insurance_total');
@@ -152,7 +157,7 @@ class PerAdlSummaryService
     public function allRows(): Collection
     {
         return Adl::query()
-            ->with(['realignments', 'allocations.projects.obligation'])
+            ->with(['realignments', 'allocations.projects.obligations'])
             ->orderBy('adl_number')
             ->get()
             ->flatMap(fn (Adl $adl) => $this->rowsForAdl($adl));

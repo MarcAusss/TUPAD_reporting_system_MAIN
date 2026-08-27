@@ -124,20 +124,33 @@ class ImplementationStageService
 
         $project->refresh();
 
-        $canSynchronize =
-            in_array(
-                $project->status,
+        $canSynchronize = match ($project->status) {
+            ProjectStatus::FOR_IMPLEMENTATION => in_array(
+                $stage,
                 [
-                    ProjectStatus::FOR_IMPLEMENTATION,
                     ProjectStatus::ONGOING_IMPLEMENTATION,
+                    ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
                 ],
-                true
-            );
+                true,
+            ),
+
+            ProjectStatus::ONGOING_IMPLEMENTATION =>
+                $stage === ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+
+            default => false,
+        };
 
         if (
             $canSynchronize
             && $project->status !== $stage
         ) {
+            $project->setStatusTransitionContext(
+                actorId: $userId,
+                remarks: $stage === ProjectStatus::ONGOING_IMPLEMENTATION
+                    ? 'Automatic workflow: The implementation start date has been reached (Asia/Manila).'
+                    : 'Automatic workflow: The implementation end date has been reached (Asia/Manila).',
+            );
+
             $project->update([
                 'status' =>
                     $stage,
@@ -145,6 +158,8 @@ class ImplementationStageService
                 'updated_by' =>
                     $userId,
             ]);
+
+            $project->clearStatusTransitionContext();
 
             $project->refresh();
         }
