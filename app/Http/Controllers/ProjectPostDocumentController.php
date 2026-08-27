@@ -8,8 +8,11 @@ use App\Models\ProjectPostDocument;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class ProjectPostDocumentController extends Controller
 {
@@ -26,9 +29,16 @@ class ProjectPostDocumentController extends Controller
             );
         }
 
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'date_received' => ['required', 'date'],
-            'document_type' => ['required', 'string', 'max:255'],
+            'attachments' => ['nullable', 'array', 'min:1'],
+            'attachments.*' => [
+                'file',
+                'max:10240',
+                'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx',
+            ],
+            // Backward-compatible payload accepted by earlier clients/tests.
+            'document_type' => ['nullable', 'string', 'max:255'],
             'attachment' => [
                 'nullable',
                 'file',
@@ -36,41 +46,101 @@ class ProjectPostDocumentController extends Controller
                 'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx',
             ],
             'date_forwarded_to_imsd' => [
-                'nullable',
+                'required',
                 'date',
                 'after_or_equal:date_received',
             ],
             'remarks' => ['nullable', 'string', 'max:3000'],
         ]);
 
-        $attachmentPath = null;
+        $validator->after(function ($validator) use ($request): void {
+            $hasBatchAttachments = $request->hasFile('attachments');
+            $hasLegacyAttachment = $request->hasFile('attachment');
 
-        if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store(
-                "projects/{$project->id}/post-docs",
-                'local'
-            );
+            if (! $hasBatchAttachments && ! $hasLegacyAttachment) {
+                $validator->errors()->add(
+                    'attachments',
+                    'At least one attachment received is required.'
+                );
+            }
+
+            if (
+                $hasLegacyAttachment
+                && blank($request->input('document_type'))
+            ) {
+                $validator->errors()->add(
+                    'document_type',
+                    'The document type field is required for the legacy single-attachment payload.'
+                );
+            }
+        });
+
+        $validated = $validator->validate();
+        $storedPaths = [];
+
+        try {
+            DB::transaction(function () use (
+                $request,
+                $project,
+                $statusEngine,
+                $validated,
+                &$storedPaths,
+            ): void {
+                if ($request->hasFile('attachments')) {
+                    foreach ($request->file('attachments') as $attachment) {
+                        $attachmentPath = $attachment->store(
+                            "projects/{$project->id}/post-docs",
+                            'local'
+                        );
+
+                        $storedPaths[] = $attachmentPath;
+
+                        $project->postDocuments()->create([
+                            'date_received' => $validated['date_received'],
+                            'document_type' => $attachment->getClientOriginalName(),
+                            'attachment_path' => $attachmentPath,
+                            'date_forwarded_to_imsd' => $validated['date_forwarded_to_imsd'],
+                            'remarks' => $validated['remarks'] ?? null,
+                            'recorded_by' => $request->user()->id,
+                        ]);
+                    }
+                } else {
+                    $attachment = $request->file('attachment');
+                    $attachmentPath = $attachment->store(
+                        "projects/{$project->id}/post-docs",
+                        'local'
+                    );
+
+                    $storedPaths[] = $attachmentPath;
+
+                    $project->postDocuments()->create([
+                        'date_received' => $validated['date_received'],
+                        'document_type' => trim($validated['document_type']),
+                        'attachment_path' => $attachmentPath,
+                        'date_forwarded_to_imsd' => $validated['date_forwarded_to_imsd'],
+                        'remarks' => $validated['remarks'] ?? null,
+                        'recorded_by' => $request->user()->id,
+                    ]);
+                }
+
+                $statusEngine->synchronize(
+                    $project,
+                    actorId: (int) $request->user()->id,
+                );
+            });
+        } catch (Throwable $exception) {
+            foreach ($storedPaths as $storedPath) {
+                Storage::disk('local')->delete($storedPath);
+            }
+
+            throw $exception;
         }
-
-        $project->postDocuments()->create([
-            'date_received' => $validated['date_received'],
-            'document_type' => trim($validated['document_type']),
-            'attachment_path' => $attachmentPath,
-            'date_forwarded_to_imsd' => $validated['date_forwarded_to_imsd'] ?? null,
-            'remarks' => $validated['remarks'] ?? null,
-            'recorded_by' => $request->user()->id,
-        ]);
-
-        $statusEngine->synchronize(
-            $project,
-            actorId: (int) $request->user()->id,
-        );
 
         return back()->with(
             'success',
             $project->status === ProjectStatus::FOR_PAYMENT
-                ? 'Post-documentary requirement saved. Project is ready for Payment of Wages / obligation processing.'
-                : 'Post-documentary requirement saved successfully.'
+                ? 'Post-documentary requirements saved. Project automatically moved to For Payment.'
+                : 'Post-documentary requirements saved successfully.'
         );
     }
 

@@ -11,6 +11,12 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            throw new \RuntimeException(
+                'UserSeeder is development-only because it creates known demo usernames and passwords. Create production users through the secured user-management workflow instead.'
+            );
+        }
+
         User::updateOrCreate(
             ['username' => 'admin'],
             [

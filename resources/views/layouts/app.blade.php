@@ -37,10 +37,10 @@
             <div class="tupad-sidebar-header flex h-[98px] w-full shrink-0 items-center border-b border-[#e4eaf2] px-6">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
                     <div class="grid h-11 w-11 grid-cols-2 gap-[3px] rounded-xl bg-[#063b86] p-2.5 shadow-sm">
-                        <span class="rounded-[2px] bg-white"></span>
-                        <span class="rounded-[2px] bg-white/75"></span>
-                        <span class="rounded-[2px] bg-white/75"></span>
-                        <span class="rounded-[2px] bg-white"></span>
+                        <span class="rounded-xs bg-white"></span>
+                        <span class="rounded-xs bg-white/75"></span>
+                        <span class="rounded-xs bg-white/75"></span>
+                        <span class="rounded-xs bg-white"></span>
                     </div>
 
                     <div>

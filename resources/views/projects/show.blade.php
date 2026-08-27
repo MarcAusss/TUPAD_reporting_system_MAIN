@@ -2170,16 +2170,24 @@
     <section id="post-documents" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
         <div class="border-b border-slate-200 px-5 py-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-900">
+                        Submission of Post-Documentary Requirements
+                    </h2>
 
-            <h2 class="text-sm font-semibold text-slate-900">
-                Post-Documentary Requirements
-            </h2>
+                    <p class="mt-1 text-xs text-slate-500">
+                        TC/Admin records the complete post-implementation documentary submission.
+                        Financial processing begins only after the required submission is recorded.
+                    </p>
+                </div>
 
-            <p class="mt-1 text-xs text-slate-500">
-                TC/Admin records the submitted post-implementation documentary requirements.
-                Once complete, the project moves to Payment of Wages / obligation processing.
-            </p>
-
+                @if($project->status === \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS)
+                    <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                        Auto-update → For Payment
+                    </span>
+                @endif
+            </div>
         </div>
 
         @if(
@@ -2196,13 +2204,10 @@
                 enctype="multipart/form-data"
                 class="border-b border-slate-200 p-5"
             >
-
                 @csrf
 
                 <div class="grid gap-4 md:grid-cols-2">
-
                     <div>
-
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
                             Date Received
                         </label>
@@ -2214,45 +2219,9 @@
                             value="{{ old('date_received', now()->format('Y-m-d')) }}"
                             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         >
-
                     </div>
 
                     <div>
-
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Document Type
-                        </label>
-
-                        <input
-                            name="document_type"
-                            required
-                            value="{{ old('document_type') }}"
-                            placeholder="Example: Accomplishment Report"
-                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                        >
-
-                    </div>
-
-                    <div>
-
-                        <label class="mb-2 block text-xs font-semibold text-slate-700">
-                            Attachment
-                        </label>
-
-                        <input
-                            type="file"
-                            name="attachment"
-                            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                        >
-
-                        <p class="mt-1 text-[11px] text-slate-400">
-                            Maximum 10 MB.
-                        </p>
-
-                    </div>
-
-                    <div>
-
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
                             Date Forwarded to IMSD
                         </label>
@@ -2260,14 +2229,32 @@
                         <input
                             type="date"
                             name="date_forwarded_to_imsd"
+                            required
                             value="{{ old('date_forwarded_to_imsd') }}"
                             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         >
-
                     </div>
 
                     <div class="md:col-span-2">
+                        <label class="mb-2 block text-xs font-semibold text-slate-700">
+                            Attachments Received
+                        </label>
 
+                        <input
+                            type="file"
+                            name="attachments[]"
+                            multiple
+                            required
+                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        >
+
+                        <p class="mt-1 text-[11px] text-slate-400">
+                            Select one or more files. Maximum 10 MB per attachment.
+                        </p>
+                    </div>
+
+                    <div class="md:col-span-2">
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
                             Remarks
                         </label>
@@ -2277,22 +2264,17 @@
                             rows="3"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                         >{{ old('remarks') }}</textarea>
-
                     </div>
-
                 </div>
 
                 <div class="mt-4 flex justify-end">
-
                     <button
                         type="submit"
                         class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
                     >
-                        Save Post-Document
+                        Save Post-Documentary Requirements
                     </button>
-
                 </div>
-
             </form>
 
         @endif

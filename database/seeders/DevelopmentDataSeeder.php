@@ -26,7 +26,7 @@ class DevelopmentDataSeeder extends Seeder
             [
                 'grants' => 8000000,
                 'admin_cost' => 240000,
-                'total' => 8240000,
+                'total' => 8000000,
                 'created_by' => $focal->id,
                 'updated_by' => null,
             ]

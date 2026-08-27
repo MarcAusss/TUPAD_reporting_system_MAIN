@@ -135,7 +135,7 @@ class ProvincialProjectSeeder extends Seeder
         $data = [
             'grants' => 30_000_000,
             'admin_cost' => 900_000,
-            'total' => 30_900_000,
+            'total' => 30_000_000,
             'created_by' => $tc->id,
         ];
 
@@ -200,7 +200,7 @@ class ProvincialProjectSeeder extends Seeder
             'fund_sponsor' => 'DOLE Regional Office V',
             'partner' => "Provincial Government of {$province->name}",
             'location' => $province->name,
-            'amount' => 5_000_000,
+            'amount' => 4_850_000,
             'remarks' => "Demo allocation for {$province->name}",
             'created_by' => $tc->id,
         ];
@@ -214,10 +214,10 @@ class ProvincialProjectSeeder extends Seeder
         if (
             Schema::hasColumn(
                 'adl_allocations',
-                'local_chief_executive_or_partylist'
+                'local_chief_executive_partylist'
             )
         ) {
-            $data['local_chief_executive_or_partylist'] =
+            $data['local_chief_executive_partylist'] =
                 "Provincial Government of {$province->name}";
         }
 

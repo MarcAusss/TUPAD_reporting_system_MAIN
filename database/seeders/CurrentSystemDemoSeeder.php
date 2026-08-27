@@ -46,9 +46,9 @@ class CurrentSystemDemoSeeder extends Seeder
                 [
                     // ADL total follows the current rule: total = grants.
                     // Administrative cost is tracked separately.
-                    'grants' => 60_000_000,
-                    'admin_cost' => 1_800_000,
-                    'total' => 60_000_000,
+                    'grants' => 95_000_000,
+                    'admin_cost' => 2_850_000,
+                    'total' => 95_000_000,
                     'created_by' => $focal->id,
                     'updated_by' => $focal->id,
                 ]
@@ -154,12 +154,11 @@ class CurrentSystemDemoSeeder extends Seeder
 
             /*
             |------------------------------------------------------------------
-            | Project B — second Albay project with a different code
+            | Project B — Camarines Norte approved project
             |------------------------------------------------------------------
             |
-            | This intentionally proves that Projects -> Summary must display
-            | only the selected project, even when another project exists in
-            | the same province.
+            | This provides approved-project coverage for Camarines Norte and
+            | keeps province-level monitoring representative across Bicol.
             |
             */
 
@@ -174,7 +173,7 @@ class CurrentSystemDemoSeeder extends Seeder
                 numberOfDays: 15,
                 status: ProjectStatus::APPROVED,
                 partner: 'Local Government Unit of Daet',
-                remarks: 'Second Camarines Norte demo project. It must not appear inside Project A summary.',
+                remarks: 'Camarines Norte demo project for province-level monitoring and reporting.',
             );
 
             $this->syncLocations(
@@ -186,6 +185,12 @@ class CurrentSystemDemoSeeder extends Seeder
                     'Vinzons',
                 ],
                 barangaysPerMunicipality: 6,
+            );
+
+            $this->approval(
+                project: $projectB,
+                tc: $tc,
+                code: 'TUPAD-CAN-2026-001',
             );
 
 
@@ -298,6 +303,18 @@ class CurrentSystemDemoSeeder extends Seeder
                 barangaysPerMunicipality: 5,
             );
 
+            $this->approval(
+                project: $projectD,
+                tc: $tc,
+                code: 'TUPAD-MAS-2026-001',
+            );
+
+            $this->prepareImplementation(
+                project: $projectD,
+                tc: $tc,
+                startDate: CarbonImmutable::today()->subDays(5),
+            );
+
             /*
             |------------------------------------------------------------------
             | Project E — For Submission of Post Docs
@@ -361,6 +378,9 @@ class CurrentSystemDemoSeeder extends Seeder
                 'fund_sponsor' => 'DOLE Regional Office V',
                 'location' => $provinceName,
                 'amount' => $amount,
+                'grant_amount' => $amount,
+                'admin_cost_amount' => 0,
+                'total_amount' => $amount,
                 'remarks' => "Current system demo allocation for {$provinceName}.",
                 'created_by' => $focal->id,
                 'updated_by' => $focal->id,
@@ -482,6 +502,8 @@ class CurrentSystemDemoSeeder extends Seeder
             ->firstOrFail();
 
         $keepLocationIds = [];
+        $selectedLocations = [];
+        $barangayRowCount = 0;
 
         foreach (array_values($municipalityNames) as $index => $municipalityName) {
             $municipality = $this->municipality(
@@ -494,10 +516,12 @@ class CurrentSystemDemoSeeder extends Seeder
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->limit($barangaysPerMunicipality)
-                ->pluck('id');
+                ->pluck('id')
+                ->values()
+                ->all();
 
-            if ($barangayIds->isEmpty()) {
-                throw new \RuntimeException(
+            if ($barangayIds === []) {
+                throw new RuntimeException(
                     "No active barangay exists for {$municipality->name}, {$province->name}."
                 );
             }
@@ -514,14 +538,70 @@ class CurrentSystemDemoSeeder extends Seeder
                 ]
             );
 
-            $location->barangays()->sync($barangayIds->all());
             $keepLocationIds[] = $location->id;
+            $selectedLocations[] = [
+                'location' => $location,
+                'barangay_ids' => $barangayIds,
+            ];
+            $barangayRowCount += count($barangayIds);
+        }
+
+        $totalAllocation = $this->distributeCount(
+            (int) $project->beneficiaries_total,
+            $barangayRowCount,
+        );
+
+        $femaleAllocation = $this->distributeCount(
+            (int) $project->beneficiaries_female,
+            $barangayRowCount,
+        );
+
+        $rowIndex = 0;
+
+        foreach ($selectedLocations as $selected) {
+            $pivot = [];
+
+            foreach ($selected['barangay_ids'] as $barangayId) {
+                $pivot[$barangayId] = [
+                    'beneficiaries_total' => $totalAllocation[$rowIndex],
+                    'beneficiaries_female' => $femaleAllocation[$rowIndex],
+                ];
+
+                $rowIndex++;
+            }
+
+            $selected['location']->barangays()->sync($pivot);
         }
 
         ProjectLocation::query()
             ->where('project_id', $project->id)
             ->whereNotIn('id', $keepLocationIds)
             ->delete();
+    }
+
+    /**
+     * Split a project-level beneficiary count deterministically across the
+     * exact barangay rows used by the demo project. The first rows receive
+     * the remainder so the pivot always reconciles exactly with the project.
+     *
+     * @return array<int, int>
+     */
+    private function distributeCount(int $value, int $slots): array
+    {
+        if ($slots < 1) {
+            throw new RuntimeException(
+                'Cannot distribute beneficiaries without an exact barangay allocation row.'
+            );
+        }
+
+        $base = intdiv($value, $slots);
+        $remainder = $value % $slots;
+
+        return array_map(
+            static fn (int $index): int =>
+                $base + ($index < $remainder ? 1 : 0),
+            range(0, $slots - 1),
+        );
     }
 
     /**
