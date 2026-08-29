@@ -258,6 +258,20 @@
                             <span>Reports</span>
                         </a>
 
+                        <div class="tupad-nav-section">
+                            Administration
+                        </div>
+
+                        <a href="{{ route('users.index') }}"
+                            class="{{ $navClass(request()->routeIs('users.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                            </svg>
+                            <span>User Accounts</span>
+                        </a>
+
                         {{-- =========================================================
                         TC / ADMIN PROJECT WORKSPACE
                     ========================================================== --}}
@@ -472,6 +486,14 @@
                     <div class="text-[11px] font-semibold uppercase tracking-[.08em] text-[#6f7f98]">Signed in as</div>
                     <div class="mt-2 truncate text-[13px] font-bold text-[#10294f]">{{ $user->name }}</div>
                     <div class="mt-0.5 text-[11px] text-[#73829a]">{{ $user->roleLabel() }}</div>
+                    @if ($user->isTc())
+                        <div class="mt-0.5 truncate text-[11px] text-[#73829a]">{{ $user->assignedProvince?->name ?? 'Province not assigned' }}</div>
+
+                        <a href="{{ route('account.show') }}"
+                            class="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-[#ccd7e6] bg-white text-[12px] font-semibold text-[#17325c] transition hover:bg-[#eef4fb] {{ request()->routeIs('account.*') ? 'ring-2 ring-blue-100' : '' }}">
+                            My Account
+                        </a>
+                    @endif
 
                     <form method="POST" action="{{ route('logout') }}" class="mt-3">
                         @csrf

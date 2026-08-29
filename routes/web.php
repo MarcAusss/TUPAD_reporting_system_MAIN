@@ -4,6 +4,7 @@ use App\Http\Controllers\AdlAllocationController;
 use App\Http\Controllers\AdlController;
 use App\Http\Controllers\AdlRealignmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\CoordinatorAccountController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ProjectWorkflowQueueController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\FundMonitoringController;
 use App\Http\Controllers\ProvinceMonitoringController;
 use Illuminate\Support\Facades\Route;
@@ -50,7 +52,7 @@ Route::middleware('guest')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'province.scope'])->group(function () {
 
     Route::get('/', fn() => redirect()->route('dashboard'));
 
@@ -135,6 +137,20 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | TUPAD Coordinator Self-Service Account
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('role:tc')->group(function () {
+        Route::get('/account', [CoordinatorAccountController::class, 'show'])
+            ->name('account.show');
+
+        Route::patch('/account/password', [CoordinatorAccountController::class, 'updatePassword'])
+            ->name('account.password.update');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Reports
     |--------------------------------------------------------------------------
     */
@@ -190,13 +206,35 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Administrator
+    | TUPAD Coordinator Account Management — Admin & Focal
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware('role:admin')->group(function () {
-        Route::get('/users', fn() => 'User Management')
+    Route::middleware('role:admin,focal')->group(function () {
+        Route::get('/users', [UserManagementController::class, 'index'])
             ->name('users.index');
+
+        Route::get('/users/create', [UserManagementController::class, 'create'])
+            ->name('users.create');
+
+        Route::post('/users', [UserManagementController::class, 'store'])
+            ->name('users.store');
+
+        Route::get('/users/{user}/edit', [UserManagementController::class, 'edit'])
+            ->whereNumber('user')
+            ->name('users.edit');
+
+        Route::put('/users/{user}', [UserManagementController::class, 'update'])
+            ->whereNumber('user')
+            ->name('users.update');
+
+        Route::patch('/users/{user}/status', [UserManagementController::class, 'toggleStatus'])
+            ->whereNumber('user')
+            ->name('users.status');
+
+        Route::post('/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])
+            ->whereNumber('user')
+            ->name('users.reset-password');
     });
 
     /*

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Province;
+use App\Services\Auth\ProvinceAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -14,14 +15,15 @@ class ProjectProvinceSummaryController extends Controller
      * Sidebar entry: show all Bicol provinces that currently have project data.
      */
     public function index(
-        Request $request
+        Request $request,
+        ProvinceAccessService $provinceAccess,
     ): View {
         $this->authorizeSummaryUser(
             $request
         );
 
         $provinces =
-            Province::query()
+            $provinceAccess->scopeProvinces(Province::query(), $request->user())
                 ->where(
                     'is_active',
                     true

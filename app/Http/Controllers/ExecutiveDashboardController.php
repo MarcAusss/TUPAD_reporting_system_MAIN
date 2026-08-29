@@ -31,7 +31,7 @@ class ExecutiveDashboardController extends Controller
 
         return [
             'dashboard' => $this->dashboard->build($filters),
-            'options' => $this->dashboard->filterOptions(),
+            'options' => $this->dashboard->filterOptions($request->user()),
             'query' => $request->filterQuery(),
         ];
     }

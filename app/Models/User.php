@@ -23,6 +23,7 @@ class User extends Authenticatable
         'role',
         'is_active',
         'supervisor_tc_id',
+        'assigned_province_id',
         'password',
     ];
 
@@ -55,6 +56,24 @@ class User extends Authenticatable
             User::class,
             'supervisor_tc_id'
         );
+    }
+
+    public function assignedProvince(): BelongsTo
+    {
+        return $this->belongsTo(
+            Province::class,
+            'assigned_province_id'
+        );
+    }
+
+    public function requiresProvinceAssignment(): bool
+    {
+        return $this->isTc();
+    }
+
+    public function hasAssignedProvince(): bool
+    {
+        return $this->assigned_province_id !== null;
     }
 
     public function isAdmin(): bool

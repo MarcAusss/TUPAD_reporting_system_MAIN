@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Services\Auth\ProvinceAccessService;
 use App\Services\Projects\ImplementationStageService;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class ProjectWorkflowQueueController extends Controller
         string $queue,
         ImplementationStageService $implementationStageService,
         ProjectStatusEngine $statusEngine,
+        ProvinceAccessService $provinceAccess,
     ): View {
         $config = $this->queueConfig($queue);
 
@@ -27,10 +29,11 @@ class ProjectWorkflowQueueController extends Controller
                 $config,
                 $implementationStageService,
                 $statusEngine,
+                $provinceAccess,
             );
         }
 
-        $projects = Project::query()
+        $projects = $provinceAccess->scopeProjects(Project::query(), $request->user())
             ->with([
                 'allocation.adl',
                 'approval',
@@ -103,9 +106,10 @@ class ProjectWorkflowQueueController extends Controller
         array $config,
         ImplementationStageService $implementationStageService,
         ProjectStatusEngine $statusEngine,
+        ProvinceAccessService $provinceAccess,
     ): View {
         $projects =
-            Project::query()
+            $provinceAccess->scopeProjects(Project::query(), $request->user())
                 ->with([
                     'allocation.adl',
                     'approval',

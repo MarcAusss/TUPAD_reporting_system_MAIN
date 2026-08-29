@@ -17,8 +17,8 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call([
-            UserSeeder::class,
             BicolLocationSeeder::class,
+            UserSeeder::class,
             CurrentSystemDemoSeeder::class,
             ProjectStatusHistorySeeder::class,
         ]);

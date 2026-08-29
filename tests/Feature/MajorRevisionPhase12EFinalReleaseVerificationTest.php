@@ -224,6 +224,10 @@ class MajorRevisionPhase12EFinalReleaseVerificationTest extends TestCase
             'is_active' => true,
         ]);
 
+        $tc->forceFill([
+            'assigned_province_id' => $province->id,
+        ])->saveQuietly();
+
         $municipality = Municipality::create([
             'province_id' => $province->id,
             'code' => '050'.str_pad((string) $this->sequence, 6, '0', STR_PAD_LEFT),

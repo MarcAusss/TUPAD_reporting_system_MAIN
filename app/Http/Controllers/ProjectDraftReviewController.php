@@ -7,6 +7,7 @@ use App\Enums\ProjectStatus;
 use App\Models\AdlAllocation;
 use App\Models\Project;
 use App\Models\ProjectDraft;
+use App\Services\Auth\ProvinceAccessService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,9 +16,9 @@ use Illuminate\View\View;
 
 class ProjectDraftReviewController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, ProvinceAccessService $provinceAccess): View
     {
-        $query = ProjectDraft::query()
+        $query = $provinceAccess->scopeProjectDrafts(ProjectDraft::query(), $request->user())
             ->with([
                 'allocation.adl',
                 'encoder',

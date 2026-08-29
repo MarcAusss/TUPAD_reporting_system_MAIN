@@ -214,6 +214,10 @@ class MajorRevisionPhase11ReleaseVerificationTest extends TestCase
             'is_active' => true,
         ]);
 
+        $user->forceFill([
+            'assigned_province_id' => $province->id,
+        ])->saveQuietly();
+
         $municipality = Municipality::create([
             'province_id' => $province->id,
             'code' => '050501000',

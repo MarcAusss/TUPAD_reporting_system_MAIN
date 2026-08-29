@@ -6,13 +6,14 @@ use App\Enums\ProjectStatus;
 use App\Models\Adl;
 use App\Models\Project;
 use App\Models\ProjectDraft;
+use App\Services\Auth\ProvinceAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class GlobalSearchController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, ProvinceAccessService $provinceAccess): View
     {
         $query = trim((string) $request->query('q', ''));
         $user = $request->user();
@@ -28,7 +29,7 @@ class GlobalSearchController extends Controller
 
         if (mb_strlen($query) >= 2) {
             if ($user->isAdmin() || $user->isTc() || $user->isFocal()) {
-                $projectsQuery = Project::query()
+                $projectsQuery = $provinceAccess->scopeProjects(Project::query(), $user)
                     ->with([
                         'allocation.adl',
                         'approval',

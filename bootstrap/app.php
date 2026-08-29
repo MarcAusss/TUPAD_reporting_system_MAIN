@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnforceCoordinatorProvinceScope;
+use App\Http\Middleware\EnsureCoordinatorHasAssignedProvince;
 use App\Http\Middleware\EnsureUserHasRole;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +18,8 @@ return Application::configure(
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
+            'province.assigned' => EnsureCoordinatorHasAssignedProvince::class,
+            'province.scope' => EnforceCoordinatorProvinceScope::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

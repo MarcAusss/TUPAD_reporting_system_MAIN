@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Services\Auth\ProvinceAccessService;
 use App\Services\Projects\ProjectAcpLiquidationService;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\Request;
@@ -37,7 +38,8 @@ class ProjectAcpWorkflowQueueController extends Controller
     {
         $config = $this->config($queue);
 
-        $query = Project::query()
+        $query = app(ProvinceAccessService::class)
+            ->scopeProjects(Project::query(), $request->user())
             ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
             ->whereIn('status', $config['statuses'])
             ->with([

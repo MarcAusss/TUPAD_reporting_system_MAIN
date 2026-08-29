@@ -43,4 +43,12 @@ class Province extends Model
             ProjectDraft::class
         );
     }
+
+    public function assignedCoordinators(): HasMany
+    {
+        return $this->hasMany(
+            User::class,
+            'assigned_province_id'
+        );
+    }
 }

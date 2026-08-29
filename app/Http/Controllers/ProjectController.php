@@ -12,6 +12,7 @@ use App\Models\Municipality;
 use App\Models\Project;
 use App\Models\ProjectLocation;
 use App\Models\Province;
+use App\Services\Auth\ProvinceAccessService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,9 +28,9 @@ class ProjectController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function index(): View
+    public function index(Request $request, ProvinceAccessService $provinceAccess): View
     {
-        $projects = Project::query()
+        $projects = $provinceAccess->scopeProjects(Project::query(), $request->user())
             ->with([
                 'allocation.adl',
                 'creator',
@@ -91,14 +92,22 @@ class ProjectController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function create(): View
+    public function create(Request $request, ProvinceAccessService $provinceAccess): View
     {
-        $allocations = AdlAllocation::query()
+        $allocationQuery = $provinceAccess->scopeAdlAllocations(
+            AdlAllocation::query(),
+            $request->user(),
+        );
+
+        $allocations = (clone $allocationQuery)
             ->with('adl')
             ->orderByDesc('id')
             ->get();
 
-        $provinces = Province::query()
+        $provinces = $provinceAccess->scopeProvinces(
+            Province::query(),
+            $request->user(),
+        )
             ->where('is_active', true)
             ->whereIn('name', [
                 'Albay',
@@ -117,7 +126,7 @@ class ProjectController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $fundSponsorOptions = AdlAllocation::query()
+        $fundSponsorOptions = (clone $allocationQuery)
             ->whereNotNull('fund_sponsor')
             ->where('fund_sponsor', '!=', '')
             ->distinct()
@@ -128,7 +137,7 @@ class ProjectController extends Controller
             ->unique()
             ->values();
 
-        $partnerOptions = AdlAllocation::query()
+        $partnerOptions = (clone $allocationQuery)
             ->whereNotNull('partner')
             ->where('partner', '!=', '')
             ->distinct()
@@ -158,7 +167,7 @@ class ProjectController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ProvinceAccessService $provinceAccess): RedirectResponse
     {
         $validated = $this->validateProject($request);
 
@@ -189,7 +198,8 @@ class ProjectController extends Controller
 
         return DB::transaction(function () use (
             $request,
-            $validated
+            $validated,
+            $provinceAccess
         ) {
             /*
             |--------------------------------------------------------------------------
@@ -197,7 +207,8 @@ class ProjectController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $allocation = AdlAllocation::query()
+            $allocation = $provinceAccess
+                ->scopeAdlAllocations(AdlAllocation::query(), $request->user())
                 ->lockForUpdate()
                 ->findOrFail(
                     $validated['adl_allocation_id']

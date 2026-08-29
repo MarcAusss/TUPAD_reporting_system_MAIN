@@ -10,13 +10,16 @@ use App\Enums\ProjectStatus;
 use App\Enums\ProjectTerm;
 use App\Enums\ReportDimension;
 use App\Models\Adl;
+use App\Models\AdlAllocation;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
 use App\Models\ProjectLaborMarketReferral;
 use App\Models\ProjectLocation;
 use App\Models\Province;
+use App\Models\User;
 use App\Reports\ReportFilters;
+use App\Services\Auth\ProvinceAccessService;
 use App\Services\Reports\ReportingDataService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -25,6 +28,7 @@ final class ExecutiveDashboardService
 {
     public function __construct(
         private readonly ReportingDataService $reporting,
+        private readonly ProvinceAccessService $provinceAccess,
     ) {}
 
     public function build(ReportFilters $filters): array
@@ -215,13 +219,30 @@ final class ExecutiveDashboardService
         ];
     }
 
-    public function filterOptions(): array
+    public function filterOptions(?User $user = null): array
     {
-        $projectYears = Project::query()
+        $user ??= auth()->user();
+        $projectQuery = $user
+            ? $this->provinceAccess->scopeProjects(Project::query(), $user)
+            : Project::query();
+        $municipalityQuery = $user
+            ? $this->provinceAccess->scopeMunicipalities(Municipality::query(), $user)
+            : Municipality::query();
+        $barangayQuery = $user
+            ? $this->provinceAccess->scopeBarangays(Barangay::query(), $user)
+            : Barangay::query();
+        $provinceQuery = $user
+            ? $this->provinceAccess->scopeProvinces(Province::query(), $user)
+            : Province::query();
+
+        $projectIds = (clone $projectQuery)->pluck('id');
+
+        $projectYears = (clone $projectQuery)
             ->whereNotNull('date_received')
             ->pluck('date_received')
             ->map(fn ($date): int => CarbonImmutable::parse($date)->year);
         $laborYears = ProjectLaborMarketReferral::query()
+            ->when($user?->isTc(), fn ($query) => $query->whereIn('project_id', $projectIds))
             ->whereNotNull('reporting_month')
             ->pluck('reporting_month')
             ->map(fn ($date): int => CarbonImmutable::parse($date)->year);
@@ -233,12 +254,13 @@ final class ExecutiveDashboardService
             ->sortDesc()
             ->values();
 
-        $districts = Municipality::query()
+        $districts = (clone $municipalityQuery)
             ->whereNotNull('district')
             ->where('district', '!=', '')
             ->get(['province_id', 'district'])
             ->concat(
                 ProjectLocation::query()
+                    ->when($user?->isTc(), fn ($query) => $query->where('province_id', $user->assigned_province_id))
                     ->whereNotNull('district')
                     ->where('district', '!=', '')
                     ->get(['province_id', 'district'])
@@ -246,6 +268,20 @@ final class ExecutiveDashboardService
             ->unique(fn ($row): string => $row->province_id.'|'.$row->district)
             ->sortBy(fn ($row): string => $row->district)
             ->values();
+
+        $adlQuery = Adl::query();
+        if ($user?->isTc()) {
+            $allocationIds = (clone $projectQuery)
+                ->pluck('adl_allocation_id')
+                ->filter()
+                ->unique();
+            $adlIds = AdlAllocation::query()
+                ->whereIn('id', $allocationIds)
+                ->pluck('adl_id')
+                ->filter()
+                ->unique();
+            $adlQuery->whereIn('id', $adlIds);
+        }
 
         return [
             'fiscal_years' => $years,
@@ -255,28 +291,28 @@ final class ExecutiveDashboardService
             'sectors' => BeneficiarySectorCategory::cases(),
             'intervention_focuses' => ProjectInterventionFocus::cases(),
             'labor_market_programs' => LaborMarketProgram::cases(),
-            'adls' => Adl::query()
+            'adls' => $adlQuery
                 ->orderByDesc('date_received')
                 ->orderBy('adl_number')
                 ->get(['id', 'adl_number']),
-            'provinces' => Province::query()
+            'provinces' => $provinceQuery
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'districts' => $districts,
-            'municipalities' => Municipality::query()
+            'municipalities' => $municipalityQuery
                 ->orderBy('name')
                 ->get(['id', 'province_id', 'district', 'name']),
-            'barangays' => Barangay::query()
+            'barangays' => $barangayQuery
                 ->with('municipality:id,province_id,district,name')
                 ->orderBy('name')
                 ->get(['id', 'municipality_id', 'name']),
-            'sponsors' => Project::query()
+            'sponsors' => (clone $projectQuery)
                 ->whereNotNull('fund_sponsor')
                 ->where('fund_sponsor', '!=', '')
                 ->distinct()
                 ->orderBy('fund_sponsor')
                 ->pluck('fund_sponsor'),
-            'partners' => Project::query()
+            'partners' => (clone $projectQuery)
                 ->whereNotNull('partner')
                 ->where('partner', '!=', '')
                 ->distinct()

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
+use App\Models\Province;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +18,17 @@ class UserSeeder extends Seeder
             );
         }
 
+        $defaultCoordinatorProvince = Province::query()
+            ->where('name', 'Albay')
+            ->where('is_active', true)
+            ->first();
+
+        if (! $defaultCoordinatorProvince) {
+            throw new \RuntimeException(
+                'UserSeeder requires active Bicol province reference data. Seed BicolLocationSeeder before UserSeeder.'
+            );
+        }
+
         User::updateOrCreate(
             ['username' => 'admin'],
             [
@@ -26,6 +38,7 @@ class UserSeeder extends Seeder
                 'role' => UserRole::ADMIN,
                 'is_active' => true,
                 'supervisor_tc_id' => null,
+                'assigned_province_id' => null,
                 'password' => Hash::make('password'),
             ]
         );
@@ -39,6 +52,7 @@ class UserSeeder extends Seeder
                 'role' => UserRole::TC,
                 'is_active' => true,
                 'supervisor_tc_id' => null,
+                'assigned_province_id' => $defaultCoordinatorProvince->id,
                 'password' => Hash::make('password'),
             ]
         );
@@ -52,6 +66,7 @@ class UserSeeder extends Seeder
                 'role' => UserRole::GIP,
                 'is_active' => true,
                 'supervisor_tc_id' => $tc->id,
+                'assigned_province_id' => null,
                 'password' => Hash::make('password'),
             ]
         );
@@ -65,6 +80,7 @@ class UserSeeder extends Seeder
                 'role' => UserRole::FOCAL,
                 'is_active' => true,
                 'supervisor_tc_id' => null,
+                'assigned_province_id' => null,
                 'password' => Hash::make('password'),
             ]
         );

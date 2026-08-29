@@ -1,199 +1,53 @@
 TUPAD Reporting System
-Major Revision Phase 12E — Final Regression and Release Verification
+Major Revision Phase 13E - Hotfix 01
+UserRole Import + Province Status Contract
 
 PURPOSE
 -------
-This overlay completes Phase 12 by strengthening the existing non-destructive
-release verifier for the new dual implementation workflow and by adding focused
-final regression coverage.
+This hotfix fixes the two compatibility failures remaining after Phase 13E:
 
-It also carries forward the Phase 12D presentation label correction
-("ACP Payment Recorded") so the final Phase 12 baseline contains that fix even
-if Phase 12D Hotfix 01 was not applied separately.
+1. VerifyReleaseReadiness.php referenced UserRole::TC without importing
+   App\Enums\UserRole. PHP therefore attempted to resolve the enum as
+   App\Console\Commands\UserRole and the release-verifier tests crashed.
 
-FILES IN THIS OVERLAY
----------------------
-REPLACE:
-  app/Console/Commands/VerifyReleaseReadiness.php
-  resources/views/executive-dashboard/presentation.blade.php
+2. DatabaseValidationHardeningTest still expected HTTP 404 when a TUPAD
+   Coordinator submits a municipality belonging to another province.
+   Phase 13D intentionally enforces cross-province access as HTTP 403.
+   The production behavior is correct, so the stale test is updated to
+   assert Forbidden instead of Not Found.
 
-ADD:
-  tests/Feature/MajorRevisionPhase12EFinalReleaseVerificationTest.php
+FILES REPLACED
+--------------
+app/Console/Commands/VerifyReleaseReadiness.php
+tests/Feature/DatabaseValidationHardeningTest.php
 
-No migration is added by Phase 12E.
-No Composer dependency is added.
-No npm dependency is added.
-No CDN is added.
-No existing data is modified by the release verifier.
-
-NEW RELEASE-VERIFIER COVERAGE
------------------------------
-The existing `php artisan tupad:release-verify` command now also validates:
-
-1. Phase 12 schema availability
-   - project_implementations
-   - project_acp_payments
-   - project_acp_check_releases
-   - project_acp_check_release_attachments
-   - project_acp_liquidations
-   - project_acp_liquidation_attachments
-
-2. Through ACP payment integrity
-   - ACP payment records may belong only to Through ACP projects.
-   - ACP payment amount must equal the approved project total_project_cost.
-
-3. Through ACP check-release integrity
-   - Check release may belong only to Through ACP projects.
-   - A payment record must exist.
-   - Released amount must match the official ACP payment amount.
-   - Check date cannot precede payment date.
-   - Released date cannot precede check date.
-
-4. Through ACP implementation integrity
-   - An ACP implementation period with a record must have a check release.
-   - Start date cannot precede check release date.
-   - End date cannot precede start date.
-
-5. Through ACP liquidation integrity
-   - Liquidation rows may belong only to Through ACP projects.
-   - Liquidation amounts must be positive.
-   - Check release and implementation records must exist when liquidation exists.
-   - Liquidation date cannot precede implementation end date.
-   - Total liquidation cannot exceed the released check amount.
-
-6. Cross-mode workflow integrity
-   - Direct Administration cannot use ACP-only statuses:
-       For Release of Check to Proponent
-       For Liquidation
-       Partially Liquidated
-   - Through ACP cannot use the DA-only For Submission of Post-Docs status.
-
-LEGACY-SAFETY NOTE
-------------------
-The verifier does NOT automatically fail every historical Through ACP project
-simply because it predates the new Phase 12B/12C ACP transaction tables.
-It blocks contradictory ACP transaction data when those records exist and blocks
-cross-mode workflow states. It remains non-destructive and performs no automatic
-repair or migration of legacy records.
+DATABASE / DEPENDENCIES
+-----------------------
+No migration.
+No Composer dependency.
+No npm dependency.
+No data rewrite.
 
 APPLY
 -----
-1. Back up the project and database before release work.
-2. Extract this overlay into the Laravel project root and allow the listed files
-   to replace their existing versions.
-3. Do NOT run migrate:fresh.
-4. Phase 12E itself has no migration. The Phase 12B and 12C migrations must
-   already have been applied.
-5. Clear cached Laravel artifacts:
+1. Extract this ZIP over the Laravel project root.
+2. Allow the two files above to replace the existing versions.
+3. Run:
 
    php artisan optimize:clear
 
-FOCUSED PHASE 12E TEST
-----------------------
-php artisan test tests/Feature/MajorRevisionPhase12EFinalReleaseVerificationTest.php
-
-EXPECTED:
-- Final Direct Administration workflow definition passes.
-- Final Through ACP workflow definition passes.
-- Required ACP schema exists.
-- A consistent complete ACP transaction chain passes release verification.
-- Mismatched ACP payment vs approved project cost is blocked.
-- Liquidation above released check is blocked.
-- Cross-mode-only workflow statuses are blocked.
-
-PHASE 12 REGRESSION CHAIN
--------------------------
-php artisan test tests/Feature/MajorRevisionPhase12DualWorkflowFoundationTest.php
-php artisan test tests/Feature/MajorRevisionPhase12BAcpPaymentCheckReleaseTest.php
-php artisan test tests/Feature/MajorRevisionPhase12CAcpImplementationLiquidationTest.php
-php artisan test tests/Feature/MajorRevisionPhase12DWorkflowDashboardReportingIntegrationTest.php
-php artisan test tests/Feature/MajorRevisionPhase12EFinalReleaseVerificationTest.php
-
-IMPORTANT AFFECTED REGRESSIONS
-------------------------------
-php artisan test tests/Feature/MajorRevisionPhase1ProjectProfilingTest.php
-php artisan test tests/Feature/MajorRevisionPhase2ComplianceApprovalTest.php
-php artisan test tests/Feature/MajorRevisionPhase3ImplementationTest.php
-php artisan test tests/Feature/MajorRevisionPhase4PostDocumentaryRequirementsTest.php
-php artisan test tests/Feature/MajorRevisionPhase5PaymentTest.php
-php artisan test tests/Feature/MajorRevisionPhase6StatusEngineTest.php
-php artisan test tests/Feature/MajorRevisionPhase8ReportingDataLayerTest.php
-php artisan test tests/Feature/MajorRevisionPhase9ReportGenerationTest.php
-php artisan test tests/Feature/MajorRevisionPhase10ExecutiveDashboardTest.php
+FOCUSED VERIFICATION
+--------------------
+php artisan test tests/Feature/MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest.php
+php artisan test tests/Feature/MajorRevisionPhase13AProvinceScopedAuthenticationFoundationTest.php
 php artisan test tests/Feature/MajorRevisionPhase11ReleaseVerificationTest.php
-php artisan test tests/Feature/ProjectWorkflowTest.php
-php artisan test tests/Feature/ProjectWorkflowQueueTest.php
-php artisan test tests/Feature/SecurityAuthorizationTest.php
-php artisan test tests/Feature/RoleDashboardUxTest.php
-php artisan test tests/Feature/RoleNavigationUxTest.php
+php artisan test tests/Feature/MajorRevisionPhase12EFinalReleaseVerificationTest.php
+php artisan test tests/Feature/DatabaseValidationHardeningTest.php
 
-FULL RELEASE VERIFICATION
--------------------------
+FINAL VERIFICATION
+------------------
 php artisan test
 php artisan tupad:release-verify
 npm run build
 
-Before an actual production deployment, run the production-enforced verifier in
-an environment configured with the intended production values:
-
-php artisan tupad:release-verify --production
-
-The --production form intentionally checks production requirements including:
-- APP_DEBUG=false
-- persistent APP_KEY
-- MySQL as the configured database
-- no active account still using the development password "password"
-
-Do not interpret a --production failure on an intentionally development-configured
-local environment as an application regression; correct the deployment
-configuration and rerun it in the release environment.
-
-MANUAL FINAL WORKFLOW CHECK
----------------------------
-DIRECT ADMINISTRATION
-Ongoing Profiling
-→ TSSD Evaluation
-→ For Approval
-→ Approved
-→ For Implementation
-→ Ongoing Implementation
-→ For Submission of Post-Docs
-→ For Payment
-→ Completed
-
-THROUGH ACP
-Ongoing Profiling
-→ TSSD Evaluation
-→ For Approval
-→ Approved
-→ For Payment
-→ For Release of Check to Proponent
-→ For Implementation
-→ Ongoing Implementation
-→ For Liquidation
-→ Partially Liquidated
-→ Completed
-
-For Compliance remains the optional TSSD exception branch before For Approval.
-
-MANUAL RELEASE SMOKE CHECK
---------------------------
-1. Create one Direct Administration project and one Through ACP project.
-2. Confirm both start at Ongoing Profiling.
-3. Confirm TSSD evaluation/compliance/approval remains shared and role-protected.
-4. Confirm DA uses only DA implementation, Post-Docs, and Payment of Wages.
-5. Confirm ACP uses only ACP Payment, Check Release, ACP Implementation, and
-   Liquidation.
-6. Confirm ACP partial liquidation shows remaining balance and full liquidation
-   completes the project.
-7. Confirm TC/Focal/Admin/GIP restrictions on ACP queues and write actions.
-8. Confirm Report and Executive Dashboard Implementation Mode filtering.
-9. Confirm Presentation Mode shows "ACP Payment Recorded".
-10. Confirm DA and ACP finance values remain distinct and ACP liquidation is not
-    double-counted as a disbursement.
-
-STOP CONDITION
---------------
-Phase 12 is release-ready only after the focused tests, full `php artisan test`,
-non-production release verifier, production-enforced verifier in the deployment
-environment, and `npm run build` are green.
+Do not use php artisan migrate:fresh.

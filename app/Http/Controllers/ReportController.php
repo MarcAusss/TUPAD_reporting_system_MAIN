@@ -11,11 +11,14 @@ use App\Enums\ProjectTerm;
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
 use App\Models\Adl;
+use App\Models\AdlAllocation;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
 use App\Models\Province;
+use App\Models\User;
 use App\Reports\ReportFilters;
+use App\Services\Auth\ProvinceAccessService;
 use App\Services\Exports\PdfTableWriter;
 use App\Services\Exports\XlsxTableWriter;
 use App\Services\Reports\ReportGenerationService;
@@ -34,6 +37,7 @@ class ReportController extends Controller
         private readonly ReportGenerationService $reports,
         private readonly PdfTableWriter $pdf,
         private readonly XlsxTableWriter $xlsx,
+        private readonly ProvinceAccessService $provinceAccess,
     ) {}
 
     public function index(Request $request): View
@@ -42,7 +46,7 @@ class ReportController extends Controller
 
         return view('reports.index', [
             'report' => $this->reports->generate($type, $dimension, $filters),
-            'options' => $this->options(),
+            'options' => $this->options($request->user()),
             'query' => $this->cleanQuery($request),
         ]);
     }
@@ -278,8 +282,27 @@ class ReportController extends Controller
         return [$type, $dimension, ReportFilters::fromArray($validated)];
     }
 
-    private function options(): array
+    private function options(User $user): array
     {
+        $projectQuery = $this->provinceAccess->scopeProjects(Project::query(), $user);
+        $municipalityQuery = $this->provinceAccess->scopeMunicipalities(Municipality::query(), $user);
+        $barangayQuery = $this->provinceAccess->scopeBarangays(Barangay::query(), $user);
+        $provinceQuery = $this->provinceAccess->scopeProvinces(Province::query(), $user);
+
+        $adlQuery = Adl::query();
+        if ($user->isTc()) {
+            $allocationIds = (clone $projectQuery)
+                ->pluck('adl_allocation_id')
+                ->filter()
+                ->unique();
+            $adlIds = AdlAllocation::query()
+                ->whereIn('id', $allocationIds)
+                ->pluck('adl_id')
+                ->filter()
+                ->unique();
+            $adlQuery->whereIn('id', $adlIds);
+        }
+
         return [
             'report_types' => ReportType::cases(),
             'dimensions' => ReportDimension::cases(),
@@ -289,34 +312,34 @@ class ReportController extends Controller
             'sectors' => BeneficiarySectorCategory::cases(),
             'intervention_focuses' => ProjectInterventionFocus::cases(),
             'labor_market_programs' => LaborMarketProgram::cases(),
-            'adls' => Adl::query()
+            'adls' => $adlQuery
                 ->orderByDesc('date_received')
                 ->orderBy('adl_number')
                 ->get(['id', 'adl_number']),
-            'provinces' => Province::query()
+            'provinces' => $provinceQuery
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'municipalities' => Municipality::query()
+            'municipalities' => $municipalityQuery
                 ->with('province:id,name')
                 ->orderBy('name')
                 ->get(['id', 'province_id', 'name']),
-            'barangays' => Barangay::query()
+            'barangays' => $barangayQuery
                 ->with('municipality:id,province_id,name')
                 ->orderBy('name')
                 ->get(['id', 'municipality_id', 'name']),
-            'districts' => Project::query()
+            'districts' => (clone $projectQuery)
                 ->whereNotNull('district')
                 ->where('district', '!=', '')
                 ->distinct()
                 ->orderBy('district')
                 ->pluck('district'),
-            'sponsors' => Project::query()
+            'sponsors' => (clone $projectQuery)
                 ->whereNotNull('fund_sponsor')
                 ->where('fund_sponsor', '!=', '')
                 ->distinct()
                 ->orderBy('fund_sponsor')
                 ->pluck('fund_sponsor'),
-            'partners' => Project::query()
+            'partners' => (clone $projectQuery)
                 ->whereNotNull('partner')
                 ->where('partner', '!=', '')
                 ->distinct()

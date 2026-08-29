@@ -227,7 +227,7 @@ class DatabaseValidationHardeningTest extends TestCase
                 $payload
             );
 
-        $response->assertNotFound();
+        $response->assertForbidden();
 
         $this->assertDatabaseMissing(
             'projects',

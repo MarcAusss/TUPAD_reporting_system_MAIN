@@ -10,13 +10,15 @@ use App\Models\AdlAllocation;
 use App\Models\AuditLog;
 use App\Models\Project;
 use App\Models\ProjectDraft;
+use App\Services\Auth\ProvinceAccessService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, ProvinceAccessService $provinceAccess): View
     {
         $user = $request->user();
 
@@ -24,7 +26,7 @@ class DashboardController extends Controller
             return $this->gipDashboard($user->id);
         }
 
-        return $this->officialDashboard($user);
+        return $this->officialDashboard($user, $provinceAccess);
     }
 
     private function gipDashboard(int $userId): View
@@ -77,9 +79,9 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function officialDashboard($user): View
+    private function officialDashboard($user, ProvinceAccessService $provinceAccess): View
     {
-        $projects = Project::query();
+        $projects = $this->projectQuery($user, $provinceAccess);
 
         $totalProjects =
             (clone $projects)->count();
@@ -122,23 +124,34 @@ class DashboardController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $adls =
-            Adl::query()->get();
+        $adls = Adl::query()->get();
 
-        $totalBudget =
-            (float) $adls->sum(
-                fn (Adl $adl) =>
-                    (float) (
-                        $adl->adjusted_total_grants
-                        ?? $adl->adjusted_grants
-                        ?? $adl->grants
-                        ?? 0
-                    )
+        if ($user->isTc()) {
+            $allocationQuery = $provinceAccess->scopeAdlAllocations(
+                AdlAllocation::query(),
+                $user,
             );
 
-        $totalAllocated =
-            (float) AdlAllocation::query()
-                ->sum('amount');
+            $totalBudget = (float) (clone $allocationQuery)->sum('amount');
+            $totalAllocated = (float) (clone $projects)->sum('total_project_cost');
+            $visibleAdlCount = (clone $allocationQuery)->distinct()->count('adl_id');
+        } else {
+            $totalBudget =
+                (float) $adls->sum(
+                    fn (Adl $adl) =>
+                        (float) (
+                            $adl->adjusted_total_grants
+                            ?? $adl->adjusted_grants
+                            ?? $adl->grants
+                            ?? 0
+                        )
+                );
+
+            $totalAllocated =
+                (float) AdlAllocation::query()
+                    ->sum('amount');
+            $visibleAdlCount = $adls->count();
+        }
 
         $remainingBudget =
             max(
@@ -162,18 +175,18 @@ class DashboardController extends Controller
         */
 
         $workflowCounts = [
-            'tssd' => Project::query()
+            'tssd' => $this->projectQuery($user, $provinceAccess)
                 ->whereIn('status', [
                     ProjectStatus::TSSD_EVALUATION,
                     ProjectStatus::FOR_COMPLIANCE,
                 ])
                 ->count(),
 
-            'approval' => Project::query()
+            'approval' => $this->projectQuery($user, $provinceAccess)
                 ->where('status', ProjectStatus::FOR_APPROVAL)
                 ->count(),
 
-            'implementation' => Project::query()
+            'implementation' => $this->projectQuery($user, $provinceAccess)
                 ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
                 ->whereIn('status', [
                     ProjectStatus::APPROVED,
@@ -182,27 +195,27 @@ class DashboardController extends Controller
                 ])
                 ->count(),
 
-            'post_documents' => Project::query()
+            'post_documents' => $this->projectQuery($user, $provinceAccess)
                 ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
                 ->where('status', ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS)
                 ->count(),
 
-            'payment' => Project::query()
+            'payment' => $this->projectQuery($user, $provinceAccess)
                 ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
                 ->where('status', ProjectStatus::FOR_PAYMENT)
                 ->count(),
 
-            'acp_payment' => Project::query()
+            'acp_payment' => $this->projectQuery($user, $provinceAccess)
                 ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
                 ->where('status', ProjectStatus::FOR_PAYMENT)
                 ->count(),
 
-            'acp_check_release' => Project::query()
+            'acp_check_release' => $this->projectQuery($user, $provinceAccess)
                 ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
                 ->where('status', ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT)
                 ->count(),
 
-            'acp_implementation' => Project::query()
+            'acp_implementation' => $this->projectQuery($user, $provinceAccess)
                 ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
                 ->whereIn('status', [
                     ProjectStatus::FOR_IMPLEMENTATION,
@@ -210,7 +223,7 @@ class DashboardController extends Controller
                 ])
                 ->count(),
 
-            'acp_liquidation' => Project::query()
+            'acp_liquidation' => $this->projectQuery($user, $provinceAccess)
                 ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
                 ->whereIn('status', [
                     ProjectStatus::FOR_LIQUIDATION,
@@ -226,7 +239,7 @@ class DashboardController extends Controller
         */
 
         $recentProjects =
-            Project::query()
+            $this->projectQuery($user, $provinceAccess)
                 ->with([
                     'approval',
                     'allocation.adl',
@@ -248,7 +261,7 @@ class DashboardController extends Controller
             collect(range(1, 12))
                 ->map(
                     fn (int $month) =>
-                        (float) Project::query()
+                        (float) $this->projectQuery($user, $provinceAccess)
                             ->whereYear(
                                 'date_received',
                                 $currentYear
@@ -278,7 +291,7 @@ class DashboardController extends Controller
             'dashboardMode' => 'official',
 
             'totalAdls' =>
-                $adls->count(),
+                $visibleAdlCount,
 
             'totalProjects' =>
                 $totalProjects,
@@ -321,6 +334,10 @@ class DashboardController extends Controller
 
             'recentActivity' =>
                 AuditLog::query()
+                    ->when(
+                        $user->isTc(),
+                        fn ($query) => $query->where('user_id', $user->id),
+                    )
                     ->latest('performed_at')
                     ->limit(6)
                     ->get(),
@@ -334,4 +351,10 @@ class DashboardController extends Controller
                 },
         ]);
     }
+
+    private function projectQuery($user, ProvinceAccessService $provinceAccess): Builder
+    {
+        return $provinceAccess->scopeProjects(Project::query(), $user);
+    }
+
 }

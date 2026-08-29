@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,7 @@ class VerifyReleaseReadiness extends Command
 
         if ($this->failures === []) {
             $this->verifyApplicationConfiguration();
+            $this->verifyProvinceAuthorizationIntegrity();
             $this->verifyFinancialIntegrity();
             $this->verifyBeneficiaryIntegrity();
             $this->verifyWorkflowAndAuditIntegrity();
@@ -64,7 +66,7 @@ class VerifyReleaseReadiness extends Command
     private function verifySchema(): void
     {
         $required = [
-            'users' => ['username', 'role', 'is_active'],
+            'users' => ['username', 'role', 'is_active', 'assigned_province_id'],
             'adls' => ['grants', 'admin_cost', 'total'],
             'adl_realignments' => ['adl_id', 'amount'],
             'adl_allocations' => ['adl_id', 'amount', 'grant_amount', 'admin_cost_amount', 'total_amount'],
@@ -196,6 +198,78 @@ class VerifyReleaseReadiness extends Command
 
         if ($insecureUsers->isNotEmpty()) {
             $this->failures[] = 'Active account(s) still use the development password "password": '.$insecureUsers->implode(', ').'.';
+        }
+    }
+
+    private function verifyProvinceAuthorizationIntegrity(): void
+    {
+        $invalidActiveCoordinators = DB::table('users as user')
+            ->leftJoin('provinces as province', 'province.id', '=', 'user.assigned_province_id')
+            ->where('user.role', UserRole::TC->value)
+            ->where('user.is_active', true)
+            ->where(function ($query): void {
+                $query
+                    ->whereNull('user.assigned_province_id')
+                    ->orWhereNull('province.id');
+            })
+            ->orderBy('user.username')
+            ->pluck('user.username');
+
+        if ($invalidActiveCoordinators->isNotEmpty()) {
+            $this->failures[] = 'Active TUPAD Coordinator account(s) have no valid assigned province: '
+                .$invalidActiveCoordinators->implode(', ').'. Assign each active Coordinator to an active province before release.';
+        }
+
+        $inactiveProvinceCoordinators = DB::table('users as user')
+            ->join('provinces as province', 'province.id', '=', 'user.assigned_province_id')
+            ->where('user.role', UserRole::TC->value)
+            ->where('user.is_active', true)
+            ->where('province.is_active', false)
+            ->orderBy('user.username')
+            ->pluck('user.username');
+
+        if ($inactiveProvinceCoordinators->isNotEmpty()) {
+            $this->failures[] = 'Active TUPAD Coordinator account(s) are assigned to an inactive province: '
+                .$inactiveProvinceCoordinators->implode(', ').'. Reassign or reactivate the province before release.';
+        }
+
+        $regionalUsersWithProvince = DB::table('users')
+            ->whereNotNull('assigned_province_id')
+            ->where('role', '!=', UserRole::TC->value)
+            ->orderBy('username')
+            ->pluck('username');
+
+        if ($regionalUsersWithProvince->isNotEmpty()) {
+            $this->warnings[] = 'Non-Coordinator account(s) have an assigned_province_id that is ignored by authorization: '
+                .$regionalUsersWithProvince->implode(', ').'.';
+        }
+
+        $unscopableProjects = DB::table('projects')
+            ->whereNull('province_id')
+            ->where(function ($query): void {
+                $query
+                    ->whereNull('province')
+                    ->orWhereRaw("TRIM(COALESCE(province, '')) = ''");
+            })
+            ->count();
+
+        if ($unscopableProjects > 0) {
+            $this->failures[] = "{$unscopableProjects} project(s) have neither province_id nor a legacy province name and cannot be safely exposed to a province-scoped Coordinator.";
+        }
+
+        if (Schema::hasTable('project_drafts')) {
+            $unscopableDrafts = DB::table('project_drafts')
+                ->whereNull('province_id')
+                ->where(function ($query): void {
+                    $query
+                        ->whereNull('province')
+                        ->orWhereRaw("TRIM(COALESCE(province, '')) = ''");
+                })
+                ->count();
+
+            if ($unscopableDrafts > 0) {
+                $this->warnings[] = "{$unscopableDrafts} project draft(s) have no province identity and will fail closed for TUPAD Coordinators until corrected.";
+            }
         }
     }
 
