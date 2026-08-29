@@ -25,6 +25,9 @@ class VerifyReleaseReadiness extends Command
     /** @var array<int, string> */
     private array $warnings = [];
 
+    /** @var array<int, string> */
+    private array $failureDetails = [];
+
     public function handle(): int
     {
         $this->info('TUPAD release verification');
@@ -46,6 +49,10 @@ class VerifyReleaseReadiness extends Command
         if ($this->failures !== []) {
             foreach ($this->failures as $failure) {
                 $this->error($failure);
+            }
+
+            foreach ($this->failureDetails as $detail) {
+                $this->line($detail);
             }
 
             $this->newLine();
@@ -218,6 +225,10 @@ class VerifyReleaseReadiness extends Command
         if ($invalidActiveCoordinators->isNotEmpty()) {
             $this->failures[] = 'Active TUPAD Coordinator account(s) have no valid assigned province: '
                 .$invalidActiveCoordinators->implode(', ').'. Assign each active Coordinator to an active province before release.';
+
+            foreach ($invalidActiveCoordinators as $username) {
+                $this->failureDetails[] = 'Affected Coordinator: '.$username;
+            }
         }
 
         $inactiveProvinceCoordinators = DB::table('users as user')
@@ -231,6 +242,10 @@ class VerifyReleaseReadiness extends Command
         if ($inactiveProvinceCoordinators->isNotEmpty()) {
             $this->failures[] = 'Active TUPAD Coordinator account(s) are assigned to an inactive province: '
                 .$inactiveProvinceCoordinators->implode(', ').'. Reassign or reactivate the province before release.';
+
+            foreach ($inactiveProvinceCoordinators as $username) {
+                $this->failureDetails[] = 'Affected Coordinator: '.$username;
+            }
         }
 
         $regionalUsersWithProvince = DB::table('users')

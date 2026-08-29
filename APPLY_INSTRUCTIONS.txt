@@ -1,53 +1,34 @@
-TUPAD Reporting System
-Major Revision Phase 13E - Hotfix 01
-UserRole Import + Province Status Contract
+TUPAD Major Revision Phase 13E Hotfix 02
+Release Verifier Coordinator Diagnostic Output Contract
 
 PURPOSE
--------
-This hotfix fixes the two compatibility failures remaining after Phase 13E:
+The Phase 13E release verifier already detects active TUPAD Coordinators that are unassigned or assigned to inactive provinces. Laravel's console test output matcher can receive long styled error messages in wrapped chunks, causing the full username substring to be split and making the two username assertions fail even though the verifier correctly blocks release.
 
-1. VerifyReleaseReadiness.php referenced UserRole::TC without importing
-   App\Enums\UserRole. PHP therefore attempted to resolve the enum as
-   App\Console\Commands\UserRole and the release-verifier tests crashed.
+THIS HOTFIX
+- Keeps the existing blocking failure messages and exit codes unchanged.
+- Keeps one blocking issue per integrity rule (does not inflate the blocking-issue count per user).
+- Prints each affected Coordinator username on a short explicit diagnostic line:
+  Affected Coordinator: <username>
+- No authorization, province scoping, database, seeder, workflow, or UI logic changes.
 
-2. DatabaseValidationHardeningTest still expected HTTP 404 when a TUPAD
-   Coordinator submits a municipality belonging to another province.
-   Phase 13D intentionally enforces cross-province access as HTTP 403.
-   The production behavior is correct, so the stale test is updated to
-   assert Forbidden instead of Not Found.
-
-FILES REPLACED
---------------
+REPLACED FILE
 app/Console/Commands/VerifyReleaseReadiness.php
-tests/Feature/DatabaseValidationHardeningTest.php
-
-DATABASE / DEPENDENCIES
------------------------
-No migration.
-No Composer dependency.
-No npm dependency.
-No data rewrite.
 
 APPLY
------
-1. Extract this ZIP over the Laravel project root.
-2. Allow the two files above to replace the existing versions.
-3. Run:
+Extract this ZIP over the Laravel project root and allow the file to be replaced.
 
-   php artisan optimize:clear
-
-FOCUSED VERIFICATION
---------------------
+RUN
+php artisan optimize:clear
 php artisan test tests/Feature/MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest.php
-php artisan test tests/Feature/MajorRevisionPhase13AProvinceScopedAuthenticationFoundationTest.php
-php artisan test tests/Feature/MajorRevisionPhase11ReleaseVerificationTest.php
-php artisan test tests/Feature/MajorRevisionPhase12EFinalReleaseVerificationTest.php
-php artisan test tests/Feature/DatabaseValidationHardeningTest.php
 
-FINAL VERIFICATION
-------------------
+Then:
 php artisan test
 php artisan tupad:release-verify
 npm run build
 
+EXPECTED
+- Phase 13E focused test: 6 passed, 0 failed.
+- Full regression: 273 passed, 0 failed (based on the preceding 271-pass/2-fail run, assuming no unrelated local changes).
+
 Do not use php artisan migrate:fresh.
+No migration is included.
