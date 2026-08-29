@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectObligation;
@@ -19,6 +20,8 @@ class ProjectPaymentController extends Controller
         Project $project,
         ProjectPaymentService $paymentService
     ): View {
+        $this->ensureDirectAdministration($project);
+
         if (
             ! in_array(
                 $project->status,
@@ -66,6 +69,8 @@ class ProjectPaymentController extends Controller
         Project $project,
         ProjectPaymentService $paymentService
     ): RedirectResponse {
+        $this->ensureDirectAdministration($project);
+
         if ($project->status !== ProjectStatus::FOR_PAYMENT) {
             abort(
                 403,
@@ -104,7 +109,11 @@ class ProjectPaymentController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($project->id);
 
-            if ($lockedProject->status !== ProjectStatus::FOR_PAYMENT) {
+            if (
+                $lockedProject->implementation_mode
+                    !== ImplementationMode::DIRECT_ADMINISTRATION
+                || $lockedProject->status !== ProjectStatus::FOR_PAYMENT
+            ) {
                 throw ValidationException::withMessages([
                     'amount' =>
                         'This project is no longer available for payment processing.',
@@ -242,4 +251,18 @@ class ProjectPaymentController extends Controller
                 )
             );
     }
+
+    private function ensureDirectAdministration(Project $project): void
+    {
+        if (
+            $project->implementation_mode
+                !== ImplementationMode::DIRECT_ADMINISTRATION
+        ) {
+            abort(
+                403,
+                'The Payment of Wages interface applies only to Direct Administration projects.'
+            );
+        }
+    }
+
 }

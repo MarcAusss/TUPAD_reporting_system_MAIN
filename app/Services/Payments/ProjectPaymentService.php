@@ -2,6 +2,7 @@
 
 namespace App\Services\Payments;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectObligation;
@@ -103,7 +104,9 @@ class ProjectPaymentService
         $project->load('obligations.disbursements');
 
         if (
-            $project->status === ProjectStatus::FOR_PAYMENT
+            $project->implementation_mode
+                === ImplementationMode::DIRECT_ADMINISTRATION
+            && $project->status === ProjectStatus::FOR_PAYMENT
             && $this->summary($project)['is_fully_paid']
         ) {
             $project->setStatusTransitionContext(

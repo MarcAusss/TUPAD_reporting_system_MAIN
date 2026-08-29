@@ -3,6 +3,7 @@
 namespace App\Services\Dashboards;
 
 use App\Enums\BeneficiarySectorCategory;
+use App\Enums\ImplementationMode;
 use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
@@ -49,6 +50,23 @@ final class ExecutiveDashboardService
                 $projectCohort,
             )
         );
+
+        $implementationModeRows = collect(ImplementationMode::cases())
+            ->map(function (ImplementationMode $mode) use ($projectCohort): array {
+                $projects = $projectCohort
+                    ->filter(fn (Project $project): bool =>
+                        $project->implementation_mode === $mode
+                    );
+
+                return [
+                    'key' => $mode->value,
+                    'label' => $mode->label(),
+                    'project_count' => $projects->count(),
+                    'beneficiaries_total' => (int) $projects->sum('beneficiaries_total'),
+                ];
+            })
+            ->values()
+            ->all();
 
         $trendDimension = $filters->fiscalYear !== null
             ? ReportDimension::MONTH
@@ -112,6 +130,8 @@ final class ExecutiveDashboardService
         $obligatedCents = $fund ? (int) $fund['obligated_cents'] : null;
         $disbursedCents = $fund ? (int) $fund['disbursed_cents'] : null;
         $balanceCents = $fund ? (int) $fund['balance_cents'] : null;
+        $acpCheckReleasedCents = $fund ? (int) ($fund['acp_check_released_cents'] ?? 0) : null;
+        $acpLiquidatedCents = $fund ? (int) ($fund['acp_liquidated_cents'] ?? 0) : null;
 
         $kpis = [
             'total_projects' => $totalProjects,
@@ -124,6 +144,21 @@ final class ExecutiveDashboardService
             'for_payment' => (int) (
                 collect($statusRows)
                     ->firstWhere('key', ProjectStatus::FOR_PAYMENT->value)['project_count']
+                ?? 0
+            ),
+            'for_check_release' => (int) (
+                collect($statusRows)
+                    ->firstWhere('key', ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT->value)['project_count']
+                ?? 0
+            ),
+            'for_liquidation' => (int) (
+                collect($statusRows)
+                    ->firstWhere('key', ProjectStatus::FOR_LIQUIDATION->value)['project_count']
+                ?? 0
+            ),
+            'partially_liquidated' => (int) (
+                collect($statusRows)
+                    ->firstWhere('key', ProjectStatus::PARTIALLY_LIQUIDATED->value)['project_count']
                 ?? 0
             ),
             'beneficiaries_total' => $beneficiariesTotal,
@@ -141,6 +176,9 @@ final class ExecutiveDashboardService
             'financial_accomplishment_percent' => $allocationCents && $allocationCents > 0
                 ? round(($disbursedCents / $allocationCents) * 100, 2)
                 : null,
+            'acp_liquidation_percent' => $acpCheckReleasedCents && $acpCheckReleasedCents > 0
+                ? round((($acpLiquidatedCents ?? 0) / $acpCheckReleasedCents) * 100, 2)
+                : null,
         ];
 
         return [
@@ -152,6 +190,7 @@ final class ExecutiveDashboardService
             'physical_trend' => $trendRows->values()->all(),
             'physical_trend_dimension' => $trendDimension,
             'projects_by_term' => $termRows,
+            'projects_by_implementation_mode' => $implementationModeRows,
             'financial_position' => $fund,
             'beneficiaries_by_province' => $provinceRows->values()->all(),
             'sector_priority' => $sectorRows
@@ -169,6 +208,7 @@ final class ExecutiveDashboardService
             'financial_note' => $fineGeographySelected
                 ? 'Financial KPIs are intentionally unavailable for district, municipality, or barangay filters because the system has no authoritative financial allocation at those levels.'
                 : null,
+            'financial_basis_note' => 'Direct Administration obligation/disbursement values come from wage obligation tranches and disbursements. Through ACP obligation-stage values come from the official ACP payment record, disbursement-stage values come from the released check, and liquidation is reported separately.',
             'geography_note' => 'Geographic beneficiary totals use exact project_location_barangay beneficiary allocations. Legacy rows without an exact pivot allocation are not guessed.',
             'sector_note' => 'Sector classifications may overlap. Sector counts are project-level classification totals for the matching project cohort and must not be added together as unique beneficiary totals or treated as geographic allocations.',
             'labor_market_note' => 'Labor market metrics use project_labor_market_referrals.reporting_month. Geographic filters select matching project cohorts; referral values remain project-level and are not divided across localities.',
@@ -210,6 +250,7 @@ final class ExecutiveDashboardService
         return [
             'fiscal_years' => $years,
             'terms' => ProjectTerm::cases(),
+            'implementation_modes' => ImplementationMode::cases(),
             'statuses' => ProjectStatus::cases(),
             'sectors' => BeneficiarySectorCategory::cases(),
             'intervention_focuses' => ProjectInterventionFocus::cases(),
@@ -375,6 +416,9 @@ final class ExecutiveDashboardService
         }
         if ($filters->status) {
             $labels['Project Status'] = $filters->status->label();
+        }
+        if ($filters->implementationMode) {
+            $labels['Implementation Mode'] = $filters->implementationMode->label();
         }
         if ($filters->sponsor) {
             $labels['Sponsor'] = $filters->sponsor;

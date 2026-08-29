@@ -19,11 +19,14 @@ class ProjectStatusEngine
         ProjectStatus::ONGOING_IMPLEMENTATION,
         ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
         ProjectStatus::FOR_PAYMENT,
+        ProjectStatus::FOR_LIQUIDATION,
+        ProjectStatus::PARTIALLY_LIQUIDATED,
     ];
 
     public function __construct(
         private readonly ImplementationStageService $implementationStageService,
         private readonly ProjectPaymentService $paymentService,
+        private readonly ProjectAcpLiquidationService $acpLiquidationService,
     ) {
     }
 
@@ -144,37 +147,59 @@ class ProjectStatusEngine
     ): ?ProjectStatus {
         return match ($project->status) {
             ProjectStatus::APPROVED =>
-                $this->isDirectAdministration($project)
-                && $this->preImplementationRequirementsComplete($project)
-                    ? ProjectStatus::FOR_IMPLEMENTATION
-                    : null,
+                $project->implementation_mode === ImplementationMode::THROUGH_ACP
+                    ? ($project->approval ? ProjectStatus::FOR_PAYMENT : null)
+                    : ($this->preImplementationRequirementsComplete($project)
+                        ? ProjectStatus::FOR_IMPLEMENTATION
+                        : null),
 
             ProjectStatus::FOR_IMPLEMENTATION =>
-                $this->nextImplementationStatus(
-                    $project,
-                    $today,
-                    [
-                        ProjectStatus::ONGOING_IMPLEMENTATION,
-                        ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
-                    ],
-                ),
+                $this->isThroughAcp($project)
+                    ? $this->nextAcpImplementationStatus(
+                        $project,
+                        $today,
+                        [
+                            ProjectStatus::ONGOING_IMPLEMENTATION,
+                            ProjectStatus::FOR_LIQUIDATION,
+                        ],
+                    )
+                    : $this->nextImplementationStatus(
+                        $project,
+                        $today,
+                        [
+                            ProjectStatus::ONGOING_IMPLEMENTATION,
+                            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+                        ],
+                    ),
 
             ProjectStatus::ONGOING_IMPLEMENTATION =>
-                $this->nextImplementationStatus(
-                    $project,
-                    $today,
-                    [ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS],
-                ),
+                $this->isThroughAcp($project)
+                    ? $this->nextAcpImplementationStatus(
+                        $project,
+                        $today,
+                        [ProjectStatus::FOR_LIQUIDATION],
+                    )
+                    : $this->nextImplementationStatus(
+                        $project,
+                        $today,
+                        [ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS],
+                    ),
 
             ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS =>
-                $this->postDocumentsComplete($project)
+                $this->isDirectAdministration($project)
+                && $this->postDocumentsComplete($project)
                     ? ProjectStatus::FOR_PAYMENT
                     : null,
 
             ProjectStatus::FOR_PAYMENT =>
-                $this->paymentService->summary($project)['is_fully_paid']
+                $this->isDirectAdministration($project)
+                && $this->paymentService->summary($project)['is_fully_paid']
                     ? ProjectStatus::COMPLETED
                     : null,
+
+            ProjectStatus::FOR_LIQUIDATION,
+            ProjectStatus::PARTIALLY_LIQUIDATED =>
+                $this->nextAcpLiquidationStatus($project),
 
             default => null,
         };
@@ -202,6 +227,82 @@ class ProjectStatusEngine
             : null;
     }
 
+    /**
+     * @param  array<int, ProjectStatus>  $allowedForwardStatuses
+     */
+    private function nextAcpImplementationStatus(
+        Project $project,
+        CarbonImmutable $today,
+        array $allowedForwardStatuses,
+    ): ?ProjectStatus {
+        if (
+            ! $this->isThroughAcp($project)
+            || $project->acpCheckRelease === null
+            || $project->implementation === null
+        ) {
+            return null;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Date-Only Workflow in Asia/Manila
+        |--------------------------------------------------------------------------
+        |
+        | ProjectImplementation start_date/end_date are Eloquent date casts.
+        | Depending on the application/database timezone they may be Carbon
+        | instances representing midnight UTC. Comparing those instants directly
+        | against a Manila-local workflow date can delay a same-calendar-day
+        | transition by eight hours.
+        |
+        | The ACP implementation workflow is calendar-date based, so rebuild the
+        | stored Y-m-d values explicitly at midnight in Asia/Manila. This mirrors
+        | the existing Direct Administration ImplementationStageService behavior.
+        |
+        */
+        $startDate = CarbonImmutable::parse(
+            $project->implementation->start_date->format('Y-m-d'),
+            'Asia/Manila',
+        )->startOfDay();
+
+        $endDate = CarbonImmutable::parse(
+            $project->implementation->end_date->format('Y-m-d'),
+            'Asia/Manila',
+        )->startOfDay();
+
+        $stage = $today->gte($endDate)
+            ? ProjectStatus::FOR_LIQUIDATION
+            : ($today->gte($startDate)
+                ? ProjectStatus::ONGOING_IMPLEMENTATION
+                : ProjectStatus::FOR_IMPLEMENTATION);
+
+        return in_array($stage, $allowedForwardStatuses, true)
+            ? $stage
+            : null;
+    }
+
+    private function nextAcpLiquidationStatus(
+        Project $project
+    ): ?ProjectStatus {
+        if (! $this->isThroughAcp($project)) {
+            return null;
+        }
+
+        $summary = $this->acpLiquidationService->summary($project);
+
+        if ($summary['is_fully_liquidated']) {
+            return ProjectStatus::COMPLETED;
+        }
+
+        if (
+            $project->status === ProjectStatus::FOR_LIQUIDATION
+            && $summary['has_liquidation']
+        ) {
+            return ProjectStatus::PARTIALLY_LIQUIDATED;
+        }
+
+        return null;
+    }
+
     private function preImplementationRequirementsComplete(Project $project): bool
     {
         return $project->insuranceEnrollment !== null
@@ -223,6 +324,12 @@ class ProjectStatusEngine
             === ImplementationMode::DIRECT_ADMINISTRATION;
     }
 
+    private function isThroughAcp(Project $project): bool
+    {
+        return $project->implementation_mode
+            === ImplementationMode::THROUGH_ACP;
+    }
+
     private function effectiveDate(?CarbonInterface $today): CarbonImmutable
     {
         return $today
@@ -236,26 +343,40 @@ class ProjectStatusEngine
     {
         $relations = match ($project->status) {
             ProjectStatus::APPROVED => [
+                'approval',
                 'insuranceEnrollment',
                 'ppeDelivery',
                 'noticeToProceed',
             ],
 
             ProjectStatus::FOR_IMPLEMENTATION,
-            ProjectStatus::ONGOING_IMPLEMENTATION => [
-                'insuranceEnrollment',
-                'ppeDelivery',
-                'noticeToProceed',
-                'orientation',
-                'implementation',
-            ],
+            ProjectStatus::ONGOING_IMPLEMENTATION =>
+                $this->isThroughAcp($project)
+                    ? [
+                        'acpCheckRelease',
+                        'implementation',
+                    ]
+                    : [
+                        'insuranceEnrollment',
+                        'ppeDelivery',
+                        'noticeToProceed',
+                        'orientation',
+                        'implementation',
+                    ],
 
             ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => [
                 'postDocuments',
             ],
 
-            ProjectStatus::FOR_PAYMENT => [
-                'obligations.disbursements',
+            ProjectStatus::FOR_PAYMENT =>
+                $this->isThroughAcp($project)
+                    ? ['acpPayment']
+                    : ['obligations.disbursements'],
+
+            ProjectStatus::FOR_LIQUIDATION,
+            ProjectStatus::PARTIALLY_LIQUIDATED => [
+                'acpCheckRelease',
+                'acpLiquidations',
             ],
 
             default => [],
@@ -271,6 +392,9 @@ class ProjectStatusEngine
         ProjectStatus $to,
     ): string {
         return match ([$from, $to]) {
+            [ProjectStatus::APPROVED, ProjectStatus::FOR_PAYMENT] =>
+                'Automatic status engine: Through ACP approval is complete and the project is ready for payment processing.',
+
             [ProjectStatus::APPROVED, ProjectStatus::FOR_IMPLEMENTATION] =>
                 'Automatic status engine: Insurance, PPE delivery, and Notice to Proceed are complete.',
 
@@ -279,7 +403,18 @@ class ProjectStatusEngine
 
             [ProjectStatus::FOR_IMPLEMENTATION, ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS],
             [ProjectStatus::ONGOING_IMPLEMENTATION, ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS] =>
-                'Automatic status engine: The implementation end date has been reached (Asia/Manila).',
+                'Automatic status engine: The Direct Administration implementation end date has been reached (Asia/Manila).',
+
+            [ProjectStatus::FOR_IMPLEMENTATION, ProjectStatus::FOR_LIQUIDATION],
+            [ProjectStatus::ONGOING_IMPLEMENTATION, ProjectStatus::FOR_LIQUIDATION] =>
+                'Automatic status engine: The Through ACP implementation end date has been reached and liquidation is now required.',
+
+            [ProjectStatus::FOR_LIQUIDATION, ProjectStatus::PARTIALLY_LIQUIDATED] =>
+                'Automatic status engine: A partial Through ACP liquidation was recorded.',
+
+            [ProjectStatus::FOR_LIQUIDATION, ProjectStatus::COMPLETED],
+            [ProjectStatus::PARTIALLY_LIQUIDATED, ProjectStatus::COMPLETED] =>
+                'Automatic status engine: The full released Through ACP amount has been liquidated.',
 
             [ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS, ProjectStatus::FOR_PAYMENT] =>
                 'Automatic status engine: Complete post-documentary requirements were forwarded to IMSD.',

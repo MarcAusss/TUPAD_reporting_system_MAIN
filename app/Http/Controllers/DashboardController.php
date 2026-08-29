@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectDraftStatus;
 use App\Enums\ProjectStatus;
 use App\Models\Adl;
@@ -161,52 +162,61 @@ class DashboardController extends Controller
         */
 
         $workflowCounts = [
-            'tssd' =>
-                Project::query()
-                    ->whereIn(
-                        'status',
-                        [
-                            ProjectStatus::TSSD_EVALUATION,
-                            ProjectStatus::FOR_COMPLIANCE,
-                        ]
-                    )
-                    ->count(),
+            'tssd' => Project::query()
+                ->whereIn('status', [
+                    ProjectStatus::TSSD_EVALUATION,
+                    ProjectStatus::FOR_COMPLIANCE,
+                ])
+                ->count(),
 
-            'approval' =>
-                Project::query()
-                    ->where(
-                        'status',
-                        ProjectStatus::FOR_APPROVAL
-                    )
-                    ->count(),
+            'approval' => Project::query()
+                ->where('status', ProjectStatus::FOR_APPROVAL)
+                ->count(),
 
-            'implementation' =>
-                Project::query()
-                    ->whereIn(
-                        'status',
-                        [
-                            ProjectStatus::APPROVED,
-                            ProjectStatus::FOR_IMPLEMENTATION,
-                            ProjectStatus::ONGOING_IMPLEMENTATION,
-                        ]
-                    )
-                    ->count(),
+            'implementation' => Project::query()
+                ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
+                ->whereIn('status', [
+                    ProjectStatus::APPROVED,
+                    ProjectStatus::FOR_IMPLEMENTATION,
+                    ProjectStatus::ONGOING_IMPLEMENTATION,
+                ])
+                ->count(),
 
-            'post_documents' =>
-                Project::query()
-                    ->where(
-                        'status',
-                        ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
-                    )
-                    ->count(),
+            'post_documents' => Project::query()
+                ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
+                ->where('status', ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS)
+                ->count(),
 
-            'payment' =>
-                Project::query()
-                    ->where(
-                        'status',
-                        ProjectStatus::FOR_PAYMENT
-                    )
-                    ->count(),
+            'payment' => Project::query()
+                ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
+                ->where('status', ProjectStatus::FOR_PAYMENT)
+                ->count(),
+
+            'acp_payment' => Project::query()
+                ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
+                ->where('status', ProjectStatus::FOR_PAYMENT)
+                ->count(),
+
+            'acp_check_release' => Project::query()
+                ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
+                ->where('status', ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT)
+                ->count(),
+
+            'acp_implementation' => Project::query()
+                ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
+                ->whereIn('status', [
+                    ProjectStatus::FOR_IMPLEMENTATION,
+                    ProjectStatus::ONGOING_IMPLEMENTATION,
+                ])
+                ->count(),
+
+            'acp_liquidation' => Project::query()
+                ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
+                ->whereIn('status', [
+                    ProjectStatus::FOR_LIQUIDATION,
+                    ProjectStatus::PARTIALLY_LIQUIDATED,
+                ])
+                ->count(),
         ];
 
         /*

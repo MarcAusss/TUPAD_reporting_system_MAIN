@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Enums\BeneficiarySectorCategory;
+use App\Enums\ImplementationMode;
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
 use App\Models\Adl;
@@ -193,9 +194,14 @@ final class ReportGenerationService
             $this->column('label', $dimension->label()),
             $this->column('project_count', 'Projects', 'integer'),
             $this->column('allocation_cents', 'TUPAD Allocation', 'money'),
-            $this->column('payable_wages_cents', 'Payable Wages', 'money'),
-            $this->column('obligated_cents', 'Obligated', 'money'),
-            $this->column('disbursed_cents', 'Disbursed', 'money'),
+            $this->column('payable_wages_cents', 'DA Payable Wages', 'money'),
+            $this->column('direct_admin_obligated_cents', 'DA Obligated', 'money'),
+            $this->column('direct_admin_disbursed_cents', 'DA Disbursed', 'money'),
+            $this->column('acp_payment_cents', 'ACP Payment Recorded', 'money'),
+            $this->column('acp_check_released_cents', 'ACP Check Released', 'money'),
+            $this->column('acp_liquidated_cents', 'ACP Liquidated', 'money'),
+            $this->column('obligated_cents', 'Total Obligated', 'money'),
+            $this->column('disbursed_cents', 'Total Disbursed', 'money'),
             $this->column(
                 'unobligated_balance_cents',
                 'Unobligated Balance',
@@ -377,10 +383,12 @@ final class ReportGenerationService
 
         return [
             $this->card('TUPAD Allocation', $row['allocation_cents'] ?? 0, 'money'),
-            $this->card('Payable Wages', $row['payable_wages_cents'] ?? 0, 'money'),
-            $this->card('Obligated', $row['obligated_cents'] ?? 0, 'money'),
-            $this->card('Disbursed', $row['disbursed_cents'] ?? 0, 'money'),
-            $this->card('Unobligated', $row['unobligated_balance_cents'] ?? 0, 'money'),
+            $this->card('DA Payable Wages', $row['payable_wages_cents'] ?? 0, 'money'),
+            $this->card('ACP Payment Recorded', $row['acp_payment_cents'] ?? 0, 'money'),
+            $this->card('ACP Check Released', $row['acp_check_released_cents'] ?? 0, 'money'),
+            $this->card('ACP Liquidated', $row['acp_liquidated_cents'] ?? 0, 'money'),
+            $this->card('Total Obligated', $row['obligated_cents'] ?? 0, 'money'),
+            $this->card('Total Disbursed', $row['disbursed_cents'] ?? 0, 'money'),
             $this->card('Cash Balance', $row['balance_cents'] ?? 0, 'money'),
         ];
     }
@@ -489,6 +497,10 @@ final class ReportGenerationService
 
         if ($filters->status) {
             $criteria['Status'] = $filters->status->label();
+        }
+
+        if ($filters->implementationMode) {
+            $criteria['Implementation Mode'] = $filters->implementationMode->label();
         }
 
         if ($filters->adlId) {

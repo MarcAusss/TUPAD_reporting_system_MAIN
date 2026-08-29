@@ -212,6 +212,25 @@
                         </a>
 
                         <div class="tupad-nav-section">
+                            Through ACP
+                        </div>
+
+                        @foreach ([
+                            'acp-workflow.payment' => 'ACP Payment',
+                            'acp-workflow.check-release' => 'Check Release',
+                            'acp-workflow.liquidation' => 'Liquidation',
+                        ] as $acpRoute => $acpLabel)
+                            <a href="{{ route($acpRoute) }}"
+                                class="{{ $navClass(request()->routeIs($acpRoute) || (request()->routeIs('acp-payments.*') && in_array($acpRoute, ['acp-workflow.payment', 'acp-workflow.check-release'], true)) || (request()->routeIs('acp-liquidations.*') && $acpRoute === 'acp-workflow.liquidation')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
+                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M4 6h16v12H4z"></path>
+                                    <path d="M8 10h8 M8 14h5"></path>
+                                </svg>
+                                <span>{{ $acpLabel }}</span>
+                            </a>
+                        @endforeach
+
+                        <div class="tupad-nav-section">
                             Reporting
                         </div>
 
@@ -331,6 +350,35 @@
                                 <span>{{ $queueLabel }}</span>
                             </a>
                         @endforeach
+
+                        <div class="tupad-nav-section">
+                            Through ACP
+                        </div>
+
+                        <a href="{{ route('acp-workflow.implementation') }}"
+                            class="{{ $navClass(request()->routeIs('acp-workflow.implementation') || request()->routeIs('acp-implementation.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
+                            <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M4 21h16 M6 21V9l6-4 6 4v12"></path>
+                            </svg>
+                            <span>ACP Implementation</span>
+                        </a>
+
+                        @if ($user->isAdmin())
+                            @foreach ([
+                                'acp-workflow.payment' => 'ACP Payment',
+                                'acp-workflow.check-release' => 'Check Release',
+                                'acp-workflow.liquidation' => 'Liquidation',
+                            ] as $acpRoute => $acpLabel)
+                                <a href="{{ route($acpRoute) }}"
+                                    class="{{ $navClass(request()->routeIs($acpRoute) || (request()->routeIs('acp-payments.*') && in_array($acpRoute, ['acp-workflow.payment', 'acp-workflow.check-release'], true)) || (request()->routeIs('acp-liquidations.*') && $acpRoute === 'acp-workflow.liquidation')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
+                                    <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path d="M4 6h16v12H4z"></path>
+                                        <path d="M8 10h8 M8 14h5"></path>
+                                    </svg>
+                                    <span>{{ $acpLabel }}</span>
+                                </a>
+                            @endforeach
+                        @endif
 
                         @if ($user->isAdmin())
                             <div class="tupad-nav-section">

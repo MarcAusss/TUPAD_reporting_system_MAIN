@@ -139,6 +139,19 @@
                     </div>
 
                     <div>
+                        <label for="implementation_mode" class="mb-2 block text-xs font-semibold text-slate-700">Implementation Mode</label>
+                        <select id="implementation_mode" name="implementation_mode"
+                            class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            <option value="">All implementation modes</option>
+                            @foreach ($options['implementation_modes'] as $mode)
+                                <option value="{{ $mode->value }}" @selected(request('implementation_mode') === $mode->value)>
+                                    {{ $mode->label() }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
                         <label for="status" class="mb-2 block text-xs font-semibold text-slate-700">Status</label>
                         <select id="status" name="status"
                             class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">

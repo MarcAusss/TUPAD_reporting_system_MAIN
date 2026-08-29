@@ -275,6 +275,42 @@
                 </div>
 
             </section>
+
+            <section class="mb-5">
+                <div class="mb-3">
+                    <h2 class="text-sm font-semibold text-slate-900">Through ACP Workflow</h2>
+                    <p class="mt-1 text-xs text-slate-500">Separate ACP queues for check-funded implementation and liquidation.</p>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <a href="{{ route('acp-workflow.implementation') }}"
+                        class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
+                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">ACP Implementation</div>
+                        <div class="mt-2 flex items-end justify-between gap-3">
+                            <div class="text-sm font-semibold text-slate-900">Implementation</div>
+                            <div class="text-2xl font-extrabold text-slate-900">{{ number_format($workflowCounts['acp_implementation']) }}</div>
+                        </div>
+                        <div class="mt-1 text-xs text-slate-500">For Implementation or Ongoing Implementation.</div>
+                    </a>
+
+                    @if ($roleMode === 'admin')
+                        @foreach ([
+                            ['acp-workflow.payment', 'ACP Payment', $workflowCounts['acp_payment']],
+                            ['acp-workflow.check-release', 'Check Release', $workflowCounts['acp_check_release']],
+                            ['acp-workflow.liquidation', 'Liquidation', $workflowCounts['acp_liquidation']],
+                        ] as [$routeName, $label, $count])
+                            <a href="{{ route($routeName) }}"
+                                class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Through ACP</div>
+                                <div class="mt-2 flex items-end justify-between gap-3">
+                                    <div class="text-sm font-semibold text-slate-900">{{ $label }}</div>
+                                    <div class="text-2xl font-extrabold text-slate-900">{{ number_format($count) }}</div>
+                                </div>
+                            </a>
+                        @endforeach
+                    @endif
+                </div>
+            </section>
         @elseif($roleMode === 'focal')
             <section class="mb-5">
 
@@ -354,6 +390,31 @@
 
                 </div>
 
+            </section>
+
+            <section class="mb-5">
+                <div class="mb-3">
+                    <h2 class="text-sm font-semibold text-slate-900">Through ACP Financial Queue</h2>
+                    <p class="mt-1 text-xs text-slate-500">Payment, check release, and liquidation are separate from Direct Administration wage processing.</p>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    @foreach ([
+                        ['acp-workflow.payment', 'For Payment', $workflowCounts['acp_payment'], 'Record the official ACP payment amount from the approved project cost.'],
+                        ['acp-workflow.check-release', 'Check Release', $workflowCounts['acp_check_release'], 'Record release of the official check to the proponent.'],
+                        ['acp-workflow.liquidation', 'Liquidation', $workflowCounts['acp_liquidation'], 'Record partial or final liquidation against the released check.'],
+                    ] as [$routeName, $label, $count, $description])
+                        <a href="{{ route($routeName) }}"
+                            class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
+                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Through ACP</div>
+                            <div class="mt-2 flex items-end justify-between gap-3">
+                                <div class="text-sm font-semibold text-slate-900">{{ $label }}</div>
+                                <div class="text-2xl font-extrabold text-slate-900">{{ number_format($count) }}</div>
+                            </div>
+                            <div class="mt-1 text-xs leading-5 text-slate-500">{{ $description }}</div>
+                        </a>
+                    @endforeach
+                </div>
             </section>
 
         @endif

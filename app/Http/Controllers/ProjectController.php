@@ -59,6 +59,10 @@ class ProjectController extends Controller
     public function paymentQueue(): View
     {
         $projects = Project::query()
+            ->where(
+                'implementation_mode',
+                ImplementationMode::DIRECT_ADMINISTRATION->value
+            )
             ->whereIn('status', [
                 ProjectStatus::FOR_PAYMENT->value,
                 ProjectStatus::COMPLETED->value,
@@ -780,7 +784,7 @@ class ProjectController extends Controller
                 */
 
                 'status' =>
-                    ProjectStatus::TSSD_EVALUATION,
+                    ProjectStatus::ONGOING_PROFILING,
 
                 'remarks' =>
                     $validated['remarks'] ?? null,
@@ -854,7 +858,7 @@ class ProjectController extends Controller
                 )
                 ->with(
                     'success',
-                    'Project profile saved successfully and moved to TSSD Evaluation.'
+                    'Project profile saved successfully with Ongoing Profiling status. Submit it to TSSD Evaluation when profiling is complete.'
                 );
         });
     }
@@ -881,18 +885,23 @@ class ProjectController extends Controller
             abort(403);
         }
 
-        if (
-            $user->isFocal()
-            && ! in_array(
-                $project->status,
-                [
+        if ($user->isFocal()) {
+            $allowedStatuses = $project->implementation_mode === ImplementationMode::THROUGH_ACP
+                ? [
+                    ProjectStatus::FOR_PAYMENT,
+                    ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
+                    ProjectStatus::FOR_LIQUIDATION,
+                    ProjectStatus::PARTIALLY_LIQUIDATED,
+                    ProjectStatus::COMPLETED,
+                ]
+                : [
                     ProjectStatus::FOR_PAYMENT,
                     ProjectStatus::COMPLETED,
-                ],
-                true
-            )
-        ) {
-            abort(403);
+                ];
+
+            if (! in_array($project->status, $allowedStatuses, true)) {
+                abort(403);
+            }
         }
 
         $project->load([
@@ -930,7 +939,11 @@ class ProjectController extends Controller
             'obligations.recorder',
             'obligations.disbursements.recorder',
             'payout.recorder',
-
+            'acpPayment.recorder',
+            'acpCheckRelease.recorder',
+            'acpCheckRelease.attachments',
+            'acpLiquidations.recorder',
+            'acpLiquidations.attachments',
 
             'statusHistory.changer',
         ]);

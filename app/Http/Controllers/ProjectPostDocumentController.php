@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectPostDocument;
@@ -22,10 +23,14 @@ class ProjectPostDocumentController extends Controller
         ProjectStatusEngine $statusEngine,
     ): RedirectResponse
     {
-        if ($project->status !== ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS) {
+        if (
+            $project->implementation_mode
+                !== ImplementationMode::DIRECT_ADMINISTRATION
+            || $project->status !== ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
+        ) {
             abort(
                 403,
-                'Post-documentary requirements can only be recorded while the project is awaiting post-doc submission.'
+                'Post-documentary requirements apply only to Direct Administration projects with For Submission of Post-Docs status.'
             );
         }
 

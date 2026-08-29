@@ -73,6 +73,8 @@
                         ['Completed Projects', number_format($kpi['completed_projects'])],
                         ['Ongoing Implementation', number_format($kpi['ongoing_implementation'])],
                         ['For Payment', number_format($kpi['for_payment'])],
+                        ['For Check Release', number_format($kpi['for_check_release'])],
+                        ['For Liquidation', number_format($kpi['for_liquidation'])],
                         ['Total Beneficiaries', number_format($kpi['beneficiaries_total'])],
                         ['Female Beneficiaries', number_format($kpi['beneficiaries_female'])],
                         ['Physical Accomplishment', $percent($kpi['physical_accomplishment_percent'])],
@@ -140,7 +142,23 @@
                             </article>
                         @endforeach
                     </div>
-                    <div class="mt-6 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900">Financial accomplishment: <strong>{{ $percent($kpi['financial_accomplishment_percent']) }}</strong>. Balance basis is allocation less disbursed.</div>
+                    <div class="mt-6 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900">Financial accomplishment: <strong>{{ $percent($kpi['financial_accomplishment_percent']) }}</strong>. Balance basis is allocation less total disbursed.</div>
+
+                    <div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                        @foreach ([
+                            ['DA Obligated', $dashboard['financial_position']['direct_admin_obligated_cents'], true],
+                            ['DA Disbursed', $dashboard['financial_position']['direct_admin_disbursed_cents'], true],
+                            ['ACP Payment Recorded', $dashboard['financial_position']['acp_payment_cents'], true],
+                            ['ACP Check Released', $dashboard['financial_position']['acp_check_released_cents'], true],
+                            ['ACP Liquidated', $dashboard['financial_position']['acp_liquidated_cents'], true],
+                        ] as [$label, $value, $isMoney])
+                            <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
+                                <div class="mt-2 text-xl font-extrabold text-slate-900">{{ $isMoney ? $money((int) $value) : $value }}</div>
+                            </article>
+                        @endforeach
+                    </div>
+                    <p class="mt-4 text-xs leading-5 text-slate-500">{{ $dashboard['financial_basis_note'] }}</p>
                 @else
                     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-lg leading-8 text-amber-900">{{ $dashboard['financial_note'] }}</div>
                 @endif

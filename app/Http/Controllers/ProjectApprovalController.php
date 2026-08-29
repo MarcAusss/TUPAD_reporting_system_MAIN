@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
@@ -121,6 +122,18 @@ class ProjectApprovalController extends Controller
 
             $lockedProject->clearStatusTransitionContext();
 
+            if ($lockedProject->implementation_mode === ImplementationMode::THROUGH_ACP) {
+                $lockedProject->setStatusTransitionContext(
+                    actorId: (int) $request->user()->id,
+                    remarks: 'Through ACP project approval completed. Project moved to For Payment.',
+                )->update([
+                    'status' => ProjectStatus::FOR_PAYMENT,
+                    'updated_by' => $request->user()->id,
+                ]);
+
+                $lockedProject->clearStatusTransitionContext();
+            }
+
             return redirect()
                 ->route(
                     'projects.show',
@@ -128,7 +141,9 @@ class ProjectApprovalController extends Controller
                 )
                 ->with(
                     'success',
-                    "Project approved successfully. Project Code: {$approval->project_code}"
+                    $lockedProject->implementation_mode === ImplementationMode::THROUGH_ACP
+                        ? "Project approved successfully. Project Code: {$approval->project_code}. Through ACP project moved to For Payment."
+                        : "Project approved successfully. Project Code: {$approval->project_code}"
                 );
         });
     }

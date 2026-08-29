@@ -215,6 +215,23 @@ class Project extends Model
         );
     }
 
+    public function acpPayment(): HasOne
+    {
+        return $this->hasOne(ProjectAcpPayment::class);
+    }
+
+    public function acpCheckRelease(): HasOne
+    {
+        return $this->hasOne(ProjectAcpCheckRelease::class);
+    }
+
+    public function acpLiquidations(): HasMany
+    {
+        return $this->hasMany(ProjectAcpLiquidation::class)
+            ->orderBy('liquidation_date')
+            ->orderBy('id');
+    }
+
     public function postDocumentsComplete(): bool
     {
         return $this->postDocuments()

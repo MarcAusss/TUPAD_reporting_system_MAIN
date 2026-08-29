@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\BeneficiarySectorCategory;
+use App\Enums\ImplementationMode;
 use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
@@ -53,6 +54,7 @@ class ExecutiveDashboardRequest extends FormRequest
             ],
             'barangay_id' => ['nullable', 'integer', 'exists:barangays,id'],
             'status' => ['nullable', Rule::enum(ProjectStatus::class)],
+            'implementation_mode' => ['nullable', Rule::enum(ImplementationMode::class)],
             'sponsor' => ['nullable', 'string', 'max:255'],
             'partner' => ['nullable', 'string', 'max:255'],
             'project_code' => ['nullable', 'string', 'max:255'],
@@ -187,6 +189,35 @@ class ExecutiveDashboardRequest extends FormRequest
                             'The selected district is not available for the selected province.'
                         );
                     }
+                }
+
+                $implementationMode = ImplementationMode::tryFrom(
+                    (string) $this->input('implementation_mode', '')
+                );
+                $status = ProjectStatus::tryFrom((string) $this->input('status', ''));
+
+                if (
+                    $implementationMode === ImplementationMode::DIRECT_ADMINISTRATION
+                    && in_array($status, [
+                        ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
+                        ProjectStatus::FOR_LIQUIDATION,
+                        ProjectStatus::PARTIALLY_LIQUIDATED,
+                    ], true)
+                ) {
+                    $validator->errors()->add(
+                        'status',
+                        'The selected status belongs only to Through ACP projects.'
+                    );
+                }
+
+                if (
+                    $implementationMode === ImplementationMode::THROUGH_ACP
+                    && $status === ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
+                ) {
+                    $validator->errors()->add(
+                        'status',
+                        'For Submission of Post-Docs belongs only to Direct Administration projects.'
+                    );
                 }
             },
         ];

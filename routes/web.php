@@ -8,6 +8,11 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\ProjectAcpCheckReleaseController;
+use App\Http\Controllers\ProjectAcpImplementationController;
+use App\Http\Controllers\ProjectAcpLiquidationController;
+use App\Http\Controllers\ProjectAcpPaymentController;
+use App\Http\Controllers\ProjectAcpWorkflowQueueController;
 use App\Http\Controllers\ProjectApprovalController;
 use App\Http\Controllers\ProjectClassificationController;
 use App\Http\Controllers\ProjectController;
@@ -229,6 +234,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/payments', [ProjectController::class, 'paymentQueue'])
             ->name('payments.index');
 
+        Route::get('/acp-workflow/payment', [ProjectAcpWorkflowQueueController::class, 'payment'])
+            ->name('acp-workflow.payment');
+
+        Route::get('/acp-workflow/check-release', [ProjectAcpWorkflowQueueController::class, 'checkRelease'])
+            ->name('acp-workflow.check-release');
+
+        Route::get('/acp-workflow/liquidation', [ProjectAcpWorkflowQueueController::class, 'liquidation'])
+            ->name('acp-workflow.liquidation');
+
         Route::get('/payments/{project}', [ProjectPaymentController::class, 'show'])
             ->whereNumber('project')
             ->name('payments.show');
@@ -244,6 +258,42 @@ Route::middleware('auth')->group(function () {
             ->whereNumber('project')
             ->whereNumber('obligation')
             ->name('projects.payment.disbursements.store');
+
+        Route::get('/acp-payments/{project}', [ProjectAcpPaymentController::class, 'show'])
+            ->whereNumber('project')
+            ->name('acp-payments.show');
+
+        Route::post('/projects/{project}/acp-payment', [ProjectAcpPaymentController::class, 'store'])
+            ->whereNumber('project')
+            ->name('projects.acp-payment.store');
+
+        Route::post('/projects/{project}/acp-check-release', [ProjectAcpCheckReleaseController::class, 'store'])
+            ->whereNumber('project')
+            ->name('projects.acp-check-release.store');
+
+        Route::get(
+            '/projects/{project}/acp-check-release/attachments/{attachment}',
+            [ProjectAcpCheckReleaseController::class, 'download']
+        )
+            ->whereNumber('project')
+            ->whereNumber('attachment')
+            ->name('projects.acp-check-release.attachments.download');
+
+        Route::get('/acp-liquidations/{project}', [ProjectAcpLiquidationController::class, 'show'])
+            ->whereNumber('project')
+            ->name('acp-liquidations.show');
+
+        Route::post('/projects/{project}/acp-liquidations', [ProjectAcpLiquidationController::class, 'store'])
+            ->whereNumber('project')
+            ->name('projects.acp-liquidations.store');
+
+        Route::get(
+            '/projects/{project}/acp-liquidations/attachments/{attachment}',
+            [ProjectAcpLiquidationController::class, 'download']
+        )
+            ->whereNumber('project')
+            ->whereNumber('attachment')
+            ->name('projects.acp-liquidations.attachments.download');
     });
 
     /*
@@ -390,6 +440,17 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/projects/{project}/implementation/period', [ProjectImplementationController::class, 'implementationPeriod'])
             ->name('projects.implementation.period');
+
+        Route::get('/acp-workflow/implementation', [ProjectAcpWorkflowQueueController::class, 'implementation'])
+            ->name('acp-workflow.implementation');
+
+        Route::get('/acp-implementation/{project}', [ProjectAcpImplementationController::class, 'show'])
+            ->whereNumber('project')
+            ->name('acp-implementation.show');
+
+        Route::post('/projects/{project}/acp-implementation', [ProjectAcpImplementationController::class, 'store'])
+            ->whereNumber('project')
+            ->name('projects.acp-implementation.store');
 
         Route::post('/projects/{project}/post-documents', [ProjectPostDocumentController::class, 'store'])
             ->name('projects.post-documents.store');

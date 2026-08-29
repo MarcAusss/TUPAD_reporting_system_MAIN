@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\BeneficiarySectorCategory;
+use App\Enums\ImplementationMode;
 use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
@@ -182,6 +183,7 @@ class ReportController extends Controller
             ],
             'term' => ['nullable', Rule::enum(ProjectTerm::class)],
             'status' => ['nullable', Rule::enum(ProjectStatus::class)],
+            'implementation_mode' => ['nullable', Rule::enum(ImplementationMode::class)],
             'adl_id' => ['nullable', 'integer', 'exists:adls,id'],
             'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
             'district' => ['nullable', 'string', 'max:100'],
@@ -226,6 +228,36 @@ class ReportController extends Controller
                     'Month and quarter cannot be used at the same time.'
                 );
             }
+
+
+            $implementationMode = ImplementationMode::tryFrom(
+                (string) ($input['implementation_mode'] ?? '')
+            );
+            $status = ProjectStatus::tryFrom((string) ($input['status'] ?? ''));
+
+            if (
+                $implementationMode === ImplementationMode::DIRECT_ADMINISTRATION
+                && in_array($status, [
+                    ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
+                    ProjectStatus::FOR_LIQUIDATION,
+                    ProjectStatus::PARTIALLY_LIQUIDATED,
+                ], true)
+            ) {
+                $validator->errors()->add(
+                    'status',
+                    'The selected status belongs only to Through ACP projects.'
+                );
+            }
+
+            if (
+                $implementationMode === ImplementationMode::THROUGH_ACP
+                && $status === ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
+            ) {
+                $validator->errors()->add(
+                    'status',
+                    'For Submission of Post-Docs belongs only to Direct Administration projects.'
+                );
+            }
         });
 
         $validated = $validator->validate();
@@ -252,6 +284,7 @@ class ReportController extends Controller
             'report_types' => ReportType::cases(),
             'dimensions' => ReportDimension::cases(),
             'terms' => ProjectTerm::cases(),
+            'implementation_modes' => ImplementationMode::cases(),
             'statuses' => ProjectStatus::cases(),
             'sectors' => BeneficiarySectorCategory::cases(),
             'intervention_focuses' => ProjectInterventionFocus::cases(),

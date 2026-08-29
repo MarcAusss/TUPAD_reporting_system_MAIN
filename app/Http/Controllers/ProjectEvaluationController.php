@@ -22,13 +22,13 @@ class ProjectEvaluationController extends Controller
         ) {
             abort(
                 403,
-                'Only legacy Ongoing Profiling projects may be submitted for TSSD Evaluation.'
+                'Only projects with Ongoing Profiling status may be submitted for TSSD Evaluation.'
             );
         }
 
         $project->setStatusTransitionContext(
             actorId: (int) $request->user()->id,
-            remarks: 'Legacy profiling record submitted for TSSD Evaluation.',
+            remarks: 'Project profiling completed and submitted for TSSD Evaluation.',
         )->update([
             'status' => ProjectStatus::TSSD_EVALUATION,
             'updated_by' => $request->user()->id,

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\User;
 use Illuminate\Console\Command;
@@ -104,6 +105,44 @@ class VerifyReleaseReadiness extends Command
                 'provided_intervention_total',
                 'provided_intervention_female',
                 'amount_released',
+            ],
+            'project_implementations' => [
+                'project_id',
+                'start_date',
+                'end_date',
+                'recorded_by',
+            ],
+            'project_acp_payments' => [
+                'project_id',
+                'amount',
+                'payment_date',
+                'payee',
+                'recorded_by',
+            ],
+            'project_acp_check_releases' => [
+                'project_id',
+                'check_number',
+                'check_date',
+                'amount',
+                'released_date',
+                'released_to',
+                'recorded_by',
+            ],
+            'project_acp_check_release_attachments' => [
+                'project_acp_check_release_id',
+                'original_name',
+                'attachment_path',
+            ],
+            'project_acp_liquidations' => [
+                'project_id',
+                'liquidation_date',
+                'amount',
+                'recorded_by',
+            ],
+            'project_acp_liquidation_attachments' => [
+                'project_acp_liquidation_id',
+                'original_name',
+                'attachment_path',
             ],
         ];
 
@@ -275,6 +314,153 @@ class VerifyReleaseReadiness extends Command
                 $this->failures[] = "Obligation #{$obligationId} has disbursements exceeding the obligation amount.";
             }
         }
+
+        $this->verifyAcpFinancialIntegrity();
+    }
+
+    private function verifyAcpFinancialIntegrity(): void
+    {
+        $payments = DB::table('project_acp_payments as payment')
+            ->join('projects as project', 'project.id', '=', 'payment.project_id')
+            ->select([
+                'payment.id',
+                'payment.project_id',
+                'payment.amount',
+                'payment.payment_date',
+                'project.implementation_mode',
+                'project.total_project_cost',
+            ])
+            ->get();
+
+        foreach ($payments as $payment) {
+            if ($payment->implementation_mode !== ImplementationMode::THROUGH_ACP->value) {
+                $this->failures[] = "ACP payment #{$payment->id} belongs to a project that is not Through ACP.";
+            }
+
+            if ($this->moneyToCents($payment->amount) !== $this->moneyToCents($payment->total_project_cost)) {
+                $this->failures[] = "ACP payment #{$payment->id} does not match the project's approved total project cost.";
+            }
+        }
+
+        $checkReleases = DB::table('project_acp_check_releases as release')
+            ->join('projects as project', 'project.id', '=', 'release.project_id')
+            ->leftJoin('project_acp_payments as payment', 'payment.project_id', '=', 'release.project_id')
+            ->select([
+                'release.id',
+                'release.project_id',
+                'release.amount',
+                'release.check_date',
+                'release.released_date',
+                'project.implementation_mode',
+                'payment.id as payment_id',
+                'payment.amount as payment_amount',
+                'payment.payment_date',
+            ])
+            ->get();
+
+        foreach ($checkReleases as $release) {
+            if ($release->implementation_mode !== ImplementationMode::THROUGH_ACP->value) {
+                $this->failures[] = "ACP check release #{$release->id} belongs to a project that is not Through ACP.";
+            }
+
+            if ($release->payment_id === null) {
+                $this->failures[] = "ACP check release #{$release->id} has no corresponding ACP payment record.";
+                continue;
+            }
+
+            if ($this->moneyToCents($release->amount) !== $this->moneyToCents($release->payment_amount)) {
+                $this->failures[] = "ACP check release #{$release->id} amount does not match the official ACP payment amount.";
+            }
+
+            if ((string) $release->check_date < (string) $release->payment_date) {
+                $this->failures[] = "ACP check release #{$release->id} has a check date earlier than its ACP payment date.";
+            }
+
+            if ((string) $release->released_date < (string) $release->check_date) {
+                $this->failures[] = "ACP check release #{$release->id} has a release date earlier than its check date.";
+            }
+        }
+
+        $acpImplementations = DB::table('project_implementations as implementation')
+            ->join('projects as project', 'project.id', '=', 'implementation.project_id')
+            ->where('project.implementation_mode', ImplementationMode::THROUGH_ACP->value)
+            ->leftJoin('project_acp_check_releases as release', 'release.project_id', '=', 'implementation.project_id')
+            ->select([
+                'implementation.id',
+                'implementation.project_id',
+                'implementation.start_date',
+                'implementation.end_date',
+                'release.id as release_id',
+                'release.released_date',
+            ])
+            ->get();
+
+        foreach ($acpImplementations as $implementation) {
+            if ($implementation->release_id === null) {
+                $this->failures[] = "Through ACP implementation #{$implementation->id} has no check-release record.";
+                continue;
+            }
+
+            if ((string) $implementation->start_date < (string) $implementation->released_date) {
+                $this->failures[] = "Through ACP implementation #{$implementation->id} starts before the check-release date.";
+            }
+
+            if ((string) $implementation->end_date < (string) $implementation->start_date) {
+                $this->failures[] = "Through ACP implementation #{$implementation->id} ends before its start date.";
+            }
+        }
+
+        $liquidations = DB::table('project_acp_liquidations as liquidation')
+            ->join('projects as project', 'project.id', '=', 'liquidation.project_id')
+            ->leftJoin('project_acp_check_releases as release', 'release.project_id', '=', 'liquidation.project_id')
+            ->leftJoin('project_implementations as implementation', 'implementation.project_id', '=', 'liquidation.project_id')
+            ->select([
+                'liquidation.id',
+                'liquidation.project_id',
+                'liquidation.amount',
+                'liquidation.liquidation_date',
+                'project.implementation_mode',
+                'release.id as release_id',
+                'release.amount as released_amount',
+                'implementation.id as implementation_id',
+                'implementation.end_date',
+            ])
+            ->get();
+
+        foreach ($liquidations as $liquidation) {
+            if ($liquidation->implementation_mode !== ImplementationMode::THROUGH_ACP->value) {
+                $this->failures[] = "ACP liquidation #{$liquidation->id} belongs to a project that is not Through ACP.";
+            }
+
+            if ($this->moneyToCents($liquidation->amount) <= 0) {
+                $this->failures[] = "ACP liquidation #{$liquidation->id} has a non-positive amount.";
+            }
+
+            if ($liquidation->release_id === null) {
+                $this->failures[] = "ACP liquidation #{$liquidation->id} has no check-release record.";
+            }
+
+            if ($liquidation->implementation_id === null) {
+                $this->failures[] = "ACP liquidation #{$liquidation->id} has no implementation-period record.";
+            } elseif ((string) $liquidation->liquidation_date < (string) $liquidation->end_date) {
+                $this->failures[] = "ACP liquidation #{$liquidation->id} is dated before the implementation end date.";
+            }
+        }
+
+        $liquidationTotals = DB::table('project_acp_liquidations')
+            ->select('project_id', DB::raw('SUM(amount) as liquidated'))
+            ->groupBy('project_id')
+            ->get();
+
+        foreach ($liquidationTotals as $total) {
+            $released = DB::table('project_acp_check_releases')
+                ->where('project_id', $total->project_id)
+                ->value('amount');
+
+            if ($released !== null && $this->moneyToCents($total->liquidated) > $this->moneyToCents($released)) {
+                $this->failures[] = "Through ACP project #{$total->project_id} has liquidation records exceeding the released check amount.";
+            }
+        }
     }
 
     private function verifyBeneficiaryIntegrity(): void
@@ -370,6 +556,28 @@ class VerifyReleaseReadiness extends Command
 
         if ($invalidStatuses > 0) {
             $this->failures[] = "{$invalidStatuses} project(s) contain a status outside the consolidated ProjectStatus enum.";
+        }
+
+        $directAdminUsingAcpOnlyStatus = DB::table('projects')
+            ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
+            ->whereIn('status', [
+                ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT->value,
+                ProjectStatus::FOR_LIQUIDATION->value,
+                ProjectStatus::PARTIALLY_LIQUIDATED->value,
+            ])
+            ->count();
+
+        if ($directAdminUsingAcpOnlyStatus > 0) {
+            $this->failures[] = "{$directAdminUsingAcpOnlyStatus} Direct Administration project(s) use a Through ACP-only workflow status.";
+        }
+
+        $acpUsingDirectAdminOnlyStatus = DB::table('projects')
+            ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
+            ->where('status', ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS->value)
+            ->count();
+
+        if ($acpUsingDirectAdminOnlyStatus > 0) {
+            $this->failures[] = "{$acpUsingDirectAdminOnlyStatus} Through ACP project(s) use the Direct Administration-only post-documentary status.";
         }
 
         $missingHistory = DB::table('projects as p')

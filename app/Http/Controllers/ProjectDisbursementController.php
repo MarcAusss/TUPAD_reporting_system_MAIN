@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectDisbursement;
@@ -24,10 +25,14 @@ class ProjectDisbursementController extends Controller
             abort(404);
         }
 
-        if ($project->status !== ProjectStatus::FOR_PAYMENT) {
+        if (
+            $project->implementation_mode
+                !== ImplementationMode::DIRECT_ADMINISTRATION
+            || $project->status !== ProjectStatus::FOR_PAYMENT
+        ) {
             abort(
                 403,
-                'Disbursements can only be recorded for projects with For Payment status.'
+                'Disbursements can only be recorded for Direct Administration projects with For Payment status.'
             );
         }
 
@@ -59,7 +64,11 @@ class ProjectDisbursementController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($project->id);
 
-            if ($lockedProject->status !== ProjectStatus::FOR_PAYMENT) {
+            if (
+                $lockedProject->implementation_mode
+                    !== ImplementationMode::DIRECT_ADMINISTRATION
+                || $lockedProject->status !== ProjectStatus::FOR_PAYMENT
+            ) {
                 throw ValidationException::withMessages([
                     'amount' =>
                         'This project is no longer available for payment processing.',

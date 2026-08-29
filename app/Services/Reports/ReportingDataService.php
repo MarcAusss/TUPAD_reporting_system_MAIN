@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Enums\BeneficiarySectorCategory;
+use App\Enums\ImplementationMode;
 use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
@@ -118,12 +119,22 @@ final class ReportingDataService
                     $groupProjects,
                     $group['allocations'] ?? null,
                 );
+                $directAdminProjects = $groupProjects
+                    ->filter(fn (Project $project): bool =>
+                        $project->implementation_mode === ImplementationMode::DIRECT_ADMINISTRATION
+                    )
+                    ->values();
                 $payableCents = $this->sumProjectMoney(
-                    $groupProjects,
+                    $directAdminProjects,
                     'wages_total',
                 );
-                $obligatedCents = $this->obligatedCents($groupProjects);
-                $disbursedCents = $this->disbursedCents($groupProjects);
+                $directAdminObligatedCents = $this->directAdminObligatedCents($groupProjects);
+                $directAdminDisbursedCents = $this->directAdminDisbursedCents($groupProjects);
+                $acpPaymentCents = $this->acpPaymentCents($groupProjects);
+                $acpCheckReleasedCents = $this->acpCheckReleasedCents($groupProjects);
+                $acpLiquidatedCents = $this->acpLiquidatedCents($groupProjects);
+                $obligatedCents = $directAdminObligatedCents + $acpPaymentCents;
+                $disbursedCents = $directAdminDisbursedCents + $acpCheckReleasedCents;
 
                 return [
                     'dimension' => $groupBy->value,
@@ -132,6 +143,11 @@ final class ReportingDataService
                     'project_count' => $groupProjects->count(),
                     'allocation_cents' => $allocationCents,
                     'payable_wages_cents' => $payableCents,
+                    'direct_admin_obligated_cents' => $directAdminObligatedCents,
+                    'direct_admin_disbursed_cents' => $directAdminDisbursedCents,
+                    'acp_payment_cents' => $acpPaymentCents,
+                    'acp_check_released_cents' => $acpCheckReleasedCents,
+                    'acp_liquidated_cents' => $acpLiquidatedCents,
                     'obligated_cents' => $obligatedCents,
                     'disbursed_cents' => $disbursedCents,
                     'unobligated_balance_cents' =>
@@ -645,6 +661,9 @@ final class ReportingDataService
             'allocation.adl',
             'approval',
             'obligations.disbursements',
+            'acpPayment',
+            'acpCheckRelease',
+            'acpLiquidations',
             'provinceReference',
             'municipalityReference',
             'barangayReference',
@@ -661,6 +680,13 @@ final class ReportingDataService
 
         if ($filters->status) {
             $query->where('status', $filters->status->value);
+        }
+
+        if ($filters->implementationMode) {
+            $query->where(
+                'implementation_mode',
+                $filters->implementationMode->value,
+            );
         }
 
         if ($filters->adlId) {
@@ -916,6 +942,11 @@ final class ReportingDataService
                 $this->sumProjectMoney($projects, 'insurance_total'),
             'project_cost_cents' =>
                 $this->sumProjectMoney($projects, 'total_project_cost'),
+            'direct_admin_obligated_cents' => $this->directAdminObligatedCents($projects),
+            'direct_admin_disbursed_cents' => $this->directAdminDisbursedCents($projects),
+            'acp_payment_cents' => $this->acpPaymentCents($projects),
+            'acp_check_released_cents' => $this->acpCheckReleasedCents($projects),
+            'acp_liquidated_cents' => $this->acpLiquidatedCents($projects),
             'obligated_cents' => $this->obligatedCents($projects),
             'disbursed_cents' => $this->disbursedCents($projects),
         ];
@@ -933,30 +964,93 @@ final class ReportingDataService
     /** @param Collection<int, Project> $projects */
     private function obligatedCents(Collection $projects): int
     {
-        return (int) $projects->sum(
-            fn (Project $project): int =>
-                (int) $project->obligations->sum(
-                    fn ($obligation): int =>
-                        $this->paymentService->amountToCents($obligation->amount)
-                )
-        );
+        return $this->directAdminObligatedCents($projects)
+            + $this->acpPaymentCents($projects);
     }
 
     /** @param Collection<int, Project> $projects */
     private function disbursedCents(Collection $projects): int
     {
-        return (int) $projects->sum(
-            fn (Project $project): int =>
-                (int) $project->obligations->sum(
-                    fn ($obligation): int =>
-                        (int) $obligation->disbursements->sum(
-                            fn ($disbursement): int =>
-                                $this->paymentService->amountToCents(
-                                    $disbursement->amount
-                                )
-                        )
+        return $this->directAdminDisbursedCents($projects)
+            + $this->acpCheckReleasedCents($projects);
+    }
+
+    /** @param Collection<int, Project> $projects */
+    private function directAdminObligatedCents(Collection $projects): int
+    {
+        return (int) $projects
+            ->filter(fn (Project $project): bool =>
+                $project->implementation_mode === ImplementationMode::DIRECT_ADMINISTRATION
+            )
+            ->sum(
+                fn (Project $project): int =>
+                    (int) $project->obligations->sum(
+                        fn ($obligation): int =>
+                            $this->paymentService->amountToCents($obligation->amount)
+                    )
+            );
+    }
+
+    /** @param Collection<int, Project> $projects */
+    private function directAdminDisbursedCents(Collection $projects): int
+    {
+        return (int) $projects
+            ->filter(fn (Project $project): bool =>
+                $project->implementation_mode === ImplementationMode::DIRECT_ADMINISTRATION
+            )
+            ->sum(
+                fn (Project $project): int =>
+                    (int) $project->obligations->sum(
+                        fn ($obligation): int =>
+                            (int) $obligation->disbursements->sum(
+                                fn ($disbursement): int =>
+                                    $this->paymentService->amountToCents(
+                                        $disbursement->amount
+                                    )
+                            )
+                    )
+            );
+    }
+
+    /** @param Collection<int, Project> $projects */
+    private function acpPaymentCents(Collection $projects): int
+    {
+        return (int) $projects
+            ->filter(fn (Project $project): bool =>
+                $project->implementation_mode === ImplementationMode::THROUGH_ACP
+                && $project->acpPayment !== null
+            )
+            ->sum(fn (Project $project): int =>
+                $this->paymentService->amountToCents($project->acpPayment->amount)
+            );
+    }
+
+    /** @param Collection<int, Project> $projects */
+    private function acpCheckReleasedCents(Collection $projects): int
+    {
+        return (int) $projects
+            ->filter(fn (Project $project): bool =>
+                $project->implementation_mode === ImplementationMode::THROUGH_ACP
+                && $project->acpCheckRelease !== null
+            )
+            ->sum(fn (Project $project): int =>
+                $this->paymentService->amountToCents($project->acpCheckRelease->amount)
+            );
+    }
+
+    /** @param Collection<int, Project> $projects */
+    private function acpLiquidatedCents(Collection $projects): int
+    {
+        return (int) $projects
+            ->filter(fn (Project $project): bool =>
+                $project->implementation_mode === ImplementationMode::THROUGH_ACP
+            )
+            ->sum(fn (Project $project): int =>
+                (int) $project->acpLiquidations->sum(
+                    fn ($liquidation): int =>
+                        $this->paymentService->amountToCents($liquidation->amount)
                 )
-        );
+            );
     }
 
     /**
@@ -1030,6 +1124,7 @@ final class ReportingDataService
             || $periodEnd !== null
             || $filters->term !== null
             || $filters->status !== null
+            || $filters->implementationMode !== null
             || $filters->provinceId !== null
             || $filters->district !== null
             || $filters->municipalityId !== null

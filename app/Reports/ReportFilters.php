@@ -3,6 +3,7 @@
 namespace App\Reports;
 
 use App\Enums\BeneficiarySectorCategory;
+use App\Enums\ImplementationMode;
 use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
@@ -20,6 +21,7 @@ final readonly class ReportFilters
         public ?int $month = null,
         public ?ProjectTerm $term = null,
         public ?ProjectStatus $status = null,
+        public ?ImplementationMode $implementationMode = null,
         public ?int $adlId = null,
         public ?int $provinceId = null,
         public ?string $district = null,
@@ -84,6 +86,10 @@ final readonly class ReportFilters
             status: self::resolveEnum(
                 ProjectStatus::class,
                 $filters['status'] ?? null,
+            ),
+            implementationMode: self::resolveEnum(
+                ImplementationMode::class,
+                $filters['implementation_mode'] ?? null,
             ),
             adlId: self::integer($filters['adl_id'] ?? null),
             provinceId: self::integer($filters['province_id'] ?? null),

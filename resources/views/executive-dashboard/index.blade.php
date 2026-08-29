@@ -91,6 +91,16 @@
                 </label>
 
                 <label class="text-xs font-semibold text-slate-700">
+                    Implementation Mode
+                    <select name="implementation_mode" class="mt-1 h-10 w-full rounded-lg border px-3 text-sm">
+                        <option value="">All implementation modes</option>
+                        @foreach ($options['implementation_modes'] as $mode)
+                            <option value="{{ $mode->value }}" @selected(request('implementation_mode') === $mode->value)>{{ $mode->label() }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <label class="text-xs font-semibold text-slate-700">
                     ADL
                     <select name="adl_id" class="mt-1 h-10 w-full rounded-lg border px-3 text-sm">
                         <option value="">All ADLs</option>
@@ -260,6 +270,9 @@
                 ['Completed Projects', number_format($kpi['completed_projects']), 'executive-kpi-completed-projects'],
                 ['Ongoing Implementation', number_format($kpi['ongoing_implementation']), 'executive-kpi-ongoing'],
                 ['For Payment', number_format($kpi['for_payment']), 'executive-kpi-for-payment'],
+                ['For Check Release', number_format($kpi['for_check_release']), 'executive-kpi-for-check-release'],
+                ['For Liquidation', number_format($kpi['for_liquidation']), 'executive-kpi-for-liquidation'],
+                ['Partially Liquidated', number_format($kpi['partially_liquidated']), 'executive-kpi-partial-liquidation'],
                 ['Total Beneficiaries', number_format($kpi['beneficiaries_total']), 'executive-kpi-beneficiaries'],
                 ['Female Beneficiaries', number_format($kpi['beneficiaries_female']), 'executive-kpi-female'],
                 ['Total Project Cost', $money($kpi['project_cost_cents']), 'executive-kpi-project-cost'],
@@ -339,8 +352,24 @@
 
         <section class="tupad-card p-5">
             <div class="mb-5">
+                <h2 class="text-sm font-bold text-slate-900">Projects by Implementation Mode</h2>
+                <p class="mt-1 text-xs text-slate-500">Direct Administration and Through ACP remain separate workflow and financial paths.</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                @foreach ($dashboard['projects_by_implementation_mode'] as $row)
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="text-xs font-bold text-slate-600">{{ $row['label'] }}</div>
+                        <div class="mt-2 text-3xl font-extrabold text-slate-900">{{ number_format($row['project_count']) }}</div>
+                        <div class="mt-1 text-xs text-slate-500">{{ number_format($row['beneficiaries_total']) }} beneficiaries</div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+        <section class="tupad-card p-5">
+            <div class="mb-5">
                 <h2 class="text-sm font-bold text-slate-900">Allocation, Obligation, Disbursement and Balance</h2>
-                <p class="mt-1 text-xs text-slate-500">Balance basis: allocation less disbursed.</p>
+                <p class="mt-1 text-xs text-slate-500">Balance basis: allocation less total disbursed. ACP liquidation is tracked separately.</p>
             </div>
             @if ($dashboard['financial_position'])
                 <div class="space-y-4">
@@ -361,6 +390,23 @@
                         </div>
                     @endforeach
                 </div>
+
+                <div class="mt-5 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+                    @foreach ([
+                        ['DA Obligated', $dashboard['financial_position']['direct_admin_obligated_cents']],
+                        ['DA Disbursed', $dashboard['financial_position']['direct_admin_disbursed_cents']],
+                        ['ACP Payment Recorded', $dashboard['financial_position']['acp_payment_cents']],
+                        ['ACP Check Released', $dashboard['financial_position']['acp_check_released_cents']],
+                        ['ACP Liquidated', $dashboard['financial_position']['acp_liquidated_cents']],
+                        ['ACP Liquidation Progress', $kpi['acp_liquidation_percent'] === null ? 'Not available' : $percent($kpi['acp_liquidation_percent'])],
+                    ] as [$label, $value])
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">{{ $label }}</div>
+                            <div class="mt-1 text-sm font-extrabold text-slate-900">{{ is_int($value) ? $money($value) : $value }}</div>
+                        </div>
+                    @endforeach
+                </div>
+                <p class="mt-4 text-[11px] leading-5 text-slate-500">{{ $dashboard['financial_basis_note'] }}</p>
             @else
                 <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
                     {{ $dashboard['financial_note'] }}

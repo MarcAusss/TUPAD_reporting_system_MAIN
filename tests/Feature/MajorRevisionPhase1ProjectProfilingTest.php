@@ -19,23 +19,24 @@ class MajorRevisionPhase1ProjectProfilingTest extends TestCase
         $this->assertStringContainsString('Wage Rate × Beneficiaries × Number of Days', $view);
         $this->assertStringContainsString('Non-Hazardous or Hazardous PPE', $view);
         $this->assertStringContainsString('Project Profiling Completion', $view);
-        $this->assertStringContainsString('automatically moves the project to <strong>TSSD Evaluation</strong>', $view);
+        $this->assertStringContainsString('creates it with <strong>Ongoing Profiling</strong> status', $view);
+        $this->assertStringContainsString('submit the project to <strong>TSSD Evaluation</strong>', $view);
     }
 
     #[Test]
-    public function official_project_store_uses_tssd_evaluation_as_initial_revised_status(): void
+    public function official_project_store_uses_ongoing_profiling_as_initial_authoritative_status(): void
     {
         $controller = file_get_contents(
             app_path('Http/Controllers/ProjectController.php')
         );
 
         $this->assertStringContainsString(
-            "'status' =>\n                    ProjectStatus::TSSD_EVALUATION",
+            "'status' =>\n                    ProjectStatus::ONGOING_PROFILING",
             $controller
         );
 
         $this->assertStringContainsString(
-            'Project profile saved successfully and moved to TSSD Evaluation.',
+            'Project profile saved successfully with Ongoing Profiling status. Submit it to TSSD Evaluation when profiling is complete.',
             $controller
         );
     }

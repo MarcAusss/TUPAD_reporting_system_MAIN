@@ -13,6 +13,9 @@ enum ProjectStatus: string
     case ONGOING_IMPLEMENTATION = 'ongoing_implementation';
     case FOR_SUBMISSION_OF_POST_DOCS = 'for_submission_of_post_docs';
     case FOR_PAYMENT = 'for_payment';
+    case FOR_RELEASE_OF_CHECK_TO_PROPONENT = 'for_release_of_check_to_proponent';
+    case FOR_LIQUIDATION = 'for_liquidation';
+    case PARTIALLY_LIQUIDATED = 'partially_liquidated';
     case COMPLETED = 'completed';
 
     public function label(): string
@@ -27,6 +30,9 @@ enum ProjectStatus: string
             self::ONGOING_IMPLEMENTATION => 'Ongoing Implementation',
             self::FOR_SUBMISSION_OF_POST_DOCS => 'For Submission of Post-Docs',
             self::FOR_PAYMENT => 'For Payment',
+            self::FOR_RELEASE_OF_CHECK_TO_PROPONENT => 'For Release of Check to Proponent',
+            self::FOR_LIQUIDATION => 'For Liquidation',
+            self::PARTIALLY_LIQUIDATED => 'Partially Liquidated',
             self::COMPLETED => 'Completed',
         };
     }

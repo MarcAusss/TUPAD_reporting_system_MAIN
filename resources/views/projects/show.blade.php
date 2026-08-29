@@ -12,8 +12,13 @@
     */
 
     if (auth()->user()->isFocal()) {
-        $backUrl = route('payments.index');
-        $backLabel = 'Payment Queue';
+        if ($project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP) {
+            $backUrl = route('projects.index');
+            $backLabel = 'Project Registry';
+        } else {
+            $backUrl = route('payments.index');
+            $backLabel = 'Payment Queue';
+        }
     } else {
         $backUrl = route('projects.index');
         $backLabel = 'Project Management';
@@ -28,7 +33,7 @@
 
     $nextAction = match ($project->status) {
         \App\Enums\ProjectStatus::ONGOING_PROFILING =>
-            'Legacy profiling record — new profiles now enter TSSD Evaluation automatically.',
+            'Complete profiling, then submit the project to TSSD Evaluation.',
 
         \App\Enums\ProjectStatus::TSSD_EVALUATION =>
             'Record the TSSD evaluation result.',
@@ -40,19 +45,36 @@
             'Complete the project approval action.',
 
         \App\Enums\ProjectStatus::APPROVED =>
-            'Complete the implementation preparation requirements.',
+            $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
+                ? 'Proceed to the Through ACP payment stage.'
+                : 'Complete the implementation preparation requirements.',
 
         \App\Enums\ProjectStatus::FOR_IMPLEMENTATION =>
-            'Start implementation after all preparation requirements are complete.',
+            $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
+                ? 'Start ACP implementation after the check has been released to the proponent.'
+                : 'Start implementation after all preparation requirements are complete.',
 
         \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION =>
-            'Complete implementation and prepare the required post-documents.',
+            $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
+                ? 'Complete ACP implementation, then proceed to liquidation.'
+                : 'Complete implementation and prepare the required post-documents.',
 
         \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS =>
             'Record the submitted post-documentary requirements.',
 
         \App\Enums\ProjectStatus::FOR_PAYMENT =>
-            'The Focal/Admin must complete wage obligations and their corresponding disbursements.',
+            $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
+                ? 'Through ACP payment processing is the next workflow stage.'
+                : 'The Focal/Admin must complete wage obligations and their corresponding disbursements.',
+
+        \App\Enums\ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT =>
+            'Record the release of check to the ACP proponent before implementation.',
+
+        \App\Enums\ProjectStatus::FOR_LIQUIDATION =>
+            'Record the ACP liquidation submission and validated liquidation amount.',
+
+        \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED =>
+            'Continue ACP liquidation until the required amount is fully liquidated.',
 
         \App\Enums\ProjectStatus::COMPLETED =>
             'No pending workflow action. This project is complete.',
@@ -776,11 +798,28 @@
 
         @if($project->status === \App\Enums\ProjectStatus::ONGOING_PROFILING)
             <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <div class="text-sm font-semibold text-amber-900">Legacy Profiling Record</div>
+                <div class="text-sm font-semibold text-amber-900">Ongoing Profiling</div>
 
                 <p class="mt-1 text-xs leading-5 text-amber-800">
-                    New project profiles move directly to TSSD Evaluation when saved. This Ongoing Profiling status is retained only for older records created before the revised workflow.
+                    Review the project profile and supporting information. Submit to TSSD Evaluation only when profiling is complete.
                 </p>
+
+                @if(auth()->user()->isAdmin() || auth()->user()->isTc())
+                    <form
+                        method="POST"
+                        action="{{ route('projects.evaluation.start', $project) }}"
+                        class="mt-4"
+                    >
+                        @csrf
+
+                        <button
+                            type="submit"
+                            class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b]"
+                        >
+                            Submit to TSSD Evaluation
+                        </button>
+                    </form>
+                @endif
             </div>
         @endif
 
@@ -2103,9 +2142,13 @@
         $project->status,
         [
             \App\Enums\ProjectStatus::APPROVED,
+            \App\Enums\ProjectStatus::FOR_PAYMENT,
+            \App\Enums\ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
             \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
             \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
-            \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+            \App\Enums\ProjectStatus::FOR_LIQUIDATION,
+            \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED,
+            \App\Enums\ProjectStatus::COMPLETED,
         ],
         true
     )
@@ -2115,48 +2158,117 @@
 
     <section id="implementation" class="scroll-mt-32 mt-5 rounded-xl border border-violet-200 bg-violet-50 p-5">
         <div class="text-sm font-semibold text-violet-950">
-            Through ACP Project
+            Through ACP Workflow
         </div>
         <p class="mt-1 text-xs leading-5 text-violet-800">
-            The Insurance, PPE, Notice to Proceed, Orientation, and Work Period forms in this implementation workflow apply only to Direct Administration projects.
+            Through ACP uses its own payment, check-release, implementation, and liquidation workflow. Direct Administration Insurance, PPE, Notice to Proceed, Post-Documentary Requirements, and Payment of Wages forms apply only to Direct Administration projects.
         </p>
+
+        @if(
+            (auth()->user()->isAdmin() || auth()->user()->isFocal())
+            && in_array(
+                $project->status,
+                [
+                    \App\Enums\ProjectStatus::FOR_PAYMENT,
+                    \App\Enums\ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
+                    \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
+                ],
+                true
+            )
+        )
+            <div class="mt-4">
+                <a
+                    href="{{ route('acp-payments.show', $project) }}"
+                    class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b]"
+                >
+                    Open Through ACP Payment & Check Release
+                </a>
+            </div>
+        @endif
+
+        <div class="mt-4 flex flex-wrap gap-2">
+            @if(
+                (auth()->user()->isAdmin() || auth()->user()->isTc())
+                && in_array(
+                    $project->status,
+                    [
+                        \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
+                        \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
+                        \App\Enums\ProjectStatus::FOR_LIQUIDATION,
+                        \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED,
+                        \App\Enums\ProjectStatus::COMPLETED,
+                    ],
+                    true
+                )
+            )
+                <a
+                    href="{{ route('acp-implementation.show', $project) }}"
+                    class="inline-flex h-10 items-center rounded-lg border border-violet-300 bg-white px-4 text-sm font-semibold text-violet-800 hover:bg-violet-100"
+                >
+                    Open ACP Implementation
+                </a>
+            @endif
+
+            @if(
+                (auth()->user()->isAdmin() || auth()->user()->isFocal())
+                && in_array(
+                    $project->status,
+                    [
+                        \App\Enums\ProjectStatus::FOR_LIQUIDATION,
+                        \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED,
+                        \App\Enums\ProjectStatus::COMPLETED,
+                    ],
+                    true
+                )
+            )
+                <a
+                    href="{{ route('acp-liquidations.show', $project) }}"
+                    class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b]"
+                >
+                    Open ACP Liquidation
+                </a>
+            @endif
+        </div>
     </section>
 
 @endif
 
-{{-- Final Project Workflow Guide --}}
+{{-- Authoritative Project Workflow Guide --}}
 <section id="final-workflow" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
     <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
-        Final Project Workflow
+        Authoritative {{ $project->implementation_mode->label() }} Workflow
     </div>
 
-    <div class="mt-4 grid gap-3 md:grid-cols-2">
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <div class="text-xs font-semibold text-slate-500">1. TC / Admin</div>
-            <div class="mt-1 text-sm font-bold text-slate-900">
-                Post-Documentary Requirements
-            </div>
-            <p class="mt-1 text-xs leading-5 text-slate-500">
-                Record required post-implementation documents.
-            </p>
-        </div>
+    @php
+        $workflowStatuses = app(\App\Services\Projects\ProjectWorkflowDefinition::class)
+            ->happyPathFor($project->implementation_mode);
+    @endphp
 
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <div class="text-xs font-semibold text-slate-500">2. Focal / Admin</div>
-            <div class="mt-1 text-sm font-bold text-slate-900">
-                Payment of Wages / Obligation
-            </div>
-            <p class="mt-1 text-xs leading-5 text-slate-500">
-                Record up to five obligation tranches and their corresponding disbursements. Full payment completes the project.
-            </p>
-        </div>
+    <div class="mt-4 flex flex-wrap gap-2">
+        @foreach($workflowStatuses as $workflowStatus)
+            <span
+                class="inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold {{
+                    $project->status === $workflowStatus
+                        ? 'border-blue-300 bg-blue-50 text-blue-800'
+                        : 'border-slate-200 bg-slate-50 text-slate-600'
+                }}"
+            >
+                {{ $loop->iteration }}. {{ $workflowStatus->label() }}
+            </span>
+        @endforeach
     </div>
+
+    <p class="mt-3 text-[11px] leading-5 text-slate-500">
+        For Compliance remains an optional TSSD evaluation branch before For Approval when deficiencies require corrective submission.
+    </p>
 </section>
 
 {{-- Post-Documentary Requirements --}}
 
 @if(
-    in_array(
+    $project->implementation_mode
+        === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION
+    && in_array(
         $project->status,
         [
             \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
@@ -2383,7 +2495,9 @@
 {{-- Payment of Wages --}}
 
 @if(
-    in_array(
+    $project->implementation_mode
+        === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION
+    && in_array(
         $project->status,
         [
             \App\Enums\ProjectStatus::FOR_PAYMENT,

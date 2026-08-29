@@ -762,7 +762,7 @@
                         </h2>
 
                         <p class="mt-1 text-xs leading-5 text-slate-600">
-                            Saving a complete project profile automatically moves the project to <strong>TSSD Evaluation</strong>. No separate profiling submission step is required.
+                            Saving a complete project profile creates it with <strong>Ongoing Profiling</strong> status. After profiling is complete, submit the project to <strong>TSSD Evaluation</strong> from the project detail page.
                         </p>
                     </section>
 
