@@ -33,14 +33,14 @@ class EnforceCoordinatorProvinceScope
             return $next($request);
         }
 
-        if (! $user->hasAssignedProvince()) {
+        $assignedProvinceId = $this->provinceAccess->assignedProvinceId($user);
+
+        if ($assignedProvinceId === null) {
             abort(
                 403,
-                'This TUPAD Coordinator account has no assigned province. Contact the TUPAD Focal before accessing project data.'
+                'This TUPAD Coordinator account has no valid active Bicol province assignment. Contact the TUPAD Focal or run the coordinator mapping-access repair command.'
             );
         }
-
-        $assignedProvinceId = (int) $user->assigned_province_id;
 
         $this->assertSubmittedProvince($request, $assignedProvinceId);
         $this->assertRouteResources($request, $assignedProvinceId);
@@ -156,7 +156,7 @@ class EnforceCoordinatorProvinceScope
             return;
         }
 
-        $assignedProvince = $request->user()->assignedProvince()->first();
+        $assignedProvince = Province::query()->find($assignedProvinceId);
         $requestedSlug = Str::slug((string) $value);
         $assignedSlug = Str::slug((string) $assignedProvince?->name);
 

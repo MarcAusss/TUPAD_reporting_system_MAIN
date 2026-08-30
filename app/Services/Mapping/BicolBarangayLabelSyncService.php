@@ -32,7 +32,7 @@ final class BicolBarangayLabelSyncService
             );
         }
 
-        $tempRoot = \storage_path('app/tmp/tupad-bicol-barangay-labels-'.bin2hex(random_bytes(6)));
+        $tempRoot = storage_path('app/tmp/tupad-bicol-barangay-labels-'.bin2hex(random_bytes(6)));
         $this->files->makeDirectory($tempRoot, 0755, true);
 
         $municipalityCount = 0;
@@ -43,17 +43,16 @@ final class BicolBarangayLabelSyncService
         try {
             foreach ($this->foundation->provinces() as $province) {
                 foreach ($this->foundation->municipalitiesForProvince($province) as $municipality) {
-                    $municipalityCode = (string) $municipality->getAttribute('code');
-                    $sourceCode = $this->foundation->sourceMunicipalityCode($municipalityCode);
+                    $sourceCode = $this->foundation->sourceMunicipalityCode((string) $municipality->code);
                     $url = sprintf(
-                        (string) \config('tupad_mapping.boundary_source.barangay_url_pattern'),
+                        (string) config('tupad_mapping.boundary_source.barangay_url_pattern'),
                         $sourceCode,
                     );
                     $source = $this->downloadJson($url);
                     $normalized = $this->normalizeBarangayLabelFeatures($source, $municipality);
                     $features = $normalized['features'];
                     $unavailableLabels = array_merge($unavailableLabels, $normalized['unavailable']);
-                    $fileName = $municipalityCode.'.geojson';
+                    $fileName = (string) $municipality->code.'.geojson';
                     $path = $tempRoot.DIRECTORY_SEPARATOR.$fileName;
 
                     $this->writeFeatureCollection($path, $features);
@@ -66,13 +65,13 @@ final class BicolBarangayLabelSyncService
 
             $manifest = [
                 'schema_version' => 1,
-                'generated_at' => \now()->toIso8601String(),
+                'generated_at' => now()->toIso8601String(),
                 'purpose' => 'Leaflet permanent barangay labels only; municipality polygons remain the visible map boundary.',
                 'source' => [
-                    'provider' => (string) \config('tupad_mapping.boundary_source.provider'),
-                    'basis' => (string) \config('tupad_mapping.boundary_source.source_basis'),
-                    'resolution' => (string) \config('tupad_mapping.boundary_source.resolution'),
-                    'attribution' => (string) \config('tupad_mapping.boundary_source.attribution'),
+                    'provider' => (string) config('tupad_mapping.boundary_source.provider'),
+                    'basis' => (string) config('tupad_mapping.boundary_source.source_basis'),
+                    'resolution' => (string) config('tupad_mapping.boundary_source.resolution'),
+                    'attribution' => (string) config('tupad_mapping.boundary_source.attribution'),
                 ],
                 'join_key' => 'properties.psgc_code',
                 'geometry' => 'Point (bounding-box center of reviewed barangay polygon)',
@@ -166,19 +165,13 @@ final class BicolBarangayLabelSyncService
      */
     private function normalizeBarangayLabelFeatures(array $source, Municipality $municipality): array
     {
-        $municipalityCode = (string) $municipality->getAttribute('code');
-        $municipalityName = (string) $municipality->getAttribute('name');
         $barangays = $this->foundation->barangaysForMunicipality($municipality)->keyBy('code');
-        $expectedCodes = $barangays->keys()->map(static fn (mixed $code): string => (string) $code)->all();
+        $expectedCodes = $barangays->keys()->all();
         $features = [];
         $matchedCodes = [];
         $unavailable = [];
 
         foreach ($source['features'] as $feature) {
-            if (! is_array($feature)) {
-                continue;
-            }
-
             $properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
             $code = $this->featureCode($properties, $expectedCodes);
 
@@ -191,21 +184,15 @@ final class BicolBarangayLabelSyncService
             // source-data geometry gap does not look like a missing PSGC row.
             $matchedCodes[$code] = true;
 
-            /** @var \App\Models\Barangay|null $barangay */
             $barangay = $barangays->get($code);
-            if ($barangay === null) {
-                continue;
-            }
-
-            $barangayName = (string) $barangay->getAttribute('name');
             $center = $this->geometryBoundingBoxCenter($feature['geometry'] ?? null);
 
             if ($center === null) {
                 $unavailable[$code] = [
                     'psgc_code' => $code,
-                    'name' => $barangayName,
-                    'municipality_psgc_code' => $municipalityCode,
-                    'municipality_name' => $municipalityName,
+                    'name' => (string) $barangay->name,
+                    'municipality_psgc_code' => (string) $municipality->code,
+                    'municipality_name' => (string) $municipality->name,
                     'reason' => 'Reviewed barangay boundary source has no usable polygon geometry; no coordinate was inferred.',
                 ];
 
@@ -216,10 +203,10 @@ final class BicolBarangayLabelSyncService
                 'type' => 'Feature',
                 'properties' => [
                     'psgc_code' => $code,
-                    'name' => $barangayName,
+                    'name' => (string) $barangay->name,
                     'level' => 'barangay-label',
-                    'municipality_psgc_code' => $municipalityCode,
-                    'municipality_name' => $municipalityName,
+                    'municipality_psgc_code' => (string) $municipality->code,
+                    'municipality_name' => (string) $municipality->name,
                 ],
                 'geometry' => [
                     'type' => 'Point',
@@ -234,7 +221,7 @@ final class BicolBarangayLabelSyncService
         $missing = array_diff($expectedCodes, array_keys($matchedCodes));
         if ($missing !== []) {
             throw new RuntimeException(
-                "Barangay boundary source for {$municipalityName} is missing current PSGC code(s): ".implode(', ', $missing).'.'
+                "Barangay boundary source for {$municipality->name} is missing current PSGC code(s): ".implode(', ', $missing).'.'
             );
         }
 

@@ -4,23 +4,15 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 
-class DatabaseSeeder extends Seeder
+final class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
         if (app()->environment('production')) {
-            $this->command?->warn(
-                'Default database seeding is disabled in production. Run only the specific reviewed reference-data or backfill seeder you intend to apply.'
-            );
-
+            $this->command?->warn('Default development seeding is disabled in production.');
             return;
         }
 
-        $this->call([
-            BicolLocationSeeder::class,
-            UserSeeder::class,
-            CurrentSystemDemoSeeder::class,
-            ProjectStatusHistorySeeder::class,
-        ]);
+        $this->call(Fy2025TupadProjectSeeder::class);
     }
 }

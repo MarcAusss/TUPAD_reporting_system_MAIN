@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateCoordinatorPasswordRequest;
+use App\Models\User;
+use App\Services\Auth\CoordinatorProvinceAssignmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -10,12 +12,28 @@ use Illuminate\View\View;
 
 class CoordinatorAccountController extends Controller
 {
-    public function show(Request $request): View
-    {
-        $coordinator = $request->user()->load('assignedProvince:id,name');
+    public function show(
+        Request $request,
+        CoordinatorProvinceAssignmentService $assignments,
+    ): View {
+        /** @var User $coordinator */
+        $coordinator = $request->user();
+
+        $assignedProvince = $assignments->resolve(
+            $coordinator,
+            repair: true,
+        );
+
+        if ($assignedProvince !== null) {
+            $coordinator->setRelation('assignedProvince', $assignedProvince);
+        } else {
+            $coordinator->unsetRelation('assignedProvince');
+            $coordinator->load('assignedProvince:id,name,code,is_active');
+        }
 
         return view('account.show', [
             'coordinator' => $coordinator,
+            'mappingAccessReady' => $assignedProvince !== null,
         ]);
     }
 

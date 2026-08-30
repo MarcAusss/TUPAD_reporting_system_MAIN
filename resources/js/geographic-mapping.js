@@ -57,27 +57,6 @@ function allocationText(stats) {
     return pesoFormatter.format(Number(stats?.allocation_cents ?? 0) / 100);
 }
 
-function metricValueText(value, payload) {
-    if (payload?.metric?.key === 'allocation') {
-        return pesoFormatter.format(Number(value ?? 0) / 100);
-    }
-
-    return numberFormatter.format(Number(value ?? 0));
-}
-
-function metricAxisText(value, payload) {
-    if (payload?.metric?.key === 'allocation') {
-        return `₱${compactFormatter.format(Number(value ?? 0) / 100)}`;
-    }
-
-    return compactFormatter.format(Number(value ?? 0));
-}
-
-function metricTooltipText(value, payload) {
-    const label = String(payload?.metric?.label ?? 'Beneficiaries').toLowerCase();
-    return `${metricValueText(value, payload)} ${label}`;
-}
-
 function tooltipHtml(stats, featureName, payload) {
     const isRegionView = payload?.map_level === 'region';
     const fallbackName = isRegionView ? 'Province' : 'Municipality / City';
@@ -105,7 +84,6 @@ function tooltipHtml(stats, featureName, payload) {
                 <span>Completed</span><strong>${numberFormatter.format(stats?.completed_projects ?? 0)}</strong>
                 <span>Allocation</span><strong>${escapeHtml(allocationText(stats))}</strong>
             </div>
-            <div class="tupad-map-tooltip-metric">Map metric: <strong>${escapeHtml(payload?.metric?.label ?? 'Beneficiaries')}</strong></div>
             ${incomplete}
             <div class="tupad-map-tooltip-foot">${foot}</div>
         </div>`;
@@ -272,29 +250,10 @@ async function addBarangayLabels(root, state, payload) {
     }
 }
 
-function syncLabelVisibility(state, payload) {
-    const zoom = state.map.getZoom();
-
-    state.labels.forEach((label) => {
-        const element = label.getElement?.();
-        if (!element) return;
-
-        const isBarangay = element.classList.contains('tupad-barangay-label');
-        const isMunicipality = element.classList.contains('tupad-municipality-label');
-        const isSelectedMunicipality = element.classList.contains('tupad-municipality-label-selected');
-
-        const shouldHide = (isBarangay && zoom < 10)
-            || (isMunicipality && !isSelectedMunicipality && zoom < 7);
-
-        element.classList.toggle('tupad-map-label-hidden', shouldHide);
-    });
-}
-
 async function refreshLabels(root, state, payload) {
     clearLabels(state);
     addBoundaryLabels(state, payload);
     await addBarangayLabels(root, state, payload);
-    syncLabelVisibility(state, payload);
 }
 
 async function loadBoundary(root, state, payload, { animate = true } = {}) {
@@ -444,7 +403,7 @@ function updateChart(root, state, payload) {
                     tooltip: {
                         displayColors: false,
                         callbacks: {
-                            label: (context) => metricTooltipText(context.raw ?? 0, state.payload),
+                            label: (context) => `${numberFormatter.format(context.raw ?? 0)} beneficiaries`,
                         },
                     },
                 },
@@ -456,7 +415,7 @@ function updateChart(root, state, payload) {
                         ticks: {
                             color: '#718096',
                             font: { size: 9 },
-                            callback: (value) => metricAxisText(value, state.payload),
+                            callback: (value) => compactFormatter.format(value),
                         },
                     },
                     y: {
@@ -523,8 +482,6 @@ async function initializeRoot(root) {
             state.map.fitBounds(state.currentBounds, { padding: [18, 18], animate: true, duration: 0.4 });
         }
     });
-
-    map.on('zoomend', () => syncLabelVisibility(state, state.payload));
 
     try {
         await loadBoundary(root, state, payload, { animate: false });

@@ -749,7 +749,7 @@ class VerifyReleaseReadiness extends Command
             ->count('p.id');
 
         if ($missingHistory > 0) {
-            $this->failures[] = "{$missingHistory} project(s) have no project status history. Run ProjectStatusHistorySeeder only after reviewing/backing up production data.";
+            $this->failures[] = "{$missingHistory} project(s) have no project status history. Review and backfill the missing project status history records before release.";
         }
 
         $duplicateCodes = DB::table('project_approvals')

@@ -154,7 +154,11 @@ class UserManagementController extends Controller
             'assigned_province_id' => [
                 'required',
                 'integer',
-                Rule::exists('provinces', 'id')->where(fn ($query) => $query->where('is_active', true)),
+                Rule::exists('provinces', 'id')->where(
+                    fn ($query) => $query
+                        ->where('is_active', true)
+                        ->whereIn('code', array_keys((array) config('tupad_mapping.provinces', [])))
+                ),
             ],
             'is_active' => ['nullable', 'boolean'],
         ], [
@@ -174,8 +178,9 @@ class UserManagementController extends Controller
     {
         return Province::query()
             ->where('is_active', true)
+            ->whereIn('code', array_keys((array) config('tupad_mapping.provinces', [])))
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'code']);
     }
 
     private function normalizedUsername(string $username): string

@@ -14,6 +14,10 @@ use Illuminate\Support\Str;
 
 class ProvinceAccessService
 {
+    public function __construct(
+        private readonly CoordinatorProvinceAssignmentService $coordinatorAssignments,
+    ) {}
+
     public function isProvinceScoped(User $user): bool
     {
         return $user->isTc();
@@ -25,9 +29,14 @@ class ProvinceAccessService
             return null;
         }
 
-        return $user->assigned_province_id === null
+        $province = $this->coordinatorAssignments->resolve(
+            $user,
+            repair: true,
+        );
+
+        return $province === null
             ? null
-            : (int) $user->assigned_province_id;
+            : (int) $province->id;
     }
 
     public function canAccessProvince(User $user, Province|int|null $province): bool
@@ -239,9 +248,10 @@ class ProvinceAccessService
 
     private function assignedProvinceName(User $user): ?string
     {
-        $province = $user->relationLoaded('assignedProvince')
-            ? $user->assignedProvince
-            : $user->assignedProvince()->first();
+        $province = $this->coordinatorAssignments->resolve(
+            $user,
+            repair: true,
+        );
 
         $name = trim((string) $province?->name);
 

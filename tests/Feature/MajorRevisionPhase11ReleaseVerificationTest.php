@@ -12,9 +12,8 @@ use App\Models\Project;
 use App\Models\ProjectLocation;
 use App\Models\Province;
 use App\Models\User;
-use Database\Seeders\CurrentSystemDemoSeeder;
 use Database\Seeders\DatabaseSeeder;
-use Database\Seeders\UserSeeder;
+use Database\Seeders\Fy2025TupadProjectSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -108,90 +107,41 @@ class MajorRevisionPhase11ReleaseVerificationTest extends TestCase
         $this->assertDatabaseCount('adls', 0);
     }
 
-    public function test_demo_seeder_reconciles_funds_project_codes_and_exact_geography(): void
+    public function test_fy2025_seeder_creates_only_ongoing_profiling_projects_with_exact_geography(): void
     {
-        $this->seedBicolTestLocations();
-        $this->seed(UserSeeder::class);
-        $this->seed(CurrentSystemDemoSeeder::class);
+        $this->seed(Fy2025TupadProjectSeeder::class);
 
-        $adl = Adl::query()
-            ->where('adl_number', 'ADL-2026-CURRENT-DEMO')
-            ->firstOrFail();
-
-        $this->assertSame('95000000.00', $adl->grants);
-        $this->assertSame(
-            9_500_000_000,
-            $this->moneyToCents($adl->allocations()->sum('amount')),
-        );
-        $this->assertSame(
-            $this->moneyToCents($adl->grants),
-            $this->moneyToCents($adl->allocations()->sum('amount')),
-        );
+        $this->assertDatabaseCount('projects', 30);
 
         $this->assertEqualsCanonicalizing(
-            [
-                'Albay',
-                'Camarines Norte',
-                'Camarines Sur',
-                'Catanduanes',
-                'Masbate',
-                'Sorsogon',
-            ],
-            Project::query()
-                ->distinct()
-                ->pluck('province')
-                ->all(),
+            ['Albay', 'Camarines Norte', 'Camarines Sur', 'Catanduanes', 'Masbate', 'Sorsogon'],
+            Project::query()->distinct()->pluck('province')->all(),
         );
 
-        $codes = DB::table('project_approvals')
-            ->whereNotNull('project_code')
-            ->pluck('project_code')
-            ->all();
+        foreach (['Albay', 'Camarines Norte', 'Camarines Sur', 'Catanduanes', 'Masbate', 'Sorsogon'] as $province) {
+            $this->assertSame(5, Project::query()->where('province', $province)->count());
+        }
 
-        $this->assertContains('TUPAD-ALB-2026-001', $codes);
-        $this->assertContains('TUPAD-CAN-2026-001', $codes);
-        $this->assertContains('TUPAD-CAT-2026-001', $codes);
-        $this->assertContains('TUPAD-MAS-2026-001', $codes);
-        $this->assertContains('TUPAD-SOR-2026-001', $codes);
-        $this->assertCount(count(array_unique($codes)), $codes);
+        $this->assertSame(30, Project::query()->where('status', ProjectStatus::ONGOING_PROFILING->value)->count());
+        $this->assertDatabaseCount('project_approvals', 0);
 
-        Project::query()
-            ->where('remarks', 'like', '%demo%')
-            ->orWhere('remarks', 'like', '%demonstration%')
-            ->get()
-            ->each(function (Project $project): void {
-                $rows = DB::table('project_locations as pl')
-                    ->join(
-                        'project_location_barangay as plb',
-                        'plb.project_location_id',
-                        '=',
-                        'pl.id'
-                    )
-                    ->where('pl.project_id', $project->id)
-                    ->select([
-                        'plb.beneficiaries_total',
-                        'plb.beneficiaries_female',
-                    ])
-                    ->get();
+        Project::query()->with('projectLocations.barangays')->each(function (Project $project): void {
+            $rows = DB::table('project_locations as pl')
+                ->join('project_location_barangay as plb', 'plb.project_location_id', '=', 'pl.id')
+                ->where('pl.project_id', $project->id)
+                ->get(['plb.beneficiaries_total', 'plb.beneficiaries_female']);
 
-                $this->assertNotEmpty($rows);
-                $this->assertFalse(
-                    $rows->contains(
-                        fn ($row): bool =>
-                            $row->beneficiaries_total === null
-                            || $row->beneficiaries_female === null
-                    )
-                );
+            $this->assertNotEmpty($rows);
+            $this->assertSame((int) $project->beneficiaries_total, (int) $rows->sum('beneficiaries_total'));
+            $this->assertSame((int) $project->beneficiaries_female, (int) $rows->sum('beneficiaries_female'));
+        });
 
-                $this->assertSame(
-                    (int) $project->beneficiaries_total,
-                    (int) $rows->sum('beneficiaries_total'),
-                );
-                $this->assertSame(
-                    (int) $project->beneficiaries_female,
-                    (int) $rows->sum('beneficiaries_female'),
-                );
-            });
+        Adl::query()->with('allocations')->each(function (Adl $adl): void {
+            $this->assertSame(
+                $this->moneyToCents($adl->grants),
+                $this->moneyToCents($adl->allocations->sum('amount')),
+            );
+        });
     }
 
     /**

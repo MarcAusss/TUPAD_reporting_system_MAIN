@@ -26,7 +26,7 @@ class SyncBicolGeoJson extends Command
                 $this->line(' - '.$issue);
             }
             $this->newLine();
-            $this->warn('Run the reviewed BicolLocationSeeder/reference-data process first. Do not create duplicate geographic rows.');
+            $this->warn('Run the reviewed FY2025 fresh-data seeder/reference-data process first. Do not create duplicate geographic rows.');
 
             return self::FAILURE;
         }

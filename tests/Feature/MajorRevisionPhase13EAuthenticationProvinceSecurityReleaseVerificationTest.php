@@ -6,7 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Municipality;
 use App\Models\Province;
 use App\Models\User;
-use Database\Seeders\UserSeeder;
+use Database\Seeders\Fy2025TupadProjectSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -70,11 +70,11 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
             ->assertExitCode(1);
     }
 
-    public function test_development_user_seeder_assigns_legacy_tc_to_active_albay_reference(): void
+    public function test_fy2025_seeder_assigns_demo_tc_to_active_albay_reference(): void
     {
-        $albay = $this->province('Albay', '050500000');
+        $this->seed(Fy2025TupadProjectSeeder::class);
 
-        $this->seed(UserSeeder::class);
+        $albay = Province::query()->where('code', '050500000')->firstOrFail();
 
         $tc = User::query()->where('username', 'tc')->firstOrFail();
 

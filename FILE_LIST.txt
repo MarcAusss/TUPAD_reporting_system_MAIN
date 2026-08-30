@@ -1,0 +1,8 @@
+database/.gitignore
+database/factories/UserFactory.php
+database/migrations/0001_01_01_000000_create_platform_geography_and_users.php
+database/migrations/0001_01_01_000100_create_funding_and_project_core.php
+database/migrations/0001_01_01_000200_create_project_workflow_and_payments.php
+database/migrations/0001_01_01_000300_create_classification_acp_and_audit.php
+database/seeders/DatabaseSeeder.php
+database/seeders/Fy2025TupadProjectSeeder.php
