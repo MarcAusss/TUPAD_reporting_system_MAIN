@@ -17,6 +17,7 @@ enum ReportDimension: string
     case STATUS = 'status';
     case SPONSOR = 'sponsor';
     case PARTNER = 'partner';
+    case LCE = 'lce';
     case PROJECT_CODE = 'project_code';
     case SECTOR = 'sector';
     case INTERVENTION_FOCUS = 'intervention_focus';
@@ -38,6 +39,7 @@ enum ReportDimension: string
             self::STATUS => 'Status',
             self::SPONSOR => 'Sponsor',
             self::PARTNER => 'Partner / NGA',
+            self::LCE => 'LCE / Party-list',
             self::PROJECT_CODE => 'Project Code',
             self::SECTOR => 'Beneficiary Sector',
             self::INTERVENTION_FOCUS => 'Intervention Focus',

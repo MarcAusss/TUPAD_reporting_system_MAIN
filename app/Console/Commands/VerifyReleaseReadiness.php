@@ -4,11 +4,14 @@ namespace App\Console\Commands;
 
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
+use App\Enums\ReportDimension;
+use App\Enums\ReportType;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 class VerifyReleaseReadiness extends Command
@@ -36,6 +39,7 @@ class VerifyReleaseReadiness extends Command
 
         if ($this->failures === []) {
             $this->verifyApplicationConfiguration();
+            $this->verifyReportingReleaseIntegrity();
             $this->verifyProvinceAuthorizationIntegrity();
             $this->verifyFinancialIntegrity();
             $this->verifyBeneficiaryIntegrity();
@@ -76,7 +80,14 @@ class VerifyReleaseReadiness extends Command
             'users' => ['username', 'role', 'is_active', 'assigned_province_id'],
             'adls' => ['grants', 'admin_cost', 'total'],
             'adl_realignments' => ['adl_id', 'amount'],
-            'adl_allocations' => ['adl_id', 'amount', 'grant_amount', 'admin_cost_amount', 'total_amount'],
+            'adl_allocations' => [
+                'adl_id',
+                'amount',
+                'grant_amount',
+                'admin_cost_amount',
+                'total_amount',
+                'local_chief_executive_partylist',
+            ],
             'projects' => [
                 'adl_allocation_id',
                 'status',
@@ -114,6 +125,19 @@ class VerifyReleaseReadiness extends Command
                 'provided_intervention_total',
                 'provided_intervention_female',
                 'amount_released',
+                'services_availed',
+            ],
+            'project_orientations' => [
+                'project_id',
+                'orientation_date',
+                'alkansssya_conducted',
+                'yakap_conducted',
+                'recorded_by',
+            ],
+            'project_monitoring_details' => [
+                'project_id',
+                'sprs_date',
+                'cqpr_date',
             ],
             'project_implementations' => [
                 'project_id',
@@ -205,6 +229,55 @@ class VerifyReleaseReadiness extends Command
 
         if ($insecureUsers->isNotEmpty()) {
             $this->failures[] = 'Active account(s) still use the development password "password": '.$insecureUsers->implode(', ').'.';
+        }
+    }
+
+    private function verifyReportingReleaseIntegrity(): void
+    {
+        $requiredRoutes = [
+            'reports.index',
+            'reports.workspace.physical-financial',
+            'reports.workspace.fund-status',
+            'reports.workspace.monthly',
+            'reports.workspace.quarterly',
+            'reports.workspace.geographic-mapping',
+            'reports.print',
+            'reports.export.pdf',
+            'reports.export.excel',
+            'reports.export.csv',
+            'reports.periodic.print',
+            'reports.periodic.export.pdf',
+        ];
+
+        foreach ($requiredRoutes as $routeName) {
+            $route = Route::getRoutes()->getByName($routeName);
+
+            if ($route === null) {
+                $this->failures[] = "Missing required reporting route [{$routeName}].";
+                continue;
+            }
+
+            $middleware = $route->gatherMiddleware();
+
+            if (! in_array('province.scope', $middleware, true)) {
+                $this->failures[] = "Reporting route [{$routeName}] is missing province.scope middleware.";
+            }
+
+            if (! in_array('role:admin,tc,focal', $middleware, true)) {
+                $this->failures[] = "Reporting route [{$routeName}] is missing the admin/tc/focal role restriction.";
+            }
+        }
+
+        if (! is_file(public_path('images/tupad-print-brand.jpg'))) {
+            $this->failures[] = 'Official report print-header brand asset [public/images/tupad-print-brand.jpg] is missing.';
+        }
+
+        if (! ReportType::FUND_STATUS->allows(ReportDimension::LCE)) {
+            $this->failures[] = 'Fund Status reporting must allow the LCE dimension.';
+        }
+
+        if (ReportType::PHYSICAL_FINANCIAL->allows(ReportDimension::LCE)) {
+            $this->failures[] = 'LCE must remain restricted to Fund Status reporting.';
         }
     }
 

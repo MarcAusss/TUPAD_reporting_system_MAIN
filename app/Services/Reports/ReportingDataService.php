@@ -101,7 +101,7 @@ final class ReportingDataService
             ]);
         }
 
-        if (in_array($groupBy, [ReportDimension::OVERALL, ReportDimension::ADL], true)) {
+        if (in_array($groupBy, [ReportDimension::OVERALL, ReportDimension::ADL, ReportDimension::LCE], true)) {
             $groups = $this->mergeAllocationOnlyGroups(
                 $groups,
                 $filters,
@@ -162,7 +162,7 @@ final class ReportingDataService
                     'allocation_totals_additive_across_groups' =>
                         in_array(
                             $groupBy,
-                            [ReportDimension::OVERALL, ReportDimension::ADL],
+                            [ReportDimension::OVERALL, ReportDimension::ADL, ReportDimension::LCE],
                             true,
                         ),
                     'period_basis' => 'projects.date_received',
@@ -351,6 +351,10 @@ final class ReportingDataService
 
             foreach ($groupDescriptors as $descriptor) {
                 foreach (BeneficiarySectorCategory::cases() as $category) {
+                    if ($filters->sectorGroup && $category->group() !== $filters->sectorGroup) {
+                        continue;
+                    }
+
                     if ($filters->sector && $filters->sector !== $category) {
                         continue;
                     }
@@ -389,6 +393,10 @@ final class ReportingDataService
 
         if ($projects->isEmpty() && $groupBy === ReportDimension::SECTOR) {
             foreach (BeneficiarySectorCategory::cases() as $category) {
+                if ($filters->sectorGroup && $category->group() !== $filters->sectorGroup) {
+                    continue;
+                }
+
                 if ($filters->sector && $filters->sector !== $category) {
                     continue;
                 }
@@ -906,6 +914,14 @@ final class ReportingDataService
                 ),
                 'label' => $project->partner ?: 'Unassigned Partner / NGA',
             ]],
+            ReportDimension::LCE => [[
+                'key' => $this->normalizedKey(
+                    $project->allocation?->local_chief_executive_partylist
+                        ?: 'Unassigned LCE / Party-list'
+                ),
+                'label' => $project->allocation?->local_chief_executive_partylist
+                    ?: 'Unassigned LCE / Party-list',
+            ]],
             ReportDimension::PROJECT_CODE => [[
                 'key' => $this->normalizedKey(
                     $project->approval?->project_code ?: 'Unapproved'
@@ -1096,12 +1112,27 @@ final class ReportingDataService
         }
 
         foreach ($allocationQuery->get() as $allocation) {
-            $descriptor = $groupBy === ReportDimension::OVERALL
-                ? ['key' => 'overall', 'label' => 'Overall']
-                : [
+            $descriptor = match ($groupBy) {
+                ReportDimension::OVERALL => [
+                    'key' => 'overall',
+                    'label' => 'Overall',
+                ],
+                ReportDimension::ADL => [
                     'key' => (string) $allocation->adl_id,
                     'label' => $allocation->adl?->adl_number ?? 'Unassigned ADL',
-                ];
+                ],
+                ReportDimension::LCE => [
+                    'key' => $this->normalizedKey(
+                        $allocation->local_chief_executive_partylist
+                            ?: 'Unassigned LCE / Party-list'
+                    ),
+                    'label' => $allocation->local_chief_executive_partylist
+                        ?: 'Unassigned LCE / Party-list',
+                ],
+                default => throw new InvalidArgumentException(
+                    'Allocation-only groups are not supported for this reporting dimension.'
+                ),
+            };
 
             $group = $groups->get($descriptor['key'], [
                 'key' => $descriptor['key'],

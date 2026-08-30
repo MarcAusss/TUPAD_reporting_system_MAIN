@@ -1,0 +1,52 @@
+{
+    "schema_version": 1,
+    "region": {
+        "psgc_code": "050000000",
+        "name": "Bicol Region"
+    },
+    "generated_at": "2026-08-30T00:56:14+00:00",
+    "source": {
+        "provider": "faeldon/philippines-json-maps",
+        "basis": "PSGC administrative boundaries, 31 December 2023",
+        "resolution": "medres",
+        "attribution": "Administrative boundary GeoJSON from faeldon/philippines-json-maps; source shapefiles use PSGC data and Philippine administrative boundaries. Validate against the application PSGC reference tables before use."
+    },
+    "join_key": "properties.psgc_code",
+    "files": {
+        "provinces.geojson": {
+            "feature_count": 6,
+            "sha256": "91b9cc24ac9f3f5d37796356f90ef2ab42bd529c1876e22606305f1bfcf9cf7d",
+            "bytes": 594287
+        },
+        "municipalities/albay.geojson": {
+            "feature_count": 18,
+            "sha256": "a07c5dea602fd0fa981acb4049767adea0700fe471eb33bede9365f60c673e82",
+            "bytes": 93106
+        },
+        "municipalities/camarines-norte.geojson": {
+            "feature_count": 12,
+            "sha256": "c8bac8f470d5944a07e7ed7861edae5f6f8dfde713d89a8cf7aadf24b7282480",
+            "bytes": 87637
+        },
+        "municipalities/camarines-sur.geojson": {
+            "feature_count": 37,
+            "sha256": "a5cef44a3fb9662d4055d6e326e460d0355ed6855536f312ab1aedc14d9f8c5d",
+            "bytes": 229570
+        },
+        "municipalities/catanduanes.geojson": {
+            "feature_count": 11,
+            "sha256": "a00a68ecb181c809ce09e540d09e2bf20f0d67f706e176e4b30d0301b3533caa",
+            "bytes": 67626
+        },
+        "municipalities/masbate.geojson": {
+            "feature_count": 21,
+            "sha256": "325207fe8cc145ed01cd9da4959bd63cab2407a560f1e0a47356d99d8c66409f",
+            "bytes": 189334
+        },
+        "municipalities/sorsogon.geojson": {
+            "feature_count": 15,
+            "sha256": "a509eb99e3120f3bed854ca1f2bcc7c6d5d8dee039c15ff9d0af4e6228eaeff0",
+            "bytes": 100976
+        }
+    }
+}

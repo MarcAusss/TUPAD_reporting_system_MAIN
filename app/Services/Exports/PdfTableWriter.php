@@ -100,23 +100,91 @@ final class PdfTableWriter
             $commands = [];
             $y = self::PAGE_HEIGHT - self::MARGIN;
 
-            $commands[] = $this->text(
+            // Phase 14F print header: follows the TUPAD PPE Inventory print/header
+            // composition only (brand left, report identity center, metadata right).
+            $headerHeight = 54;
+            $headerBottom = $y - $headerHeight;
+            $leftWidth = 150;
+            $rightWidth = 154;
+            $centerX = self::MARGIN + $leftWidth;
+            $centerWidth = $tableWidth - $leftWidth - $rightWidth;
+            $rightX = self::MARGIN + $tableWidth - $rightWidth;
+
+            $commands[] = sprintf(
+                '0.05 0.61 0.75 rg %.2F %.2F %.2F 4 re f',
                 self::MARGIN,
-                $y,
-                13,
-                (string) $report['title'],
-                true,
+                $y - 4,
+                $tableWidth,
             );
-            $y -= 16;
-            $commands[] = $this->text(
+            $commands[] = sprintf(
+                '0.92 0.95 0.97 rg %.2F %.2F %.2F %.2F re f',
+                $rightX,
+                $headerBottom,
+                $rightWidth,
+                $headerHeight - 4,
+            );
+            $commands[] = sprintf(
+                '0.82 0.86 0.90 RG 0.5 w %.2F %.2F %.2F %.2F re S',
                 self::MARGIN,
-                $y,
-                7.5,
-                'TUPAD Reporting System | Generated '
-                    .$report['generated_at']->format('M d, Y h:i A')
-                    .' | Page '.($pageIndex + 1).' of '.$chunks->count(),
+                $headerBottom,
+                $tableWidth,
+                $headerHeight,
             );
-            $y -= 12;
+            $commands[] = sprintf(
+                '0.86 0.89 0.92 RG 0.4 w %.2F %.2F m %.2F %.2F l S',
+                $centerX,
+                $headerBottom,
+                $centerX,
+                $y - 4,
+            );
+            $commands[] = sprintf(
+                '0.86 0.89 0.92 RG 0.4 w %.2F %.2F m %.2F %.2F l S',
+                $rightX,
+                $headerBottom,
+                $rightX,
+                $y - 4,
+            );
+
+            $commands[] = $this->text(self::MARGIN + 10, $y - 20, 13, 'TUPAD', true);
+            $commands[] = $this->text(self::MARGIN + 10, $y - 33, 7.2, 'TUPAD Reporting System', true);
+            $commands[] = $this->text(self::MARGIN + 10, $y - 43, 6.2, 'DOLE Regional Office V');
+
+            $title = $this->fit((string) $report['title'], $centerWidth - 18, 11.5);
+            $titleApproxWidth = strlen($title) * 11.5 * 0.48;
+            $titleX = $centerX + max(8, ($centerWidth - $titleApproxWidth) / 2);
+            $commands[] = $this->text($centerX + 12, $y - 17, 6.8, 'DEPARTMENT OF LABOR AND EMPLOYMENT', true);
+            $commands[] = $this->text($titleX, $y - 32, 11.5, $title, true);
+
+            $headerContext = isset($report['dimension'])
+                && is_object($report['dimension'])
+                && method_exists($report['dimension'], 'label')
+                    ? 'Grouped by '.$report['dimension']->label()
+                    : (string) ($report['official_code'] ?? 'Official Report');
+            $commands[] = $this->text(
+                $centerX + 12,
+                $y - 42,
+                6.2,
+                $this->fit($headerContext, $centerWidth - 24, 6.2),
+            );
+
+            if (filled($report['official_period'] ?? null)) {
+                $commands[] = $this->text(
+                    $centerX + 12,
+                    $y - 50,
+                    5.8,
+                    $this->fit((string) $report['official_period'], $centerWidth - 24, 5.8),
+                    true,
+                );
+            }
+
+            $commands[] = $this->text($rightX + 8, $y - 17, 6.1, 'Generated', true);
+            $commands[] = $this->text($rightX + 58, $y - 17, 6.1, $report['generated_at']->format('M d, Y'));
+            $commands[] = $this->text($rightX + 8, $y - 29, 6.1, 'Time', true);
+            $commands[] = $this->text($rightX + 58, $y - 29, 6.1, $report['generated_at']->format('h:i A'));
+            $commands[] = $this->text($rightX + 8, $y - 41, 6.1, 'Page', true);
+            $commands[] = $this->text($rightX + 58, $y - 41, 6.1, ($pageIndex + 1).' of '.$chunks->count());
+
+            $y = $headerBottom - 10;
 
             $criteria = collect($report['criteria'])
                 ->map(fn (string $value, string $label): string =>

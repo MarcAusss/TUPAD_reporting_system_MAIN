@@ -1,34 +1,26 @@
-TUPAD Major Revision Phase 13E Hotfix 02
-Release Verifier Coordinator Diagnostic Output Contract
+TUPAD Geographic Mapping Controller Restore Hotfix
 
-PURPOSE
-The Phase 13E release verifier already detects active TUPAD Coordinators that are unassigned or assigned to inactive provinces. Laravel's console test output matcher can receive long styled error messages in wrapped chunks, causing the full username substring to be split and making the two username assertions fail even though the verifier correctly blocks release.
+Purpose
+-------
+Restores the missing GeographicMappingReportController and its matching Phase 14G-compatible geographic mapping view.
 
-THIS HOTFIX
-- Keeps the existing blocking failure messages and exit codes unchanged.
-- Keeps one blocking issue per integrity rule (does not inflate the blocking-issue count per user).
-- Prints each affected Coordinator username on a short explicit diagnostic line:
-  Affected Coordinator: <username>
-- No authorization, province scoping, database, seeder, workflow, or UI logic changes.
+Files
+-----
+REPLACE/RESTORE app/Http/Controllers/GeographicMappingReportController.php
+REPLACE/RESTORE resources/views/reports/geographic-mapping/index.blade.php
 
-REPLACED FILE
-app/Console/Commands/VerifyReleaseReadiness.php
+Apply
+-----
+1. Extract this ZIP over the Laravel project root.
+2. Confirm the controller exists:
+   Test-Path "app\Http\Controllers\GeographicMappingReportController.php"
+3. Clear caches:
+   php artisan optimize:clear
+4. Verify the route:
+   php artisan route:list --name=reports.workspace.geographic-mapping -v
+5. Run focused regressions:
+   php artisan test tests/Feature/MajorRevisionPhase14EGeographicMappingTest.php
+   php artisan test tests/Feature/MajorRevisionPhase14GFinalReportsReleaseVerificationTest.php
+6. Open /reports/geographic-mapping again.
 
-APPLY
-Extract this ZIP over the Laravel project root and allow the file to be replaced.
-
-RUN
-php artisan optimize:clear
-php artisan test tests/Feature/MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest.php
-
-Then:
-php artisan test
-php artisan tupad:release-verify
-npm run build
-
-EXPECTED
-- Phase 13E focused test: 6 passed, 0 failed.
-- Full regression: 273 passed, 0 failed (based on the preceding 271-pass/2-fail run, assuming no unrelated local changes).
-
-Do not use php artisan migrate:fresh.
-No migration is included.
+No migration or dependency changes are required.

@@ -30,6 +30,7 @@ final readonly class ReportFilters
         public ?string $sponsor = null,
         public ?string $partner = null,
         public ?string $projectCode = null,
+        public ?string $sectorGroup = null,
         public ?BeneficiarySectorCategory $sector = null,
         public ?ProjectInterventionFocus $interventionFocus = null,
         public ?LaborMarketProgram $laborMarketProgram = null,
@@ -69,6 +70,26 @@ final readonly class ReportFilters
                 'Use either a reporting quarter or a reporting month, not both.'
             );
         }
+
+        if (
+            $this->sectorGroup !== null
+            && ! in_array($this->sectorGroup, [
+                BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE,
+                BeneficiarySectorCategory::GROUP_OCCUPATIONAL_LIVELIHOOD,
+            ], true)
+        ) {
+            throw new InvalidArgumentException('Invalid beneficiary sector group.');
+        }
+
+        if (
+            $this->sectorGroup !== null
+            && $this->sector !== null
+            && $this->sector->group() !== $this->sectorGroup
+        ) {
+            throw new InvalidArgumentException(
+                'The selected beneficiary sector does not belong to the selected sector group.'
+            );
+        }
     }
 
     public static function fromArray(array $filters): self
@@ -99,6 +120,7 @@ final readonly class ReportFilters
             sponsor: self::text($filters['sponsor'] ?? null),
             partner: self::text($filters['partner'] ?? null),
             projectCode: self::text($filters['project_code'] ?? null),
+            sectorGroup: self::text($filters['sector_group'] ?? null),
             sector: self::resolveEnum(
                 BeneficiarySectorCategory::class,
                 $filters['sector'] ?? null,

@@ -246,17 +246,7 @@
                             <span>Executive Dashboard</span>
                         </a>
 
-                        <a href="{{ route('reports.index') }}"
-                            class="{{ $navClass(request()->routeIs('reports.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M4 19V9"></path>
-                                <path d="M10 19V5"></path>
-                                <path d="M16 19v-7"></path>
-                                <path d="M22 19H2"></path>
-                            </svg>
-                            <span>Reports</span>
-                        </a>
+                        @include('layouts.partials.report-navigation')
 
                         <div class="tupad-nav-section">
                             Administration
@@ -427,17 +417,7 @@
                             <span>Executive Dashboard</span>
                         </a>
 
-                        <a href="{{ route('reports.index') }}"
-                            class="{{ $navClass(request()->routeIs('reports.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M4 19V9"></path>
-                                <path d="M10 19V5"></path>
-                                <path d="M16 19v-7"></path>
-                                <path d="M22 19H2"></path>
-                            </svg>
-                            <span>Reports</span>
-                        </a>
+                        @include('layouts.partials.report-navigation')
 
                         @if ($user->isAdmin())
                             <div class="tupad-nav-section">

@@ -9,6 +9,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MonthlyQuarterlyReportController;
+use App\Http\Controllers\OfficialPeriodicReportController;
 use App\Http\Controllers\ProjectAcpCheckReleaseController;
 use App\Http\Controllers\ProjectAcpImplementationController;
 use App\Http\Controllers\ProjectAcpLiquidationController;
@@ -26,9 +28,13 @@ use App\Http\Controllers\ProjectImplementationController;
 use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ProjectWorkflowQueueController;
+use App\Http\Controllers\PhysicalFinancialAccomplishmentController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReportWorkspaceController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\FundMonitoringController;
+use App\Http\Controllers\FundStatusReportController;
+use App\Http\Controllers\GeographicMappingReportController;
 use App\Http\Controllers\ProvinceMonitoringController;
 use Illuminate\Support\Facades\Route;
 
@@ -156,6 +162,27 @@ Route::middleware(['auth', 'province.scope'])->group(function () {
     */
 
     Route::middleware('role:admin,tc,focal')->group(function () {
+
+        Route::get('/reports/physical-financial', [PhysicalFinancialAccomplishmentController::class, 'index'])
+            ->name('reports.workspace.physical-financial');
+
+        Route::get('/reports/fund-status', [FundStatusReportController::class, 'index'])
+            ->name('reports.workspace.fund-status');
+
+        Route::get('/reports/monthly', [MonthlyQuarterlyReportController::class, 'monthly'])
+            ->name('reports.workspace.monthly');
+
+        Route::get('/reports/quarterly', [MonthlyQuarterlyReportController::class, 'quarterly'])
+            ->name('reports.workspace.quarterly');
+
+        Route::get('/reports/geographic-mapping', [GeographicMappingReportController::class, 'index'])
+            ->name('reports.workspace.geographic-mapping');
+
+        Route::get('/reports/periodic/print', [OfficialPeriodicReportController::class, 'print'])
+            ->name('reports.periodic.print');
+
+        Route::get('/reports/periodic/export/pdf', [OfficialPeriodicReportController::class, 'exportPdf'])
+            ->name('reports.periodic.export.pdf');
 
         Route::get(
             '/reports',

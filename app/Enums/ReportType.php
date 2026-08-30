@@ -95,8 +95,11 @@ enum ReportType: string
         ];
 
         return match ($this) {
-            self::PHYSICAL_FINANCIAL,
-            self::FUND_STATUS => $projectDimensions,
+            self::PHYSICAL_FINANCIAL => $projectDimensions,
+            self::FUND_STATUS => [
+                ...$projectDimensions,
+                ReportDimension::LCE,
+            ],
             self::GEOGRAPHIC_BENEFICIARIES => [
                 ReportDimension::PROVINCE,
                 ReportDimension::DISTRICT,

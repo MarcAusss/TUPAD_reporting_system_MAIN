@@ -200,6 +200,13 @@ class ReportController extends Controller
             'sponsor' => ['nullable', 'string', 'max:255'],
             'partner' => ['nullable', 'string', 'max:255'],
             'project_code' => ['nullable', 'string', 'max:255'],
+            'sector_group' => [
+                'nullable',
+                Rule::in([
+                    BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE,
+                    BeneficiarySectorCategory::GROUP_OCCUPATIONAL_LIVELIHOOD,
+                ]),
+            ],
             'sector' => [
                 'nullable',
                 Rule::enum(BeneficiarySectorCategory::class),
@@ -233,6 +240,22 @@ class ReportController extends Controller
                 );
             }
 
+
+            $sector = BeneficiarySectorCategory::tryFrom(
+                (string) ($input['sector'] ?? '')
+            );
+            $sectorGroup = trim((string) ($input['sector_group'] ?? ''));
+
+            if (
+                $sector !== null
+                && $sectorGroup !== ''
+                && $sector->group() !== $sectorGroup
+            ) {
+                $validator->errors()->add(
+                    'sector',
+                    'The selected beneficiary sector does not belong to the selected sector group.'
+                );
+            }
 
             $implementationMode = ImplementationMode::tryFrom(
                 (string) ($input['implementation_mode'] ?? '')
@@ -279,6 +302,15 @@ class ReportController extends Controller
             ]);
         }
 
+        if (
+            filled($validated['sector_group'] ?? null)
+            && $type !== ReportType::BENEFICIARY_SECTORS
+        ) {
+            throw ValidationException::withMessages([
+                'sector_group' => 'Sector group filtering is available only for Beneficiary Sector Classification reports.',
+            ]);
+        }
+
         return [$type, $dimension, ReportFilters::fromArray($validated)];
     }
 
@@ -309,6 +341,10 @@ class ReportController extends Controller
             'terms' => ProjectTerm::cases(),
             'implementation_modes' => ImplementationMode::cases(),
             'statuses' => ProjectStatus::cases(),
+            'sector_groups' => [
+                BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE => 'Priority / Vulnerable Sectors',
+                BeneficiarySectorCategory::GROUP_OCCUPATIONAL_LIVELIHOOD => 'Occupational / Livelihood Sectors',
+            ],
             'sectors' => BeneficiarySectorCategory::cases(),
             'intervention_focuses' => ProjectInterventionFocus::cases(),
             'labor_market_programs' => LaborMarketProgram::cases(),

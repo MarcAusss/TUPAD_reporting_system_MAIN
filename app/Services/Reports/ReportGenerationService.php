@@ -32,6 +32,17 @@ final class ReportGenerationService
             'type' => $type,
             'dimension' => $dimension,
             'title' => $type->label(),
+            'official_title' => match ($type) {
+                ReportType::PHYSICAL_FINANCIAL => 'Physical and Financial Accomplishment',
+                ReportType::FUND_STATUS => 'TUPAD FUND STATUS REPORT',
+                ReportType::GEOGRAPHIC_BENEFICIARIES => 'TUPAD GEOGRAPHIC BENEFICIARY REPORT',
+                ReportType::BENEFICIARY_SECTORS => 'TUPAD BENEFICIARY SECTOR REPORT',
+                ReportType::INTERVENTION_FOCUS => 'TUPAD INTERVENTION-FOCUS REPORT',
+                ReportType::LABOR_MARKET_REFERRALS => 'Number of TUPAD Beneficiaries Referred to Active Labor Market',
+            },
+            'official_kicker' => 'TUPAD Reporting System',
+            'official_code' => strtoupper(str_replace('_', ' ', $type->value)).' · OFFICIAL REPORT',
+            'official_period' => $this->periodLabel($filters),
             'description' => $type->description(),
             'columns' => $columns,
             'rows' => $rows,
@@ -450,6 +461,30 @@ final class ReportGenerationService
         ];
     }
 
+    private function periodLabel(ReportFilters $filters): string
+    {
+        if ($filters->fiscalYear && $filters->month) {
+            return now()->setDate(2000, $filters->month, 1)->format('F').' '.$filters->fiscalYear;
+        }
+
+        if ($filters->fiscalYear && $filters->quarter) {
+            return 'Q'.$filters->quarter.' '.$filters->fiscalYear;
+        }
+
+        if ($filters->fiscalYear) {
+            return 'FY '.$filters->fiscalYear;
+        }
+
+        if ($filters->dateFrom || $filters->dateTo) {
+            return implode(' to ', [
+                $filters->dateFrom?->format('M d, Y') ?? 'Beginning',
+                $filters->dateTo?->format('M d, Y') ?? 'Present',
+            ]);
+        }
+
+        return 'Current validated records';
+    }
+
     private function card(string $label, mixed $value, string $format): array
     {
         return [
@@ -538,6 +573,16 @@ final class ReportGenerationService
 
         if ($filters->projectCode) {
             $criteria['Project Code'] = $filters->projectCode;
+        }
+
+        if ($type === ReportType::BENEFICIARY_SECTORS && $filters->sectorGroup) {
+            $criteria['Sector Group'] = match ($filters->sectorGroup) {
+                BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE =>
+                    'Priority / Vulnerable Sectors',
+                BeneficiarySectorCategory::GROUP_OCCUPATIONAL_LIVELIHOOD =>
+                    'Occupational / Livelihood Sectors',
+                default => $filters->sectorGroup,
+            };
         }
 
         if ($filters->sector) {

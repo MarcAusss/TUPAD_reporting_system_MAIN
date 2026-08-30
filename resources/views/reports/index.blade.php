@@ -261,6 +261,19 @@
                     </div>
 
                     <div>
+                        <label for="sector_group" class="mb-2 block text-xs font-semibold text-slate-700">Sector Group</label>
+                        <select id="sector_group" name="sector_group"
+                            class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            <option value="">All sector groups</option>
+                            @foreach ($options['sector_groups'] as $value => $label)
+                                <option value="{{ $value }}" @selected(request('sector_group') === $value)>
+                                    {{ $label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
                         <label for="sector" class="mb-2 block text-xs font-semibold text-slate-700">Beneficiary Sector</label>
                         <select id="sector" name="sector"
                             class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">

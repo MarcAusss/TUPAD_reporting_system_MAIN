@@ -376,13 +376,18 @@ class ProjectImplementationController extends Controller
 
         $validated = $request->validate([
             'orientation_date' => ['required', 'date'],
+            'alkansssya_conducted' => ['nullable', 'boolean'],
+            'yakap_conducted' => ['nullable', 'boolean'],
             'remarks' => ['nullable', 'string', 'max:3000'],
         ]);
 
         $project->orientation()->updateOrCreate(
             ['project_id' => $project->id],
             [
-                ...$validated,
+                'orientation_date' => $validated['orientation_date'],
+                'alkansssya_conducted' => $request->boolean('alkansssya_conducted'),
+                'yakap_conducted' => $request->boolean('yakap_conducted'),
+                'remarks' => $validated['remarks'] ?? null,
                 'recorded_by' => $request->user()->id,
             ]
         );

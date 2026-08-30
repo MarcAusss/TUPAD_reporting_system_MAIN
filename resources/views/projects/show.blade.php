@@ -1989,6 +1989,43 @@
                     </div>
 
                     <div class="mt-4">
+                        <div class="mb-2 text-xs font-semibold text-slate-700">
+                            Program Coverage for Monthly Reporting
+                        </div>
+                        <p class="mb-3 text-[11px] leading-4 text-slate-500">
+                            Mark the beneficiary programs actually covered during this orientation. Legacy records may remain unspecified.
+                        </p>
+                        <div class="grid gap-2 sm:grid-cols-2">
+                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                                <input
+                                    type="checkbox"
+                                    name="alkansssya_conducted"
+                                    value="1"
+                                    @checked(old('alkansssya_conducted', $project->orientation?->alkansssya_conducted))
+                                    class="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#063b86]"
+                                >
+                                <span>
+                                    <span class="block text-xs font-semibold text-slate-800">AlkanSSSya</span>
+                                    <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">Included in the recorded TUPAD beneficiary orientation.</span>
+                                </span>
+                            </label>
+                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                                <input
+                                    type="checkbox"
+                                    name="yakap_conducted"
+                                    value="1"
+                                    @checked(old('yakap_conducted', $project->orientation?->yakap_conducted))
+                                    class="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#063b86]"
+                                >
+                                <span>
+                                    <span class="block text-xs font-semibold text-slate-800">YAKAP Program for TUPAD Beneficiaries</span>
+                                    <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">Included in the recorded TUPAD beneficiary orientation.</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
 
                         <label class="mb-2 block text-xs font-semibold text-slate-700">
                             Remarks
