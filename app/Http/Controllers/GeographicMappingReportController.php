@@ -82,7 +82,14 @@ class GeographicMappingReportController extends Controller
         $validated = validator($input, [
             'view' => ['required', Rule::in(array_keys(self::FAMILIES))],
             'level' => ['nullable', Rule::in(['province', 'district', 'municipality', 'barangay'])],
-            'fiscal_year' => ['nullable', 'integer', 'between:2000,2100'],
+            'fiscal_year' => [
+                'nullable',
+                'integer',
+                'between:2000,2100',
+                'required_with:quarter,month',
+            ],
+            'quarter' => ['nullable', 'integer', 'between:1,4'],
+            'month' => ['nullable', 'integer', 'between:1,12'],
             'status' => ['nullable', Rule::enum(ProjectStatus::class)],
             'implementation_mode' => ['nullable', Rule::enum(ImplementationMode::class)],
             'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
@@ -96,6 +103,24 @@ class GeographicMappingReportController extends Controller
             'sector' => ['nullable', Rule::enum(BeneficiarySectorCategory::class)],
             'intervention_focus' => ['nullable', Rule::enum(ProjectInterventionFocus::class)],
         ])->after(function ($validator) use ($input, $familyKey, $family): void {
+            $hasQuarter = array_key_exists('quarter', $input)
+                && $input['quarter'] !== null
+                && $input['quarter'] !== '';
+            $hasMonth = array_key_exists('month', $input)
+                && $input['month'] !== null
+                && $input['month'] !== '';
+
+            if ($hasQuarter && $hasMonth) {
+                $validator->errors()->add(
+                    'quarter',
+                    'Quarter and month cannot be used at the same time.'
+                );
+                $validator->errors()->add(
+                    'month',
+                    'Month and quarter cannot be used at the same time.'
+                );
+            }
+
             $level = (string) ($input['level'] ?? '');
 
             if ($family['levels'] === [] && $level !== '') {
@@ -156,6 +181,8 @@ class GeographicMappingReportController extends Controller
 
         $filterInput = array_filter([
             'fiscal_year' => $validated['fiscal_year'] ?? null,
+            'quarter' => $validated['quarter'] ?? null,
+            'month' => $validated['month'] ?? null,
             'status' => $validated['status'] ?? null,
             'implementation_mode' => $validated['implementation_mode'] ?? null,
             'province_id' => $validated['province_id'] ?? null,
@@ -187,6 +214,8 @@ class GeographicMappingReportController extends Controller
             'report_type' => $type->value,
             'group_by' => $dimension->value,
             'fiscal_year' => $validated['fiscal_year'] ?? null,
+            'quarter' => $validated['quarter'] ?? null,
+            'month' => $validated['month'] ?? null,
             'status' => $validated['status'] ?? null,
             'implementation_mode' => $validated['implementation_mode'] ?? null,
             'province_id' => $validated['province_id'] ?? null,
@@ -199,6 +228,8 @@ class GeographicMappingReportController extends Controller
 
         $commonQuery = array_filter([
             'fiscal_year' => $validated['fiscal_year'] ?? null,
+            'quarter' => $validated['quarter'] ?? null,
+            'month' => $validated['month'] ?? null,
             'status' => $validated['status'] ?? null,
             'implementation_mode' => $validated['implementation_mode'] ?? null,
             'province_id' => $validated['province_id'] ?? null,

@@ -32,6 +32,108 @@ final class BicolGeographicFoundation
             ->get();
     }
 
+    public function provinceById(int $provinceId): ?Province
+    {
+        $codes = array_keys($this->provinceDefinitions());
+
+        return Province::query()
+            ->whereKey($provinceId)
+            ->whereIn('code', $codes)
+            ->where('is_active', true)
+            ->first();
+    }
+
+    /** @return Collection<int, Municipality> */
+    public function municipalitiesForProvince(int|Province $province): Collection
+    {
+        $provinceId = $province instanceof Province
+            ? (int) $province->id
+            : $province;
+
+        return Municipality::query()
+            ->where('province_id', $provinceId)
+            ->where('is_active', true)
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function municipalityById(int $provinceId, int $municipalityId): ?Municipality
+    {
+        $province = $this->provinceById($provinceId);
+
+        if (! $province) {
+            return null;
+        }
+
+        return Municipality::query()
+            ->whereKey($municipalityId)
+            ->where('province_id', $province->id)
+            ->where('is_active', true)
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
+            ->first();
+    }
+
+    /** @return Collection<int, Barangay> */
+    public function barangaysForMunicipality(int|Municipality $municipality): Collection
+    {
+        $municipalityId = $municipality instanceof Municipality
+            ? (int) $municipality->id
+            : $municipality;
+
+        return Barangay::query()
+            ->where('municipality_id', $municipalityId)
+            ->where('is_active', true)
+            ->whereNotNull('code')
+            ->where('code', '!=', '')
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function municipalityBoundaryRelativePath(string $provinceCode): string
+    {
+        $definition = $this->provinceDefinitions()[$provinceCode] ?? null;
+
+        if (! $definition) {
+            throw new \InvalidArgumentException("Unknown Bicol province PSGC code {$provinceCode}.");
+        }
+
+        return trim((string) config('tupad_mapping.public_path', 'geojson/bicol'), '/\\')
+            .'/municipalities/'.$definition['slug'].'.geojson';
+    }
+
+    public function barangayLabelRelativePath(string $municipalityCode): string
+    {
+        $canonical = $this->normalizePsgcCode($municipalityCode);
+
+        if (! $canonical) {
+            throw new \InvalidArgumentException("Invalid municipality PSGC code {$municipalityCode}.");
+        }
+
+        return trim((string) config('tupad_mapping.public_path', 'geojson/bicol'), '/\\')
+            .'/barangay-labels/'.$canonical.'.geojson';
+    }
+
+    /**
+     * Convert this project's canonical 9-digit PSGC correspondence code to the
+     * numeric-looking source filename used by the reviewed 2023 GIS provider.
+     * Example: 050501000 -> 500501000.
+     */
+    public function sourceMunicipalityCode(string $municipalityCode): string
+    {
+        $canonical = $this->normalizePsgcCode($municipalityCode);
+
+        if (! $canonical) {
+            throw new \InvalidArgumentException("Invalid municipality PSGC code {$municipalityCode}.");
+        }
+
+        $tenDigit = substr($canonical, 0, 2).'0'.substr($canonical, 2);
+
+        return ltrim($tenDigit, '0');
+    }
+
     /**
      * Validate the existing reference data needed to join database rows to
      * polygons. This deliberately fails closed instead of falling back to
@@ -172,5 +274,21 @@ final class BicolGeographicFoundation
         return $this->publicDirectory()
             .DIRECTORY_SEPARATOR.'municipalities'
             .DIRECTORY_SEPARATOR.$definition['slug'].'.geojson';
+    }
+
+    public function barangayLabelDirectory(): string
+    {
+        return $this->publicDirectory().DIRECTORY_SEPARATOR.'barangay-labels';
+    }
+
+    public function barangayLabelPath(string $municipalityCode): string
+    {
+        $canonical = $this->normalizePsgcCode($municipalityCode);
+
+        if (! $canonical) {
+            throw new \InvalidArgumentException("Invalid municipality PSGC code {$municipalityCode}.");
+        }
+
+        return $this->barangayLabelDirectory().DIRECTORY_SEPARATOR.$canonical.'.geojson';
     }
 }

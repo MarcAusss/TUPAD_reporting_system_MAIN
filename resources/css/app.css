@@ -515,3 +515,158 @@ a[href^="#"]:focus-visible {
         max-width: min(252px, calc(100vw - 32px)) !important;
     }
 }
+
+/* ============================================================
+   Geographic Mapping Phase 2 — Leaflet / Chart.js shell
+   ============================================================ */
+[data-tupad-region-map] .leaflet-container,
+[data-map-canvas].leaflet-container {
+    background: #f8fbff;
+    font-family: inherit;
+}
+
+[data-tupad-region-map] .leaflet-control-zoom {
+    overflow: hidden;
+    border: 1px solid #d7e0eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(15, 35, 71, .08);
+}
+
+[data-tupad-region-map] .leaflet-control-zoom a {
+    color: #17325c;
+    border-bottom-color: #e5ebf2;
+}
+
+[data-tupad-region-map] .leaflet-control-attribution {
+    color: #7b8aa1;
+    background: rgba(255, 255, 255, .88);
+    font-size: 8px;
+}
+
+.tupad-province-label {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #17325c !important;
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .95), 0 0 3px rgba(255, 255, 255, .95);
+    white-space: nowrap;
+}
+
+.tupad-municipality-label {
+    border: 0 !important;
+    background: rgba(255, 255, 255, .82) !important;
+    box-shadow: 0 1px 4px rgba(15, 35, 71, .08) !important;
+    color: #17325c !important;
+    font-size: 7px !important;
+    font-weight: 800 !important;
+    line-height: 1.15 !important;
+    padding: 2px 4px !important;
+    white-space: nowrap;
+}
+
+.tupad-municipality-label-selected {
+    background: #063b86 !important;
+    color: #fff !important;
+    box-shadow: 0 2px 7px rgba(6, 59, 134, .24) !important;
+}
+
+.tupad-barangay-label {
+    border: 1px solid rgba(6, 59, 134, .16) !important;
+    border-radius: 4px !important;
+    background: rgba(255, 255, 255, .88) !important;
+    box-shadow: none !important;
+    color: #40536e !important;
+    font-size: 6px !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+    padding: 1px 3px !important;
+    white-space: nowrap;
+}
+
+.tupad-province-label::before,
+.tupad-municipality-label::before,
+.tupad-barangay-label::before,
+.tupad-map-stat-tooltip::before {
+    display: none !important;
+}
+
+.tupad-map-stat-tooltip {
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    box-shadow: 0 12px 30px rgba(15, 35, 71, .18) !important;
+    padding: 0 !important;
+}
+
+.tupad-map-tooltip-card {
+    min-width: 205px;
+    border: 1px solid #d9e2ed;
+    border-radius: 10px;
+    background: #fff;
+    padding: 11px 12px;
+    color: #17325c;
+}
+
+.tupad-map-tooltip-title {
+    border-bottom: 1px solid #edf1f6;
+    padding-bottom: 7px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.tupad-map-tooltip-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 12px;
+    padding-top: 8px;
+    font-size: 10px;
+}
+
+.tupad-map-tooltip-grid span { color: #718096; }
+.tupad-map-tooltip-grid strong { color: #10294f; text-align: right; }
+.tupad-map-tooltip-warning { margin-top: 8px; color: #9a6700; font-size: 9px; font-weight: 700; }
+.tupad-map-tooltip-foot { margin-top: 8px; border-top: 1px solid #edf1f6; padding-top: 7px; color: #7b8aa1; font-size: 9px; }
+
+/* ============================================================
+   Geographic Mapping Phase 6 — metric + label-density polish
+   ============================================================ */
+.tupad-map-label-hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.tupad-map-tooltip-metric {
+    margin-top: 8px;
+    border-top: 1px solid #edf1f6;
+    padding-top: 7px;
+    color: #4b6485;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.tupad-map-tooltip-metric strong {
+    color: #063b86;
+}
+
+.tupad-municipality-label,
+.tupad-barangay-label {
+    transition: opacity .12s ease;
+}
+
+@media (max-width: 639px) {
+    .tupad-municipality-label {
+        font-size: 6px !important;
+        padding: 1px 3px !important;
+    }
+
+    .tupad-barangay-label {
+        font-size: 5px !important;
+    }
+
+    .tupad-map-tooltip-card {
+        min-width: 190px;
+        padding: 9px 10px;
+    }
+}

@@ -23,6 +23,7 @@ return [
         'resolution' => 'medres',
         'region_url' => 'https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/2023/geojson/regions/medres/provdists-region-500000000.0.01.json',
         'municipality_url_pattern' => 'https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/2023/geojson/provdists/medres/municities-provdist-%s.0.01.json',
+        'barangay_url_pattern' => 'https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/2023/geojson/municities/medres/bgysubmuns-municity-%s.0.01.json',
         'attribution' => 'Administrative boundary GeoJSON from faeldon/philippines-json-maps; source shapefiles use PSGC data and Philippine administrative boundaries. Validate against the application PSGC reference tables before use.',
     ],
 

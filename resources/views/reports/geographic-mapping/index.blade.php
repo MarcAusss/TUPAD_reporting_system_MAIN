@@ -30,6 +30,15 @@
         </div>
     </div>
 
+    @if (($familyKey === 'projects') && ($level === 'province') && (auth()->user()->isFocal() || auth()->user()->isAdmin() || auth()->user()->isTc()))
+        <livewire:reports.geographic-distribution-map
+            :fiscal-year="$filters['fiscal_year'] ?? null"
+            :quarter="$filters['quarter'] ?? null"
+            :month="$filters['month'] ?? null"
+            :status="$filters['status'] ?? null"
+            :implementation-mode="$filters['implementation_mode'] ?? null" />
+    @endif
+
     <section class="mb-5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm" aria-label="Geographic mapping families">
         <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             @foreach ($families as $key => $tab)
