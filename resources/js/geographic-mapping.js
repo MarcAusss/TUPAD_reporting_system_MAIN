@@ -49,6 +49,30 @@ function mapStatsIndex(payload) {
     return new Map(mapRows(payload).map((area) => [String(area.psgc_code), area]));
 }
 
+function metricValueText(payload, value) {
+    if (payload?.metric?.key === 'allocation') {
+        return pesoFormatter.format(Number(value ?? 0) / 100);
+    }
+
+    return numberFormatter.format(Number(value ?? 0));
+}
+
+function metricAxisText(payload, value) {
+    if (payload?.metric?.key === 'allocation') {
+        return `₱${compactFormatter.format(Number(value ?? 0) / 100)}`;
+    }
+
+    return compactFormatter.format(Number(value ?? 0));
+}
+
+function metricUnitText(payload) {
+    return String(
+        payload?.metric?.unit
+        ?? payload?.metric?.label
+        ?? 'value'
+    ).toLowerCase();
+}
+
 function allocationText(stats) {
     if (stats?.allocation_available === false || stats?.allocation_cents === null) {
         return 'Not geographically split';
@@ -61,7 +85,9 @@ function tooltipHtml(stats, featureName, payload) {
     const isRegionView = payload?.map_level === 'region';
     const fallbackName = isRegionView ? 'Province' : 'Municipality / City';
     const name = escapeHtml(stats?.name ?? featureName ?? fallbackName);
-    const incomplete = stats && !stats.has_complete_exact_allocation
+    const primaryLabel = escapeHtml(payload?.metric?.label ?? 'Mapped value');
+    const primaryValue = escapeHtml(metricValueText(payload, stats?.value ?? 0));
+    const incomplete = payload?.metric?.key === 'beneficiaries' && stats && !stats.has_complete_exact_allocation
         ? `<div class="tupad-map-tooltip-warning">Includes ${numberFormatter.format(stats.legacy_unallocated_project_count ?? 0)} legacy unallocated project(s)</div>`
         : '';
 
@@ -78,8 +104,9 @@ function tooltipHtml(stats, featureName, payload) {
         <div class="tupad-map-tooltip-card">
             <div class="tupad-map-tooltip-title">${name}</div>
             <div class="tupad-map-tooltip-grid">
-                <span>Beneficiaries</span><strong>${numberFormatter.format(stats?.beneficiaries ?? 0)}</strong>
+                <span>${primaryLabel}</span><strong>${primaryValue}</strong>
                 <span>Projects</span><strong>${numberFormatter.format(stats?.projects ?? 0)}</strong>
+                <span>Beneficiaries</span><strong>${numberFormatter.format(stats?.beneficiaries ?? 0)}</strong>
                 <span>Ongoing</span><strong>${numberFormatter.format(stats?.ongoing_projects ?? 0)}</strong>
                 <span>Completed</span><strong>${numberFormatter.format(stats?.completed_projects ?? 0)}</strong>
                 <span>Allocation</span><strong>${escapeHtml(allocationText(stats))}</strong>
@@ -403,7 +430,7 @@ function updateChart(root, state, payload) {
                     tooltip: {
                         displayColors: false,
                         callbacks: {
-                            label: (context) => `${numberFormatter.format(context.raw ?? 0)} beneficiaries`,
+                            label: (context) => `${metricValueText(payload, context.raw)} ${metricUnitText(payload)}`,
                         },
                     },
                 },
@@ -415,7 +442,7 @@ function updateChart(root, state, payload) {
                         ticks: {
                             color: '#718096',
                             font: { size: 9 },
-                            callback: (value) => compactFormatter.format(value),
+                            callback: (value) => metricAxisText(payload, value),
                         },
                     },
                     y: {
@@ -435,6 +462,10 @@ function updateChart(root, state, payload) {
     state.chart.data.labels = labels;
     state.chart.data.datasets[0].data = values;
     state.chart.data.datasets[0].label = payload?.metric?.label ?? 'Beneficiaries';
+    state.chart.options.plugins.tooltip.callbacks.label =
+        (context) => `${metricValueText(payload, context.raw)} ${metricUnitText(payload)}`;
+    state.chart.options.scales.x.ticks.callback =
+        (value) => metricAxisText(payload, value);
     state.chart.update();
 }
 

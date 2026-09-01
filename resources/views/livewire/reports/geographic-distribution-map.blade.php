@@ -10,34 +10,69 @@
     $mapHeading = $isProvinceScope
         ? strtoupper(($selectedProvince['name'] ?? 'Selected Province') . ' MAP')
         : 'BICOL REGION MAP';
+
+    $familyKey = $mapPayload['mapping_family']['key'] ?? 'beneficiaries';
+    $familyLabel = $mapPayload['mapping_family']['label'] ?? 'Beneficiary Mapping';
+    $familyDescription = $mapPayload['mapping_family']['description'] ?? '';
+    $familyContext = $mapPayload['mapping_family']['context_label'] ?? null;
+    $metricLabel = (string) ($mapPayload['metric']['label'] ?? 'Beneficiaries');
+    $metricLabelUpper = strtoupper($metricLabel);
+    $metricUnit = (string) ($mapPayload['metric']['unit'] ?? strtolower($metricLabel));
+
     $chartHeading = $isMunicipalityView
-        ? strtoupper(($selectedMunicipality['name'] ?? 'Selected Municipality') . ' — BENEFICIARIES BY BARANGAY')
-        : 'BENEFICIARIES BY ' . ($isProvinceScope ? 'MUNICIPALITY / CITY' : 'PROVINCE');
+        ? strtoupper(($selectedMunicipality['name'] ?? 'Selected Municipality') . ' — ' . $metricLabel . ' BY BARANGAY')
+        : $metricLabelUpper . ' BY ' . ($isProvinceScope ? 'MUNICIPALITY / CITY' : 'PROVINCE');
+
     $allocationAvailable = (bool) ($mapPayload['summary']['allocation_available'] ?? false);
+    $isBeneficiaryMetric = ($mapPayload['metric']['key'] ?? null) === \App\Services\Mapping\BicolMapMetricService::BENEFICIARIES;
 @endphp
 
 <div class="mb-5" data-mapping-phase="2" x-data
     x-on:tupad-map-select-province.window="$wire.selectProvince($event.detail.provinceId)"
     x-on:tupad-map-select-municipality.window="$wire.selectMunicipality($event.detail.municipalityId)">
     <section class="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div wire:loading.delay.longer wire:target="fiscalYear,status,implementationMode,selectProvince,selectMunicipality,showProvince,showRegion"
+        <div wire:loading.delay.longer
+            wire:target="fiscalYear,reportingPeriod,status,implementationMode,mapMetric,sectorGroup,sector,interventionFocus,selectProvince,selectMunicipality,showProvince,showRegion,clearFilters"
             class="absolute inset-0 z-[900] flex items-start justify-center bg-white/55 pt-24 backdrop-blur-[1px]">
             <div class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-[#17325c] shadow-sm">
                 Updating geographic data…
             </div>
         </div>
 
+        {{-- Existing metric binding remains available for compatibility, but the visible map family is controlled by the four tabs above. --}}
+        <select wire:model.live="mapMetric" class="sr-only" tabindex="-1" aria-hidden="true">
+            @foreach (($mapPayload['metric_options'] ?? []) as $metricOption)
+                <option value="{{ $metricOption['key'] }}">{{ $metricOption['label'] }}</option>
+            @endforeach
+        </select>
+
         <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <div class="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#1765d8]">Interactive Geographic Mapping</div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#1765d8]">Interactive Geographic Mapping</span>
+                    <span class="rounded-md bg-blue-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#063b86]">
+                        {{ $familyLabel }}
+                    </span>
+                    @if (($mapPayload['viewer_scope']['type'] ?? null) === 'province')
+                        <span class="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-600">
+                            Assigned Province Scope
+                        </span>
+                    @endif
+                </div>
                 <h2 class="mt-1 text-lg font-extrabold tracking-tight text-[#0d2449]">TUPAD Distribution Map</h2>
-                <p class="mt-1 text-xs leading-5 text-slate-500">
+                <p class="mt-1 max-w-4xl text-xs leading-5 text-slate-500">
+                    {{ $familyDescription }}
+                    @if ($familyContext)
+                        <span class="font-semibold text-slate-700">Current classification: {{ $familyContext }}.</span>
+                    @endif
+                </p>
+                <p class="mt-1 text-[11px] leading-5 text-slate-400">
                     @if ($isMunicipalityView)
-                        {{ $selectedProvince['name'] }} → {{ $selectedMunicipality['name'] }}. The municipality remains selected while the graph and map labels show its barangay breakdown.
+                        {{ $selectedProvince['name'] }} → {{ $selectedMunicipality['name'] }}. The selected municipality stays highlighted while the ranking shows its barangays.
                     @elseif ($isProvinceScope)
-                        {{ $selectedProvince['name'] }} → Municipality / City. Municipality labels are visible; click an area for its barangay breakdown.
+                        {{ $selectedProvince['name'] }} → Municipality / City. Click a municipality or city to view its barangay breakdown.
                     @else
-                        Bicol Region → Province. Hover a province for current TUPAD statistics, then click it to view its municipalities and cities.
+                        Bicol Region → Province. Hover for the selected metric and click a province to drill down to municipalities and cities.
                     @endif
                 </p>
             </div>
@@ -57,7 +92,7 @@
                     <svg class="h-3 w-3 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"></path></svg>
                 @endif
 
-                @if (($crumb['level'] ?? null) === 'region' && ! $isRegionView)
+                @if (($crumb['level'] ?? null) === 'region' && ! $isRegionView && (($mapPayload['viewer_scope']['can_view_region'] ?? false)))
                     <button type="button" wire:click="showRegion" class="font-bold text-[#063b86] hover:underline">{{ $crumb['label'] }}</button>
                 @elseif (($crumb['level'] ?? null) === 'province' && $isMunicipalityView)
                     <button type="button" wire:click="showProvince" class="font-bold text-[#063b86] hover:underline">{{ $crumb['label'] }}</button>
@@ -75,10 +110,16 @@
                     class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
             </label>
 
-            <div>
-                <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Map By</span>
-                <div class="flex h-10 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-[#063b86]">Beneficiaries</div>
-            </div>
+            <label class="block">
+                <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Reporting Period</span>
+                <select wire:model.live="reportingPeriod"
+                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
+                    <option value="">All year / no period</option>
+                    @foreach ($reportingPeriods as $periodValue => $periodLabel)
+                        <option value="{{ $periodValue }}">{{ $periodLabel }}</option>
+                    @endforeach
+                </select>
+            </label>
 
             <div>
                 <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Province</span>
@@ -108,9 +149,63 @@
             </label>
         </div>
 
+        @if ($familyKey === 'sectors')
+            <div class="grid gap-3 border-b border-slate-200 bg-white px-4 py-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]">
+                <label class="block">
+                    <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Sector Family</span>
+                    <select wire:model.live="sectorGroup" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
+                        @foreach ($sectorGroups as $groupValue => $groupLabel)
+                            <option value="{{ $groupValue }}">{{ $groupLabel }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <label class="block">
+                    <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Sector Category</span>
+                    <select wire:model.live="sector" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
+                        <option value="">All categories in selected family</option>
+                        @foreach ($sectorOptions as $sectorOption)
+                            <option value="{{ $sectorOption->value }}">{{ $sectorOption->label() }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <div class="flex items-end">
+                    <button type="button" wire:click="clearFilters"
+                        class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 xl:w-auto">
+                        Reset Filters
+                    </button>
+                </div>
+            </div>
+        @elseif ($familyKey === 'interventions')
+            <div class="grid gap-3 border-b border-slate-200 bg-white px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                <label class="block">
+                    <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Intervention Focus</span>
+                    <select wire:model.live="interventionFocus" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
+                        <option value="">All intervention focuses</option>
+                        @foreach ($interventionFocuses as $focus)
+                            <option value="{{ $focus->value }}">{{ $focus->label() }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <div class="flex items-end">
+                    <button type="button" wire:click="clearFilters"
+                        class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 md:w-auto">
+                        Reset Filters
+                    </button>
+                </div>
+            </div>
+        @endif
+
         @error('fiscalYear')<div class="border-b border-red-100 bg-red-50 px-5 py-2 text-xs font-semibold text-red-700">{{ $message }}</div>@enderror
+        @error('reportingPeriod')<div class="border-b border-red-100 bg-red-50 px-5 py-2 text-xs font-semibold text-red-700">{{ $message }}</div>@enderror
         @error('status')<div class="border-b border-red-100 bg-red-50 px-5 py-2 text-xs font-semibold text-red-700">{{ $message }}</div>@enderror
         @error('implementationMode')<div class="border-b border-red-100 bg-red-50 px-5 py-2 text-xs font-semibold text-red-700">{{ $message }}</div>@enderror
+        @error('sectorGroup')<div class="border-b border-red-100 bg-red-50 px-5 py-2 text-xs font-semibold text-red-700">{{ $message }}</div>@enderror
+        @error('sector')<div class="border-b border-red-100 bg-red-50 px-5 py-2 text-xs font-semibold text-red-700">{{ $message }}</div>@enderror
+        @error('interventionFocus')<div class="border-b border-red-100 bg-red-50 px-5 py-2 text-xs font-semibold text-red-700">{{ $message }}</div>@enderror
+        @error('mapMetric')<div class="border-b border-amber-100 bg-amber-50 px-5 py-2 text-xs font-semibold text-amber-700">{{ $message }}</div>@enderror
 
         <div class="grid gap-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(390px,0.85fr)]">
             <article class="border-b border-slate-200 xl:border-b-0 xl:border-r">
@@ -119,11 +214,11 @@
                         <h3 class="text-sm font-extrabold text-slate-900">{{ $mapHeading }}</h3>
                         <p class="mt-1 text-[11px] text-slate-500">
                             @if ($isMunicipalityView)
-                                {{ $selectedMunicipality['name'] }} is persistently highlighted. Municipality labels remain visible and barangay labels are loaded only for the selected municipality.
+                                {{ $selectedMunicipality['name'] }} remains highlighted. The ranking uses {{ strtolower($metricLabel) }} by barangay while municipality polygons remain visible for context.
                             @elseif ($isProvinceScope)
-                                Hover a municipality/city for exact mapped beneficiaries and project status counts. Click it to show barangay data; financial allocation is not divided across municipality polygons.
+                                Hover a municipality/city for {{ strtolower($metricLabel) }} and supporting project statistics. Click it to show the barangay breakdown.
                             @else
-                                Hover a province for its TUPAD summary. Click a province to drill down to municipality/city boundaries and ranking.
+                                Hover a province for {{ strtolower($metricLabel) }} and supporting TUPAD statistics. Click it to drill down to municipality/city boundaries and ranking.
                             @endif
                         </p>
                     </div>
@@ -135,7 +230,7 @@
                                 <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"></path></svg>
                                 Back to Municipalities
                             </button>
-                        @elseif ($isProvinceScope)
+                        @elseif ($isProvinceScope && ($mapPayload['viewer_scope']['can_view_region'] ?? false))
                             <button type="button" wire:click="showRegion"
                                 class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50">
                                 <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"></path></svg>
@@ -149,11 +244,19 @@
                                 <span class="px-2.5 py-1.5 text-slate-400">Province View</span>
                                 <span class="px-2.5 py-1.5 text-slate-400">Barangay Data</span>
                             @elseif ($isMunicipalityView)
-                                <button type="button" wire:click="showRegion" class="rounded-md px-2.5 py-1.5 text-[#063b86] hover:bg-white">Region View</button>
+                                @if ($mapPayload['viewer_scope']['can_view_region'] ?? false)
+                                    <button type="button" wire:click="showRegion" class="rounded-md px-2.5 py-1.5 text-[#063b86] hover:bg-white">Region View</button>
+                                @else
+                                    <span class="px-2.5 py-1.5 text-slate-400">Region View</span>
+                                @endif
                                 <button type="button" wire:click="showProvince" class="rounded-md px-2.5 py-1.5 text-[#063b86] hover:bg-white">Province View</button>
                                 <span class="rounded-md bg-[#063b86] px-2.5 py-1.5 text-white">Barangay Data</span>
                             @else
-                                <button type="button" wire:click="showRegion" class="rounded-md px-2.5 py-1.5 text-[#063b86] hover:bg-white">Region View</button>
+                                @if ($mapPayload['viewer_scope']['can_view_region'] ?? false)
+                                    <button type="button" wire:click="showRegion" class="rounded-md px-2.5 py-1.5 text-[#063b86] hover:bg-white">Region View</button>
+                                @else
+                                    <span class="px-2.5 py-1.5 text-slate-400">Region View</span>
+                                @endif
                                 <span class="rounded-md bg-[#063b86] px-2.5 py-1.5 text-white">Province View</span>
                                 <span class="px-2.5 py-1.5 text-slate-400">Barangay Data</span>
                             @endif
@@ -176,8 +279,7 @@
                 @endif
 
                 <div class="relative">
-                    <div
-                        data-tupad-region-map
+                    <div data-tupad-region-map
                         data-geojson-url="{{ $mapPayload['boundary']['url'] }}"
                         class="relative h-[480px] min-h-[420px] bg-[#f8fbff] sm:h-[520px]"
                         wire:ignore>
@@ -200,7 +302,7 @@
                         <span>HIGH</span>
                     </div>
                     <div class="text-[10px] text-slate-400">
-                        {{ $isMunicipalityView ? 'Municipality color = province-wide mapped beneficiaries; selected border = current municipality' : 'Color intensity = exact mapped beneficiaries' }}
+                        Color intensity = {{ strtolower($metricLabel) }} for the visible geographic level.
                     </div>
                 </div>
             </article>
@@ -209,29 +311,37 @@
                 <div class="border-b border-slate-100 px-5 py-4">
                     <h3 class="text-sm font-extrabold text-slate-900">{{ $chartHeading }}</h3>
                     <p class="mt-1 text-[11px] text-slate-500">
-                        {{ $isMunicipalityView ? 'Exact barangay beneficiary allocations for the selected municipality, ranked highest to lowest.' : 'Same filtered geographic dataset as the choropleth, ranked highest to lowest.' }}
+                        Same filtered {{ strtolower($metricLabel) }} dataset as the choropleth, ranked highest to lowest.
                     </p>
                 </div>
 
                 <div class="p-5">
+                    @if (! ($mapPayload['empty_state']['has_values'] ?? false))
+                        <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] leading-5 text-slate-500">
+                            {{ $mapPayload['empty_state']['message'] ?? 'No mapped values matched the current filters.' }}
+                        </div>
+                    @endif
+
                     <div class="h-[360px]" wire:ignore>
-                        <canvas data-map-chart aria-label="Horizontal beneficiary ranking chart"></canvas>
+                        <canvas data-map-chart aria-label="Horizontal {{ strtolower($metricLabel) }} ranking chart"></canvas>
                     </div>
 
                     <div class="mt-5 border-t border-slate-100 pt-4">
                         <div class="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
                             <span>{{ $areaLabel }} ranking</span>
-                            <span>{{ number_format((int) $mapPayload['summary']['beneficiaries']) }} mapped</span>
+                            <span>{{ $mapPayload['metric_summary']['display'] ?? '0' }} total</span>
                         </div>
                         <div class="mt-3 space-y-2.5">
                             @forelse (array_slice($areaRows, 0, 12) as $area)
                                 <div class="grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 text-[11px]">
                                     <span class="font-extrabold text-slate-400">{{ $loop->iteration }}</span>
                                     <span class="truncate font-semibold text-slate-700">{{ $area['name'] }}</span>
-                                    <span class="font-extrabold tabular-nums text-[#0d2449]">{{ number_format($area['beneficiaries']) }}</span>
+                                    <span class="font-extrabold tabular-nums text-[#0d2449]">{{ $area['value_display'] ?? number_format((int) ($area['value'] ?? 0)) }}</span>
                                 </div>
                             @empty
-                                <div class="rounded-lg bg-slate-50 px-3 py-4 text-center text-[11px] text-slate-500">No mapped beneficiary values matched the current filters.</div>
+                                <div class="rounded-lg bg-slate-50 px-3 py-4 text-center text-[11px] text-slate-500">
+                                    No mapped {{ strtolower($metricLabel) }} values matched the current filters.
+                                </div>
                             @endforelse
                         </div>
                     </div>
@@ -242,16 +352,20 @@
         <div class="grid border-t border-slate-200 sm:grid-cols-2 xl:grid-cols-5">
             @php
                 $projectHint = $isMunicipalityView
-                    ? 'Unique selected-municipality projects'
-                    : ($isProvinceScope ? 'Unique selected-province projects' : 'Unique regional projects');
+                    ? 'Unique selected-municipality project cohort'
+                    : ($isProvinceScope ? 'Unique selected-province project cohort' : 'Unique regional project cohort');
                 $allocationValue = $allocationAvailable
                     ? '₱' . number_format(((int) ($mapPayload['summary']['allocation_cents'] ?? 0)) / 100, 2)
                     : 'Not split';
                 $allocationHint = $allocationAvailable
-                    ? ($isProvinceScope ? 'Selected-province cohort; not split by municipality' : 'Existing fund-status semantics')
+                    ? 'Existing province-level fund-status semantics'
                     : 'No authoritative municipality/barangay financial split';
+                $beneficiaryCardLabel = $familyKey === 'beneficiaries' ? 'Mapped Beneficiaries' : 'Project Beneficiaries';
+                $beneficiaryCardHint = $familyKey === 'beneficiaries'
+                    ? 'Exact geographic allocation'
+                    : 'Beneficiaries attached to the filtered project cohort';
                 $cards = [
-                    ['label' => 'Mapped Beneficiaries', 'value' => number_format((int) $mapPayload['summary']['beneficiaries']), 'hint' => 'Exact geographic allocation'],
+                    ['label' => $beneficiaryCardLabel, 'value' => number_format((int) $mapPayload['summary']['beneficiaries']), 'hint' => $beneficiaryCardHint],
                     ['label' => 'Total Projects', 'value' => number_format((int) $mapPayload['summary']['projects']), 'hint' => $projectHint],
                     ['label' => 'Ongoing Projects', 'value' => number_format((int) $mapPayload['summary']['ongoing_projects']), 'hint' => 'Ongoing implementation'],
                     ['label' => 'Completed Projects', 'value' => number_format((int) $mapPayload['summary']['completed_projects']), 'hint' => 'Completed status'],
@@ -268,11 +382,18 @@
         </div>
 
         <div class="flex flex-col gap-2 border-t border-slate-200 bg-[#f8fafc] px-5 py-3 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <span>{{ $mapPayload['data_note'] }}</span>
-            @if ((int) $mapPayload['summary']['areas_needing_review'] > 0)
-                <span class="font-bold text-amber-700">{{ $mapPayload['summary']['areas_needing_review'] }} {{ strtolower($areaLabel) }} area(s) include legacy unallocated records.</span>
+            <span>{{ $mapPayload['metric_note'] ?? $mapPayload['data_note'] }}</span>
+
+            @if ($isBeneficiaryMetric)
+                @if ((int) ($mapPayload['summary']['areas_needing_review'] ?? 0) > 0)
+                    <span class="font-bold text-amber-700">
+                        {{ $mapPayload['summary']['areas_needing_review'] }} {{ strtolower($areaLabel) }} area(s) include legacy unallocated records.
+                    </span>
+                @else
+                    <span class="font-bold text-emerald-700">Exact-allocation coverage complete for visible {{ strtolower($areaLabel) }} rows.</span>
+                @endif
             @else
-                <span class="font-bold text-emerald-700">Exact-allocation coverage complete for visible {{ strtolower($areaLabel) }} rows.</span>
+                <span class="font-bold text-[#063b86]">Showing {{ strtolower($metricLabel) }} by official geographic area.</span>
             @endif
         </div>
     </section>

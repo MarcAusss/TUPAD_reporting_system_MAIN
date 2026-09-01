@@ -4,7 +4,6 @@ namespace App\Reports;
 
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
-use App\Enums\ProjectTerm;
 
 class ReportWorkspaceCatalog
 {
@@ -19,40 +18,32 @@ class ReportWorkspaceCatalog
                 'number' => '01',
                 'label' => 'Physical & Financial Accomplishment',
                 'short_label' => 'Physical & Financial',
-                'description' => 'Review physical progress, beneficiary accomplishment, project cost, obligations, disbursements, and balances by reporting period or project term.',
+                'description' => 'Official province-level physical and financial accomplishment matrices using the supplied reporting table layouts.',
                 'phase' => 'Phase 14B',
                 'items' => [
                     $this->availableItem(
                         'Overall Accomplishment',
-                        'Regional or province-scoped accomplishment using the existing Phase 8 reporting data layer.',
+                        'Reformulated target, accomplishment, and balance by province.',
                         ReportType::PHYSICAL_FINANCIAL,
                         ReportDimension::OVERALL,
                     ),
                     $this->availableItem(
+                        'Accomplishment per Semester',
+                        'First- and second-semester physical and financial accomplishment by province.',
+                        ReportType::PHYSICAL_FINANCIAL,
+                        ReportDimension::SEMESTER,
+                    ),
+                    $this->availableItem(
                         'Accomplishment per Quarter',
-                        'Physical and financial accomplishment grouped by fiscal quarter.',
+                        'First through fourth quarter physical and financial accomplishment by province.',
                         ReportType::PHYSICAL_FINANCIAL,
                         ReportDimension::QUARTER,
                     ),
                     $this->availableItem(
                         'Accomplishment per Month',
-                        'Physical and financial accomplishment grouped by month.',
+                        'January through December physical and financial accomplishment by province.',
                         ReportType::PHYSICAL_FINANCIAL,
                         ReportDimension::MONTH,
-                    ),
-                    $this->availableItem(
-                        'Short-Term Accomplishment',
-                        'Accomplishment for projects classified as short-term.',
-                        ReportType::PHYSICAL_FINANCIAL,
-                        ReportDimension::OVERALL,
-                        ['term' => ProjectTerm::SHORT_TERM->value],
-                    ),
-                    $this->availableItem(
-                        'Long-Term Accomplishment',
-                        'Accomplishment for projects classified as long-term.',
-                        ReportType::PHYSICAL_FINANCIAL,
-                        ReportDimension::OVERALL,
-                        ['term' => ProjectTerm::LONG_TERM->value],
                     ),
                 ],
             ],

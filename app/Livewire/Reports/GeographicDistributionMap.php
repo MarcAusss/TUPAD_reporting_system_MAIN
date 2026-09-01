@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Reports;
 
+use App\Enums\BeneficiarySectorCategory;
 use App\Enums\ImplementationMode;
+use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
@@ -19,6 +21,16 @@ use Livewire\Component;
 
 class GeographicDistributionMap extends Component
 {
+    private const FAMILIES = [
+        'projects',
+        'beneficiaries',
+        'sectors',
+        'interventions',
+    ];
+
+    #[Locked]
+    public string $mapFamily = 'beneficiaries';
+
     #[Locked]
     public string $mapLevel = 'region';
 
@@ -36,7 +48,18 @@ class GeographicDistributionMap extends Component
 
     public ?string $implementationMode = null;
 
+    /**
+     * Kept public for the existing metric API/tests. In the workspace UI this
+     * is controlled by the selected mapping-family tab rather than a visible
+     * metric selector.
+     */
     public string $mapMetric = BicolMapMetricService::BENEFICIARIES;
+
+    public ?string $sectorGroup = null;
+
+    public ?string $sector = null;
+
+    public ?string $interventionFocus = null;
 
     public function boot(): void
     {
@@ -61,16 +84,45 @@ class GeographicDistributionMap extends Component
     }
 
     public function mount(
+        ?string $family = 'beneficiaries',
         int|string|null $fiscalYear = null,
         int|string|null $quarter = null,
         int|string|null $month = null,
         ?string $status = null,
         ?string $implementationMode = null,
+        ?string $sectorGroup = null,
+        ?string $sector = null,
+        ?string $interventionFocus = null,
     ): void {
+        $this->mapFamily = in_array($family, self::FAMILIES, true)
+            ? $family
+            : 'beneficiaries';
+
+        $this->mapMetric = match ($this->mapFamily) {
+            'projects', 'sectors', 'interventions' => BicolMapMetricService::PROJECTS,
+            default => BicolMapMetricService::BENEFICIARIES,
+        };
+
         $this->fiscalYear = \filled($fiscalYear) ? (string) $fiscalYear : null;
         $this->reportingPeriod = $this->reportingPeriodFromInputs($quarter, $month);
         $this->status = \filled($status) ? (string) $status : null;
         $this->implementationMode = \filled($implementationMode) ? (string) $implementationMode : null;
+
+        if ($this->mapFamily === 'sectors') {
+            $this->sectorGroup = in_array($sectorGroup, $this->sectorGroupValues(), true)
+                ? $sectorGroup
+                : BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE;
+
+            $candidateSector = BeneficiarySectorCategory::tryFrom((string) $sector);
+            $this->sector = $candidateSector && $candidateSector->group() === $this->sectorGroup
+                ? $candidateSector->value
+                : null;
+        }
+
+        if ($this->mapFamily === 'interventions') {
+            $focus = ProjectInterventionFocus::tryFrom((string) $interventionFocus);
+            $this->interventionFocus = $focus?->value;
+        }
 
         $this->initializeViewerScope();
     }
@@ -84,6 +136,9 @@ class GeographicDistributionMap extends Component
             'status' => ['nullable', Rule::enum(ProjectStatus::class)],
             'implementationMode' => ['nullable', Rule::enum(ImplementationMode::class)],
             'mapMetric' => ['required', Rule::in(BicolMapMetricService::keys())],
+            'sectorGroup' => ['nullable', Rule::in($this->sectorGroupValues())],
+            'sector' => ['nullable', Rule::enum(BeneficiarySectorCategory::class)],
+            'interventionFocus' => ['nullable', Rule::enum(ProjectInterventionFocus::class)],
         ];
     }
 
@@ -95,12 +150,22 @@ class GeographicDistributionMap extends Component
             'status',
             'implementationMode',
             'mapMetric',
+            'sectorGroup',
+            'sector',
+            'interventionFocus',
         ], true)) {
             return;
         }
 
-        if (in_array($property, ['fiscalYear', 'reportingPeriod', 'status', 'implementationMode'], true)
-            && $this->{$property} === '') {
+        if (in_array($property, [
+            'fiscalYear',
+            'reportingPeriod',
+            'status',
+            'implementationMode',
+            'sectorGroup',
+            'sector',
+            'interventionFocus',
+        ], true) && $this->{$property} === '') {
             $this->{$property} = null;
         }
 
@@ -118,7 +183,26 @@ class GeographicDistributionMap extends Component
             return;
         }
 
+        if ($property === 'sectorGroup' && $this->mapFamily === 'sectors') {
+            $selected = BeneficiarySectorCategory::tryFrom((string) $this->sector);
+
+            if ($selected && $selected->group() !== $this->sectorGroup) {
+                $this->sector = null;
+            }
+        }
+
         $this->validateOnly($property);
+
+        if ($property === 'sector' && $this->mapFamily === 'sectors' && $this->sector !== null) {
+            $selected = BeneficiarySectorCategory::tryFrom($this->sector);
+
+            if ($selected && $selected->group() !== $this->sectorGroup) {
+                $this->sector = null;
+                $this->addError('sector', 'The selected sector does not belong to the selected sector family.');
+
+                return;
+            }
+        }
 
         if ($property === 'mapMetric'
             && $this->mapMetric === BicolMapMetricService::ALLOCATION
@@ -141,6 +225,16 @@ class GeographicDistributionMap extends Component
         $this->reportingPeriod = null;
         $this->status = null;
         $this->implementationMode = null;
+
+        if ($this->mapFamily === 'sectors') {
+            $this->sectorGroup = BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE;
+            $this->sector = null;
+        }
+
+        if ($this->mapFamily === 'interventions') {
+            $this->interventionFocus = null;
+        }
+
         $this->resetValidation();
         $this->refreshBrowserMap();
     }
@@ -237,7 +331,9 @@ class GeographicDistributionMap extends Component
             $payload = $service->regionPayload($user, $filters);
         }
 
-        return \app(BicolMapMetricService::class)->apply($payload, $this->mapMetric);
+        $payload = \app(BicolMapMetricService::class)->apply($payload, $this->mapMetric);
+
+        return $this->decorateFamilyPayload($payload);
     }
 
     public function render()
@@ -249,10 +345,19 @@ class GeographicDistributionMap extends Component
         $effectiveMetric = (string) \data_get($payload, 'metric.key', BicolMapMetricService::BENEFICIARIES);
         $periodFilters = $this->periodFilterInput();
 
-        $reportType = match ($effectiveMetric) {
-            BicolMapMetricService::PROJECTS => ReportType::PHYSICAL_FINANCIAL,
-            BicolMapMetricService::ALLOCATION => ReportType::FUND_STATUS,
-            default => ReportType::GEOGRAPHIC_BENEFICIARIES,
+        [$reportType, $groupBy] = match ($this->mapFamily) {
+            'sectors' => [ReportType::BENEFICIARY_SECTORS, ReportDimension::SECTOR],
+            'interventions' => [ReportType::INTERVENTION_FOCUS, ReportDimension::INTERVENTION_FOCUS],
+            default => [
+                match ($effectiveMetric) {
+                    BicolMapMetricService::PROJECTS => ReportType::PHYSICAL_FINANCIAL,
+                    BicolMapMetricService::ALLOCATION => ReportType::FUND_STATUS,
+                    default => ReportType::GEOGRAPHIC_BENEFICIARIES,
+                },
+                $isMunicipalityView
+                    ? ReportDimension::BARANGAY
+                    : ($isProvinceScope ? ReportDimension::MUNICIPALITY : ReportDimension::PROVINCE),
+            ],
         };
 
         return view('livewire.reports.geographic-distribution-map', [
@@ -260,11 +365,12 @@ class GeographicDistributionMap extends Component
             'statuses' => ProjectStatus::cases(),
             'implementationModes' => ImplementationMode::cases(),
             'reportingPeriods' => $this->reportingPeriodOptions(),
+            'sectorGroups' => $this->sectorGroups(),
+            'sectorOptions' => $this->sectorOptions(),
+            'interventionFocuses' => ProjectInterventionFocus::cases(),
             'exportQuery' => array_filter([
                 'report_type' => $reportType->value,
-                'group_by' => $isMunicipalityView
-                    ? ReportDimension::BARANGAY->value
-                    : ($isProvinceScope ? ReportDimension::MUNICIPALITY->value : ReportDimension::PROVINCE->value),
+                'group_by' => $groupBy->value,
                 'province_id' => $isProvinceScope
                     ? ($payload['selected_province']['id'] ?? null)
                     : null,
@@ -276,6 +382,9 @@ class GeographicDistributionMap extends Component
                 'month' => $periodFilters['month'] ?? null,
                 'status' => $this->status,
                 'implementation_mode' => $this->implementationMode,
+                'sector_group' => $this->mapFamily === 'sectors' ? $this->sectorGroup : null,
+                'sector' => $this->mapFamily === 'sectors' ? $this->sector : null,
+                'intervention_focus' => $this->mapFamily === 'interventions' ? $this->interventionFocus : null,
             ], static fn (mixed $value): bool => $value !== null && $value !== ''),
         ]);
     }
@@ -288,6 +397,9 @@ class GeographicDistributionMap extends Component
             ...$this->periodFilterInput(),
             'status' => $this->status,
             'implementation_mode' => $this->implementationMode,
+            'sector_group' => $this->mapFamily === 'sectors' ? $this->sectorGroup : null,
+            'sector' => $this->mapFamily === 'sectors' ? $this->sector : null,
+            'intervention_focus' => $this->mapFamily === 'interventions' ? $this->interventionFocus : null,
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
@@ -352,6 +464,95 @@ class GeographicDistributionMap extends Component
             'm11' => 'November',
             'm12' => 'December',
         ];
+    }
+
+    /** @return array<int,string> */
+    private function sectorGroupValues(): array
+    {
+        return [
+            BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE,
+            BeneficiarySectorCategory::GROUP_OCCUPATIONAL_LIVELIHOOD,
+        ];
+    }
+
+    /** @return array<string,string> */
+    private function sectorGroups(): array
+    {
+        return [
+            BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE => 'Priority / Vulnerable Sectors',
+            BeneficiarySectorCategory::GROUP_OCCUPATIONAL_LIVELIHOOD => 'Occupational / Livelihood Sectors',
+        ];
+    }
+
+    /** @return array<int,BeneficiarySectorCategory> */
+    private function sectorOptions(): array
+    {
+        return match ($this->sectorGroup) {
+            BeneficiarySectorCategory::GROUP_OCCUPATIONAL_LIVELIHOOD => BeneficiarySectorCategory::occupationalLivelihood(),
+            default => BeneficiarySectorCategory::priorityVulnerable(),
+        };
+    }
+
+    /** @param array<string,mixed> $payload @return array<string,mixed> */
+    private function decorateFamilyPayload(array $payload): array
+    {
+        $metricKey = (string) \data_get($payload, 'metric.key', BicolMapMetricService::BENEFICIARIES);
+        $contextLabel = null;
+
+        $family = match ($this->mapFamily) {
+            'projects' => [
+                'label' => 'Project Mapping',
+                'description' => 'Project counts by official geographic area.',
+                'note' => 'Project intensity counts projects associated with each official geographic row. Unique project KPI totals should not be interpreted as the sum of every row when projects span multiple locations.',
+            ],
+            'sectors' => [
+                'label' => 'Sector Mapping',
+                'description' => 'Geographic concentration of projects carrying the selected beneficiary-sector classification.',
+                'note' => 'Sector Mapping uses project concentration by official geography. Sector beneficiary counts are encoded at project/category level and are not fabricated into municipality or barangay allocations.',
+            ],
+            'interventions' => [
+                'label' => 'Intervention-Focus Mapping',
+                'description' => 'Geographic concentration of projects under the selected primary intervention focus.',
+                'note' => 'Intervention-Focus Mapping counts projects by official geography after applying the selected primary intervention classification.',
+            ],
+            default => [
+                'label' => 'Beneficiary Mapping',
+                'description' => 'Exact geographically allocated beneficiary concentration.',
+                'note' => (string) ($payload['metric_note'] ?? $payload['data_note'] ?? ''),
+            ],
+        };
+
+        if ($this->mapFamily === 'sectors') {
+            $selected = BeneficiarySectorCategory::tryFrom((string) $this->sector);
+            $contextLabel = $selected?->label()
+                ?? ($this->sectorGroups()[$this->sectorGroup] ?? 'Selected Sector Family');
+        } elseif ($this->mapFamily === 'interventions') {
+            $selected = ProjectInterventionFocus::tryFrom((string) $this->interventionFocus);
+            $contextLabel = $selected?->label() ?? 'All Intervention Focuses';
+        }
+
+        $payload['mapping_family'] = [
+            'key' => $this->mapFamily,
+            'label' => $family['label'],
+            'description' => $family['description'],
+            'context_label' => $contextLabel,
+        ];
+
+        if ($metricKey === BicolMapMetricService::PROJECTS) {
+            $metricLabel = match ($this->mapFamily) {
+                'sectors' => 'Sector Projects',
+                'interventions' => 'Intervention Projects',
+                default => 'Projects',
+            };
+
+            $payload['metric']['label'] = $metricLabel;
+            $payload['metric']['unit'] = 'projects';
+            $payload['metric_summary']['label'] = $metricLabel;
+        }
+
+        $payload['metric_note'] = $family['note'];
+
+        return $payload;
     }
 
     private function initializeViewerScope(): void

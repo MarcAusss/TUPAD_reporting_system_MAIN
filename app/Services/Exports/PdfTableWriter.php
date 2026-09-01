@@ -10,11 +10,29 @@ final class PdfTableWriter
 
     private const PAGE_HEIGHT = 595;
 
+    private const LETTER_PAGE_WIDTH = 612;
+
+    private const LETTER_PAGE_HEIGHT = 792;
+
     private const MARGIN = 24;
 
     public function render(array $report): string
     {
-        $pages = $this->pages($report);
+        $isPhysicalFinancial =
+            ($report['type']->value ?? null) === 'physical_financial'
+            && is_array($report['physical_financial_matrix'] ?? null);
+
+        $pages = $isPhysicalFinancial
+            ? $this->physicalFinancialPages($report)
+            : $this->pages($report);
+
+        $pageWidth = $isPhysicalFinancial
+            ? self::LETTER_PAGE_WIDTH
+            : self::PAGE_WIDTH;
+        $pageHeight = $isPhysicalFinancial
+            ? self::LETTER_PAGE_HEIGHT
+            : self::PAGE_HEIGHT;
+
         $objects = [];
 
         $objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
@@ -36,8 +54,8 @@ final class PdfTableWriter
                 '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] '
                 .' /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> '
                 .' /Contents %d 0 R >>',
-                self::PAGE_WIDTH,
-                self::PAGE_HEIGHT,
+                $pageWidth,
+                $pageHeight,
                 $contentObject,
             );
         }
@@ -272,6 +290,393 @@ final class PdfTableWriter
 
             return implode("\n", $commands);
         })->all();
+    }
+
+    /** @return array<int, string> */
+    private function physicalFinancialPages(array $report): array
+    {
+        $matrix = $report['physical_financial_matrix'];
+        $dimension = $report['dimension']->value ?? 'overall';
+
+        if ($dimension === 'overall') {
+            return [$this->physicalFinancialOverallPage($report, $matrix)];
+        }
+
+        return collect($matrix['periods'] ?? [])
+            ->map(
+                fn (array $period): string =>
+                    $this->physicalFinancialPeriodPage(
+                        $report,
+                        $matrix,
+                        $period,
+                    )
+            )
+            ->all();
+    }
+
+    private function physicalFinancialOverallPage(
+        array $report,
+        array $matrix,
+    ): string {
+        $commands = [];
+        $y = $this->physicalFinancialHeader(
+            $commands,
+            $report,
+            'Overall Accomplishment',
+        );
+
+        $x = self::MARGIN;
+        $widths = [100, 76, 82, 76, 82, 70, 78];
+        $headerOne = 20;
+        $headerTwo = 16;
+        $rowHeight = 20;
+
+        $top = $y;
+        $secondTop = $top - $headerOne;
+        $bodyTop = $secondTop - $headerTwo;
+
+        $commands[] = $this->filledRect($x, $bodyTop, $widths[0], $headerOne + $headerTwo, '0.80 0.25 0.11');
+        $commands[] = $this->filledRect($x + $widths[0], $secondTop, $widths[1] + $widths[2], $headerOne, '0.80 0.25 0.11');
+        $commands[] = $this->filledRect($x + array_sum(array_slice($widths, 0, 3)), $secondTop, $widths[3] + $widths[4], $headerOne, '0.97 0.83 0.36');
+        $commands[] = $this->filledRect($x + array_sum(array_slice($widths, 0, 5)), $secondTop, $widths[5] + $widths[6], $headerOne, '0.94 0.69 0.48');
+
+        $leafX = $x + $widths[0];
+        for ($i = 1; $i < count($widths); $i++) {
+            $commands[] = $this->filledRect($leafX, $bodyTop, $widths[$i], $headerTwo, '1.00 0.97 0.86');
+            $leafX += $widths[$i];
+        }
+
+        $commands[] = $this->text($x + 6, $secondTop - 4, 7.2, 'Province', true);
+        $commands[] = $this->centeredText($x + $widths[0], $secondTop + 6, $widths[1] + $widths[2], 7.2, 'Reformulated Target', true);
+        $commands[] = $this->centeredText($x + array_sum(array_slice($widths, 0, 3)), $secondTop + 6, $widths[3] + $widths[4], 7.2, 'Accomplishment', true);
+        $commands[] = $this->centeredText($x + array_sum(array_slice($widths, 0, 5)), $secondTop + 6, $widths[5] + $widths[6], 7.2, 'Balance', true);
+
+        $leafLabels = ['Physical', 'Financial', 'Physical', 'Financial', 'Physical', 'Financial'];
+        $leafX = $x + $widths[0];
+        foreach ($leafLabels as $index => $label) {
+            $commands[] = $this->centeredText($leafX, $bodyTop + 5, $widths[$index + 1], 6.6, $label, true);
+            $leafX += $widths[$index + 1];
+        }
+
+        $rows = collect($matrix['rows'] ?? [])->push($matrix['total']);
+        $currentY = $bodyTop;
+
+        foreach ($rows as $index => $row) {
+            $currentY -= $rowHeight;
+            $isTotal = $index === $rows->count() - 1;
+
+            if ($isTotal) {
+                $commands[] = $this->filledRect(
+                    $x,
+                    $currentY,
+                    array_sum($widths),
+                    $rowHeight,
+                    '0.25 0.25 0.25',
+                );
+            } elseif ($index % 2 === 1) {
+                $commands[] = $this->filledRect(
+                    $x,
+                    $currentY,
+                    array_sum($widths),
+                    $rowHeight,
+                    '0.97 0.98 0.99',
+                );
+            }
+
+            $values = [
+                (string) ($row['province'] ?? ''),
+                $this->pfNumber(data_get($row, 'target.physical', 0)),
+                $this->pfMoney(data_get($row, 'target.financial_cents', 0)),
+                $this->pfNumber(data_get($row, 'accomplishment.physical', 0)),
+                $this->pfMoney(data_get($row, 'accomplishment.financial_cents', 0)),
+                $this->pfNumber(data_get($row, 'balance.physical', 0)),
+                $this->pfMoney(data_get($row, 'balance.financial_cents', 0)),
+            ];
+
+            $cellX = $x;
+            foreach ($values as $cellIndex => $value) {
+                $textX = $cellIndex === 0
+                    ? $cellX + 5
+                    : $cellX + 3;
+                $commands[] = $this->text(
+                    $textX,
+                    $currentY + 7,
+                    $cellIndex === 0 ? 7.0 : 6.2,
+                    $this->fit($value, $widths[$cellIndex] - 5, $cellIndex === 0 ? 7.0 : 6.2),
+                    $isTotal || $cellIndex === 0,
+                );
+                $cellX += $widths[$cellIndex];
+            }
+        }
+
+        $bottom = $currentY;
+        $commands[] = $this->tableGrid(
+            $x,
+            $top,
+            $bottom,
+            $widths,
+            [$top, $secondTop, $bodyTop],
+            $rowHeight,
+            $rows->count(),
+        );
+
+        $noteY = max(32, $bottom - 15);
+        $commands[] = $this->text(
+            self::MARGIN,
+            $noteY,
+            5.7,
+            $this->truncate('Basis: '.($matrix['basis_note'] ?? ''), 180),
+        );
+
+        return implode("\n", array_filter($commands));
+    }
+
+    private function physicalFinancialPeriodPage(
+        array $report,
+        array $matrix,
+        array $period,
+    ): string {
+        $commands = [];
+        $y = $this->physicalFinancialHeader(
+            $commands,
+            $report,
+            (string) $period['label'].' Accomplishment',
+        );
+
+        $x = self::MARGIN;
+        $widths = [220, 172, 172];
+        $headerOne = 20;
+        $headerTwo = 16;
+        $rowHeight = 24;
+        $top = $y;
+        $secondTop = $top - $headerOne;
+        $bodyTop = $secondTop - $headerTwo;
+
+        $commands[] = $this->filledRect($x, $bodyTop, $widths[0], $headerOne + $headerTwo, '0.80 0.25 0.11');
+        $commands[] = $this->filledRect($x + $widths[0], $secondTop, $widths[1] + $widths[2], $headerOne, '0.97 0.83 0.36');
+        $commands[] = $this->filledRect($x + $widths[0], $bodyTop, $widths[1], $headerTwo, '1.00 0.97 0.86');
+        $commands[] = $this->filledRect($x + $widths[0] + $widths[1], $bodyTop, $widths[2], $headerTwo, '1.00 0.97 0.86');
+
+        $commands[] = $this->text($x + 8, $secondTop - 4, 8, 'Province', true);
+        $commands[] = $this->centeredText($x + $widths[0], $secondTop + 6, $widths[1] + $widths[2], 8, (string) $period['label'], true);
+        $commands[] = $this->centeredText($x + $widths[0], $bodyTop + 5, $widths[1], 7.2, 'Physical', true);
+        $commands[] = $this->centeredText($x + $widths[0] + $widths[1], $bodyTop + 5, $widths[2], 7.2, 'Financial', true);
+
+        $rows = collect($matrix['rows'] ?? [])->push($matrix['total']);
+        $currentY = $bodyTop;
+
+        foreach ($rows as $index => $row) {
+            $currentY -= $rowHeight;
+            $isTotal = $index === $rows->count() - 1;
+
+            if ($isTotal) {
+                $commands[] = $this->filledRect($x, $currentY, array_sum($widths), $rowHeight, '0.25 0.25 0.25');
+            } elseif ($index % 2 === 1) {
+                $commands[] = $this->filledRect($x, $currentY, array_sum($widths), $rowHeight, '0.97 0.98 0.99');
+            }
+
+            $key = (string) $period['key'];
+            $values = [
+                (string) ($row['province'] ?? ''),
+                $this->pfNumber(data_get($row, 'periods.'.$key.'.physical', 0)),
+                $this->pfMoney(data_get($row, 'periods.'.$key.'.financial_cents', 0)),
+            ];
+
+            $cellX = $x;
+            foreach ($values as $cellIndex => $value) {
+                $commands[] = $this->text(
+                    $cellX + ($cellIndex === 0 ? 8 : 6),
+                    $currentY + 9,
+                    $cellIndex === 0 ? 8 : 7.4,
+                    $this->fit($value, $widths[$cellIndex] - 10, $cellIndex === 0 ? 8 : 7.4),
+                    $isTotal || $cellIndex === 0,
+                );
+                $cellX += $widths[$cellIndex];
+            }
+        }
+
+        $commands[] = $this->tableGrid(
+            $x,
+            $top,
+            $currentY,
+            $widths,
+            [$top, $secondTop, $bodyTop],
+            $rowHeight,
+            $rows->count(),
+        );
+
+        $commands[] = $this->text(
+            self::MARGIN,
+            max(30, $currentY - 16),
+            5.8,
+            'Letter portrait layout - one reporting period per page. Short-Term and Long-Term subdivisions removed.',
+        );
+
+        return implode("\n", array_filter($commands));
+    }
+
+    /**
+     * @param array<int, string> $commands
+     */
+    private function physicalFinancialHeader(
+        array &$commands,
+        array $report,
+        string $subtitle,
+    ): float {
+        $tableWidth = self::LETTER_PAGE_WIDTH - (self::MARGIN * 2);
+        $top = self::LETTER_PAGE_HEIGHT - self::MARGIN;
+        $headerBottom = $top - 72;
+
+        $commands[] = sprintf(
+            '0.05 0.61 0.75 rg %.2F %.2F %.2F 4 re f',
+            self::MARGIN,
+            $top - 4,
+            $tableWidth,
+        );
+        $commands[] = sprintf(
+            '0.82 0.86 0.90 RG 0.6 w %.2F %.2F %.2F %.2F re S',
+            self::MARGIN,
+            $headerBottom,
+            $tableWidth,
+            72,
+        );
+
+        $commands[] = $this->text(self::MARGIN + 10, $top - 22, 13, 'TUPAD', true);
+        $commands[] = $this->text(self::MARGIN + 10, $top - 36, 7, 'TUPAD Reporting System', true);
+        $commands[] = $this->text(self::MARGIN + 10, $top - 48, 6, 'DOLE Regional Office V');
+
+        $commands[] = $this->centeredText(
+            self::MARGIN + 120,
+            $top - 27,
+            $tableWidth - 240,
+            11,
+            'Physical and Financial Accomplishment',
+            true,
+        );
+        $commands[] = $this->centeredText(
+            self::MARGIN + 120,
+            $top - 43,
+            $tableWidth - 240,
+            7.2,
+            $subtitle,
+            true,
+        );
+
+        $period = (string) ($report['official_period'] ?? 'Current validated records');
+        $commands[] = $this->text(self::LETTER_PAGE_WIDTH - self::MARGIN - 112, $top - 22, 6.2, 'Generated', true);
+        $commands[] = $this->text(self::LETTER_PAGE_WIDTH - self::MARGIN - 62, $top - 22, 6.2, $report['generated_at']->format('M d, Y'));
+        $commands[] = $this->text(self::LETTER_PAGE_WIDTH - self::MARGIN - 112, $top - 35, 6.2, 'Period', true);
+        $commands[] = $this->text(
+            self::LETTER_PAGE_WIDTH - self::MARGIN - 74,
+            $top - 35,
+            5.7,
+            $this->fit($period, 70, 5.7),
+        );
+
+        $criteria = collect($report['criteria'] ?? [])
+            ->reject(fn (mixed $value, string $label): bool => in_array($label, ['Report Type', 'Grouped By'], true))
+            ->map(fn (string $value, string $label): string => $label.': '.$value)
+            ->implode(' | ');
+
+        if ($criteria !== '') {
+            $commands[] = $this->text(
+                self::MARGIN,
+                $headerBottom - 14,
+                6,
+                $this->truncate($criteria, 145),
+            );
+        }
+
+        return $headerBottom - 28;
+    }
+
+    private function pfNumber(mixed $value): string
+    {
+        return number_format((int) $value);
+    }
+
+    private function pfMoney(mixed $cents): string
+    {
+        return 'PHP '.number_format(((int) $cents) / 100, 2);
+    }
+
+    private function filledRect(
+        float $x,
+        float $y,
+        float $width,
+        float $height,
+        string $rgb,
+    ): string {
+        return sprintf(
+            '%s rg %.2F %.2F %.2F %.2F re f',
+            $rgb,
+            $x,
+            $y,
+            $width,
+            $height,
+        );
+    }
+
+    private function centeredText(
+        float $x,
+        float $y,
+        float $width,
+        float $size,
+        string $text,
+        bool $bold = false,
+    ): string {
+        $fitted = $this->fit($text, $width - 4, $size);
+        $approxWidth = strlen($fitted) * $size * 0.48;
+
+        return $this->text(
+            $x + max(2, ($width - $approxWidth) / 2),
+            $y,
+            $size,
+            $fitted,
+            $bold,
+        );
+    }
+
+    /**
+     * @param array<int, float|int> $widths
+     * @param array<int, float|int> $headerLines
+     */
+    private function tableGrid(
+        float $x,
+        float $top,
+        float $bottom,
+        array $widths,
+        array $headerLines,
+        float $rowHeight,
+        int $rowCount,
+    ): string {
+        $commands = ['0.35 0.40 0.45 RG 0.55 w'];
+        $totalWidth = array_sum($widths);
+        $commands[] = sprintf('%.2F %.2F %.2F %.2F re S', $x, $bottom, $totalWidth, $top - $bottom);
+
+        $cursorX = $x;
+        foreach ($widths as $width) {
+            $cursorX += $width;
+            if ($cursorX < $x + $totalWidth - 0.1) {
+                $commands[] = sprintf('%.2F %.2F m %.2F %.2F l S', $cursorX, $bottom, $cursorX, $top);
+            }
+        }
+
+        foreach (array_unique($headerLines) as $lineY) {
+            if ($lineY < $top - 0.1 && $lineY > $bottom + 0.1) {
+                $commands[] = sprintf('%.2F %.2F m %.2F %.2F l S', $x, $lineY, $x + $totalWidth, $lineY);
+            }
+        }
+
+        $bodyTop = min($headerLines);
+        for ($i = 1; $i <= $rowCount; $i++) {
+            $lineY = $bodyTop - ($rowHeight * $i);
+            if ($lineY > $bottom + 0.1) {
+                $commands[] = sprintf('%.2F %.2F m %.2F %.2F l S', $x, $lineY, $x + $totalWidth, $lineY);
+            }
+        }
+
+        return implode("\n", $commands);
     }
 
     private function text(

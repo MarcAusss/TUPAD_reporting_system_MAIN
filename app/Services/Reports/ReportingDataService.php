@@ -784,6 +784,16 @@ final class ReportingDataService
                 fn (Builder $sector): Builder =>
                     $sector->where('sector_key', $filters->sector->value)
             );
+        } elseif ($filters->sectorGroup) {
+            // Sector Mapping can display all classifications inside one sector
+            // family without inventing beneficiary-level geographic splits.
+            // Restrict the project cohort to projects that actually carry at
+            // least one classification in the selected sector family.
+            $query->whereHas(
+                'beneficiarySectors',
+                fn (Builder $sector): Builder =>
+                    $sector->where('sector_group', $filters->sectorGroup)
+            );
         }
 
         if ($filters->interventionFocus) {

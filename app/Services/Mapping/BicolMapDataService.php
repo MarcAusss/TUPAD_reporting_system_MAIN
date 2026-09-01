@@ -241,6 +241,9 @@ final class BicolMapDataService
         $beneficiaryRows = $this->reporting
             ->beneficiaryGeography($detailFilters, ReportDimension::BARANGAY, $projects)
             ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
+        $projectRows = $this->reporting
+            ->physicalFinancial($detailFilters, ReportDimension::BARANGAY, $projects)
+            ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
         $ongoingRows = $this->statusGeographyRows(
             $detailFilters,
             $projects,
@@ -257,9 +260,10 @@ final class BicolMapDataService
         );
 
         $barangays = $this->foundation->barangaysForMunicipality($municipality)
-            ->map(function ($barangay) use ($beneficiaryRows, $ongoingRows, $completedRows): array {
+            ->map(function ($barangay) use ($beneficiaryRows, $projectRows, $ongoingRows, $completedRows): array {
                 $key = (string) $barangay->id;
                 $beneficiary = $beneficiaryRows->get($key, []);
+                $project = $projectRows->get($key, []);
                 $ongoing = $ongoingRows->get($key, []);
                 $completed = $completedRows->get($key, []);
 
@@ -270,7 +274,7 @@ final class BicolMapDataService
                     'name' => (string) $barangay->name,
                     'beneficiaries' => (int) ($beneficiary['beneficiaries_total'] ?? 0),
                     'beneficiaries_female' => (int) ($beneficiary['beneficiaries_female'] ?? 0),
-                    'projects' => (int) ($beneficiary['project_count'] ?? 0),
+                    'projects' => (int) ($project['project_count'] ?? 0),
                     'ongoing_projects' => (int) ($ongoing['project_count'] ?? 0),
                     'completed_projects' => (int) ($completed['project_count'] ?? 0),
                     'allocation_cents' => null,
@@ -361,6 +365,9 @@ final class BicolMapDataService
         $beneficiaryRows = $this->reporting
             ->beneficiaryGeography($filters, ReportDimension::MUNICIPALITY, $projects)
             ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
+        $projectRows = $this->reporting
+            ->physicalFinancial($filters, ReportDimension::MUNICIPALITY, $projects)
+            ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
         $ongoingRows = $this->statusGeographyRows(
             $filters,
             $projects,
@@ -377,9 +384,10 @@ final class BicolMapDataService
         );
 
         return $this->foundation->municipalitiesForProvince($province)
-            ->map(function ($municipality) use ($beneficiaryRows, $ongoingRows, $completedRows): array {
+            ->map(function ($municipality) use ($beneficiaryRows, $projectRows, $ongoingRows, $completedRows): array {
                 $key = (string) $municipality->id;
                 $beneficiary = $beneficiaryRows->get($key, []);
+                $project = $projectRows->get($key, []);
                 $ongoing = $ongoingRows->get($key, []);
                 $completed = $completedRows->get($key, []);
 
@@ -390,7 +398,7 @@ final class BicolMapDataService
                     'name' => (string) $municipality->name,
                     'beneficiaries' => (int) ($beneficiary['beneficiaries_total'] ?? 0),
                     'beneficiaries_female' => (int) ($beneficiary['beneficiaries_female'] ?? 0),
-                    'projects' => (int) ($beneficiary['project_count'] ?? 0),
+                    'projects' => (int) ($project['project_count'] ?? 0),
                     'ongoing_projects' => (int) ($ongoing['project_count'] ?? 0),
                     'completed_projects' => (int) ($completed['project_count'] ?? 0),
                     'allocation_cents' => null,

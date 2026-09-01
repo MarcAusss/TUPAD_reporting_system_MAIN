@@ -7,6 +7,7 @@ enum ReportDimension: string
     case OVERALL = 'overall';
     case MONTH = 'month';
     case QUARTER = 'quarter';
+    case SEMESTER = 'semester';
     case FISCAL_YEAR = 'fiscal_year';
     case TERM = 'term';
     case ADL = 'adl';
@@ -29,6 +30,7 @@ enum ReportDimension: string
             self::OVERALL => 'Overall',
             self::MONTH => 'Month',
             self::QUARTER => 'Quarter',
+            self::SEMESTER => 'Semester',
             self::FISCAL_YEAR => 'Fiscal Year',
             self::TERM => 'Term',
             self::ADL => 'ADL',
@@ -61,6 +63,7 @@ enum ReportDimension: string
         return in_array($this, [
             self::MONTH,
             self::QUARTER,
+            self::SEMESTER,
             self::FISCAL_YEAR,
         ], true);
     }

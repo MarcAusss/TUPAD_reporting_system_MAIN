@@ -36,6 +36,7 @@ final class OfficialPeriodicReportService
     {
         $year = (int) $filters['fiscal_year'];
         $month = (int) $filters['month'];
+
         $projects = $this->projectQuery($filters, $user)
             ->whereHas('monitoringDetail', fn (Builder $query): Builder => $query
                 ->whereYear('sprs_date', $year)
@@ -54,7 +55,33 @@ final class OfficialPeriodicReportService
             ->sortBy('province', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
 
-        return $this->report(
+        /*
+        |--------------------------------------------------------------------------
+        | Official SPRS print matrix
+        |--------------------------------------------------------------------------
+        |
+        | The supplied government spreadsheet is an annual month-by-month matrix.
+        | The browser print keeps the selected month as an "as of" cut-off and
+        | fills January through that month from the encoded SPRS monitoring dates.
+        | Future months remain blank instead of being reported as zero.
+        |
+        | The normal monthly rows above are intentionally preserved so the existing
+        | monthly workspace and PDF export continue to use the established cohort.
+        |
+        */
+        $matrixProjects = $this->projectQuery($filters, $user)
+            ->with(['monitoringDetail', 'provinceReference'])
+            ->get()
+            ->filter(function (Project $project) use ($year, $month): bool {
+                $reportingDate = $this->sprsMatrixReportingDate($project);
+
+                return $reportingDate !== null
+                    && (int) $reportingDate->year === $year
+                    && (int) $reportingDate->month <= $month;
+            })
+            ->values();
+
+        $report = $this->report(
             'Statistical Performance Reporting System (SPRS)',
             'MONTHLY REPORT · SPRS',
             CarbonImmutable::create($year, $month, 1)->format('F Y'),
@@ -66,8 +93,16 @@ final class OfficialPeriodicReportService
                 $this->column('female', 'Female', 'integer'),
             ],
             $rows,
-            'SPRS membership is based on the encoded SPRS monitoring date. No month is inferred from the project receipt date.',
+            'The normal monthly SPRS cohort uses the encoded SPRS monitoring date. For the official print matrix, an encoded SPRS date is preferred; legacy/imported rows without one fall back to monitoring receipt datetime, then project Date Received, so existing project data can still populate the matrix without inventing beneficiary counts.',
         );
+
+        $report['sprs_print_matrix'] = $this->buildSprsPrintMatrix(
+            $matrixProjects,
+            $year,
+            $month,
+        );
+
+        return $report;
     }
 
     private function orientations(array $filters, User $user): array
@@ -180,7 +215,12 @@ final class OfficialPeriodicReportService
         }
 
         $reportFilters = ReportFilters::fromArray($filters);
-        $rows = $this->data->laborMarketAggregation($reportFilters, ReportDimension::LABOR_MARKET_PROGRAM)
+        $aggregatedRows = $this->data->laborMarketAggregation(
+            $reportFilters,
+            ReportDimension::LABOR_MARKET_PROGRAM
+        );
+
+        $rows = $aggregatedRows
             ->map(fn (array $row): array => [
                 'intervention' => $row['label'],
                 'referred' => (int) $row['interested_referred_total'],
@@ -191,7 +231,67 @@ final class OfficialPeriodicReportService
                 'services' => $this->formatter->formatValue('list', $row['services_availed']),
             ]);
 
-        return $this->report(
+        $byProgram = $aggregatedRows->keyBy('key');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Official Active Labor Market print matrix
+        |--------------------------------------------------------------------------
+        |
+        | The supplied official spreadsheet has exactly three fixed intervention
+        | rows. Keep those rows visible even when one has no encoded record, and
+        | populate values only from the validated reporting data layer.
+        |
+        */
+        $matrixRows = collect([
+            [
+                'program' => LaborMarketProgram::SKILLS_TRAINING,
+                'label' => 'Skills Training (TESDA)',
+            ],
+            [
+                'program' => LaborMarketProgram::DOLE_INTEGRATED_LIVELIHOOD_PROGRAM,
+                'label' => 'DOLE Integrated Livelihood Program',
+            ],
+            [
+                'program' => LaborMarketProgram::EMPLOYMENT_FACILITATION_SERVICES,
+                'label' => 'Employment Facilitation Services',
+            ],
+        ])->map(function (array $definition) use ($byProgram): array {
+            /** @var LaborMarketProgram $program */
+            $program = $definition['program'];
+            $row = $byProgram->get($program->value);
+            $hasData = is_array($row)
+                && (int) ($row['referral_record_count'] ?? 0) > 0;
+
+            return [
+                'program' => $program->value,
+                'label' => $definition['label'],
+                'has_data' => $hasData,
+                'interested_referred_total' => $hasData
+                    ? (int) $row['interested_referred_total']
+                    : null,
+                'interested_referred_female' => $hasData
+                    ? (int) $row['interested_referred_female']
+                    : null,
+                'provided_intervention_total' => $hasData
+                    ? (int) $row['provided_intervention_total']
+                    : null,
+                'provided_intervention_female' => $hasData
+                    ? (int) $row['provided_intervention_female']
+                    : null,
+                'amount_released_cents' => $hasData
+                    ? (int) $row['amount_released_cents']
+                    : null,
+                'services_availed' => $hasData
+                    ? $this->formatter->formatValue(
+                        'list',
+                        $row['services_availed']
+                    )
+                    : '',
+            ];
+        })->values();
+
+        $report = $this->report(
             'Number of TUPAD Beneficiaries Referred to Active Labor Market',
             'QUARTERLY REPORT · ACTIVE LABOR MARKET',
             'Q'.(int) $filters['quarter'].' '.(int) $filters['fiscal_year'],
@@ -208,6 +308,237 @@ final class OfficialPeriodicReportService
             $rows,
             'Referral totals use the encoded reporting month and do not infer participation from project beneficiary totals.',
         );
+
+        $report['labor_market_print_matrix'] = [
+            'rows' => $matrixRows,
+            'basis_note' =>
+                'Values come only from encoded Active Labor Market referral records whose reporting month falls within the selected quarter and current authorized filters. Blank cells mean no encoded referral record exists for that intervention in the selected scope.',
+        ];
+
+        return $report;
+    }
+
+    /**
+     * @param Collection<int, Project> $projects
+     */
+    private function buildSprsPrintMatrix(
+        Collection $projects,
+        int $year,
+        int $cutoffMonth,
+    ): array {
+        $provinceHeaders = [
+            'albay' => 'ALBAY',
+            'camarines_norte' => 'CAMARINES NORTE',
+            'camarines_sur' => 'CAMARINES SUR',
+            'catanduanes' => 'CATANDUANES',
+            'masbate' => 'MASBATE',
+            'sorsogon' => 'SORSOGON',
+        ];
+
+        $projectsByMonth = $projects
+            ->filter(fn (Project $project): bool => $this->sprsMatrixReportingDate($project) !== null)
+            ->groupBy(fn (Project $project): int => (int) $this->sprsMatrixReportingDate($project)->month);
+
+        $monthRows = collect(range(1, 12))->mapWithKeys(function (int $month) use (
+            $projectsByMonth,
+            $provinceHeaders,
+            $year,
+            $cutoffMonth,
+        ): array {
+            $included = $month <= $cutoffMonth;
+            /** @var Collection<int, Project> $group */
+            $group = $included
+                ? collect($projectsByMonth->get($month, []))->values()
+                : collect();
+
+            return [
+                $month => $this->sprsMatrixRow(
+                    CarbonImmutable::create($year, $month, 1)->format('F'),
+                    $group,
+                    $provinceHeaders,
+                    $included,
+                    'month',
+                ),
+            ];
+        });
+
+        $rows = collect();
+
+        foreach (range(1, 12) as $month) {
+            $rows->push($monthRows[$month]);
+
+            if ($month % 3 === 0) {
+                $quarter = (int) ceil($month / 3);
+                $quarterMonths = range($month - 2, $month);
+                $quarterIncluded = min($quarterMonths) <= $cutoffMonth;
+                $quarterProjects = $quarterIncluded
+                    ? $projects->filter(function (Project $project) use ($quarterMonths, $cutoffMonth): bool {
+                        $date = $this->sprsMatrixReportingDate($project);
+
+                        return $date !== null
+                            && in_array((int) $date->month, $quarterMonths, true)
+                            && (int) $date->month <= $cutoffMonth;
+                    })->values()
+                    : collect();
+
+                $rows->push($this->sprsMatrixRow(
+                    $this->ordinal($quarter).' QUARTER',
+                    $quarterProjects,
+                    $provinceHeaders,
+                    $quarterIncluded,
+                    'quarter',
+                    'Quarter subtotal',
+                ));
+            }
+        }
+
+        $rows->push($this->sprsMatrixRow(
+            'GRAND TOTAL',
+            $projects,
+            $provinceHeaders,
+            true,
+            'grand_total',
+            'Year-to-date total',
+        ));
+
+        return [
+            'province_headers' => $provinceHeaders,
+            'rows' => $rows,
+            'year' => $year,
+            'cutoff_month' => $cutoffMonth,
+            'cutoff_label' => CarbonImmutable::create($year, $cutoffMonth, 1)->format('F Y'),
+            'basis_note' => 'Counts use the project\'s encoded beneficiary totals. Reporting month uses SPRS Date when encoded. For legacy/imported records without SPRS Date, the official print matrix falls back to monitoring Receipt Date/Time, then Project Date Received. Date Accomplished is still shown only from an explicitly encoded SPRS Date. Future months remain blank.',
+        ];
+    }
+
+    /**
+     * @param Collection<int, Project> $projects
+     * @param array<string, string> $provinceHeaders
+     */
+    private function sprsMatrixRow(
+        string $label,
+        Collection $projects,
+        array $provinceHeaders,
+        bool $included,
+        string $rowType,
+        ?string $defaultRemark = null,
+    ): array {
+        $provinceValues = collect($provinceHeaders)
+            ->mapWithKeys(function (string $provinceLabel, string $provinceKey) use ($projects): array {
+                $group = $projects->filter(
+                    fn (Project $project): bool => $this->sprsProvinceKey($project) === $provinceKey
+                );
+
+                return [
+                    $provinceKey => [
+                        'total' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_total),
+                        'female' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_female),
+                    ],
+                ];
+            })
+            ->all();
+
+        $remarks = $projects
+            ->map(fn (Project $project): ?string => filled($project->monitoringDetail?->monitoring_remarks)
+                ? trim((string) $project->monitoringDetail?->monitoring_remarks)
+                : null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        return [
+            'label' => strtoupper($label),
+            'slug' => (string) str($label)->slug('-'),
+            'included' => $included,
+            'row_type' => $rowType,
+            'overall' => [
+                'total' => $projects->sum(fn (Project $project): int => (int) $project->beneficiaries_total),
+                'female' => $projects->sum(fn (Project $project): int => (int) $project->beneficiaries_female),
+            ],
+            'provinces' => $provinceValues,
+            'date_accomplished' => $included ? $this->sprsDateRangeLabel($projects) : '',
+            'remarks' => $included
+                ? ($remarks->isNotEmpty() ? $remarks->implode('; ') : ($defaultRemark ?? ''))
+                : '',
+        ];
+    }
+
+    private function sprsMatrixReportingDate(Project $project): ?CarbonImmutable
+    {
+        $sprsDate = $project->monitoringDetail?->sprs_date;
+
+        if ($sprsDate !== null) {
+            return CarbonImmutable::parse($sprsDate->toDateString());
+        }
+
+        $receiptDateTime = $project->monitoringDetail?->receipt_datetime;
+
+        if ($receiptDateTime !== null) {
+            return CarbonImmutable::parse($receiptDateTime->toDateTimeString());
+        }
+
+        $dateReceived = $project->date_received;
+
+        if ($dateReceived !== null) {
+            return CarbonImmutable::parse($dateReceived->toDateString());
+        }
+
+        return null;
+    }
+
+    private function sprsProvinceKey(Project $project): ?string
+    {
+        $name = strtoupper(trim((string) ($project->provinceReference?->name ?: $project->province)));
+        $name = preg_replace('/^PROVINCE OF\\s+/', '', $name) ?? $name;
+        $name = preg_replace('/\\s+PROVINCE$/', '', $name) ?? $name;
+        $name = preg_replace('/\\s+/', ' ', $name) ?? $name;
+
+        return match ($name) {
+            'ALBAY' => 'albay',
+            'CAMARINES NORTE' => 'camarines_norte',
+            'CAMARINES SUR' => 'camarines_sur',
+            'CATANDUANES' => 'catanduanes',
+            'MASBATE' => 'masbate',
+            'SORSOGON' => 'sorsogon',
+            default => null,
+        };
+    }
+
+    /** @param Collection<int, Project> $projects */
+    private function sprsDateRangeLabel(Collection $projects): string
+    {
+        $dates = $projects
+            ->map(fn (Project $project) => $project->monitoringDetail?->sprs_date)
+            ->filter()
+            ->sortBy(fn ($date): int => $date->getTimestamp())
+            ->values();
+
+        if ($dates->isEmpty()) {
+            return '';
+        }
+
+        $first = $dates->first();
+        $last = $dates->last();
+
+        if ($first->isSameDay($last)) {
+            return $first->format('M d, Y');
+        }
+
+        if ($first->format('M Y') === $last->format('M Y')) {
+            return $first->format('M d').'–'.$last->format('d, Y');
+        }
+
+        return $first->format('M d, Y').'–'.$last->format('M d, Y');
+    }
+
+    private function ordinal(int $number): string
+    {
+        return match ($number) {
+            1 => '1ST',
+            2 => '2ND',
+            3 => '3RD',
+            default => $number.'TH',
+        };
     }
 
     private function projectQuery(array $filters, User $user): Builder

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
-use App\Enums\ProjectTerm;
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
 use App\Models\Province;
@@ -21,37 +20,26 @@ class PhysicalFinancialAccomplishmentController extends Controller
         'overall' => [
             'label' => 'Overall Accomplishment',
             'short_label' => 'Overall',
-            'description' => 'Consolidated physical and financial accomplishment for the selected reporting scope.',
+            'description' => 'Province-level reformulated target, accomplishment, and balance in physical and financial terms.',
             'dimension' => ReportDimension::OVERALL,
-            'term' => null,
+        ],
+        'semester' => [
+            'label' => 'Accomplishment per Semester',
+            'short_label' => 'Per Semester',
+            'description' => 'Province-level first- and second-semester physical and financial accomplishment for the selected fiscal year.',
+            'dimension' => ReportDimension::SEMESTER,
         ],
         'quarter' => [
             'label' => 'Accomplishment per Quarter',
             'short_label' => 'Per Quarter',
-            'description' => 'Quarter-by-quarter accomplishment using the project date received as the reporting-period basis.',
+            'description' => 'Province-level first through fourth quarter physical and financial accomplishment for the selected fiscal year.',
             'dimension' => ReportDimension::QUARTER,
-            'term' => null,
         ],
         'month' => [
             'label' => 'Accomplishment per Month',
             'short_label' => 'Per Month',
-            'description' => 'Month-by-month accomplishment using the project date received as the reporting-period basis.',
+            'description' => 'Province-level January through December physical and financial accomplishment for the selected fiscal year.',
             'dimension' => ReportDimension::MONTH,
-            'term' => null,
-        ],
-        'short-term' => [
-            'label' => 'Short-Term Accomplishment',
-            'short_label' => 'Short-Term',
-            'description' => 'Accomplishment for projects classified as Short-Term based on the authoritative project term.',
-            'dimension' => ReportDimension::OVERALL,
-            'term' => ProjectTerm::SHORT_TERM,
-        ],
-        'long-term' => [
-            'label' => 'Long-Term Accomplishment',
-            'short_label' => 'Long-Term',
-            'description' => 'Accomplishment for projects classified as Long-Term based on the authoritative project term.',
-            'dimension' => ReportDimension::OVERALL,
-            'term' => ProjectTerm::LONG_TERM,
         ],
     ];
 
@@ -62,37 +50,48 @@ class PhysicalFinancialAccomplishmentController extends Controller
 
     public function index(Request $request): View
     {
-        $viewKey = array_key_exists((string) $request->query('view'), self::VIEWS)
+        $viewKey = array_key_exists(
+            (string) $request->query('view'),
+            self::VIEWS,
+        )
             ? (string) $request->query('view')
             : 'overall';
 
         $view = self::VIEWS[$viewKey];
         $input = $request->query();
 
-        if (in_array($viewKey, ['quarter', 'month'], true) && blank($input['fiscal_year'] ?? null)) {
+        unset(
+            $input['term'],
+            $input['quarter'],
+            $input['month'],
+        );
+
+        if (
+            in_array($viewKey, ['semester', 'quarter', 'month'], true)
+            && blank($input['fiscal_year'] ?? null)
+        ) {
             $input['fiscal_year'] = now('Asia/Manila')->year;
         }
 
-        if ($viewKey !== 'quarter') {
-            unset($input['quarter']);
-        }
-
-        if ($viewKey !== 'month') {
-            unset($input['month']);
-        }
-
         $validated = validator($input, [
-            'fiscal_year' => ['nullable', 'integer', 'between:2000,2100', 'required_with:quarter,month'],
-            'quarter' => ['nullable', 'integer', 'between:1,4'],
-            'month' => ['nullable', 'integer', 'between:1,12'],
+            'fiscal_year' => ['nullable', 'integer', 'between:2000,2100'],
             'status' => ['nullable', Rule::enum(ProjectStatus::class)],
-            'implementation_mode' => ['nullable', Rule::enum(ImplementationMode::class)],
-            'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
+            'implementation_mode' => [
+                'nullable',
+                Rule::enum(ImplementationMode::class),
+            ],
+            'province_id' => [
+                'nullable',
+                'integer',
+                'exists:provinces,id',
+            ],
         ])->after(function ($validator) use ($input): void {
             $implementationMode = ImplementationMode::tryFrom(
                 (string) ($input['implementation_mode'] ?? '')
             );
-            $status = ProjectStatus::tryFrom((string) ($input['status'] ?? ''));
+            $status = ProjectStatus::tryFrom(
+                (string) ($input['status'] ?? '')
+            );
 
             if (
                 $implementationMode === ImplementationMode::DIRECT_ADMINISTRATION
@@ -119,51 +118,35 @@ class PhysicalFinancialAccomplishmentController extends Controller
             }
         })->validate();
 
-        $validated['term'] = $view['term']?->value;
-
         $filters = ReportFilters::fromArray($validated);
         $report = $this->reports->generate(
             ReportType::PHYSICAL_FINANCIAL,
             $view['dimension'],
             $filters,
         );
-        $overall = $this->reports->generate(
-            ReportType::PHYSICAL_FINANCIAL,
-            ReportDimension::OVERALL,
-            $filters,
-        );
-        $statusReport = $this->reports->generate(
-            ReportType::PHYSICAL_FINANCIAL,
-            ReportDimension::STATUS,
-            $filters,
-        );
 
-        $overallRow = $overall['rows']->first() ?? [];
-        $projects = (int) ($overallRow['project_count'] ?? 0);
-        $completed = (int) ($overallRow['completed_project_count'] ?? 0);
-        $beneficiaries = (int) ($overallRow['beneficiaries_total'] ?? 0);
-        $female = (int) ($overallRow['beneficiaries_female'] ?? 0);
-        $obligated = (int) ($overallRow['obligated_cents'] ?? 0);
-        $disbursed = (int) ($overallRow['disbursed_cents'] ?? 0);
+        $matrix = $report['physical_financial_matrix'];
+        $matrixTotal = $matrix['total'];
 
         $exportQuery = array_filter([
             'report_type' => ReportType::PHYSICAL_FINANCIAL->value,
             'group_by' => $view['dimension']->value,
             'fiscal_year' => $validated['fiscal_year'] ?? null,
-            'quarter' => $validated['quarter'] ?? null,
-            'month' => $validated['month'] ?? null,
-            'term' => $validated['term'] ?? null,
             'status' => $validated['status'] ?? null,
-            'implementation_mode' => $validated['implementation_mode'] ?? null,
+            'implementation_mode' =>
+                $validated['implementation_mode'] ?? null,
             'province_id' => $validated['province_id'] ?? null,
-        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+        ], static fn (mixed $value): bool =>
+            $value !== null && $value !== '');
 
         $commonQuery = array_filter([
             'fiscal_year' => $validated['fiscal_year'] ?? null,
             'status' => $validated['status'] ?? null,
-            'implementation_mode' => $validated['implementation_mode'] ?? null,
+            'implementation_mode' =>
+                $validated['implementation_mode'] ?? null,
             'province_id' => $validated['province_id'] ?? null,
-        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+        ], static fn (mixed $value): bool =>
+            $value !== null && $value !== '');
 
         $user = $request->user();
 
@@ -172,9 +155,8 @@ class PhysicalFinancialAccomplishmentController extends Controller
             'viewConfig' => $view,
             'views' => self::VIEWS,
             'report' => $report,
-            'overall' => $overall,
-            'statusReport' => $statusReport,
-            'overallRow' => $overallRow,
+            'matrix' => $matrix,
+            'matrixTotal' => $matrixTotal,
             'exportQuery' => $exportQuery,
             'commonQuery' => $commonQuery,
             'filters' => $validated,
@@ -188,11 +170,6 @@ class PhysicalFinancialAccomplishmentController extends Controller
                     ->get(['id', 'name']),
             ],
             'provinceLocked' => $user->isTc(),
-            'ratios' => [
-                'completion' => $projects > 0 ? round(($completed / $projects) * 100, 1) : 0.0,
-                'female_share' => $beneficiaries > 0 ? round(($female / $beneficiaries) * 100, 1) : 0.0,
-                'disbursement_vs_obligation' => $obligated > 0 ? round(($disbursed / $obligated) * 100, 1) : 0.0,
-            ],
         ]);
     }
 }

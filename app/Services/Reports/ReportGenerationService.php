@@ -17,6 +17,7 @@ final class ReportGenerationService
 {
     public function __construct(
         private readonly ReportingDataService $reportingData,
+        private readonly PhysicalFinancialMatrixService $physicalFinancialMatrix,
     ) {}
 
     public function generate(
@@ -59,6 +60,19 @@ final class ReportGenerationService
             'summary_cards' => $this->summaryCards($type, $filters),
             'criteria' => $this->criteria($type, $dimension, $filters),
             'warning' => $this->warning($type, $dimension, $rows),
+            'physical_financial_matrix' =>
+                $type === ReportType::PHYSICAL_FINANCIAL
+                && in_array($dimension, [
+                    ReportDimension::OVERALL,
+                    ReportDimension::SEMESTER,
+                    ReportDimension::QUARTER,
+                    ReportDimension::MONTH,
+                ], true)
+                    ? $this->physicalFinancialMatrix->build(
+                        $filters,
+                        $dimension,
+                    )
+                    : null,
             'generated_at' => now(),
             'file_base_name' => sprintf(
                 'tupad-%s-%s-%s',
@@ -112,7 +126,9 @@ final class ReportGenerationService
             ReportType::PHYSICAL_FINANCIAL =>
                 $this->reportingData->physicalFinancial(
                     $filters,
-                    $dimension,
+                    $dimension === ReportDimension::SEMESTER
+                        ? ReportDimension::OVERALL
+                        : $dimension,
                 ),
             ReportType::FUND_STATUS =>
                 $this->reportingData->fundStatus(

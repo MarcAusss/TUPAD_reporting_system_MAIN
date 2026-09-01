@@ -36,11 +36,8 @@
             class="tupad-desktop-sidebar fixed inset-y-0 left-0 z-50 flex w-63 -translate-x-full flex-col border-r border-[#dfe6f0] bg-white transition-transform duration-200 lg:translate-x-0">
             <div class="tupad-sidebar-header flex h-[98px] w-full shrink-0 items-center border-b border-[#e4eaf2] px-6">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                    <div class="grid h-11 w-11 grid-cols-2 gap-[3px] rounded-xl bg-[#063b86] p-2.5 shadow-sm">
-                        <span class="rounded-xs bg-white"></span>
-                        <span class="rounded-xs bg-white/75"></span>
-                        <span class="rounded-xs bg-white/75"></span>
-                        <span class="rounded-xs bg-white"></span>
+                    <div class="h-13 w-11 relative">
+                        <img src="{{ url ('images/mainlogo.jpg')}}" alt="" class="w-full h-full object-cover">
                     </div>
 
                     <div>
@@ -544,10 +541,10 @@
                                 {{ $user->name }}</div>
                             <div class="mt-0.5 text-[10px] text-[#6f7f98]">{{ $user->roleLabel() }}</div>
                         </div>
-                        <svg class="hidden h-4 w-4 text-[#48617f] md:block" viewBox="0 0 24 24" fill="none"
+                        {{-- <svg class="hidden h-4 w-4 text-[#48617f] md:block" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2">
                             <path d="m6 9 6 6 6-6"></path>
-                        </svg>
+                        </svg> --}}
                     </div>
                 </div>
             </header>
