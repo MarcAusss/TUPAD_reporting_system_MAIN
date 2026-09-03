@@ -30,6 +30,7 @@ class GeographicMappingReportController extends Controller
         ],
         'beneficiaries' => [
             'label' => 'Beneficiary Mapping',
+            
             'description' => 'Exact TUPAD beneficiary concentration by official province, district, municipality, or barangay.',
             'levels' => ['province', 'district', 'municipality', 'barangay'],
             'default_level' => 'province',
