@@ -31,6 +31,7 @@ use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ProjectWorkflowQueueController;
 use App\Http\Controllers\PhysicalFinancialAccomplishmentController;
+use App\Http\Controllers\ReformulatedTargetController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReportWorkspaceController;
 use App\Http\Controllers\UserManagementController;
@@ -192,6 +193,14 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
     | Reports
     |--------------------------------------------------------------------------
     */
+
+    Route::middleware('role:focal')->group(function () {
+        Route::get('/reports/reformulated-targets', [ReformulatedTargetController::class, 'edit'])
+            ->name('reports.reformulated-targets.edit');
+
+        Route::put('/reports/reformulated-targets', [ReformulatedTargetController::class, 'update'])
+            ->name('reports.reformulated-targets.update');
+    });
 
     Route::middleware('role:admin,tc,focal')->group(function () {
 

@@ -6,6 +6,7 @@ use App\Enums\ProjectStatus;
 use App\Enums\ReportDimension;
 use App\Models\Project;
 use App\Models\Province;
+use App\Models\ReformulatedTarget;
 use App\Reports\ReportFilters;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -44,29 +45,76 @@ final class PhysicalFinancialMatrixService
         $projects = $this->reportingData->projects($filters);
         $periods = $this->periods($dimension);
         $provinceBuckets = $this->provinceBuckets($projects, $filters);
+        $manualTargets = $this->manualTargets($filters);
 
         $rows = $provinceBuckets
             ->map(
                 fn (Collection $provinceProjects, string $province): array =>
-                    $this->matrixRow($province, $provinceProjects, $periods)
+                    $this->matrixRow(
+                        $province,
+                        $provinceProjects,
+                        $periods,
+                        $manualTargets->get($province),
+                    )
             )
             ->values();
+
+        $total = $this->matrixRow('TOTAL', $projects, $periods);
+        $total['target'] = [
+            'physical' => (int) $rows->sum(
+                fn (array $row): int => (int) data_get($row, 'target.physical', 0)
+            ),
+            'financial_cents' => (int) $rows->sum(
+                fn (array $row): int => (int) data_get($row, 'target.financial_cents', 0)
+            ),
+        ];
+        $total['balance'] = [
+            'physical' =>
+                $total['target']['physical'] - $total['accomplishment']['physical'],
+            'financial_cents' =>
+                $total['target']['financial_cents'] - $total['accomplishment']['financial_cents'],
+        ];
 
         return [
             'dimension' => $dimension->value,
             'fiscal_year' => $filters->fiscalYear,
             'periods' => $periods,
             'rows' => $rows,
-            'total' => $this->matrixRow('TOTAL', $projects, $periods),
+            'total' => $total,
             'basis_note' => implode(' ', [
-                'Physical target uses encoded project beneficiaries.',
+                'Reformulated physical and financial targets use Focal-maintained province targets for the selected fiscal year when saved.',
+                'If no Focal-maintained target exists for a province/year, the report keeps the previous project-derived target as a fallback.',
                 'Physical accomplishment uses beneficiaries on projects currently marked Completed.',
-                'Financial target uses encoded total project cost.',
                 'Financial accomplishment uses recorded disbursements.',
                 'Balance is target less accomplishment.',
                 'Period columns use projects.date_received as the reporting-period basis.',
             ]),
         ];
+    }
+
+    /**
+     * @return Collection<string, ReformulatedTarget>
+     */
+    private function manualTargets(ReportFilters $filters): Collection
+    {
+        if ($filters->fiscalYear === null) {
+            return collect();
+        }
+
+        return ReformulatedTarget::query()
+            ->with('province:id,name')
+            ->where('fiscal_year', $filters->fiscalYear)
+            ->when(
+                $filters->provinceId !== null,
+                fn ($query) => $query->where('province_id', $filters->provinceId)
+            )
+            ->get()
+            ->filter(fn (ReformulatedTarget $target): bool => $target->province !== null)
+            ->mapWithKeys(
+                fn (ReformulatedTarget $target): array => [
+                    $target->province->name => $target,
+                ]
+            );
     }
 
     /**
@@ -140,8 +188,9 @@ final class PhysicalFinancialMatrixService
         string $province,
         Collection $projects,
         array $periods,
+        ?ReformulatedTarget $manualTarget = null,
     ): array {
-        $target = $this->targetMetrics($projects);
+        $target = $this->targetMetrics($projects, $manualTarget);
         $accomplishment = $this->accomplishmentMetrics($projects);
 
         $periodRows = [];
@@ -174,8 +223,17 @@ final class PhysicalFinancialMatrixService
     }
 
     /** @param Collection<int, Project> $projects */
-    private function targetMetrics(Collection $projects): array
-    {
+    private function targetMetrics(
+        Collection $projects,
+        ?ReformulatedTarget $manualTarget = null,
+    ): array {
+        if ($manualTarget !== null) {
+            return [
+                'physical' => $manualTarget->physical_target,
+                'financial_cents' => $manualTarget->financial_target_cents,
+            ];
+        }
+
         $metrics = $this->reportingData
             ->physicalFinancial(
                 new ReportFilters(),

@@ -22,6 +22,7 @@ use App\Models\ProjectOrientation;
 use App\Models\ProjectPayout;
 use App\Models\ProjectPostDocument;
 use App\Models\ProjectPpeDelivery;
+use App\Models\ReformulatedTarget;
 use App\Models\User;
 use App\Observers\AuditObserver;
 use App\Observers\ProjectObserver;
@@ -81,6 +82,7 @@ class AppServiceProvider extends ServiceProvider
 
             User::class,
             ProjectBeneficiary::class,
+            ReformulatedTarget::class,
         ];
 
         foreach ($auditedModels as $model) {
