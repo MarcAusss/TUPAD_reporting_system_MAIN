@@ -11,6 +11,15 @@
     <main class="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-5 py-10">
         <section class="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 bg-slate-50 px-6 py-5">
+                <div class="mb-4 flex items-center gap-3">
+                    <div class="flex h-14 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 ring-1 ring-slate-200">
+                        <img src="{{ asset('images/mainlogo.jpg') }}" alt="TUPAD Reporting System logo" class="h-full w-full object-contain">
+                    </div>
+                    <div>
+                        <div class="text-sm font-extrabold tracking-tight text-[#071d44]">TUPAD Reporting System</div>
+                        <div class="mt-0.5 text-[11px] text-slate-500">Department of Labor and Employment</div>
+                    </div>
+                </div>
                 <div class="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">Account Security</div>
                 <h1 class="mt-2 text-2xl font-bold text-slate-950">Set a new password</h1>
                 <p class="mt-2 text-sm leading-6 text-slate-600">

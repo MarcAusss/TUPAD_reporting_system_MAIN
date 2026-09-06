@@ -140,7 +140,7 @@
                 <div class="px-5 py-12 text-center text-sm font-semibold text-slate-600">No CQPR records matched the selected quarter.</div>
             @else
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                    <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                         <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                             <tr><th class="px-4 py-3">CQPR Date</th><th class="px-4 py-3">Project Code</th><th class="min-w-64 px-4 py-3">Project</th><th class="px-4 py-3">Location</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Beneficiaries</th></tr>
                         </thead>
@@ -180,7 +180,7 @@
                 </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                         <tr><th class="px-4 py-3">Program</th><th class="px-4 py-3 text-right">Records</th><th class="px-4 py-3 text-right">Projects</th><th class="px-4 py-3 text-right">Referred</th><th class="px-4 py-3 text-right">Female</th><th class="px-4 py-3 text-right">Provided Intervention</th><th class="px-4 py-3 text-right">Amount Released</th></tr>
                     </thead>

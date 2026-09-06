@@ -171,7 +171,7 @@
             </div>
         @else
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                         <tr>
                             <th class="px-4 py-3 font-bold">Date</th>

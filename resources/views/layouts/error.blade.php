@@ -12,9 +12,14 @@
 <body class="min-h-screen bg-slate-50 text-slate-900">
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex min-h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
-            <div>
-                <div class="text-sm font-bold tracking-tight text-slate-900">TUPAD Reporting System</div>
-                <div class="mt-0.5 text-[11px] text-slate-400">Department of Labor and Employment</div>
+            <div class="flex items-center gap-3">
+                <div class="flex h-12 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 ring-1 ring-slate-200">
+                    <img src="{{ asset('images/mainlogo.jpg') }}" alt="TUPAD Reporting System logo" class="h-full w-full object-contain">
+                </div>
+                <div>
+                    <div class="text-sm font-bold tracking-tight text-slate-900">TUPAD Reporting System</div>
+                    <div class="mt-0.5 text-[11px] text-slate-400">Department of Labor and Employment</div>
+                </div>
             </div>
             @auth
                 <a href="{{ route('dashboard') }}"

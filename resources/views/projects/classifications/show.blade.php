@@ -102,7 +102,7 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[720px]">
+                <table class="tupad-system-table w-full min-w-[720px]">
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Sector Category</th>
@@ -284,7 +284,7 @@
     </form>
 
     <div class="overflow-x-auto">
-        <table class="w-full min-w-[1280px]">
+        <table class="tupad-system-table tupad-wide-table w-full min-w-[1280px]">
             <thead class="bg-white">
                 <tr>
                     <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Month / Program</th>

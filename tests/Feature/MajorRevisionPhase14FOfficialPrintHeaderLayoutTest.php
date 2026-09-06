@@ -21,13 +21,16 @@ class MajorRevisionPhase14FOfficialPrintHeaderLayoutTest extends TestCase
         ]));
 
         $response->assertOk()
-            ->assertSee('official-print-header', false)
-            ->assertSee('TUPAD Reporting System')
-            ->assertSee('DOLE Regional Office V')
-            ->assertSee('Department of Labor and Employment')
+            ->assertSee('dole-official-letterhead', false)
+            ->assertSee('Republic of the Philippines')
+            ->assertSee('DEPARTMENT OF LABOR AND EMPLOYMENT')
+            ->assertSee('Regional Office No. 5')
+            ->assertSee('report-print-meta-strip', false)
+            ->assertSee('Report Type:')
             ->assertSee('Physical and Financial Accomplishment')
-            ->assertSee('Generated')
-            ->assertSee('OFFICIAL REPORT')
+            ->assertSee('Date:')
+            ->assertDontSee('official-print-header__meta', false)
+            ->assertDontSee('official-print-header__brand', false)
             ->assertSee('report-table-wrap', false);
     }
 

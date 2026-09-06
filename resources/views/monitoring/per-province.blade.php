@@ -12,10 +12,17 @@
             <div class="text-[11px] font-semibold text-slate-400">Horizontal scroll available</div>
         </div>
         <div class="tupad-data-scroll overflow-x-auto">
-            <table class="tupad-wide-table min-w-375 w-full text-xs">
-                <thead class="bg-[#ffe49a]">
-                    <tr>
-                        @foreach (['Province', 'Allocation', 'Target Grants', 'Target Ben.', 'Obligated', 'Utilization', 'Wages', 'PPE', 'Insurance', 'Ben.', 'Female', 'Unutilized', 'On Payment', 'Post-Docs', 'Ongoing', 'For Impl.', 'Approved', 'For Approval', 'Evaluation', 'Available Balance'] as $h)
+            <table class="tupad-system-table tupad-wide-table min-w-375 w-full text-xs">
+                <thead>
+                    <tr class="tupad-column-groups">
+                        <th rowspan="2">Province</th>
+                        <th colspan="5">Allocation &amp; Targets</th>
+                        <th colspan="5">Project Cost &amp; Beneficiaries</th>
+                        <th colspan="8">Workflow Exposure</th>
+                        <th rowspan="2">Available Balance</th>
+                    </tr>
+                    <tr class="tupad-column-labels">
+                        @foreach (['Allocation', 'Target Grants', 'Target Ben.', 'Obligated', 'Utilization', 'Wages', 'PPE', 'Insurance', 'Ben.', 'Female', 'Unutilized', 'On Payment', 'Post-Docs', 'Ongoing', 'For Impl.', 'Approved', 'For Approval', 'Evaluation'] as $h)
                             <th class="p-3 text-left">{{ $h }}</th>
                         @endforeach
                     </tr>

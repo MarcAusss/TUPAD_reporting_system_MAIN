@@ -21,7 +21,23 @@
         </div>
 
         <div class="tupad-data-scroll overflow-x-auto">
-            <table class="tupad-wide-table min-w-[3100px] w-full text-[11px]"><thead class="bg-[#eaf2ff] text-[#10294f]"><tr>@foreach(['Status','ADL No.','Fund Sponsor','LCE / Party-list','Project Code','Project Series','Receipt Month','Receipt Date & Time','Cycle Days','Project Title','Nature','Proponent','Mode','Days','Barangay','Municipality','Province','District','Income Class','Beneficiaries','Female','Female Amount','Youth','Youth Amount','Youth Female','Youth Female Amount','Senior','Senior Amount','Senior Female','Senior Female Amount','PWD','PWD Amount','PWD Female','PWD Female Amount','Rebel Returnee','RR Amount','RR Female','RR Female Amount','Wages','PPE','Insurance','Total Cost','NTP','Work Start','Work End','Obligation','Post-Docs','Action'] as $h)<th class="whitespace-nowrap border-r border-[#d8e4f3] p-3 text-left font-bold">{{ $h }}</th>@endforeach</tr></thead><tbody class="divide-y">@forelse($projects as $project)
+            <table class="tupad-system-table tupad-wide-table min-w-[3100px] w-full text-[11px]">
+                <thead>
+                    <tr class="tupad-column-groups">
+                        <th colspan="14">Project &amp; Reference</th>
+                        <th colspan="5">Geography</th>
+                        <th colspan="19">Beneficiary Profile</th>
+                        <th colspan="4">Project Cost</th>
+                        <th colspan="5">Implementation</th>
+                        <th rowspan="2">Action</th>
+                    </tr>
+                    <tr class="tupad-column-labels">
+                        @foreach(['Status','ADL No.','Fund Sponsor','LCE / Party-list','Project Code','Project Series','Receipt Month','Receipt Date & Time','Cycle Days','Project Title','Nature','Proponent','Mode','Days','Barangay','Municipality','Province','District','Income Class','Beneficiaries','Female','Female Amount','Youth','Youth Amount','Youth Female','Youth Female Amount','Senior','Senior Amount','Senior Female','Senior Female Amount','PWD','PWD Amount','PWD Female','PWD Female Amount','Rebel Returnee','RR Amount','RR Female','RR Female Amount','Wages','PPE','Insurance','Total Cost','NTP','Work Start','Work End','Obligation','Post-Docs'] as $h)
+                            <th class="whitespace-nowrap p-3 text-left font-bold">{{ $h }}</th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody class="divide-y">@forelse($projects as $project)
 @php
 $beneficiaries=$project->beneficiaries; $female=$beneficiaries->where('sex','female');
 $youth=$beneficiaries->filter(fn($b)=>$b->isYouth()); $senior=$beneficiaries->filter(fn($b)=>$b->isSeniorCitizen()); $pwd=$beneficiaries->where('is_pwd',true); $rr=$beneficiaries->where('is_rebel_returnee',true);

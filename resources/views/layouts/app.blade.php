@@ -38,8 +38,8 @@
             class="tupad-desktop-sidebar fixed inset-y-0 left-0 z-50 flex w-63 -translate-x-full flex-col border-r border-[#dfe6f0] bg-white transition-transform duration-200 lg:translate-x-0">
             <div class="tupad-sidebar-header flex h-[78px] w-full shrink-0 items-center border-b border-[#e4eaf2] px-5">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                    <div class="h-13 w-11 relative">
-                        <img src="{{ url('images/mainlogo.jpg') }}" alt="TUPAD Reporting System" class="h-full w-full rounded-md object-cover">
+                    <div class="flex h-13 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
+                        <img src="{{ asset('images/mainlogo.jpg') }}" alt="TUPAD Reporting System logo" class="h-full w-full object-contain">
                     </div>
 
                     <div>

@@ -33,7 +33,7 @@
 
         <div class="overflow-x-auto">
 
-            <table class="min-w-full">
+            <table class="tupad-system-table min-w-full">
 
                 <thead class="bg-slate-50">
 

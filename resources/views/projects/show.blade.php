@@ -564,7 +564,7 @@
                 <div class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-800">
                     {{ $groupLabel }}
                 </div>
-                <table class="w-full">
+                <table class="tupad-system-table w-full">
                     <thead>
                         <tr class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                             <th class="px-4 py-2 text-left">Category</th>
@@ -1119,7 +1119,7 @@
 
         <div class="overflow-x-auto">
 
-            <table class="min-w-full">
+            <table class="tupad-system-table min-w-full">
 
                 <thead class="bg-slate-50">
 
@@ -2250,7 +2250,7 @@
 
         <div class="overflow-x-auto">
 
-            <table class="min-w-full">
+            <table class="tupad-system-table min-w-full">
 
                 <thead class="bg-slate-50">
 
@@ -2414,7 +2414,7 @@
 
     <div class="overflow-x-auto">
 
-        <table class="min-w-full">
+        <table class="tupad-system-table min-w-full">
 
             <thead class="bg-slate-50">
 
@@ -2513,7 +2513,7 @@
 
     <div class="overflow-x-auto">
 
-        <table class="min-w-full">
+        <table class="tupad-system-table min-w-full">
 
             <thead class="bg-slate-50">
 

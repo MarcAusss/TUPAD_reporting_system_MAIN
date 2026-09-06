@@ -146,7 +146,7 @@
             <div class="px-5 py-12 text-center"><div class="text-sm font-semibold text-slate-700">No fund-status data matched the selected criteria.</div><div class="mt-1 text-xs text-slate-500">Adjust the filters and try again.</div></div>
         @else
             <div class="overflow-x-auto">
-                <table class="min-w-[1500px] w-full text-xs">
+                <table class="tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1500px] w-full text-xs">
                     <thead class="bg-slate-50 text-slate-600"><tr>@foreach ($report['columns'] as $column)<th @class(['border-b border-slate-200 px-4 py-3 font-bold', 'text-right' => $column['align'] === 'right', 'text-left' => $column['align'] !== 'right'])>{{ $column['label'] }}</th>@endforeach</tr></thead>
                     <tbody class="divide-y divide-slate-100">
                         @foreach ($report['display_rows'] as $row)

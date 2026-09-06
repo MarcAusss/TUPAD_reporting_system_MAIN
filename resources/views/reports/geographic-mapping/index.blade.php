@@ -74,7 +74,7 @@
             <div class="px-5 py-12 text-center text-sm text-slate-500">No mapping rows available.</div>
         @else
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-50">
                         <tr>
                             @foreach ($report['columns'] as $column)

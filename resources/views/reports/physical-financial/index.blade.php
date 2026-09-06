@@ -172,7 +172,7 @@
         </div>
 
         <div class="overflow-x-auto p-4">
-            <table class="w-full min-w-max border-collapse text-[11px] text-slate-800">
+            <table class="tupad-system-table tupad-report-screen-table tupad-wide-table w-full min-w-max border-collapse text-[11px] text-slate-800">
                 @if ($viewKey === 'overall')
                     <thead>
                         <tr>
@@ -279,7 +279,7 @@
                     @endforeach
 
                     @php($total = $matrix['total'])
-                    <tr class="bg-[#3f3f3f] font-extrabold text-white">
+                    <tr class="tupad-table-total-row font-extrabold text-white">
                         <td class="border border-slate-700 px-3 py-2">TOTAL</td>
 
                         @if ($viewKey === 'overall')

@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RequiredPasswordChangeController;
 use App\Http\Controllers\CoordinatorAccountController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardGeographicAnalyticsController;
 use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
@@ -82,6 +83,11 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    Route::middleware('role:focal')->group(function () {
+        Route::get('/dashboard/geographic-analytics', DashboardGeographicAnalyticsController::class)
+            ->name('dashboard.geographic-analytics');
+    });
 
     Route::get('/notifications', [NotificationCenterController::class, 'index'])
         ->name('notifications.index');

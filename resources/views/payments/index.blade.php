@@ -20,7 +20,7 @@
     </div>
 
     <div class="overflow-x-auto">
-        <table class="min-w-[1050px] w-full">
+        <table class="tupad-system-table tupad-wide-table min-w-[1050px] w-full">
             <thead class="bg-slate-50">
                 <tr>
                     <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Project</th>

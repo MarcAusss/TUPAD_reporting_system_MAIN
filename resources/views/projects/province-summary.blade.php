@@ -79,11 +79,11 @@
                     </div>
                 @endunless
 
-                <button type="button"
+                <!-- <button type="button"
                     class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                     onclick="window.print()">
                     Print / Export
-                </button>
+                </button> -->
 
             </div>
 
@@ -91,7 +91,7 @@
 
         <div class="overflow-x-auto">
 
-            <table class="w-full min-w-375 table-fixed text-[10px] xl:min-w-0">
+            <table class="tupad-system-table tupad-wide-table w-full min-w-375 table-fixed text-[10px] xl:min-w-0">
 
                 <colgroup>
                     <col class="w-[9%]">

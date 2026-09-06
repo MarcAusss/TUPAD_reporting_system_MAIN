@@ -340,7 +340,7 @@
 
                 @if($obligation->disbursements->isNotEmpty())
                     <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-                        <table class="min-w-full text-xs">
+                        <table class="tupad-system-table min-w-full text-xs">
                             <thead class="bg-slate-50 text-slate-500">
                                 <tr>
                                     <th class="px-3 py-2 text-left font-semibold">Date Disbursed</th>

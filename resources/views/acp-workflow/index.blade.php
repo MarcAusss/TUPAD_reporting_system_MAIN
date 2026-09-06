@@ -40,7 +40,7 @@
 
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-            <table class="min-w-full">
+            <table class="tupad-system-table min-w-full">
                 <thead class="bg-slate-50">
                     <tr>
                         <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Project</th>

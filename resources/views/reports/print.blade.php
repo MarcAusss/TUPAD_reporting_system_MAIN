@@ -19,21 +19,6 @@
         .toolbar { margin-bottom: 14px; text-align: right; }
         .toolbar button { border: 1px solid #94a3b8; border-radius: 4px; background: #fff; padding: 8px 14px; cursor: pointer; }
 
-        .official-print-header { display: grid; grid-template-columns: 180px minmax(0, 1fr) 215px; min-height: 102px; border-top: 4px solid #0d9bc0; border-bottom: 1px solid #cbd5e1; background: #fff; }
-        .official-print-header__brand { padding: 10px 14px 9px 10px; border-right: 1px solid #e2e8f0; }
-        .official-print-header__logo { display: block; width: 118px; height: auto; object-fit: contain; object-position: left center; }
-        .official-print-header__system { margin-top: 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; color: #334155; }
-        .official-print-header__office { margin-top: 1px; font-size: 7px; color: #64748b; }
-        .official-print-header__title { display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; padding: 8px 16px; text-align: center; }
-        .official-print-header__agency { font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #475569; }
-        .official-print-header__report { margin-top: 4px; font-size: 15px; line-height: 1.15; font-weight: 800; color: #0f172a; }
-        .official-print-header__scope { margin-top: 4px; font-size: 8px; font-weight: 600; color: #64748b; }
-        .official-print-header__period { margin-top: 2px; font-size: 7px; font-weight: 700; color: #0d7490; }
-        .official-print-header__meta { padding: 8px 10px; border-left: 1px solid #e2e8f0; background: #f8fafc; }
-        .official-print-header__meta-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px solid #e2e8f0; font-size: 6.5px; }
-        .official-print-header__meta-row:last-child { border-bottom: 0; }
-        .official-print-header__meta-row span { color: #64748b; }
-        .official-print-header__meta-row strong { color: #0f172a; text-align: right; }
 
         .criteria { margin-top: 9px; border: 1px solid #cbd5e1; padding: 7px 9px; background: #f8fafc; }
         .criteria span { display: inline-block; margin: 2px 13px 2px 0; }
@@ -54,9 +39,6 @@
 
         .pf-print-page { break-after: page; }
         .pf-print-page:last-of-type { break-after: auto; }
-        .pf-print-page .official-print-header { grid-template-columns: 135px minmax(0, 1fr) 130px; min-height: 72px; }
-        .pf-print-page .official-print-header__logo { width: 92px; }
-        .pf-print-page .official-print-header__report { font-size: 12px; }
         .pf-print-page .criteria { font-size: 7px; }
         .pf-period-title { margin: 10px 0 6px; text-align: center; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         .pf-matrix { table-layout: fixed; }
@@ -80,10 +62,26 @@
         .sprs-matrix .sprs-future td { color: #94a3b8; background: #f8fafc; }
         .sprs-note { margin-top: 7px; font-size: 6.8px; line-height: 1.4; color: #64748b; }
 
+        .pf-print-page .dole-official-letterhead__inner {
+            grid-template-columns: 82px minmax(0, 1fr) 132px;
+            gap: 9px;
+        }
+        .pf-print-page .dole-official-letterhead__dole-logo { width: 58px; max-height: 58px; }
+        .pf-print-page .dole-official-letterhead__bagong-logo { width: 36px; max-height: 46px; }
+        .pf-print-page .dole-official-letterhead__iso-logo { width: 88px; max-height: 46px; }
+        .pf-print-page .dole-official-letterhead__republic { font-size: 7.2pt; }
+        .pf-print-page .dole-official-letterhead__department { font-size: 8.4pt; }
+        .pf-print-page .dole-official-letterhead__region { font-size: 7.5pt; }
+        .pf-print-page .dole-official-letterhead__address,
+        .pf-print-page .dole-official-letterhead__contact,
+        .pf-print-page .dole-official-letterhead__email { font-size: 6.2pt; }
+        .pf-print-page .report-print-meta-strip { padding: 5px 7px; }
+        .pf-print-page .report-print-meta-strip__item { font-size: 6.8px; }
+
         @media print {
             body { padding: 0; }
             .no-print { display: none; }
-            .official-print-header { break-inside: avoid; }
+            .dole-official-letterhead, .report-print-meta-strip { break-inside: avoid; }
             @if ($isPhysicalFinancial)
                 @page { size: Letter portrait; margin: 9mm; }
             @else

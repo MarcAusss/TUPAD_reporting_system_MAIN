@@ -9,6 +9,7 @@ use App\Models\AuditLog;
 use App\Models\Project;
 use App\Services\Auth\ProvinceAccessService;
 use App\Services\Dashboards\DashboardActionQueueService;
+use App\Services\Dashboards\DashboardGeographicAnalyticsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,16 +20,18 @@ class DashboardController extends Controller
         Request $request,
         ProvinceAccessService $provinceAccess,
         DashboardActionQueueService $actionQueues,
+        DashboardGeographicAnalyticsService $geographicAnalytics,
     ): View
     {
         $user = $request->user();
-        return $this->officialDashboard($user, $provinceAccess, $actionQueues);
+        return $this->officialDashboard($user, $provinceAccess, $actionQueues, $geographicAnalytics);
     }
 
     private function officialDashboard(
         $user,
         ProvinceAccessService $provinceAccess,
         DashboardActionQueueService $actionQueues,
+        DashboardGeographicAnalyticsService $geographicAnalytics,
     ): View
     {
         $projects = $this->projectQuery($user, $provinceAccess);
@@ -234,6 +237,11 @@ class DashboardController extends Controller
                     ->latest('performed_at')
                     ->limit(6)
                     ->get(),
+
+            'geographicAnalytics' =>
+                $user->isFocal()
+                    ? $geographicAnalytics->build($user, ['family' => DashboardGeographicAnalyticsService::PROJECTS])
+                    : null,
 
             'roleMode' =>
                 match (true) {
