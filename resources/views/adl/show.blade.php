@@ -77,7 +77,7 @@
 <section id="per-adl-breakdown" class="scroll-mt-28 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
     <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 class="text-sm font-semibold text-slate-900">PER ADL (Current) Summary</h2><p class="mt-1 text-xs text-slate-500">Calculated from allocations, official projects, obligations and project statuses.</p></div></div>
     <div class="border-b border-slate-100 bg-slate-50 px-5 py-2 text-[11px] font-medium text-slate-500">
-        Scroll horizontally to review the complete workbook-aligned breakdown.
+        Scroll horizontally to review the complete official fund breakdown.
     </div>
     <div class="tupad-data-scroll overflow-x-auto"><table class="min-w-[2200px] w-full text-xs">
         <thead class="bg-[#fff0bf] text-[#10294f]"><tr><th class="p-3 text-left">Fund Sponsor</th><th class="p-3 text-left">Partner</th><th class="p-3 text-left">Province</th><th class="p-3 text-left">District</th><th class="p-3 text-left">Municipality</th><th class="p-3 text-right">Allocation Grants</th><th class="p-3 text-right">Admin Cost</th><th class="p-3 text-right">Allocation Total</th><th class="p-3 text-right">Re-alignment</th><th class="p-3 text-left">MAF</th><th class="p-3 text-right">Target Grants</th><th class="p-3 text-right">Target Ben.</th><th class="p-3 text-right">Obligated</th><th class="p-3 text-right">%</th><th class="p-3 text-right">Wages</th><th class="p-3 text-right">PPE</th><th class="p-3 text-right">Insurance</th><th class="p-3 text-right">Ben.</th><th class="p-3 text-right">Female</th><th class="p-3 text-right">Unutilized</th></tr></thead>

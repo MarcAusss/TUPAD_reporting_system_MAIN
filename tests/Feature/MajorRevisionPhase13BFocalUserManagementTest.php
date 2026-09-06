@@ -16,7 +16,6 @@ class MajorRevisionPhase13BFocalUserManagementTest extends TestCase
     private User $admin;
     private User $focal;
     private User $tc;
-    private User $gip;
     private Province $albay;
     private Province $masbate;
 
@@ -51,25 +50,28 @@ class MajorRevisionPhase13BFocalUserManagementTest extends TestCase
             'is_active' => true,
             'assigned_province_id' => $this->albay->id,
         ]);
-
-        $this->gip = User::factory()->create([
-            'role' => UserRole::GIP,
-            'is_active' => true,
-            'supervisor_tc_id' => $this->tc->id,
-        ]);
     }
 
-    public function test_focal_and_admin_can_access_coordinator_accounts_but_tc_and_gip_cannot(): void
+    public function test_focal_and_admin_can_access_user_management_with_role_appropriate_scope_but_tc_cannot(): void
     {
-        foreach ([$this->focal, $this->admin] as $authorizedUser) {
-            $this->actingAs($authorizedUser)
-                ->get(route('users.index'))
-                ->assertOk()
-                ->assertSee('TUPAD Coordinator Accounts')
-                ->assertSee('Add Coordinator');
-        }
+        $this->actingAs($this->focal)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('TUPAD Coordinator Accounts')
+            ->assertSee('Add Coordinator')
+            ->assertDontSee('Add User Account');
 
-        foreach ([$this->tc, $this->gip] as $unauthorizedUser) {
+        $this->actingAs($this->admin)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('User Accounts')
+            ->assertSee('Add User Account')
+            ->assertSee('Administrator')
+            ->assertSee('Focal')
+            ->assertSee('TUPAD Coordinator')
+            ->assertDontSee('Retired Account');
+
+        foreach ([$this->tc] as $unauthorizedUser) {
             $this->actingAs($unauthorizedUser)
                 ->get(route('users.index'))
                 ->assertForbidden();
@@ -252,7 +254,6 @@ class MajorRevisionPhase13BFocalUserManagementTest extends TestCase
             ->assertOk()
             ->assertSee($masbateCoordinator->username)
             ->assertDontSee($this->tc->username)
-            ->assertDontSee($this->admin->username)
-            ->assertDontSee($this->gip->username);
+            ->assertDontSee($this->admin->username);
     }
 }

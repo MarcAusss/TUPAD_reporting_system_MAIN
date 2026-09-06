@@ -220,6 +220,6 @@
     </section>
 
     <div class="mt-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-900">
-        Official Print/PDF now uses the Phase 14F government report layout while preserving the source dates and encoded program classifications shown on this screen.
+        Official Print/PDF uses the approved government report layout while preserving the source dates and encoded program classifications shown on this screen.
     </div>
 @endsection

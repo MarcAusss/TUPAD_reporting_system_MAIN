@@ -221,7 +221,6 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'position' => 'System Administrator',
                 'role' => UserRole::ADMIN,
                 'is_active' => true,
-                'supervisor_tc_id' => null,
                 'assigned_province_id' => null,
                 'password' => $this->temporaryDevelopmentPassword('admin'),
                 'must_change_password' => true,
@@ -244,9 +243,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
 
         /*
          * Preserve the primary key of the old development `tc` account when
-         * upgrading an already-seeded database. This keeps existing GIP
-         * supervisor / draft relationships connected while replacing the
-         * placeholder account with the real Albay coordinator account Orlan.
+         * upgrading an already-seeded database. This preserves the primary key of the previous development Coordinator account while replacing the placeholder identity with the real Albay coordinator account Orlan.
          */
         $legacyTc = User::query()
             ->where('username', 'tc')
@@ -265,7 +262,6 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'position' => 'TUPAD Coordinator',
                 'role' => UserRole::TC,
                 'is_active' => true,
-                'supervisor_tc_id' => null,
                 'assigned_province_id' => $provinces['050500000']->id,
                 'password' => $this->temporaryDevelopmentPassword('Orlan'),
                 'must_change_password' => true,
@@ -292,8 +288,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
                     'position' => 'TUPAD Coordinator',
                     'role' => UserRole::TC,
                     'is_active' => true,
-                    'supervisor_tc_id' => null,
-                    'assigned_province_id' => $province->id,
+                        'assigned_province_id' => $province->id,
                     'password' => $this->temporaryDevelopmentPassword($definition['username']),
                     'must_change_password' => true,
                     'password_changed_at' => null,
@@ -303,25 +298,6 @@ final class Fy2025TupadProjectSeeder extends Seeder
             $coordinators->put($definition['username'], $coordinator);
         }
 
-        /** @var User $defaultGipSupervisor */
-        $defaultGipSupervisor = $coordinators->get('Orlan');
-
-        User::query()->updateOrCreate(
-            ['username' => 'gip'],
-            [
-                'name' => 'GIP Encoder',
-                'email' => 'gip@tupad.local',
-                'position' => 'GIP',
-                'role' => UserRole::GIP,
-                'is_active' => true,
-                'supervisor_tc_id' => $defaultGipSupervisor->id,
-                'assigned_province_id' => null,
-                'password' => $this->temporaryDevelopmentPassword('gip'),
-                'must_change_password' => true,
-                'password_changed_at' => null,
-            ],
-        );
-
         User::query()->updateOrCreate(
             ['username' => 'focal'],
             [
@@ -330,7 +306,6 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'position' => 'TUPAD Focal',
                 'role' => UserRole::FOCAL,
                 'is_active' => true,
-                'supervisor_tc_id' => null,
                 'assigned_province_id' => null,
                 'password' => $this->temporaryDevelopmentPassword('focal'),
                 'must_change_password' => true,
@@ -339,7 +314,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
         );
 
         $this->command?->info(
-            'Development users ready: admin, focal, gip, and 10 province-scoped TUPAD Coordinator accounts.'
+            'Development users ready: admin, focal, and 10 province-scoped TUPAD Coordinator accounts.'
         );
 
         if ($this->command && $this->temporaryDevelopmentCredentials !== []) {

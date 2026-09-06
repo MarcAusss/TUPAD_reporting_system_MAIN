@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
-use App\Models\ProjectDraft;
 use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
 use Closure;
@@ -84,18 +83,6 @@ class EnforceCoordinatorProvinceScope
                     $project && $this->provinceAccess->canAccessProject($request->user(), $project),
                     403,
                     'This project belongs to another province.'
-                );
-            }
-
-            if ($name === 'projectDraft') {
-                $draft = $value instanceof ProjectDraft
-                    ? $value
-                    : ProjectDraft::query()->find($value);
-
-                abort_unless(
-                    $draft && $this->provinceAccess->canAccessProjectDraft($request->user(), $draft),
-                    403,
-                    'This project draft belongs to another province.'
                 );
             }
 

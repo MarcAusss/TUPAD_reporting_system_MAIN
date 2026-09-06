@@ -65,7 +65,7 @@
                         <div class="text-xs font-extrabold uppercase tracking-[0.15em] text-blue-700">Section 1</div>
                         <h2 class="mt-1 text-3xl font-extrabold tracking-tight text-slate-900 lg:text-4xl">Executive Overview</h2>
                     </div>
-                    <div class="text-sm font-semibold text-slate-500">Phase 8 reporting data</div>
+                    <div class="text-sm font-semibold text-slate-500">Validated reporting data</div>
                 </div>
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     @foreach ([

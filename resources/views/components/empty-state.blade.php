@@ -3,7 +3,7 @@
     'message' => null,
 ])
 
-<div class="px-6 py-12 text-center">
+<div class="tupad-empty-state px-6 py-12 text-center">
 
     <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
         <svg class="h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">

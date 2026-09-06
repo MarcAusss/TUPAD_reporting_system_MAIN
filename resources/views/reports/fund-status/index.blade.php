@@ -17,7 +17,7 @@
 
     <div class="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <x-page-header eyebrow="Official Reporting" title="Fund Status Reports"
-            description="Review TUPAD allocation, accomplishment (obligated), disbursement, and balances using the existing audited Phase 8/9 financial data sources." />
+            description="Review TUPAD allocation, accomplishment (obligated), disbursement, and balances using validated audited financial records." />
 
         <div class="flex shrink-0 flex-wrap gap-2">
             <a href="{{ route('reports.index', $exportQuery) }}"

@@ -139,63 +139,6 @@ return new class extends Migration
             $table->index(['project_id', 'ppe_type'], 'project_ppe_items_project_id_ppe_type_index');
         });
 
-        Schema::create('project_drafts', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('encoded_by')->constrained('users')->restrictOnDelete();
-            $table->foreignId('assigned_tc_id')->constrained('users')->restrictOnDelete();
-            $table->foreignId('adl_allocation_id')->constrained('adl_allocations')->restrictOnDelete();
-            $table->date('date_received');
-            $table->string('project_title', 255);
-            $table->text('nature_of_work');
-            $table->string('province', 150);
-            $table->string('district', 100);
-            $table->string('municipality', 150);
-            $table->string('barangay', 150);
-            $table->string('income_class', 50)->nullable();
-            $table->string('implementation_mode', 50);
-            $table->unsignedSmallInteger('number_of_days');
-            $table->string('term', 30);
-            $table->unsignedInteger('beneficiaries_total');
-            $table->unsignedInteger('beneficiaries_female')->default(0);
-            $table->decimal('wage_rate', 12, 2);
-            $table->decimal('wages_total', 15, 2);
-            $table->decimal('ppe_total', 15, 2)->default(0);
-            $table->decimal('insurance_rate', 12, 2)->default(50);
-            $table->decimal('insurance_total', 15, 2)->default(0);
-            $table->decimal('total_project_cost', 15, 2);
-            $table->string('status', 50)->default('draft');
-            $table->text('remarks')->nullable();
-            $table->text('tc_review_remarks')->nullable();
-            $table->timestamp('submitted_at')->nullable();
-            $table->timestamp('reviewed_at')->nullable();
-            $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('confirmed_project_id')->nullable()->constrained('projects')->nullOnDelete();
-            $table->timestamp('confirmed_at')->nullable();
-            $table->timestamp('created_at')->nullable();
-            $table->timestamp('updated_at')->nullable();
-            $table->foreignId('province_id')->nullable()->constrained('provinces')->nullOnDelete();
-            $table->foreignId('municipality_id')->nullable()->constrained('municipalities')->nullOnDelete();
-            $table->foreignId('barangay_id')->nullable()->constrained('barangays')->nullOnDelete();
-
-            $table->index('status', 'project_drafts_status_index');
-            $table->index(['assigned_tc_id', 'status'], 'project_drafts_assigned_tc_id_status_index');
-            $table->index(['encoded_by', 'status'], 'project_drafts_encoded_by_status_index');
-        });
-
-        Schema::create('project_draft_ppe_items', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('project_draft_id')->constrained('project_drafts')->cascadeOnDelete();
-            $table->string('ppe_type', 30);
-            $table->string('product', 255);
-            $table->unsignedInteger('beneficiary_count');
-            $table->decimal('unit_amount', 12, 2);
-            $table->decimal('total_amount', 15, 2);
-            $table->timestamp('created_at')->nullable();
-            $table->timestamp('updated_at')->nullable();
-
-            $table->index(['project_draft_id', 'ppe_type'], 'project_draft_ppe_items_project_draft_id_ppe_type_index');
-        });
-
         Schema::create('project_beneficiaries', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('project_id')->constrained('projects')->cascadeOnDelete();
@@ -282,8 +225,6 @@ return new class extends Migration
         Schema::dropIfExists('project_locations');
         Schema::dropIfExists('project_monitoring_details');
         Schema::dropIfExists('project_beneficiaries');
-        Schema::dropIfExists('project_draft_ppe_items');
-        Schema::dropIfExists('project_drafts');
         Schema::dropIfExists('project_ppe_items');
         Schema::dropIfExists('projects');
         Schema::dropIfExists('adl_allocations');

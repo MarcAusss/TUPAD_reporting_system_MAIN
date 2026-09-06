@@ -14,3 +14,11 @@ Schedule::command(
     ->dailyAt('00:05')
     ->timezone('Asia/Manila')
     ->withoutOverlapping();
+
+Schedule::command(
+    'tupad:production-health --report=storage/app/health/latest.json'
+)
+    ->dailyAt('06:15')
+    ->timezone('Asia/Manila')
+    ->withoutOverlapping();
+

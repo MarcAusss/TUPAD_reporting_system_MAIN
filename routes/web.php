@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdlAllocationController;
+use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\AdlController;
 use App\Http\Controllers\AdlRealignmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MonthlyQuarterlyReportController;
+use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\OfficialPeriodicReportController;
 use App\Http\Controllers\ProjectAcpCheckReleaseController;
 use App\Http\Controllers\ProjectAcpImplementationController;
@@ -21,8 +23,6 @@ use App\Http\Controllers\ProjectApprovalController;
 use App\Http\Controllers\ProjectClassificationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectProvinceSummaryController;
-use App\Http\Controllers\ProjectDraftController;
-use App\Http\Controllers\ProjectDraftReviewController;
 use App\Http\Controllers\ProjectDisbursementController;
 use App\Http\Controllers\ProjectEvaluationController;
 use App\Http\Controllers\ProjectImplementationController;
@@ -82,6 +82,14 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    Route::get('/notifications', [NotificationCenterController::class, 'index'])
+        ->name('notifications.index');
+
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/audit-trail', [AuditTrailController::class, 'index'])
+            ->name('audit.index');
+    });
 
     Route::middleware('role:admin,focal,tc')->group(function () {
         Route::get(
@@ -548,57 +556,6 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
             '/projects/{project}/post-documents/{projectPostDocument}/download',
             [ProjectPostDocumentController::class, 'download']
         )->name('projects.post-documents.download');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | GIP Draft Encoding
-    |--------------------------------------------------------------------------
-    */
-
-    Route::middleware('role:gip')->group(function () {
-
-        Route::get('/project-drafts', [ProjectDraftController::class, 'index'])
-            ->name('project-drafts.index');
-
-        Route::get('/project-drafts/create', [ProjectDraftController::class, 'create'])
-            ->name('project-drafts.create');
-
-        Route::post('/project-drafts', [ProjectDraftController::class, 'store'])
-            ->name('project-drafts.store');
-
-        Route::get('/project-drafts/{projectDraft}', [ProjectDraftController::class, 'show'])
-            ->name('project-drafts.show');
-
-        Route::get('/project-drafts/{projectDraft}/edit', [ProjectDraftController::class, 'edit'])
-            ->name('project-drafts.edit');
-
-        Route::put('/project-drafts/{projectDraft}', [ProjectDraftController::class, 'update'])
-            ->name('project-drafts.update');
-
-        Route::post('/project-drafts/{projectDraft}/submit', [ProjectDraftController::class, 'submit'])
-            ->name('project-drafts.submit');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | GIP Draft Review — Admin & TC
-    |--------------------------------------------------------------------------
-    */
-
-    Route::middleware('role:admin,tc')->group(function () {
-
-        Route::get('/project-draft-reviews', [ProjectDraftReviewController::class, 'index'])
-            ->name('project-draft-reviews.index');
-
-        Route::get('/project-draft-reviews/{projectDraft}', [ProjectDraftReviewController::class, 'show'])
-            ->name('project-draft-reviews.show');
-
-        Route::post('/project-draft-reviews/{projectDraft}/return', [ProjectDraftReviewController::class, 'returnForCorrection'])
-            ->name('project-draft-reviews.return');
-
-        Route::post('/project-draft-reviews/{projectDraft}/confirm', [ProjectDraftReviewController::class, 'confirm'])
-            ->name('project-draft-reviews.confirm');
     });
 
     /*

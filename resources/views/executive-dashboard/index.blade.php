@@ -20,7 +20,7 @@
     @endphp
 
     <x-page-header eyebrow="Executive Reporting" title="Executive Dashboard"
-        description="Read-only program overview using the Phase 8 reporting data layer and the same validated filters used across executive indicators and visualizations.">
+        description="Read-only program overview using validated reporting records and the same filters used across executive indicators and visualizations.">
         <x-slot:actions>
             <a href="{{ route('executive-dashboard.presentation', $query) }}"
                 class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">

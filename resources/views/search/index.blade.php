@@ -3,7 +3,7 @@
 @section('title', 'Search')
 
 @section('content')
-<div class="space-y-6">
+<div class="tupad-search-page space-y-6">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
             <div class="text-xs font-semibold uppercase tracking-[.08em] text-slate-400">
@@ -52,7 +52,7 @@
         </div>
     @else
         @if($projects->isNotEmpty())
-            <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section class="tupad-table-shell overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                     <h2 class="text-sm font-bold text-[#10294f]">Projects</h2>
                     <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ $projects->count() }}</span>
@@ -82,7 +82,7 @@
         @endif
 
         @if($adls->isNotEmpty())
-            <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section class="tupad-table-shell overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                     <h2 class="text-sm font-bold text-[#10294f]">ADL Records</h2>
                     <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ $adls->count() }}</span>
@@ -104,30 +104,7 @@
             </section>
         @endif
 
-        @if($drafts->isNotEmpty())
-            <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                    <h2 class="text-sm font-bold text-[#10294f]">My Project Drafts</h2>
-                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ $drafts->count() }}</span>
-                </div>
-
-                <div class="divide-y divide-slate-100">
-                    @foreach($drafts as $draft)
-                        <a href="{{ route('project-drafts.show', $draft) }}" class="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
-                            <div class="min-w-0">
-                                <div class="truncate text-sm font-semibold text-slate-900">{{ $draft->project_title }}</div>
-                                <div class="mt-1 text-xs text-slate-500">
-                                    {{ $draft->municipality ?: 'No municipality' }}, {{ $draft->province ?: 'No province' }} · {{ $draft->status->label() }}
-                                </div>
-                            </div>
-                            <span class="shrink-0 text-xs font-semibold text-blue-700">View Draft →</span>
-                        </a>
-                    @endforeach
-                </div>
-            </section>
-        @endif
-
-        @if($projects->isEmpty() && $adls->isEmpty() && $drafts->isEmpty())
+        @if($projects->isEmpty() && $adls->isEmpty())
             <div class="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
                 <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
                     <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">

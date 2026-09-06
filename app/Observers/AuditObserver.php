@@ -136,14 +136,20 @@ class AuditObserver
             $model instanceof \App\Models\Project =>
             'Project Management',
 
-            $model instanceof \App\Models\ProjectDraft =>
-            'GIP Project Draft',
-
             $model instanceof \App\Models\ProjectEvaluation =>
             'Project Evaluation',
 
             $model instanceof \App\Models\ProjectApproval =>
             'Project Approval',
+
+            $model instanceof \App\Models\ProjectAcpPayment =>
+            'ACP Payment',
+
+            $model instanceof \App\Models\ProjectAcpCheckRelease =>
+            'ACP Check Release',
+
+            $model instanceof \App\Models\ProjectAcpLiquidation =>
+            'ACP Liquidation',
 
             $model instanceof \App\Models\ProjectInsuranceEnrollment =>
             'Insurance Enrollment',

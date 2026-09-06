@@ -95,9 +95,11 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
                 $this->assertFalse(Hash::check('password', (string) $coordinator->password));
             });
 
-        foreach (['admin', 'focal', 'gip'] as $username) {
+        foreach (['admin', 'focal'] as $username) {
             $this->assertNull(User::query()->where('username', $username)->value('assigned_province_id'));
         }
+
+        $this->assertFalse(User::query()->where('username', 'gip')->exists());
 
         $this->artisan('tupad:release-verify')
             ->expectsOutputToContain('Release verification PASSED')

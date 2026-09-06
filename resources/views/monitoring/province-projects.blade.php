@@ -11,7 +11,7 @@
             <div>
                 <h2 class="text-sm font-semibold text-slate-900">Project Monitoring Register</h2>
                 <p class="mt-1 text-xs text-slate-500">
-                    Dense workbook-aligned register. Use the actions on the right to update monitoring details or open the official project.
+                    Detailed monitoring register. Use the actions on the right to update monitoring details or open the official project.
                 </p>
             </div>
 

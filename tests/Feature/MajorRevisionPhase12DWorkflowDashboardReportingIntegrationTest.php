@@ -29,7 +29,6 @@ class MajorRevisionPhase12DWorkflowDashboardReportingIntegrationTest extends Tes
     private User $admin;
     private User $focal;
     private User $tc;
-    private User $gip;
     private Adl $adl;
     private AdlAllocation $allocation;
     private int $sequence = 0;
@@ -48,10 +47,6 @@ class MajorRevisionPhase12DWorkflowDashboardReportingIntegrationTest extends Tes
         ]);
         $this->tc = User::factory()->create([
             'role' => UserRole::TC,
-            'is_active' => true,
-        ]);
-        $this->gip = User::factory()->create([
-            'role' => UserRole::GIP,
             'is_active' => true,
         ]);
 
@@ -136,10 +131,6 @@ class MajorRevisionPhase12DWorkflowDashboardReportingIntegrationTest extends Tes
             $this->actingAs($this->admin)
                 ->get(route($routeName))
                 ->assertOk();
-
-            $this->actingAs($this->gip)
-                ->get(route($routeName))
-                ->assertForbidden();
         }
     }
 
@@ -148,7 +139,7 @@ class MajorRevisionPhase12DWorkflowDashboardReportingIntegrationTest extends Tes
         $this->actingAs($this->focal)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Through ACP Financial Queue')
+            ->assertSee('Focal Work Queue')
             ->assertSee('ACP Payment')
             ->assertSee('Check Release')
             ->assertSee('Liquidation')
@@ -159,7 +150,7 @@ class MajorRevisionPhase12DWorkflowDashboardReportingIntegrationTest extends Tes
             ->assertOk()
             ->assertSee('Through ACP Workflow')
             ->assertSee('ACP Implementation')
-            ->assertDontSee('Through ACP Financial Queue');
+            ->assertDontSee('Focal Work Queue');
 
         $this->actingAs($this->admin)
             ->get(route('dashboard'))

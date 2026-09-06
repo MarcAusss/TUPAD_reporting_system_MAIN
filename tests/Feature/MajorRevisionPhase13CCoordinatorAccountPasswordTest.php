@@ -17,7 +17,6 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
     private User $admin;
     private User $focal;
     private User $tc;
-    private User $gip;
 
     protected function setUp(): void
     {
@@ -48,12 +47,6 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
             'assigned_province_id' => $this->masbate->id,
             'password' => 'starting-password',
         ]);
-
-        $this->gip = User::factory()->create([
-            'role' => UserRole::GIP,
-            'is_active' => true,
-            'supervisor_tc_id' => $this->tc->id,
-        ]);
     }
 
     public function test_tc_can_open_read_only_account_page_with_assigned_province(): void
@@ -74,7 +67,7 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
 
     public function test_non_tc_roles_cannot_access_coordinator_self_service_account_routes(): void
     {
-        foreach ([$this->admin, $this->focal, $this->gip] as $user) {
+        foreach ([$this->admin, $this->focal] as $user) {
             $this->actingAs($user)
                 ->get(route('account.show'))
                 ->assertForbidden();

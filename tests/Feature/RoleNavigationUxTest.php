@@ -24,8 +24,8 @@ class RoleNavigationUxTest extends TestCase
 
         $response->assertOk();
 
-        $response->assertSee('Fund Management');
-        $response->assertSee('Monitoring');
+        $response->assertSee('Funds & Payments', false);
+        $response->assertSee('Fund Monitoring');
         $response->assertSee('Payment of Wages');
         $response->assertSee('Reporting');
     }
@@ -43,8 +43,8 @@ class RoleNavigationUxTest extends TestCase
 
         $response->assertOk();
 
-        $response->assertSee('Project Management');
-        $response->assertSee('Project Workflow');
+        $response->assertSee('Project Operations');
+        $response->assertSee('Workflow Queues');
         $response->assertSee('TSSD Evaluation');
         $response->assertSee('For Compliance');
         $response->assertSee('For Approval');

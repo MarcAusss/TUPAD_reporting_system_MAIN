@@ -6,7 +6,6 @@ use App\Models\AdlAllocation;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
-use App\Models\ProjectDraft;
 use App\Models\Province;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -83,14 +82,6 @@ class ProvinceAccessService
         );
     }
 
-    public function canAccessProjectDraft(User $user, ProjectDraft $draft): bool
-    {
-        return $this->canAccessProvinceRecord(
-            $user,
-            $draft->province_id,
-            $draft->province,
-        );
-    }
 
     /**
      * @param Builder<Project> $query
@@ -138,14 +129,6 @@ class ProvinceAccessService
         });
     }
 
-    /**
-     * @param Builder<ProjectDraft> $query
-     * @return Builder<ProjectDraft>
-     */
-    public function scopeProjectDrafts(Builder $query, User $user): Builder
-    {
-        return $this->scopeProvinceRecordQuery($query, $user);
-    }
 
 
     /**
@@ -267,37 +250,6 @@ class ProvinceAccessService
             && Str::lower($legacyProvinceName) === Str::lower($assignedProvinceName);
     }
 
-    /**
-     * @template TModel of \Illuminate\Database\Eloquent\Model
-     * @param Builder<TModel> $query
-     * @return Builder<TModel>
-     */
-    private function scopeProvinceRecordQuery(Builder $query, User $user): Builder
-    {
-        if (! $this->isProvinceScoped($user)) {
-            return $query;
-        }
-
-        $provinceId = $this->assignedProvinceId($user);
-
-        if ($provinceId === null) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        $assignedProvinceName = $this->assignedProvinceName($user);
-
-        return $query->where(function (Builder $provinceQuery) use ($provinceId, $assignedProvinceName): void {
-            $provinceQuery->where('province_id', $provinceId);
-
-            if ($assignedProvinceName !== null) {
-                $provinceQuery->orWhere(function (Builder $legacyQuery) use ($assignedProvinceName): void {
-                    $legacyQuery
-                        ->whereNull('province_id')
-                        ->whereRaw('LOWER(TRIM(province)) = ?', [Str::lower($assignedProvinceName)]);
-                });
-            }
-        });
-    }
 
     private function assignedProvinceName(User $user): ?string
     {

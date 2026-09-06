@@ -24,61 +24,6 @@
         $backLabel = 'Project Management';
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | UX: Recommended Next Action
-    |--------------------------------------------------------------------------
-    */
-
-    $nextAction = match ($project->status) {
-        \App\Enums\ProjectStatus::ONGOING_PROFILING =>
-            'Complete profiling, then submit the project to TSSD Evaluation.',
-
-        \App\Enums\ProjectStatus::TSSD_EVALUATION =>
-            'Record the TSSD evaluation result.',
-
-        \App\Enums\ProjectStatus::FOR_COMPLIANCE =>
-            'Record the Date of Compliance. Saving moves the project directly to For Approval.',
-
-        \App\Enums\ProjectStatus::FOR_APPROVAL =>
-            'Complete the project approval action.',
-
-        \App\Enums\ProjectStatus::APPROVED =>
-            $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
-                ? 'Proceed to the Through ACP payment stage.'
-                : 'Complete the implementation preparation requirements.',
-
-        \App\Enums\ProjectStatus::FOR_IMPLEMENTATION =>
-            $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
-                ? 'Start ACP implementation after the check has been released to the proponent.'
-                : 'Start implementation after all preparation requirements are complete.',
-
-        \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION =>
-            $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
-                ? 'Complete ACP implementation, then proceed to liquidation.'
-                : 'Complete implementation and prepare the required post-documents.',
-
-        \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS =>
-            'Record the submitted post-documentary requirements.',
-
-        \App\Enums\ProjectStatus::FOR_PAYMENT =>
-            $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
-                ? 'Through ACP payment processing is the next workflow stage.'
-                : 'The Focal/Admin must complete wage obligations and their corresponding disbursements.',
-
-        \App\Enums\ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT =>
-            'Record the release of check to the ACP proponent before implementation.',
-
-        \App\Enums\ProjectStatus::FOR_LIQUIDATION =>
-            'Record the ACP liquidation submission and validated liquidation amount.',
-
-        \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED =>
-            'Continue ACP liquidation until the required amount is fully liquidated.',
-
-        \App\Enums\ProjectStatus::COMPLETED =>
-            'No pending workflow action. This project is complete.',
-    };
 @endphp
 
 <x-page-header
@@ -96,145 +41,20 @@
     </x-slot:actions>
 </x-page-header>
 
-@if($project->status === \App\Enums\ProjectStatus::COMPLETED)
-    <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <div class="flex items-start gap-3">
-            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                ✓
-            </div>
+<div
+    data-project-workspace
+    data-default-tab="{{ $workspace['default_tab'] }}"
+>
+    <x-project-workspace-header
+        :project="$project"
+        :workspace="$workspace"
+    />
 
-            <div>
-                <div class="text-sm font-semibold text-emerald-900">
-                    Project Completed
-                </div>
-
-                <p class="mt-1 text-xs leading-5 text-emerald-700">
-                    Post-documentary requirements and the required Payment of Wages disbursements have been completed.
-                </p>
-            </div>
-        </div>
-    </div>
-@endif
-
-<div class="mb-5 grid gap-4 xl:grid-cols-[1fr_320px]">
-
-    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-        <div class="flex flex-wrap items-center gap-2">
-            <x-status-badge
-                :tone="$project->status === \App\Enums\ProjectStatus::COMPLETED ? 'success' : ($project->status === \App\Enums\ProjectStatus::FOR_COMPLIANCE ? 'warning' : 'info')"
-            >
-                {{ $project->status->label() }}
-            </x-status-badge>
-
-            <span class="text-xs font-semibold text-slate-500">
-                {{ $project->term->label() }}
-            </span>
-
-            @if($project->approval?->project_code)
-                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    {{ $project->approval->project_code }}
-                </span>
-            @endif
-        </div>
-
-        <div class="mt-4 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-            Recommended Next Action
-        </div>
-
-        <div class="mt-1 text-sm font-semibold leading-6 text-slate-800">
-            {{ $nextAction }}
-        </div>
-
-    </div>
-
-    <div class="rounded-xl border border-blue-200 bg-blue-50 p-5">
-
-        <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-600">
-            Project Snapshot
-        </div>
-
-        <dl class="mt-3 space-y-2 text-xs">
-            <div class="flex items-center justify-between gap-4">
-                <dt class="text-blue-700">Beneficiaries</dt>
-                <dd class="font-semibold text-blue-950">{{ number_format($project->beneficiaries_total) }}</dd>
-            </div>
-
-            <div class="flex items-center justify-between gap-4">
-                <dt class="text-blue-700">Duration</dt>
-                <dd class="font-semibold text-blue-950">{{ $project->number_of_days }} day(s)</dd>
-            </div>
-
-            <div class="flex items-center justify-between gap-4">
-                <dt class="text-blue-700">Total Cost</dt>
-                <dd class="font-semibold text-blue-950">₱{{ number_format($project->total_project_cost, 2) }}</dd>
-            </div>
-        </dl>
-
-    </div>
-
-</div>
-
-<div class="sticky top-[65px] z-20 mb-5 overflow-x-auto rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur">
-
-    <nav class="flex min-w-max items-center gap-1" aria-label="Project detail sections">
-
-        <a href="#overview" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-            Overview
-        </a>
-
-        <a href="#beneficiary-classification" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-            Classification
-        </a>
-
-        <a href="#evaluation" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-            Evaluation
-        </a>
-
-        @if(
-            in_array(
-                $project->status,
-                [
-                    \App\Enums\ProjectStatus::APPROVED,
-                    \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
-                    \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
-                    \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
-                ],
-                true
-            )
-        )
-            <a href="#implementation" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-                Implementation
-            </a>
-        @endif
-
-        @if(
-            in_array(
-                $project->status,
-                [
-                    \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
-                    \App\Enums\ProjectStatus::FOR_PAYMENT,
-                    \App\Enums\ProjectStatus::COMPLETED,
-                ],
-                true
-            )
-        )
-            <a href="#final-workflow" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-                Final Workflow
-            </a>
-        @endif
-
-        <a href="#history" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-            History
-        </a>
-
-    </nav>
-
-</div>
+    @include('projects.partials.quick-workflow-action')
 
 {{-- Financial Summary --}}
 
-<div id="overview" class="scroll-mt-32 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+<div id="financial-summary" data-workspace-panel="financial" class="scroll-mt-32 mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4 {{ $workspace['default_tab'] !== 'financial' ? 'hidden' : '' }}">
 
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
@@ -288,7 +108,7 @@
 
 {{-- Project Information --}}
 
-<div class="mt-5 grid gap-5 xl:grid-cols-2">
+<div id="overview" data-workspace-panel="overview" class="scroll-mt-32 mt-5 grid gap-5 xl:grid-cols-2 {{ $workspace['default_tab'] !== 'overview' ? 'hidden' : '' }}">
 
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
 
@@ -512,7 +332,7 @@
 
 {{-- Beneficiaries & Wage --}}
 
-<section class="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+<section data-workspace-panel="beneficiaries" class="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'beneficiaries' ? 'hidden' : '' }}">
 
     <div class="border-b border-slate-200 px-5 py-4">
 
@@ -578,7 +398,7 @@
 
 {{-- Beneficiary Summary --}}
 
-<section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+<section data-workspace-panel="beneficiaries" class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'beneficiaries' ? 'hidden' : '' }}">
     <div class="border-b border-slate-200 px-5 py-4">
         <h2 class="text-sm font-semibold text-slate-900">Beneficiary Summary</h2>
         <p class="mt-1 text-xs text-slate-500">
@@ -603,7 +423,7 @@
 
 @if($project->projectLocations->isNotEmpty())
 
-    <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section data-workspace-panel="overview" class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'overview' ? 'hidden' : '' }}">
 
         <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="text-sm font-semibold text-slate-900">
@@ -675,7 +495,7 @@
     ];
 @endphp
 
-<section id="beneficiary-classification" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+<section id="beneficiary-classification" data-workspace-panel="beneficiaries" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'beneficiaries' ? 'hidden' : '' }}">
     <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
         <div>
             <h2 class="text-sm font-semibold text-slate-900">
@@ -778,7 +598,7 @@
 
 {{-- Evaluation & Approval --}}
 
-<section id="evaluation" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+<section id="evaluation" data-workspace-panel="workflow" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
 
     <div class="border-b border-slate-200 px-5 py-4">
 
@@ -1287,7 +1107,7 @@
 
 @if($project->evaluations->isNotEmpty())
 
-    <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section id="evaluation-history" data-workspace-panel="workflow" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
 
         <div class="border-b border-slate-200 px-5 py-4">
 
@@ -1430,7 +1250,7 @@
         === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION
 )
 
-    <section id="implementation" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section id="implementation" data-workspace-panel="workflow" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
 
         <div class="border-b border-slate-200 px-5 py-4">
 
@@ -2193,7 +2013,7 @@
         === \App\Enums\ImplementationMode::THROUGH_ACP
 )
 
-    <section id="implementation" class="scroll-mt-32 mt-5 rounded-xl border border-violet-200 bg-violet-50 p-5">
+    <section id="implementation" data-workspace-panel="workflow" class="scroll-mt-32 mt-5 rounded-xl border border-violet-200 bg-violet-50 p-5 {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
         <div class="text-sm font-semibold text-violet-950">
             Through ACP Workflow
         </div>
@@ -2271,7 +2091,7 @@
 @endif
 
 {{-- Authoritative Project Workflow Guide --}}
-<section id="final-workflow" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+<section id="final-workflow" data-workspace-panel="workflow" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
     <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
         Authoritative {{ $project->implementation_mode->label() }} Workflow
     </div>
@@ -2316,7 +2136,7 @@
     )
 )
 
-    <section id="post-documents" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section id="post-documents" data-workspace-panel="workflow" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
 
         <div class="border-b border-slate-200 px-5 py-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
@@ -2544,7 +2364,7 @@
     )
 )
 
-    <section id="payment" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section id="payment" data-workspace-panel="financial" class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'financial' ? 'hidden' : '' }}">
         <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="text-sm font-semibold text-slate-900">
                 Payment of Wages
@@ -2582,7 +2402,7 @@
 @endif
 {{-- PPE Requirements --}}
 
-<section id="ppe-requirements" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+<section id="ppe-requirements" data-workspace-panel="overview" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'overview' ? 'hidden' : '' }}">
 
     <div class="border-b border-slate-200 px-5 py-4">
 
@@ -2677,7 +2497,7 @@
 
 {{-- Project Status History --}}
 
-<section id="history" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+<section id="history" data-workspace-panel="history" class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'history' ? 'hidden' : '' }}">
 
     <div class="border-b border-slate-200 px-5 py-4">
 
@@ -2785,133 +2605,6 @@
 
 
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const startInput =
-        document.getElementById('implementation-start-date');
-
-    const endInput =
-        document.getElementById('implementation-end-date');
-
-    if (!startInput || !endInput) {
-        return;
-    }
-
-    const durationDays =
-        Number.parseInt(
-            startInput.dataset.durationDays || '0',
-            10
-        );
-
-    const formatLocalDate = (date) => {
-        const year = date.getFullYear();
-
-        const month = String(
-            date.getMonth() + 1
-        ).padStart(2, '0');
-
-        const day = String(
-            date.getDate()
-        ).padStart(2, '0');
-
-        return `${year}-${month}-${day}`;
-    };
-
-    const refreshEndDate = () => {
-        if (
-            !startInput.value
-            || !Number.isFinite(durationDays)
-            || durationDays < 1
-        ) {
-            endInput.value = '';
-            return;
-        }
-
-        const [year, month, day] =
-            startInput.value
-                .split('-')
-                .map(Number);
-
-        const calculatedDate =
-            new Date(
-                year,
-                month - 1,
-                day
-            );
-
-        calculatedDate.setDate(
-            calculatedDate.getDate()
-            + durationDays
-        );
-
-        endInput.value =
-            formatLocalDate(
-                calculatedDate
-            );
-    };
-
-    startInput.addEventListener(
-        'change',
-        refreshEndDate
-    );
-
-    startInput.addEventListener(
-        'input',
-        refreshEndDate
-    );
-
-    refreshEndDate();
-});
-</script>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const resultSelect = document.getElementById('evaluation-result');
-
-    if (!resultSelect) {
-        return;
-    }
-
-    const complianceFields = document.getElementById('compliance-fields');
-    const approvalNote = document.getElementById('for-approval-note');
-    const findings = document.getElementById('evaluation-findings');
-    const requiredDocuments = document.getElementById('evaluation-required-documents');
-
-    const syncEvaluationFields = () => {
-        const isCompliance =
-            resultSelect.value === 'for_compliance';
-
-        const isApproval =
-            resultSelect.value === 'for_approval';
-
-        complianceFields?.classList.toggle(
-            'hidden',
-            !isCompliance
-        );
-
-        approvalNote?.classList.toggle(
-            'hidden',
-            !isApproval
-        );
-
-        if (findings) {
-            findings.required = isCompliance;
-            findings.disabled = !isCompliance;
-        }
-
-        if (requiredDocuments) {
-            requiredDocuments.required = isCompliance;
-            requiredDocuments.disabled = !isCompliance;
-        }
-    };
-
-    resultSelect.addEventListener(
-        'change',
-        syncEvaluationFields
-    );
-
-    syncEvaluationFields();
-});
-</script>
+</div>
 
 @endsection

@@ -26,7 +26,6 @@ class SecurityAuthorizationTest extends TestCase
     private User $admin;
     private User $tc;
     private User $focal;
-    private User $gip;
 
     private AdlAllocation $allocation;
 
@@ -71,17 +70,6 @@ class SecurityAuthorizationTest extends TestCase
             'position' => 'TUPAD Focal',
             'role' => UserRole::FOCAL,
             'is_active' => true,
-            'password' => Hash::make('password'),
-        ]);
-
-        $this->gip = User::create([
-            'name' => 'Security GIP',
-            'username' => 'security-gip',
-            'email' => 'security-gip@example.test',
-            'position' => 'GIP',
-            'role' => UserRole::GIP,
-            'is_active' => true,
-            'supervisor_tc_id' => $this->tc->id,
             'password' => Hash::make('password'),
         ]);
 
@@ -298,18 +286,6 @@ class SecurityAuthorizationTest extends TestCase
     | Official Project Creation
     |--------------------------------------------------------------------------
     */
-
-    public function test_gip_cannot_access_official_project_creation(): void
-    {
-        $response = $this
-            ->actingAs($this->gip)
-            ->get(
-                route('projects.create')
-            );
-
-        $response->assertForbidden();
-    }
-
     public function test_focal_cannot_access_official_project_creation(): void
     {
         $response = $this
@@ -551,56 +527,5 @@ class SecurityAuthorizationTest extends TestCase
             );
 
         $response->assertOk();
-    }
-
-    public function test_gip_cannot_download_official_project_documents(): void
-    {
-        Storage::fake('local');
-
-        $project = $this->createProject(
-            ProjectStatus::FOR_PAYMENT
-        );
-
-        $path =
-            "projects/{$project->id}/post-docs/test.pdf";
-
-        Storage::disk('local')->put(
-            $path,
-            'fake pdf content'
-        );
-
-        $document = ProjectPostDocument::create([
-            'project_id' =>
-                $project->id,
-
-            'date_received' =>
-                now()->toDateString(),
-
-            'document_type' =>
-                'Accomplishment Report',
-
-            'attachment_path' =>
-                $path,
-
-            'recorded_by' =>
-                $this->tc->id,
-        ]);
-
-        $response = $this
-            ->actingAs($this->gip)
-            ->get(
-                route(
-                    'projects.post-documents.download',
-                    [
-                        'project' =>
-                            $project,
-
-                        'projectPostDocument' =>
-                            $document,
-                    ]
-                )
-            );
-
-        $response->assertForbidden();
     }
 }

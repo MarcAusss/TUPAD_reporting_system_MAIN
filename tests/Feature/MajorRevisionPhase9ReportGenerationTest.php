@@ -36,7 +36,6 @@ class MajorRevisionPhase9ReportGenerationTest extends TestCase
     private User $admin;
     private User $tc;
     private User $focal;
-    private User $gip;
     private Project $project;
 
     protected function setUp(): void
@@ -46,11 +45,10 @@ class MajorRevisionPhase9ReportGenerationTest extends TestCase
         $this->admin = $this->user(UserRole::ADMIN);
         $this->tc = $this->user(UserRole::TC);
         $this->focal = $this->user(UserRole::FOCAL);
-        $this->gip = $this->user(UserRole::GIP);
         $this->createReportingData();
     }
 
-    public function test_admin_tc_and_focal_can_generate_reports_but_gip_cannot(): void
+    public function test_admin_tc_and_focal_can_generate_reports(): void
     {
         foreach ([$this->admin, $this->tc, $this->focal] as $user) {
             $this->actingAs($user)
@@ -67,9 +65,6 @@ class MajorRevisionPhase9ReportGenerationTest extends TestCase
             'reports.export.excel',
             'reports.export.csv',
         ] as $route) {
-            $this->actingAs($this->gip)
-                ->get(route($route))
-                ->assertForbidden();
         }
     }
 

@@ -2,8 +2,11 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "laravel/laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "TUPAD Reporting System for DOLE Regional Office V",
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.3",
@@ -66,6 +69,25 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "uat": [
+            "@php artisan optimize:clear --ansi",
+            "@php artisan tupad:phase4-audit",
+            "@php artisan test",
+            "npm run build"
+        ],
+        "release:audit": [
+            "@php artisan tupad:release-verify --production",
+            "@php artisan tupad:phase4-audit --production"
+        ],
+        "p5:predeploy": [
+            "@php artisan optimize:clear --ansi",
+            "@php artisan test --stop-on-failure",
+            "npm run build",
+            "@php artisan tupad:phase5-audit"
+        ],
+        "p5:gate": [
+            "@php artisan tupad:phase5-audit --production"
         ]
     },
     "extra": {

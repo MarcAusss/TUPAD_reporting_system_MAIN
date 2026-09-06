@@ -50,12 +50,6 @@ class Municipality extends Model
         );
     }
 
-    public function projectDrafts(): HasMany
-    {
-        return $this->hasMany(
-            ProjectDraft::class
-        );
-    }
 
     public function getLocationLabelAttribute(): string
     {

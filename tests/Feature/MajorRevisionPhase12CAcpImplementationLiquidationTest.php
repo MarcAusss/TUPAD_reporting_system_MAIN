@@ -26,7 +26,6 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
     private User $admin;
     private User $focal;
     private User $tc;
-    private User $gip;
     private AdlAllocation $allocation;
     private int $sequence = 0;
 
@@ -39,7 +38,6 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
         $this->admin = User::factory()->create(['role' => UserRole::ADMIN, 'is_active' => true]);
         $this->focal = User::factory()->create(['role' => UserRole::FOCAL, 'is_active' => true]);
         $this->tc = User::factory()->create(['role' => UserRole::TC, 'is_active' => true]);
-        $this->gip = User::factory()->create(['role' => UserRole::GIP, 'is_active' => true]);
 
         $adl = Adl::create([
             'adl_number' => 'ADL-MR12C-001',
@@ -65,7 +63,7 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_admin_and_tc_can_access_acp_implementation_but_focal_and_gip_cannot(): void
+    public function test_admin_and_tc_can_access_acp_implementation_but_focal_cannot(): void
     {
         $project = $this->createAcpProject(ProjectStatus::FOR_IMPLEMENTATION);
         $this->createCheckRelease($project);
@@ -80,10 +78,6 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
             ->assertOk();
 
         $this->actingAs($this->focal)
-            ->get(route('acp-implementation.show', $project))
-            ->assertForbidden();
-
-        $this->actingAs($this->gip)
             ->get(route('acp-implementation.show', $project))
             ->assertForbidden();
     }
@@ -163,7 +157,7 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
         ]);
     }
 
-    public function test_admin_and_focal_can_access_liquidation_but_tc_and_gip_cannot(): void
+    public function test_admin_and_focal_can_access_liquidation_but_tc_cannot(): void
     {
         $project = $this->readyForLiquidation();
 
@@ -177,10 +171,6 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
             ->assertOk();
 
         $this->actingAs($this->tc)
-            ->get(route('acp-liquidations.show', $project))
-            ->assertForbidden();
-
-        $this->actingAs($this->gip)
             ->get(route('acp-liquidations.show', $project))
             ->assertForbidden();
     }

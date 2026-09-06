@@ -12,7 +12,7 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_authorized_roles_can_open_all_report_workspaces_while_gip_cannot(): void
+    public function test_authorized_roles_can_open_all_report_workspaces(): void
     {
         $routes = [
             'reports.workspace.physical-financial',
@@ -30,13 +30,6 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
                     ->get(route($route))
                     ->assertOk();
             }
-        }
-
-        $gip = User::factory()->create(['role' => UserRole::GIP, 'is_active' => true]);
-        foreach ($routes as $route) {
-            $this->actingAs($gip)
-                ->get(route($route))
-                ->assertForbidden();
         }
     }
 

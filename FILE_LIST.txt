@@ -1,6 +1,0 @@
-tests/Feature/ProjectWorkflowTest.php
-tests/Feature/SecurityAuthorizationTest.php
-tests/Feature/SponsorPartnerOwnershipTest.php
-REGRESSION_FIX_V4_README.md
-FILE_LIST.txt
-SHA256SUMS.txt

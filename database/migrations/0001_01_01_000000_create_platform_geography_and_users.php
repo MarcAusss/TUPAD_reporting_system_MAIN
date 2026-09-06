@@ -64,7 +64,6 @@ return new class extends Migration
             $table->string('position', 255)->nullable();
             $table->string('role', 20);
             $table->boolean('is_active')->default(true);
-            $table->foreignId('supervisor_tc_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('assigned_province_id')->nullable()->constrained('provinces')->restrictOnDelete();
 
             $table->unique('email', 'users_email_unique');

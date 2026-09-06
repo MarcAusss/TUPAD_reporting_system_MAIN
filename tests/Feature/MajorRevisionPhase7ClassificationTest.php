@@ -25,7 +25,6 @@ class MajorRevisionPhase7ClassificationTest extends TestCase
     private User $admin;
     private User $tc;
     private User $focal;
-    private User $gip;
     private int $sequence = 0;
 
     protected function setUp(): void
@@ -44,11 +43,6 @@ class MajorRevisionPhase7ClassificationTest extends TestCase
 
         $this->focal = User::factory()->create([
             'role' => UserRole::FOCAL,
-            'is_active' => true,
-        ]);
-
-        $this->gip = User::factory()->create([
-            'role' => UserRole::GIP,
             'is_active' => true,
         ]);
     }
@@ -331,11 +325,11 @@ class MajorRevisionPhase7ClassificationTest extends TestCase
         $this->assertDatabaseCount('project_labor_market_referrals', 0);
     }
 
-    public function test_focal_and_gip_cannot_modify_phase7_project_data(): void
+    public function test_focal_cannot_modify_phase7_project_data(): void
     {
         $project = $this->createProject();
 
-        foreach ([$this->focal, $this->gip] as $unauthorizedUser) {
+        foreach ([$this->focal] as $unauthorizedUser) {
             $this->actingAs($unauthorizedUser)
                 ->put(
                     route('projects.classifications.update', $project),

@@ -194,6 +194,17 @@ class VerifyReleaseReadiness extends Command
                 }
             }
         }
+
+        foreach (['project_drafts', 'project_draft_ppe_items'] as $retiredTable) {
+            if (Schema::hasTable($retiredTable)) {
+                $this->failures[] = "Retired GIP workflow table [{$retiredTable}] still exists. Apply all migrations before release.";
+            }
+        }
+
+        if (Schema::hasColumn('users', 'supervisor_tc_id')) {
+            $this->failures[] = 'Retired users.supervisor_tc_id column still exists. Apply all migrations before release.';
+        }
+
     }
 
     private function verifyApplicationConfiguration(): void
@@ -335,6 +346,21 @@ class VerifyReleaseReadiness extends Command
                 .$regionalUsersWithProvince->implode(', ').'.';
         }
 
+        $legacyGipAccounts = DB::table('users')->where('role', 'gip')->pluck('username');
+
+        if ($legacyGipAccounts->isNotEmpty()) {
+            $this->failures[] = 'Retired GIP role value still exists on account(s): '.$legacyGipAccounts->implode(', ').'. Apply the GIP retirement migration.';
+        }
+
+        $activeRetiredAccounts = DB::table('users')
+            ->where('role', UserRole::RETIRED->value)
+            ->where('is_active', true)
+            ->pluck('username');
+
+        if ($activeRetiredAccounts->isNotEmpty()) {
+            $this->failures[] = 'Historical retired account(s) are active: '.$activeRetiredAccounts->implode(', ').'.';
+        }
+
         $unscopableProjects = DB::table('projects')
             ->whereNull('province_id')
             ->where(function ($query): void {
@@ -346,21 +372,6 @@ class VerifyReleaseReadiness extends Command
 
         if ($unscopableProjects > 0) {
             $this->failures[] = "{$unscopableProjects} project(s) have neither province_id nor a legacy province name and cannot be safely exposed to a province-scoped Coordinator.";
-        }
-
-        if (Schema::hasTable('project_drafts')) {
-            $unscopableDrafts = DB::table('project_drafts')
-                ->whereNull('province_id')
-                ->where(function ($query): void {
-                    $query
-                        ->whereNull('province')
-                        ->orWhereRaw("TRIM(COALESCE(province, '')) = ''");
-                })
-                ->count();
-
-            if ($unscopableDrafts > 0) {
-                $this->warnings[] = "{$unscopableDrafts} project draft(s) have no province identity and will fail closed for TUPAD Coordinators until corrected.";
-            }
         }
     }
 

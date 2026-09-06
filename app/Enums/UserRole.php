@@ -6,16 +6,16 @@ enum UserRole: string
 {
     case ADMIN = 'admin';
     case TC = 'tc';
-    case GIP = 'gip';
     case FOCAL = 'focal';
+    case RETIRED = 'retired';
 
     public function label(): string
     {
         return match ($this) {
             self::ADMIN => 'Administrator',
             self::TC => 'TUPAD Coordinator',
-            self::GIP => 'GIP',
             self::FOCAL => 'Focal',
+            self::RETIRED => 'Retired Account',
         };
     }
 
@@ -24,8 +24,14 @@ enum UserRole: string
         return match ($this) {
             self::ADMIN => 'Admin',
             self::TC => 'TC',
-            self::GIP => 'GIP',
             self::FOCAL => 'Focal',
+            self::RETIRED => 'Retired',
         };
+    }
+
+    /** @return array<int,self> */
+    public static function assignable(): array
+    {
+        return [self::ADMIN, self::FOCAL, self::TC];
     }
 }

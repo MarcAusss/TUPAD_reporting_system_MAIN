@@ -32,7 +32,6 @@ class MajorRevisionPhase10ExecutiveDashboardTest extends TestCase
     private User $admin;
     private User $focal;
     private User $tc;
-    private User $gip;
     private Province $albay;
     private Province $camarinesSur;
     private Municipality $legazpi;
@@ -47,12 +46,11 @@ class MajorRevisionPhase10ExecutiveDashboardTest extends TestCase
         $this->admin = $this->user(UserRole::ADMIN);
         $this->focal = $this->user(UserRole::FOCAL);
         $this->tc = $this->user(UserRole::TC);
-        $this->gip = $this->user(UserRole::GIP);
 
         $this->createReportingData();
     }
 
-    public function test_admin_focal_and_tc_can_access_executive_dashboard_while_gip_cannot(): void
+    public function test_admin_focal_and_tc_can_access_executive_dashboard(): void
     {
         foreach ([$this->admin, $this->focal, $this->tc] as $user) {
             $this->actingAs($user)
@@ -61,10 +59,6 @@ class MajorRevisionPhase10ExecutiveDashboardTest extends TestCase
                 ->assertSee('Executive Dashboard')
                 ->assertSee('Presentation Mode');
         }
-
-        $this->actingAs($this->gip)
-            ->get(route('executive-dashboard.index'))
-            ->assertForbidden();
     }
 
     public function test_presentation_authorization_matches_dashboard_and_contains_no_write_actions(): void
@@ -82,10 +76,6 @@ class MajorRevisionPhase10ExecutiveDashboardTest extends TestCase
             $response->assertDontSee('method="PUT"', false);
             $response->assertDontSee('method="DELETE"', false);
         }
-
-        $this->actingAs($this->gip)
-            ->get(route('executive-dashboard.presentation'))
-            ->assertForbidden();
     }
 
     public function test_kpis_financial_totals_and_balances_are_sourced_from_phase_eight_reporting_data(): void
@@ -244,11 +234,6 @@ class MajorRevisionPhase10ExecutiveDashboardTest extends TestCase
                 ->assertOk()
                 ->assertSee('Executive Dashboard');
         }
-
-        $this->actingAs($this->gip)
-            ->get(route('dashboard'))
-            ->assertOk()
-            ->assertDontSee('Executive Dashboard');
     }
 
     private function user(UserRole $role): User

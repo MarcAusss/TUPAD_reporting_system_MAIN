@@ -4,7 +4,7 @@
     'description' => null,
 ])
 
-<div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+<div class="tupad-page-header mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
     <div class="min-w-0">
 
@@ -27,7 +27,7 @@
     </div>
 
     @if(isset($actions))
-        <div class="flex shrink-0 flex-wrap items-center gap-2">
+        <div class="tupad-page-actions flex shrink-0 flex-wrap items-center gap-2">
             {{ $actions }}
         </div>
     @endif
