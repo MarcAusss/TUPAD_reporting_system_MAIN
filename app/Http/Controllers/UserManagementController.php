@@ -5,9 +5,10 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Province;
 use App\Models\User;
+use App\Services\Auth\TemporaryPasswordGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -57,10 +58,15 @@ class UserManagementController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(
+        Request $request,
+        TemporaryPasswordGenerator $passwords,
+    ): RedirectResponse
     {
         $data = $this->validateCoordinator($request);
         $username = $this->normalizedUsername($data['username']);
+
+        $temporaryPassword = $passwords->generate();
 
         $coordinator = User::create([
             'name' => trim($data['name']),
@@ -71,12 +77,16 @@ class UserManagementController extends Controller
             'is_active' => $request->boolean('is_active', true),
             'supervisor_tc_id' => null,
             'assigned_province_id' => (int) $data['assigned_province_id'],
-            'password' => 'password',
+            'password' => $temporaryPassword,
+            'must_change_password' => true,
+            'password_changed_at' => null,
         ]);
 
         return redirect()
             ->route('users.edit', $coordinator)
-            ->with('success', 'TUPAD Coordinator account created. The default password is "password".');
+            ->with('success', 'TUPAD Coordinator account created. Copy the temporary password now; it will not be shown again after this request.')
+            ->with('temporary_password', $temporaryPassword)
+            ->with('temporary_password_username', $coordinator->username);
     }
 
     public function edit(User $user): View
@@ -130,13 +140,25 @@ class UserManagementController extends Controller
         );
     }
 
-    public function resetPassword(User $user): RedirectResponse
+    public function resetPassword(
+        User $user,
+        TemporaryPasswordGenerator $passwords,
+    ): RedirectResponse
     {
         $coordinator = $this->managedCoordinator($user);
-        $coordinator->password = Hash::make('password');
-        $coordinator->save();
+        $temporaryPassword = $passwords->generate();
 
-        return back()->with('success', 'Password reset to the default password "password".');
+        $coordinator->forceFill([
+            'password' => $temporaryPassword,
+            'must_change_password' => true,
+            'password_changed_at' => null,
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        return back()
+            ->with('success', 'Password reset. Copy the temporary password now; the Coordinator must replace it at the next sign-in.')
+            ->with('temporary_password', $temporaryPassword)
+            ->with('temporary_password_username', $coordinator->username);
     }
 
     private function validateCoordinator(Request $request, ?User $coordinator = null): array

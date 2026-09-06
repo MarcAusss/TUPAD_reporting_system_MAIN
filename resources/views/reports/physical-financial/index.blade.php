@@ -28,7 +28,7 @@
         <div class="flex shrink-0 flex-wrap gap-2">
             <a href="{{ route('reports.index', $exportQuery) }}"
                 class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                Detailed Data
+                Detailed Generator
             </a>
             <a href="{{ route('reports.print', $exportQuery) }}" target="_blank"
                 class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">

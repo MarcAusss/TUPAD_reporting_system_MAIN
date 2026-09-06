@@ -9,6 +9,8 @@
     @php
         $isPhysicalFinancial = ($report['type'] ?? null) === \App\Enums\ReportType::PHYSICAL_FINANCIAL
             && is_array($report['physical_financial_matrix'] ?? null);
+        $isLaborMarketMatrix = is_array($report['labor_market_print_matrix'] ?? null);
+        $isSprsMatrix = is_array($report['sprs_print_matrix'] ?? null);
     @endphp
 
     <style>
@@ -66,6 +68,17 @@
         .pf-head-leaf { background: #fff7db; color: #111827; font-weight: 800; }
         .pf-total td { background: #3f3f3f; color: #fff; font-weight: 800; }
         .pf-note { margin-top: 7px; font-size: 6.8px; line-height: 1.35; color: #64748b; }
+
+        .sprs-matrix { table-layout: fixed; }
+        .sprs-matrix th, .sprs-matrix td { text-align: center; font-size: 6.8px; padding: 4px 3px; }
+        .sprs-matrix .sprs-label { width: 86px; text-align: left; font-weight: 700; }
+        .sprs-matrix .sprs-overall { background: #d9edf3; font-weight: 800; }
+        .sprs-matrix .sprs-province { background: #e8f1f8; font-weight: 700; }
+        .sprs-matrix .sprs-meta { width: 105px; text-align: left; }
+        .sprs-matrix .sprs-quarter td { background: #f8fafc; font-weight: 800; }
+        .sprs-matrix .sprs-grand-total td { background: #3f3f3f; color: #fff; font-weight: 800; }
+        .sprs-matrix .sprs-future td { color: #94a3b8; background: #f8fafc; }
+        .sprs-note { margin-top: 7px; font-size: 6.8px; line-height: 1.4; color: #64748b; }
 
         @media print {
             body { padding: 0; }
@@ -192,7 +205,7 @@
                     </div>
 
                     <div class="pf-note">
-                        <strong>Portrait layout:</strong> one reporting period per Letter-size portrait page. Short-Term and Long-Term subdivisions were removed as requested.
+                        <strong>Portrait layout:</strong> one reporting period per Letter-size portrait page.
                     </div>
                 </section>
             @endforeach
@@ -219,39 +232,148 @@
             <div class="warning"><strong>Data note:</strong> {{ $report['warning'] }}</div>
         @endif
 
-        <div class="report-table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        @foreach ($report['columns'] as $column)
-                            <th class="{{ $column['align'] === 'right' ? 'right' : '' }}">{{ $column['label'] }}</th>
-                        @endforeach
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($report['display_rows'] as $row)
+        @if ($isSprsMatrix)
+            @php
+                $sprsMatrix = $report['sprs_print_matrix'];
+                $sprsNumber = static fn (mixed $value): string => number_format((int) $value);
+            @endphp
+
+            <div class="report-table-wrap">
+                <table class="sprs-matrix" aria-label="Statistical Performance Reporting System province and month matrix">
+                    <thead>
                         <tr>
-                            @foreach ($report['columns'] as $column)
-                                <td class="{{ $column['align'] === 'right' ? 'right' : '' }}">
-                                    {{ $row[$column['key']] ?? '—' }}
-                                </td>
+                            <th rowspan="2" class="sprs-label">Province/<br>Month</th>
+                            <th colspan="2" class="sprs-overall">Overall</th>
+                            @foreach ($sprsMatrix['province_headers'] as $provinceLabel)
+                                <th colspan="2" class="sprs-province">{{ $provinceLabel }}</th>
+                            @endforeach
+                            <th rowspan="2" class="sprs-meta">Date<br>Accomplished</th>
+                            <th rowspan="2" class="sprs-meta">Remarks</th>
+                        </tr>
+                        <tr>
+                            <th>Total</th>
+                            <th>Female</th>
+                            @foreach ($sprsMatrix['province_headers'] as $provinceLabel)
+                                <th>Total</th>
+                                <th>Female</th>
                             @endforeach
                         </tr>
-                    @empty
-                        <tr>
-                            <td class="empty" colspan="{{ count($report['columns']) }}">
-                                No records match the selected report criteria.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach ($sprsMatrix['rows'] as $row)
+                            @php
+                                $rowClasses = collect([
+                                    $row['row_type'] === 'quarter' ? 'sprs-quarter' : null,
+                                    $row['row_type'] === 'grand_total' ? 'sprs-grand-total' : null,
+                                    !$row['included'] ? 'sprs-future' : null,
+                                ])->filter()->implode(' ');
+                            @endphp
+                            <tr
+                                class="{{ $rowClasses }}"
+                                data-sprs-row="{{ $row['slug'] }}"
+                                data-sprs-included="{{ $row['included'] ? '1' : '0' }}"
+                            >
+                                <td class="sprs-label">{{ $row['label'] }}</td>
+                                <td data-sprs-cell="{{ $row['slug'] }}-overall-total">
+                                    {{ $row['included'] ? $sprsNumber(data_get($row, 'overall.total', 0)) : '' }}
+                                </td>
+                                <td data-sprs-cell="{{ $row['slug'] }}-overall-female">
+                                    {{ $row['included'] ? $sprsNumber(data_get($row, 'overall.female', 0)) : '' }}
+                                </td>
 
-        <footer class="footer">
-            {{ number_format($report['rows']->count()) }} reporting row(s). Generated from the validated
-            Phase 8 reporting data layer; no project reference values were accepted from the browser.
-        </footer>
+                                @foreach ($sprsMatrix['province_headers'] as $provinceKey => $provinceLabel)
+                                    <td data-sprs-cell="{{ $row['slug'] }}-{{ str_replace('_', '-', $provinceKey) }}-total">
+                                        {{ $row['included'] ? $sprsNumber(data_get($row, 'provinces.'.$provinceKey.'.total', 0)) : '' }}
+                                    </td>
+                                    <td data-sprs-cell="{{ $row['slug'] }}-{{ str_replace('_', '-', $provinceKey) }}-female">
+                                        {{ $row['included'] ? $sprsNumber(data_get($row, 'provinces.'.$provinceKey.'.female', 0)) : '' }}
+                                    </td>
+                                @endforeach
+
+                                <td class="sprs-meta">{{ $row['date_accomplished'] }}</td>
+                                <td class="sprs-meta">{{ $row['remarks'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sprs-note">
+                <strong>Reporting basis:</strong> {{ $sprsMatrix['basis_note'] }}
+            </div>
+        @elseif ($isLaborMarketMatrix)
+            @php
+                $laborMatrix = $report['labor_market_print_matrix'];
+                $laborMoney = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
+            @endphp
+
+            <div class="report-table-wrap">
+                <table class="labor-market-matrix">
+                    <thead>
+                        <tr>
+                            <th>Intervention</th>
+                            <th class="right">No. of Interested TUPAD Beneficiaries Reffered</th>
+                            <th class="right">Female</th>
+                            <th class="right">No. of Reffered TUPAD Beneficiaries Provided with Intervention</th>
+                            <th class="right">Female</th>
+                            <th>Amount Released under the Intervention</th>
+                            <th>Types of Skills Training/Livelihood/Employment Services Availed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($laborMatrix['rows'] as $row)
+                            <tr data-labor-program="{{ $row['program'] }}" data-labor-has-data="{{ $row['has_data'] ? '1' : '0' }}">
+                                <td>{{ $row['label'] }}</td>
+                                <td class="right">{{ $row['has_data'] ? number_format((int) $row['interested_referred_total']) : '' }}</td>
+                                <td class="right">{{ $row['has_data'] ? number_format((int) $row['interested_referred_female']) : '' }}</td>
+                                <td class="right">{{ $row['has_data'] ? number_format((int) $row['provided_intervention_total']) : '' }}</td>
+                                <td class="right">{{ $row['has_data'] ? number_format((int) $row['provided_intervention_female']) : '' }}</td>
+                                <td>{{ $row['has_data'] ? $laborMoney($row['amount_released_cents']) : '' }}</td>
+                                <td>{{ $row['has_data'] ? $row['services_availed'] : '' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="footer">
+                {{ $laborMatrix['basis_note'] }}
+            </div>
+        @else
+            <div class="report-table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            @foreach ($report['columns'] as $column)
+                                <th class="{{ $column['align'] === 'right' ? 'right' : '' }}">{{ $column['label'] }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($report['display_rows'] as $row)
+                            <tr>
+                                @foreach ($report['columns'] as $column)
+                                    <td class="{{ $column['align'] === 'right' ? 'right' : '' }}">
+                                        {{ $row[$column['key']] ?? '—' }}
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @empty
+                            <tr>
+                                <td class="empty" colspan="{{ count($report['columns']) }}">
+                                    No records match the selected report criteria.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="footer">
+                {{ number_format($report['rows']->count()) }} reporting row(s). Generated from the validated
+                Phase 8 reporting data layer; no project reference values were accepted from the browser.
+            </footer>
+        @endif
     @endif
 </body>
 

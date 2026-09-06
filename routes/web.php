@@ -4,6 +4,7 @@ use App\Http\Controllers\AdlAllocationController;
 use App\Http\Controllers\AdlController;
 use App\Http\Controllers\AdlRealignmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RequiredPasswordChangeController;
 use App\Http\Controllers\CoordinatorAccountController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExecutiveDashboardController;
@@ -54,11 +55,28 @@ Route::middleware('guest')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Authenticated Routes
+| Authenticated Account-Security Routes
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'province.scope'])->group(function () {
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
+        ->name('logout');
+
+    Route::get('/password/change-required', [RequiredPasswordChangeController::class, 'edit'])
+        ->name('password.change.required');
+
+    Route::patch('/password/change-required', [RequiredPasswordChangeController::class, 'update'])
+        ->name('password.change.update');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Authenticated Application Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'password.changed', 'province.scope'])->group(function () {
 
     Route::get('/', fn() => redirect()->route('dashboard'));
 
@@ -138,9 +156,6 @@ Route::middleware(['auth', 'province.scope'])->group(function () {
             ->whereNumber('project')
             ->name('projects.monitoring.update');
     });
-    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
-        ->name('logout');
-
     /*
     |--------------------------------------------------------------------------
     | TUPAD Coordinator Self-Service Account

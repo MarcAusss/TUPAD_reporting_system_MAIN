@@ -8,6 +8,7 @@ use App\Models\AdlAllocation;
 use App\Models\Project;
 use App\Models\ProjectDraft;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Projects\ProjectLocationCanonicalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -128,7 +129,8 @@ class ProjectDraftReviewController extends Controller
 
     public function confirm(
         Request $request,
-        ProjectDraft $projectDraft
+        ProjectDraft $projectDraft,
+        ProjectLocationCanonicalService $canonicalLocations,
     ): RedirectResponse {
         $this->ensureReviewerAccess(
             $request,
@@ -142,7 +144,7 @@ class ProjectDraftReviewController extends Controller
             );
         }
 
-        return DB::transaction(function () use ($request, $projectDraft) {
+        return DB::transaction(function () use ($request, $projectDraft, $canonicalLocations) {
             /*
             |--------------------------------------------------------------------------
             | Lock Draft
@@ -318,6 +320,21 @@ class ProjectDraftReviewController extends Controller
                 'created_by' =>
                     $request->user()->id,
             ]);
+
+            $resolvedCanonicalLocation = $canonicalLocations->resolveLegacyLocation($officialProject);
+
+            if ($resolvedCanonicalLocation === null) {
+                throw ValidationException::withMessages([
+                    'location' => 'The draft location could not be converted into the canonical project location structure.',
+                ]);
+            }
+
+            $canonicalLocations->createSingleCanonicalLocation(
+                $officialProject,
+                $resolvedCanonicalLocation['province'],
+                $resolvedCanonicalLocation['municipality'],
+                $resolvedCanonicalLocation['barangay'],
+            );
 
             /*
             |--------------------------------------------------------------------------

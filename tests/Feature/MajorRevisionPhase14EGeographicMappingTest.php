@@ -85,9 +85,8 @@ class MajorRevisionPhase14EGeographicMappingTest extends TestCase
             ->assertSee('Beneficiary Mapping')
             ->assertSee('Sector Mapping')
             ->assertSee('Intervention-Focus Mapping')
-            ->assertSee('Province')
-            ->assertSee('District')
-            ->assertSee('Municipality');
+            ->assertSee('TUPAD Distribution Map')
+            ->assertSee('Mapping Data Register');
 
         $route = Route::getRoutes()->getByName('reports.workspace.geographic-mapping');
         $this->assertNotNull($route);
@@ -115,8 +114,7 @@ class MajorRevisionPhase14EGeographicMappingTest extends TestCase
             ->assertOk()
             ->assertSee('City of Masbate')
             ->assertSee('Mobo')
-            ->assertSee('Multi-location integrity')
-            ->assertSee('does not divide or infer project money');
+            ->assertSee('Financial amounts are intentionally omitted because no official project financial allocation exists by district, municipality, or barangay.');
 
         $this->actingAs($this->admin)
             ->get(route('reports.workspace.geographic-mapping', [
@@ -161,8 +159,9 @@ class MajorRevisionPhase14EGeographicMappingTest extends TestCase
             ->assertOk()
             ->assertSee('Barangay A')
             ->assertSee('Barangay B')
-            ->assertSee('Exact beneficiary mapping')
-            ->assertSee('Includes legacy unallocated records');
+            ->assertSee('Beneficiary Mapping')
+            ->assertSee('Includes legacy unallocated records')
+            ->assertSee('Some legacy project-location rows have no exact barangay allocation.');
 
         $rows = $response->viewData('rows');
         $this->assertSame(15, $rows->firstWhere('key', (string) $this->barangayA->id)['beneficiaries_total']);
@@ -200,12 +199,20 @@ class MajorRevisionPhase14EGeographicMappingTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Priority / Vulnerable Sectors')
-            ->assertSee('Occupational / Livelihood Sectors')
             ->assertSee('Persons with Disabilities')
             ->assertSee('Persons Deprived of Liberty')
+            ->assertSee('Sector counts may overlap because one beneficiary may belong to more than one sector.');
+
+        $this->actingAs($this->admin)
+            ->get(route('reports.workspace.geographic-mapping', [
+                'view' => 'sectors',
+                'sector_group' => BeneficiarySectorCategory::GROUP_OCCUPATIONAL_LIVELIHOOD,
+                'province_id' => $this->masbate->id,
+            ]))
+            ->assertOk()
+            ->assertSee('Occupational / Livelihood Sectors')
             ->assertSee('Transport Workers')
-            ->assertSee('Overlapping classifications')
-            ->assertSee('must not be summed');
+            ->assertSee('Sector counts may overlap because one beneficiary may belong to more than one sector.');
     }
 
     public function test_intervention_focus_mapping_uses_authoritative_primary_focus_categories(): void

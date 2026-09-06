@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\UpdateCoordinatorPasswordRequest;
+use App\Http\Requests\UpdateAccountPasswordRequest;
 use App\Models\User;
 use App\Services\Auth\CoordinatorProvinceAssignmentService;
 use Illuminate\Http\RedirectResponse;
@@ -37,13 +37,15 @@ class CoordinatorAccountController extends Controller
         ]);
     }
 
-    public function updatePassword(UpdateCoordinatorPasswordRequest $request): RedirectResponse
+    public function updatePassword(UpdateAccountPasswordRequest $request): RedirectResponse
     {
         $data = $request->validated();
         $coordinator = $request->user();
 
         $coordinator->forceFill([
             'password' => $data['password'],
+            'must_change_password' => false,
+            'password_changed_at' => now(),
             'remember_token' => Str::random(60),
         ])->save();
 

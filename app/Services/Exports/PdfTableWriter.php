@@ -509,7 +509,7 @@ final class PdfTableWriter
             self::MARGIN,
             max(30, $currentY - 16),
             5.8,
-            'Letter portrait layout - one reporting period per page. Short-Term and Long-Term subdivisions removed.',
+            'Letter portrait layout - one reporting period per page.',
         );
 
         return implode("\n", array_filter($commands));

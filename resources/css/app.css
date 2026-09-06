@@ -543,6 +543,10 @@ a[href^="#"]:focus-visible {
     font-size: 8px;
 }
 
+.tupad-map-label-hidden {
+    display: none !important;
+}
+
 .tupad-province-label {
     border: 0 !important;
     background: transparent !important;

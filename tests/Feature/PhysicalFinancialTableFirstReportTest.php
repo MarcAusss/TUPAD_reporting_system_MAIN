@@ -32,7 +32,9 @@ class PhysicalFinancialTableFirstReportTest extends TestCase
             ->assertSee('Camarines Norte')
             ->assertSee('TOTAL')
             ->assertDontSee('Short-Term Accomplishment')
-            ->assertDontSee('Long-Term Accomplishment');
+            ->assertDontSee('Long-Term Accomplishment')
+            ->assertDontSee('view=short')
+            ->assertDontSee('view=long');
     }
 
     public function test_semester_screen_and_print_use_the_supplied_period_layout(): void
@@ -61,7 +63,7 @@ class PhysicalFinancialTableFirstReportTest extends TestCase
                 'fiscal_year' => 2026,
             ]))
             ->assertOk()
-            ->assertSee('Letter portrait')
+            ->assertSee('Letter-size portrait')
             ->assertSee('1st Semester')
             ->assertSee('2nd Semester')
             ->assertDontSee('Short-Term')

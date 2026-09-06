@@ -1,12 +1,6 @@
+tests/Feature/ProjectWorkflowTest.php
+tests/Feature/SecurityAuthorizationTest.php
+tests/Feature/SponsorPartnerOwnershipTest.php
+REGRESSION_FIX_V4_README.md
 FILE_LIST.txt
-README_OVERLAY.md
-app/Enums/ReportDimension.php
-app/Enums/ReportType.php
-app/Http/Controllers/PhysicalFinancialAccomplishmentController.php
-app/Reports/ReportWorkspaceCatalog.php
-app/Services/Exports/PdfTableWriter.php
-app/Services/Reports/PhysicalFinancialMatrixService.php
-app/Services/Reports/ReportGenerationService.php
-resources/views/reports/physical-financial/index.blade.php
-resources/views/reports/print.blade.php
-tests/Feature/PhysicalFinancialTableFirstReportTest.php
+SHA256SUMS.txt

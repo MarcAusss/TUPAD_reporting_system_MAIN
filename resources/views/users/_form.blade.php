@@ -51,9 +51,9 @@
     </div>
     <div>
         <div class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ $editing ? 'Password Management' : 'Initial Password' }}</div>
-        <div class="mt-1 font-mono text-sm font-bold text-slate-900">password</div>
+        <div class="mt-1 text-sm font-semibold text-slate-900">{{ $editing ? 'Reset on demand' : 'Generated after creation' }}</div>
         <p class="mt-1 text-xs leading-5 text-slate-500">
-            {{ $editing ? 'Editing this account does not change its password. Use Reset Password when needed.' : 'The account is created with the default password exactly as shown.' }}
+            {{ $editing ? 'Editing this account does not change its password. Reset Password generates a new one-time credential and forces a password change.' : 'The generated temporary password is shown once after creation and is never stored in plaintext.' }}
         </p>
     </div>
 </div>

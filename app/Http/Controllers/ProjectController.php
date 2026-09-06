@@ -13,6 +13,7 @@ use App\Models\Project;
 use App\Models\ProjectLocation;
 use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Projects\ProjectLocationCanonicalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -167,7 +168,11 @@ class ProjectController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function store(Request $request, ProvinceAccessService $provinceAccess): RedirectResponse
+    public function store(
+        Request $request,
+        ProvinceAccessService $provinceAccess,
+        ProjectLocationCanonicalService $canonicalLocations,
+    ): RedirectResponse
     {
         $validated = $this->validateProject($request);
 
@@ -199,7 +204,8 @@ class ProjectController extends Controller
         return DB::transaction(function () use (
             $request,
             $validated,
-            $provinceAccess
+            $provinceAccess,
+            $canonicalLocations
         ) {
             /*
             |--------------------------------------------------------------------------
@@ -847,6 +853,11 @@ class ProjectController extends Controller
                     $syncPayload
                 );
             }
+
+            // project_locations + project_location_barangay are authoritative.
+            // Keep the legacy columns on projects as a synchronized compatibility
+            // snapshot for older reports/components that still read them directly.
+            $canonicalLocations->synchronizeCompatibilitySnapshot($project);
 
             /*
             |--------------------------------------------------------------------------

@@ -76,7 +76,7 @@ class MajorRevisionPhase13BFocalUserManagementTest extends TestCase
         }
     }
 
-    public function test_focal_creates_province_assigned_tc_with_server_fixed_role_and_default_password(): void
+    public function test_focal_creates_province_assigned_tc_with_server_fixed_role_and_temporary_password(): void
     {
         $response = $this->actingAs($this->focal)
             ->post(route('users.store'), [
@@ -90,13 +90,18 @@ class MajorRevisionPhase13BFocalUserManagementTest extends TestCase
             ]);
 
         $coordinator = User::query()->where('username', 'juls.masbate')->firstOrFail();
+        $temporaryPassword = session('temporary_password');
 
         $response->assertRedirect(route('users.edit', $coordinator));
+        $response->assertSessionHas('temporary_password');
         $this->assertSame(UserRole::TC, $coordinator->role);
         $this->assertSame($this->masbate->id, $coordinator->assigned_province_id);
         $this->assertTrue($coordinator->is_active);
-        $this->assertTrue(Hash::check('password', $coordinator->password));
+        $this->assertIsString($temporaryPassword);
+        $this->assertTrue(Hash::check($temporaryPassword, $coordinator->password));
         $this->assertFalse(Hash::check('browser-supplied-password', $coordinator->password));
+        $this->assertTrue($coordinator->must_change_password);
+        $this->assertNull($coordinator->password_changed_at);
         $this->assertSame('juls.masbate@accounts.tupad.invalid', $coordinator->email);
 
         $this->assertDatabaseHas('audit_logs', [
@@ -146,7 +151,7 @@ class MajorRevisionPhase13BFocalUserManagementTest extends TestCase
         $this->assertSame($originalPassword, $coordinator->password);
     }
 
-    public function test_focal_can_reset_coordinator_password_to_password(): void
+    public function test_focal_can_reset_coordinator_password_to_random_temporary_password(): void
     {
         $coordinator = User::factory()->create([
             'role' => UserRole::TC,
@@ -157,11 +162,19 @@ class MajorRevisionPhase13BFocalUserManagementTest extends TestCase
 
         $this->assertTrue(Hash::check('different-password', $coordinator->password));
 
-        $this->actingAs($this->focal)
+        $response = $this->actingAs($this->focal)
             ->post(route('users.reset-password', $coordinator))
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('temporary_password');
 
-        $this->assertTrue(Hash::check('password', $coordinator->fresh()->password));
+        $temporaryPassword = session('temporary_password');
+        $coordinator->refresh();
+
+        $this->assertIsString($temporaryPassword);
+        $this->assertTrue(Hash::check($temporaryPassword, $coordinator->password));
+        $this->assertFalse(Hash::check('different-password', $coordinator->password));
+        $this->assertTrue($coordinator->must_change_password);
+        $this->assertNull($coordinator->password_changed_at);
     }
 
     public function test_focal_can_activate_and_deactivate_coordinator_without_deleting_account(): void

@@ -17,7 +17,7 @@
         @csrf
         <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="text-sm font-semibold text-slate-900">Coordinator Account Details</h2>
-            <p class="mt-1 text-xs leading-5 text-slate-500">The role is fixed to TUPAD Coordinator. The account starts with the default password <span class="font-mono font-semibold">password</span>.</p>
+            <p class="mt-1 text-xs leading-5 text-slate-500">The role is fixed to TUPAD Coordinator. A random one-time temporary password is generated after account creation and must be changed at first sign-in.</p>
         </div>
         <div class="p-5">
             @include('users._form')

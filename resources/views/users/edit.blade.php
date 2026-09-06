@@ -13,6 +13,16 @@
         </x-slot:actions>
     </x-page-header>
 
+
+    @if (session('temporary_password'))
+        <section class="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-800">One-time temporary password</div>
+            <div class="mt-2 text-sm font-semibold text-amber-950">Username: {{ session('temporary_password_username') }}</div>
+            <div class="mt-1 break-all font-mono text-lg font-bold text-slate-950">{{ session('temporary_password') }}</div>
+            <p class="mt-2 text-xs leading-5 text-amber-900">Copy this credential now. It will not be shown again after this request. The Coordinator must replace it before accessing the system.</p>
+        </section>
+    @endif
+
     <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <form method="POST" action="{{ route('users.update', $coordinator) }}" class="rounded-xl border border-slate-200 bg-white shadow-sm">
             @csrf
@@ -39,11 +49,11 @@
 
             <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-slate-900">Password Reset</h2>
-                <p class="mt-2 text-xs leading-5 text-slate-500">Resetting does not expose the stored password. It replaces the password with the system default.</p>
+                <p class="mt-2 text-xs leading-5 text-slate-500">Resetting generates a new one-time temporary password, invalidates the remembered login token, and forces a password change at the next sign-in.</p>
                 <form method="POST" action="{{ route('users.reset-password', $coordinator) }}" class="mt-4">
                     @csrf
                     <button class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                        onclick="return confirm('Reset this account password to password?')">Reset to "password"</button>
+                        onclick="return confirm('Generate a new temporary password for this Coordinator?')">Generate Temporary Password</button>
                 </form>
             </section>
 

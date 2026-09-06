@@ -17,6 +17,20 @@
         </x-slot:actions>
     </x-page-header>
 
+
+    @if (session('temporary_password'))
+        <section class="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-800">One-time temporary password</div>
+            <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div class="text-sm font-semibold text-amber-950">Username: {{ session('temporary_password_username') }}</div>
+                    <div class="mt-1 break-all font-mono text-lg font-bold text-slate-950">{{ session('temporary_password') }}</div>
+                </div>
+                <div class="max-w-sm text-xs leading-5 text-amber-900">Copy this credential now. It is not stored in plaintext and the Coordinator must replace it at the next sign-in.</div>
+            </div>
+        </section>
+    @endif
+
     <section class="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <form method="GET" action="{{ route('users.index') }}" class="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_220px_180px_auto] lg:items-end">
             <div>
@@ -55,7 +69,7 @@
                 <p class="mt-1 text-xs text-slate-500">{{ number_format($coordinators->total()) }} TUPAD Coordinator account(s)</p>
             </div>
             <div class="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-900">
-                New/reset password: <span class="font-mono font-bold">password</span>
+                New and reset accounts receive a one-time random password and are forced to change it at the next sign-in.
             </div>
         </div>
 
@@ -104,7 +118,7 @@
                                     <form method="POST" action="{{ route('users.reset-password', $coordinator) }}">
                                         @csrf
                                         <button class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                                            onclick="return confirm('Reset this account password to password?')">Reset Password</button>
+                                            onclick="return confirm('Generate a new temporary password for this Coordinator? Existing remembered sessions will be invalidated and a password change will be required at the next sign-in.')">Reset Password</button>
                                     </form>
                                 </div>
                             </td>

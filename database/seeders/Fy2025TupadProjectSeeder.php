@@ -15,17 +15,21 @@ use App\Models\ProjectLocation;
 use App\Models\ProjectMonitoringDetail;
 use App\Models\Province;
 use App\Models\User;
+use App\Services\Auth\TemporaryPasswordGenerator;
+use App\Services\Projects\ProjectLocationCanonicalService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 final class Fy2025TupadProjectSeeder extends Seeder
 {
+    /** @var array<string, string> */
+    private array $temporaryDevelopmentCredentials = [];
+
     private const SOURCE_WORKBOOK = 'FY2025 TUPAD DATABASED.xlsx';
 
     private const SEED_BATCH = 'FY2025-TUPAD-SHEET-SAMPLE';
@@ -219,7 +223,9 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'is_active' => true,
                 'supervisor_tc_id' => null,
                 'assigned_province_id' => null,
-                'password' => Hash::make('password'),
+                'password' => $this->temporaryDevelopmentPassword('admin'),
+                'must_change_password' => true,
+                'password_changed_at' => null,
             ],
         );
 
@@ -261,7 +267,9 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'is_active' => true,
                 'supervisor_tc_id' => null,
                 'assigned_province_id' => $provinces['050500000']->id,
-                'password' => Hash::make('password'),
+                'password' => $this->temporaryDevelopmentPassword('Orlan'),
+                'must_change_password' => true,
+                'password_changed_at' => null,
             ])->save();
         }
 
@@ -286,7 +294,9 @@ final class Fy2025TupadProjectSeeder extends Seeder
                     'is_active' => true,
                     'supervisor_tc_id' => null,
                     'assigned_province_id' => $province->id,
-                    'password' => Hash::make('password'),
+                    'password' => $this->temporaryDevelopmentPassword($definition['username']),
+                    'must_change_password' => true,
+                    'password_changed_at' => null,
                 ],
             );
 
@@ -306,7 +316,9 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'is_active' => true,
                 'supervisor_tc_id' => $defaultGipSupervisor->id,
                 'assigned_province_id' => null,
-                'password' => Hash::make('password'),
+                'password' => $this->temporaryDevelopmentPassword('gip'),
+                'must_change_password' => true,
+                'password_changed_at' => null,
             ],
         );
 
@@ -320,13 +332,34 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'is_active' => true,
                 'supervisor_tc_id' => null,
                 'assigned_province_id' => null,
-                'password' => Hash::make('password'),
+                'password' => $this->temporaryDevelopmentPassword('focal'),
+                'must_change_password' => true,
+                'password_changed_at' => null,
             ],
         );
 
         $this->command?->info(
             'Development users ready: admin, focal, gip, and 10 province-scoped TUPAD Coordinator accounts.'
         );
+
+        if ($this->command && $this->temporaryDevelopmentCredentials !== []) {
+            $this->command->warn('One-time development credentials (copy now; each account must change its password at first sign-in):');
+            $this->command->table(
+                ['Username', 'Temporary Password'],
+                collect($this->temporaryDevelopmentCredentials)
+                    ->map(fn (string $password, string $username): array => [$username, $password])
+                    ->values()
+                    ->all(),
+            );
+        }
+    }
+
+    private function temporaryDevelopmentPassword(string $username): string
+    {
+        $password = app(TemporaryPasswordGenerator::class)->generate();
+        $this->temporaryDevelopmentCredentials[$username] = $password;
+
+        return $password;
     }
 
     private function readGeoJson(string $path): array
@@ -590,6 +623,12 @@ final class Fy2025TupadProjectSeeder extends Seeder
             .' | source project code '.$row['source_project_code'];
 
         $amount = $this->money($row['requested_to_dole']);
+        $adminCostAmount = $this->implementationMode($row['implementation_mode']) === ImplementationMode::DIRECT_ADMINISTRATION
+            ? $this->money($row['service_fee'])
+            : '0.00';
+        $allocationTotal = $this->centsToMoney(
+            $this->moneyToCents($amount) + $this->moneyToCents($adminCostAmount)
+        );
 
         $allocation = AdlAllocation::query()->create([
             'adl_id' => $adl->id,
@@ -602,10 +641,8 @@ final class Fy2025TupadProjectSeeder extends Seeder
             'municipality' => $municipality->name,
             'amount' => $amount,
             'grant_amount' => $amount,
-            'admin_cost_amount' => $this->implementationMode($row['implementation_mode']) === ImplementationMode::DIRECT_ADMINISTRATION
-                ? $this->money($row['service_fee'])
-                : '0.00',
-            'total_amount' => $amount,
+            'admin_cost_amount' => $adminCostAmount,
+            'total_amount' => $allocationTotal,
             'remarks' => $sourceTag,
             'created_by' => $actor->id,
             'updated_by' => $actor->id,
@@ -629,7 +666,9 @@ final class Fy2025TupadProjectSeeder extends Seeder
             'district' => $municipality->district,
             'municipality' => $municipality->name,
             'barangay' => $barangay->name,
-            'income_class' => $this->nullableText($row['income_class']),
+            // Canonical municipality reference is authoritative for operational geography.
+            // The spreadsheet value is retained in traceability remarks below.
+            'income_class' => $municipality->income_class,
             'implementation_mode' => $this->implementationMode($row['implementation_mode']),
             'number_of_days' => (int) $row['number_of_days'],
             'term' => ProjectTerm::fromDays((int) $row['number_of_days']),
@@ -674,6 +713,12 @@ final class Fy2025TupadProjectSeeder extends Seeder
             'beneficiaries_female' => (int) $row['beneficiaries_female'],
         ]);
 
+        // Keep legacy project.* geography fields as compatibility snapshots only.
+        // This guarantees they are synchronized from project_locations instead of
+        // competing with the canonical PSGC location records.
+        app(ProjectLocationCanonicalService::class)
+            ->synchronizeCompatibilitySnapshot($project);
+
         ProjectMonitoringDetail::query()->create([
             'project_id' => $project->id,
             'project_series' => $this->nullableText($row['project_series']),
@@ -697,6 +742,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
             'Source implementation mode: '.($row['implementation_mode'] ?: 'Blank'),
             'Seeder status override: '.ProjectStatus::ONGOING_PROFILING->label(),
             'Source location text: '.$row['source_barangay'].', '.$row['source_municipality'].', '.$row['source_province'].' ('.$row['source_district'].')',
+            'Source income class: '.($row['income_class'] ?: '—').'. Canonical income class is taken from the resolved PSGC municipality reference.',
             'Resolved representative PSGC location: municipality '.$row['municipality_psgc'].'; barangay '.$row['barangay_psgc'].'.',
             'Source beneficiary type: '.($row['beneficiary_type'] ?: '—'),
             'Source displacement type: '.($row['displacement_type'] ?: '—'),

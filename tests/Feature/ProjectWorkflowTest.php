@@ -97,9 +97,14 @@ class ProjectWorkflowTest extends TestCase
         */
 
         $this->province = Province::create([
+            'code' => '052000000',
             'name' => 'Catanduanes',
             'is_active' => true,
         ]);
+
+        $this->tc->forceFill([
+            'assigned_province_id' => $this->province->id,
+        ])->save();
 
         $this->municipality = Municipality::create([
             'province_id' => $this->province->id,

@@ -60,6 +60,22 @@ class ProvinceAccessService
 
     public function canAccessProject(User $user, Project $project): bool
     {
+        if (! $this->isProvinceScoped($user)) {
+            return true;
+        }
+
+        $assignedProvinceId = $this->assignedProvinceId($user);
+
+        if ($assignedProvinceId === null) {
+            return false;
+        }
+
+        if ($project->projectLocations()->exists()) {
+            return $project->projectLocations()
+                ->where('province_id', '!=', $assignedProvinceId)
+                ->doesntExist();
+        }
+
         return $this->canAccessProvinceRecord(
             $user,
             $project->province_id,
@@ -82,7 +98,44 @@ class ProvinceAccessService
      */
     public function scopeProjects(Builder $query, User $user): Builder
     {
-        return $this->scopeProvinceRecordQuery($query, $user);
+        if (! $this->isProvinceScoped($user)) {
+            return $query;
+        }
+
+        $provinceId = $this->assignedProvinceId($user);
+
+        if ($provinceId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $assignedProvinceName = $this->assignedProvinceName($user);
+
+        return $query->where(function (Builder $projectQuery) use ($provinceId, $assignedProvinceName): void {
+            $projectQuery
+                ->whereHas(
+                    'projectLocations',
+                    fn (Builder $location): Builder => $location->where('province_id', $provinceId),
+                )
+                ->whereDoesntHave(
+                    'projectLocations',
+                    fn (Builder $location): Builder => $location->where('province_id', '!=', $provinceId),
+                )
+                ->orWhere(function (Builder $legacyProject) use ($provinceId, $assignedProvinceName): void {
+                    $legacyProject
+                        ->whereDoesntHave('projectLocations')
+                        ->where(function (Builder $legacyProvince) use ($provinceId, $assignedProvinceName): void {
+                            $legacyProvince->where('province_id', $provinceId);
+
+                            if ($assignedProvinceName !== null) {
+                                $legacyProvince->orWhere(function (Builder $legacyName) use ($assignedProvinceName): void {
+                                    $legacyName
+                                        ->whereNull('province_id')
+                                        ->whereRaw('LOWER(TRIM(province)) = ?', [Str::lower($assignedProvinceName)]);
+                                });
+                            }
+                        });
+                });
+        });
     }
 
     /**

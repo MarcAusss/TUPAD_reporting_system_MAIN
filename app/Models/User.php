@@ -25,6 +25,8 @@ class User extends Authenticatable
         'supervisor_tc_id',
         'assigned_province_id',
         'password',
+        'must_change_password',
+        'password_changed_at',
     ];
 
     protected $hidden = [
@@ -37,6 +39,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
             'is_active' => 'boolean',
             'role' => UserRole::class,
         ];

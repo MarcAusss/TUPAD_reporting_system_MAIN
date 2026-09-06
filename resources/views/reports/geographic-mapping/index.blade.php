@@ -48,6 +48,12 @@
             :intervention-focus="$filters['intervention_focus'] ?? null" />
     @endif
 
+    @if ($report['warning'])
+        <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+            <strong>Data integrity note:</strong> {{ $report['warning'] }}
+        </div>
+    @endif
+
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div>

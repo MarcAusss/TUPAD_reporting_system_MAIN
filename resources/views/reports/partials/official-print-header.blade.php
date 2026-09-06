@@ -152,3 +152,45 @@
         </div>
     </div>
 </header>
+
+@if (isset($report))
+    @php
+        $printReportTitle = (string) ($report['official_title'] ?? $report['title'] ?? 'TUPAD Official Report');
+        $printReportKicker = (string) ($report['official_kicker'] ?? 'TUPAD Reporting System');
+        $printReportCode = (string) ($report['official_code'] ?? 'Official Report');
+        $printReportPeriod = (string) ($report['official_period'] ?? '');
+        $printGeneratedAt = $report['generated_at'] ?? now('Asia/Manila');
+    @endphp
+
+    <section class="official-print-header" aria-label="Official report identity">
+        <div class="official-print-header__brand">
+            <div class="official-print-header__system">{{ $printReportKicker }}</div>
+            <div class="official-print-header__office">DOLE Regional Office V</div>
+        </div>
+
+        <div class="official-print-header__title">
+            <div class="official-print-header__agency">Department of Labor and Employment</div>
+            <div class="official-print-header__report">{{ $printReportTitle }}</div>
+            <div class="official-print-header__scope">{{ $printReportCode }}</div>
+            @if ($printReportPeriod !== '')
+                <div class="official-print-header__period">{{ $printReportPeriod }}</div>
+            @endif
+        </div>
+
+        <div class="official-print-header__meta">
+            <div class="official-print-header__meta-row">
+                <span>Document</span>
+                <strong>Official Report</strong>
+            </div>
+            <div class="official-print-header__meta-row">
+                <span>Generated</span>
+                <strong>{{ $printGeneratedAt->format('M d, Y') }}</strong>
+            </div>
+            <div class="official-print-header__meta-row">
+                <span>Time</span>
+                <strong>{{ $printGeneratedAt->format('h:i A') }}</strong>
+            </div>
+        </div>
+    </section>
+@endif
+

@@ -7,7 +7,9 @@ use App\Enums\ProjectStatus;
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
 use App\Enums\UserRole;
+use App\Models\Project;
 use App\Models\User;
+use App\Services\Projects\ProjectLocationCanonicalService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -43,6 +45,7 @@ class VerifyReleaseReadiness extends Command
             $this->verifyProvinceAuthorizationIntegrity();
             $this->verifyFinancialIntegrity();
             $this->verifyBeneficiaryIntegrity();
+            $this->verifyProjectLocationCanonicalIntegrity();
             $this->verifyWorkflowAndAuditIntegrity();
         }
 
@@ -77,7 +80,7 @@ class VerifyReleaseReadiness extends Command
     private function verifySchema(): void
     {
         $required = [
-            'users' => ['username', 'role', 'is_active', 'assigned_province_id'],
+            'users' => ['username', 'role', 'is_active', 'assigned_province_id', 'must_change_password', 'password_changed_at'],
             'adls' => ['grants', 'admin_cost', 'total'],
             'adl_realignments' => ['adl_id', 'amount'],
             'adl_allocations' => [
@@ -703,6 +706,27 @@ class VerifyReleaseReadiness extends Command
         if ($invalidLaborCounts > 0) {
             $this->failures[] = "{$invalidLaborCounts} labor-market referral row(s) contain invalid beneficiary or amount values.";
         }
+    }
+
+    private function verifyProjectLocationCanonicalIntegrity(): void
+    {
+        $canonicalLocations = app(ProjectLocationCanonicalService::class);
+
+        Project::query()
+            ->with([
+                'projectLocations.province',
+                'projectLocations.municipality',
+                'projectLocations.barangays',
+            ])
+            ->orderBy('id')
+            ->each(function (Project $project) use ($canonicalLocations): void {
+                try {
+                    $canonicalLocations->assertProjectIntegrity($project);
+                } catch (\Throwable $exception) {
+                    $this->failures[] = "Project #{$project->id} canonical location integrity failed.";
+                    $this->failureDetails[] = "Project #{$project->id}: {$exception->getMessage()}";
+                }
+            });
     }
 
     private function verifyWorkflowAndAuditIntegrity(): void

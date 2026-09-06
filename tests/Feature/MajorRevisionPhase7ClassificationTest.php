@@ -360,9 +360,14 @@ class MajorRevisionPhase7ClassificationTest extends TestCase
         $project = $this->createProject();
 
         $province = Province::create([
+            'code' => '050500000',
             'name' => 'Albay',
             'is_active' => true,
         ]);
+
+        $this->tc->forceFill([
+            'assigned_province_id' => $province->id,
+        ])->save();
 
         $municipality = Municipality::create([
             'province_id' => $province->id,

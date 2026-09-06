@@ -55,7 +55,7 @@
             <div class="border-b border-slate-200 px-5 py-4">
                 <h2 class="text-sm font-semibold text-slate-900">Change Password</h2>
                 <p class="mt-1 text-xs leading-5 text-slate-500">
-                    Enter your current password before setting a new password. The new password must contain at least 8 characters.
+                    Enter your current password before setting a new password. Use at least 12 characters with uppercase and lowercase letters, a number, and a symbol.
                 </p>
             </div>
 
@@ -89,7 +89,7 @@
                         name="password"
                         type="password"
                         required
-                        minlength="8"
+                        minlength="12"
                         autocomplete="new-password"
                         class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     >
@@ -107,7 +107,7 @@
                         name="password_confirmation"
                         type="password"
                         required
-                        minlength="8"
+                        minlength="12"
                         autocomplete="new-password"
                         class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     >

@@ -48,7 +48,7 @@ class DatabaseValidationHardeningTest extends TestCase
             'position' => 'TUPAD Coordinator',
             'role' => UserRole::TC,
             'is_active' => true,
-            'password' => Hash::make('password'),
+            'password' => Hash::make('Test!Password2026'),
         ]);
 
         $this->focal = User::create([
@@ -58,7 +58,7 @@ class DatabaseValidationHardeningTest extends TestCase
             'position' => 'TUPAD Focal',
             'role' => UserRole::FOCAL,
             'is_active' => true,
-            'password' => Hash::make('password'),
+            'password' => Hash::make('Test!Password2026'),
         ]);
 
         /*
@@ -68,9 +68,14 @@ class DatabaseValidationHardeningTest extends TestCase
         */
 
         $this->province = Province::create([
+            'code' => '052000000',
             'name' => 'Catanduanes',
             'is_active' => true,
         ]);
+
+        $this->tc->forceFill([
+            'assigned_province_id' => $this->province->id,
+        ])->save();
 
         $this->municipality = Municipality::create([
             'province_id' => $this->province->id,
@@ -201,6 +206,7 @@ class DatabaseValidationHardeningTest extends TestCase
     public function test_project_cannot_use_municipality_from_another_province(): void
     {
         $otherProvince = Province::create([
+            'code' => '050500000',
             'name' => 'Albay',
             'is_active' => true,
         ]);
@@ -227,7 +233,11 @@ class DatabaseValidationHardeningTest extends TestCase
                 $payload
             );
 
-        $response->assertForbidden();
+        // Province scope passes because the submitted province is the TC's assigned
+        // province. The municipality lookup then fails closed because that
+        // municipality belongs to a different province. Treat that hierarchy
+        // mismatch as a missing scoped resource rather than an authorization leak.
+        $response->assertNotFound();
 
         $this->assertDatabaseMissing(
             'projects',

@@ -73,7 +73,7 @@ class GeographicMappingPhase2FocalRegionViewTest extends TestCase
             ->assertOk()
             ->assertSee('TUPAD Distribution Map')
             ->assertSee('BICOL REGION MAP')
-            ->assertSee('BENEFICIARIES BY PROVINCE')
+            ->assertSee('PROJECTS BY PROVINCE')
             ->assertSee('data-tupad-region-map', false)
             ->assertSee('Project Mapping')
             ->assertSee('Beneficiary Mapping');

@@ -51,9 +51,14 @@ class SponsorPartnerOwnershipTest extends TestCase
         ]);
 
         $province = Province::create([
+            'code' => '052000000',
             'name' => 'Catanduanes',
             'is_active' => true,
         ]);
+
+        $tc->forceFill([
+            'assigned_province_id' => $province->id,
+        ])->save();
 
         $municipality = Municipality::create([
             'province_id' => $province->id,
