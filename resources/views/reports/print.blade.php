@@ -11,6 +11,8 @@
             && is_array($report['physical_financial_matrix'] ?? null);
         $isLaborMarketMatrix = is_array($report['labor_market_print_matrix'] ?? null);
         $isSprsMatrix = is_array($report['sprs_print_matrix'] ?? null);
+        $isFundStatusTemplate = ($report['type'] ?? null) === \App\Enums\ReportType::FUND_STATUS
+            && is_array($report['fund_status_template'] ?? null);
     @endphp
 
     <style>
@@ -96,7 +98,10 @@
         <button type="button" onclick="window.print()">Print Report</button>
     </div>
 
-    @if ($isPhysicalFinancial)
+    @if ($isFundStatusTemplate)
+        @include('reports.partials.official-print-header', ['report' => $report])
+        @include('reports.fund-status.partials.template-table-print', ['report' => $report])
+    @elseif ($isPhysicalFinancial)
         @php
             $matrix = $report['physical_financial_matrix'];
             $dimension = $report['dimension'];
@@ -374,7 +379,9 @@
         @endif
     @endif
 
-    @include('reports.partials.signatories', ['report' => $report])
+    @unless ($isFundStatusTemplate)
+        @include('reports.partials.signatories', ['report' => $report])
+    @endunless
 </body>
 
 </html>

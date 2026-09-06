@@ -4,7 +4,7 @@
 
 @section('content')
     <x-page-header eyebrow="System Attention Center" title="Notifications"
-        description="Live role-scoped alerts generated from the current TUPAD workflow and draft records.">
+        description="Live role-scoped alerts generated from the current TUPAD workflow. Updates appear automatically while this page is open.">
         <x-slot:actions>
             <a href="{{ route('dashboard') }}"
                 class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -16,17 +16,17 @@
     <section class="mb-5 grid gap-3 sm:grid-cols-3">
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Active Alerts</div>
-            <div class="mt-2 text-2xl font-extrabold text-slate-900">{{ number_format($notificationData['total_count']) }}</div>
+            <div data-notification-total class="mt-2 text-2xl font-extrabold text-slate-900">{{ number_format($notificationData['total_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Current records represented by your alerts.</p>
         </article>
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Needs Attention</div>
-            <div class="mt-2 text-2xl font-extrabold text-amber-700">{{ number_format($notificationData['attention_count']) }}</div>
+            <div data-notification-attention class="mt-2 text-2xl font-extrabold text-amber-700">{{ number_format($notificationData['attention_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Aged or returned records requiring closer review.</p>
         </article>
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Critical Aging</div>
-            <div class="mt-2 text-2xl font-extrabold text-rose-700">{{ number_format($notificationData['critical_count']) }}</div>
+            <div data-notification-critical class="mt-2 text-2xl font-extrabold text-rose-700">{{ number_format($notificationData['critical_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Workflow items beyond the configured critical threshold.</p>
         </article>
     </section>
@@ -35,15 +35,17 @@
         <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="text-sm font-semibold text-slate-900">Current Notifications</h2>
             <p class="mt-1 text-xs text-slate-500">
-                Notifications are resolved automatically when the authoritative workflow or draft state changes; no separate read/unread state is stored.
+                Notifications update automatically from authoritative workflow state; no browser refresh or separate read/unread record is required.
             </p>
         </div>
 
-        @if ($notificationData['items']->isEmpty())
-            <x-empty-state title="No pending notifications"
-                message="There are no current workflow or draft actions requiring your role." />
-        @else
-            <div class="divide-y divide-slate-100">
+        <div data-live-notification-list class="divide-y divide-slate-100">
+            @if ($notificationData['items']->isEmpty())
+                <div class="px-5 py-12 text-center" data-notification-empty>
+                    <div class="text-sm font-semibold text-slate-800">No pending notifications</div>
+                    <p class="mt-1 text-xs text-slate-500">There are no current workflow actions requiring your role.</p>
+                </div>
+            @else
                 @foreach ($notificationData['items'] as $item)
                     @php
                         $tone = match ($item['severity']) {
@@ -69,7 +71,7 @@
                         </a>
                     </div>
                 @endforeach
-            </div>
-        @endif
+            @endif
+        </div>
     </section>
 @endsection

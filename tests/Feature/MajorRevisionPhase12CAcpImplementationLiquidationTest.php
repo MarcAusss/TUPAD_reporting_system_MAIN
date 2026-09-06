@@ -82,7 +82,7 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_acp_implementation_uses_project_duration_ignores_browser_end_date_and_moves_to_ongoing(): void
+    public function test_acp_implementation_uses_manual_end_date_and_moves_to_ongoing(): void
     {
         $project = $this->createAcpProject(ProjectStatus::FOR_IMPLEMENTATION, '5000.00', 10);
         $this->createCheckRelease($project, '2026-08-20');
@@ -90,7 +90,7 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
         $this->actingAs($this->tc)
             ->post(route('projects.acp-implementation.store', $project), [
                 'start_date' => '2026-08-25',
-                'end_date' => '2030-01-01',
+                'end_date' => '2026-09-12',
                 'remarks' => 'ACP implementation scheduled.',
             ])
             ->assertRedirect(route('acp-implementation.show', $project));
@@ -98,7 +98,7 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
         $project->refresh();
 
         $this->assertSame('2026-08-25', $project->implementation->start_date->toDateString());
-        $this->assertSame('2026-09-04', $project->implementation->end_date->toDateString());
+        $this->assertSame('2026-09-12', $project->implementation->end_date->toDateString());
         $this->assertSame(ProjectStatus::ONGOING_IMPLEMENTATION, $project->status);
     }
 
@@ -110,6 +110,7 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
         $this->actingAs($this->tc)
             ->post(route('projects.acp-implementation.store', $project), [
                 'start_date' => '2026-08-28',
+                'end_date' => '2026-09-05',
             ])
             ->assertSessionHasErrors('start_date');
 

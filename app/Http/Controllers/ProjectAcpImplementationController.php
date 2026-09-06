@@ -48,6 +48,7 @@ class ProjectAcpImplementationController extends Controller
 
         $validated = $request->validate([
             'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'remarks' => ['nullable', 'string', 'max:3000'],
         ]);
 
@@ -80,8 +81,7 @@ class ProjectAcpImplementationController extends Controller
                 ]);
             }
 
-            $durationDays = max(1, (int) $locked->number_of_days);
-            $endDate = $startDate->copy()->addDays($durationDays);
+            $endDate = Carbon::parse($validated['end_date'])->startOfDay();
 
             $locked->implementation()->updateOrCreate(
                 ['project_id' => $locked->id],
@@ -105,10 +105,7 @@ class ProjectAcpImplementationController extends Controller
             ->route('acp-implementation.show', $project)
             ->with(
                 'success',
-                sprintf(
-                    'Through ACP implementation period saved. The end date was calculated from the approved %d-day project duration.',
-                    max(1, (int) $project->number_of_days)
-                )
+                'Through ACP implementation period saved successfully.'
             );
     }
 

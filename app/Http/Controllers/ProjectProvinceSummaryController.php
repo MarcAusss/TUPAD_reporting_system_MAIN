@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -17,10 +18,25 @@ class ProjectProvinceSummaryController extends Controller
     public function index(
         Request $request,
         ProvinceAccessService $provinceAccess,
-    ): View {
+    ): RedirectResponse|View {
         $this->authorizeSummaryUser(
             $request
         );
+
+        if ($request->user()->isTc()) {
+            $assignedProvinceId = $provinceAccess->assignedProvinceId($request->user());
+
+            abort_unless(
+                $assignedProvinceId !== null,
+                403,
+                'This TUPAD Coordinator account has no valid assigned province.'
+            );
+
+            return redirect()->route(
+                'project-summary.province',
+                ['province' => $assignedProvinceId]
+            );
+        }
 
         $provinces =
             $provinceAccess->scopeProvinces(Province::query(), $request->user())

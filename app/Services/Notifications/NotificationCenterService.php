@@ -41,6 +41,7 @@ class NotificationCenterService
                 'severity' => $severity,
                 'url' => $queue['url'],
                 'category' => 'Workflow Queue',
+                'state_token' => (string) ($queue['state_token'] ?? ''),
             ]);
         }
 

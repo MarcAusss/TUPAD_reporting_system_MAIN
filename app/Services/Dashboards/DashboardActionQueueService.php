@@ -78,6 +78,10 @@ class DashboardActionQueueService
                 'aged_count' => $matching->where('needs_attention', true)->count(),
                 'critical_count' => $matching->where('critical', true)->count(),
                 'oldest_days' => (int) ($matching->max('age_days') ?? 0),
+                'state_token' => sha1($matching
+                    ->map(fn (array $item): string => $item['project_id'].':'.$item['status_label'])
+                    ->sort()
+                    ->implode('|')),
             ];
 
             $allItems = $allItems->concat($matching);

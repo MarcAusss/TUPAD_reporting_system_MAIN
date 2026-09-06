@@ -23,13 +23,13 @@ class FundStatusReportController extends Controller
             'dimension' => ReportDimension::OVERALL,
         ],
         'adl' => [
-            'label' => 'Report ADL',
-            'description' => 'Fund utilization grouped by Advice of Disbursement Limit (ADL).',
+            'label' => 'Summary per ADL',
+            'description' => 'Approved fund-status summary grouped by Advice of Disbursement Limit (ADL), including allocation breakdown and subtotals.',
             'dimension' => ReportDimension::ADL,
         ],
         'province' => [
-            'label' => 'Report Province',
-            'description' => 'Fund status grouped by official project province.',
+            'label' => 'Summary per Province',
+            'description' => 'Approved fund-status summary grouped by province, including ADL allocation breakdown and province subtotals.',
             'dimension' => ReportDimension::PROVINCE,
         ],
         'status' => [

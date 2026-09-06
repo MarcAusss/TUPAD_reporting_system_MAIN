@@ -192,7 +192,16 @@ class ImplementationWorkPeriodModalTest extends TestCase
         );
 
         $response->assertSee(
-            'End Date is calculated automatically'
+            'name="end_date"',
+            false
+        );
+
+        $response->assertSee(
+            'Enter the planned End Date.'
+        );
+
+        $response->assertDontSee(
+            'calculated automatically'
         );
     }
 }

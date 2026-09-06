@@ -39,7 +39,7 @@
             <div>
                 <h2 class="text-sm font-semibold text-slate-900">ACP Implementation Reference</h2>
                 <p class="mt-1 text-xs text-slate-500">
-                    Implementation is available only after the audited check-release record exists. The end date is calculated from the approved project duration.
+                    Implementation is available only after the audited check-release record exists. Enter the planned Start Date and End Date manually; the approved duration is reference information only.
                 </p>
             </div>
             <x-status-badge tone="info">{{ $project->status->label() }}</x-status-badge>
@@ -70,7 +70,7 @@
         <div class="border-b border-blue-100 bg-blue-50 px-5 py-4">
             <h2 class="text-sm font-semibold text-blue-950">Set Through ACP Implementation Period</h2>
             <p class="mt-1 text-xs text-blue-700">
-                Choose only the start date. The system calculates the end date from the approved {{ $project->number_of_days }}-day duration and synchronizes the project status using Asia/Manila dates.
+                Enter the planned Start Date and End Date. The approved {{ $project->number_of_days }}-day duration remains visible for reference, while status synchronization uses the dates you record.
             </p>
         </div>
 
@@ -90,11 +90,14 @@
                     >
                 </div>
                 <div>
-                    <label class="mb-2 block text-xs font-semibold text-slate-700">Calculated End Date</label>
+                    <label for="end_date" class="mb-2 block text-xs font-semibold text-slate-700">Implementation End Date</label>
                     <input
-                        value="{{ $implementation?->end_date?->format('F d, Y') ?: 'Calculated after saving' }}"
-                        readonly
-                        class="h-10 w-full rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-semibold text-slate-700"
+                        id="end_date"
+                        name="end_date"
+                        type="date"
+                        required
+                        value="{{ old('end_date', $implementation?->end_date?->toDateString()) }}"
+                        class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                     >
                 </div>
                 <div class="md:col-span-2">

@@ -1886,21 +1886,9 @@
                     </h3>
 
                     <p class="mt-1 text-xs text-slate-500">
-                        Select the implementation Start Date.
-                        The system automatically calculates the End Date using the project's
-                        {{ $project->number_of_days }}-day duration.
+                        Enter the planned implementation Start Date and End Date.
+                        The approved {{ $project->number_of_days }}-day duration is shown as reference only.
                     </p>
-
-                    <div class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-                        <div class="text-xs font-semibold text-blue-900">
-                            Automatic End Date
-                        </div>
-
-                        <p class="mt-1 text-xs leading-5 text-blue-700">
-                            End Date = Start Date + {{ $project->number_of_days }} day(s).
-                            The calculated End Date cannot be manually changed.
-                        </p>
-                    </div>
 
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
 
@@ -1915,7 +1903,6 @@
                                 name="start_date"
                                 type="date"
                                 required
-                                data-duration-days="{{ $project->number_of_days }}"
                                 value="{{ old(
                                     'start_date',
                                     $project->implementation?->start_date?->format('Y-m-d')
@@ -1933,15 +1920,18 @@
 
                             <input
                                 id="implementation-end-date"
+                                name="end_date"
                                 type="date"
-                                readonly
-                                tabindex="-1"
-                                value="{{ $project->implementation?->end_date?->format('Y-m-d') }}"
-                                class="h-10 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
+                                required
+                                value="{{ old(
+                                    'end_date',
+                                    $project->implementation?->end_date?->format('Y-m-d')
+                                ) }}"
+                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                             >
 
                             <p class="mt-1 text-[11px] leading-4 text-slate-500">
-                                Automatically calculated from the Start Date and approved project duration.
+                                Enter the actual planned End Date. It cannot be earlier than the Start Date.
                             </p>
 
                         </div>

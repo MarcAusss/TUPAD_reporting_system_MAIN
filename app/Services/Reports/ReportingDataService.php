@@ -11,6 +11,7 @@ use App\Enums\ReportDimension;
 use App\Models\AdlAllocation;
 use App\Models\Project;
 use App\Models\ProjectLocation;
+use App\Models\Province;
 use App\Reports\ReportFilters;
 use App\Services\Payments\ProjectPaymentService;
 use Illuminate\Database\Eloquent\Builder;
@@ -170,6 +171,242 @@ final class ReportingDataService
             })
             ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
+    }
+
+    /**
+     * Sheet 2 fund-status reporting templates.
+     *
+     * Fund Utilization is summarized by allocation province. Summary per ADL
+     * and Summary per Province retain the authoritative ADL allocation
+     * breakdown (sponsor, partner, municipality, district, and province) and
+     * calculate accomplishment from the same obligation/ACP-payment sources
+     * used by the audited fund-status data layer.
+     */
+    public function fundStatusTemplate(
+        ReportFilters $filters,
+        ReportDimension $dimension,
+    ): ?array {
+        if (! in_array($dimension, [
+            ReportDimension::OVERALL,
+            ReportDimension::ADL,
+            ReportDimension::PROVINCE,
+        ], true)) {
+            return null;
+        }
+
+        $allocationRows = $this->fundStatusTemplateAllocationRows($filters);
+        $totals = $this->fundStatusTemplateTotals($allocationRows);
+
+        if ($dimension === ReportDimension::OVERALL) {
+            $provinceOrder = collect([
+                'Albay',
+                'Camarines Norte',
+                'Camarines Sur',
+                'Catanduanes',
+                'Masbate',
+                'Sorsogon',
+            ])->flip();
+
+            $provinceRows = $allocationRows
+                ->groupBy(fn (array $row): string => $row['province'] ?: 'Unassigned Province')
+                ->map(function (Collection $rows, string $province): array {
+                    return ['province' => $province] + $this->fundStatusTemplateTotals($rows);
+                });
+
+            $requiredProvinceNames = $filters->provinceId
+                ? collect([Province::query()->find($filters->provinceId)?->name])->filter()->values()
+                : collect($provinceOrder->keys());
+
+            foreach ($requiredProvinceNames as $provinceName) {
+                $provinceRows->put($provinceName, $provinceRows->get($provinceName, [
+                    'province' => $provinceName,
+                    'allocation_cents' => 0,
+                    'accomplishment_cents' => 0,
+                    'accomplishment_rate' => 0.0,
+                    'accomplishment_beneficiaries' => 0,
+                    'balance_cents' => 0,
+                ]));
+            }
+
+            $rows = $provinceRows
+                ->sortBy(fn (array $row): string => sprintf(
+                    '%03d-%s',
+                    $provinceOrder->get($row['province'], 999),
+                    strtolower($row['province']),
+                ))
+                ->values();
+
+            return [
+                'kind' => 'utilization',
+                'title' => 'Fund Utilization Report',
+                'rows' => $rows,
+                'groups' => collect(),
+                'totals' => $totals,
+            ];
+        }
+
+        if ($dimension === ReportDimension::ADL) {
+            $groups = $allocationRows
+                ->groupBy('adl_id')
+                ->map(function (Collection $rows): array {
+                    $sorted = $rows
+                        ->sortBy(fn (array $row): string => implode('|', [
+                            strtolower($row['province']),
+                            strtolower($row['municipality']),
+                            strtolower($row['district']),
+                            str_pad((string) $row['allocation_id'], 10, '0', STR_PAD_LEFT),
+                        ]))
+                        ->values();
+
+                    return [
+                        'label' => (string) ($sorted->first()['adl_number'] ?? 'Unassigned ADL'),
+                        'rows' => $sorted,
+                        'subtotal' => $this->fundStatusTemplateTotals($sorted),
+                    ];
+                })
+                ->sortBy(fn (array $group): string => strtolower($group['label']))
+                ->values();
+
+            return [
+                'kind' => 'adl',
+                'title' => 'Summary per ADL',
+                'rows' => $allocationRows,
+                'groups' => $groups,
+                'totals' => $totals,
+            ];
+        }
+
+        $provinceOrder = collect([
+            'Albay',
+            'Camarines Norte',
+            'Camarines Sur',
+            'Catanduanes',
+            'Masbate',
+            'Sorsogon',
+        ])->flip();
+
+        $groups = $allocationRows
+            ->groupBy(fn (array $row): string => $row['province'] ?: 'Unassigned Province')
+            ->map(function (Collection $rows, string $province): array {
+                $sorted = $rows
+                    ->sortBy(fn (array $row): string => implode('|', [
+                        strtolower($row['adl_number']),
+                        strtolower($row['municipality']),
+                        strtolower($row['district']),
+                        str_pad((string) $row['allocation_id'], 10, '0', STR_PAD_LEFT),
+                    ]))
+                    ->values();
+
+                return [
+                    'label' => $province,
+                    'rows' => $sorted,
+                    'subtotal' => $this->fundStatusTemplateTotals($sorted),
+                ];
+            })
+            ->sortBy(fn (array $group): string => sprintf(
+                '%03d-%s',
+                $provinceOrder->get($group['label'], 999),
+                strtolower($group['label']),
+            ))
+            ->values();
+
+        return [
+            'kind' => 'province',
+            'title' => 'Summary per Province',
+            'rows' => $allocationRows,
+            'groups' => $groups,
+            'totals' => $totals,
+        ];
+    }
+
+    /** @return Collection<int, array<string, mixed>> */
+    private function fundStatusTemplateAllocationRows(ReportFilters $filters): Collection
+    {
+        $projects = $this->projects($filters);
+        $allocationQuery = AdlAllocation::query()
+            ->with('adl')
+            ->orderBy('adl_id')
+            ->orderBy('id');
+
+        if ($filters->adlId) {
+            $allocationQuery->where('adl_id', $filters->adlId);
+        }
+
+        if ($this->hasProjectSpecificFilters($filters)) {
+            $allocationQuery->whereIn(
+                'id',
+                $projects->pluck('adl_allocation_id')->filter()->unique()->values(),
+            );
+        }
+
+        $projectsByAllocation = $projects->groupBy('adl_allocation_id');
+
+        return $allocationQuery->get()
+            ->map(function (AdlAllocation $allocation) use ($projectsByAllocation): array {
+                /** @var Collection<int, Project> $allocationProjects */
+                $allocationProjects = $projectsByAllocation->get($allocation->id, collect());
+                $allocationCents = $this->allocationCentsForProjects(
+                    $allocationProjects,
+                    collect([$allocation]),
+                );
+                $accomplishmentCents = $this->obligatedCents($allocationProjects);
+                $accomplishedBeneficiaries = $this->financiallyAccomplishedBeneficiaries(
+                    $allocationProjects,
+                );
+
+                return [
+                    'allocation_id' => (int) $allocation->id,
+                    'adl_id' => (int) $allocation->adl_id,
+                    'adl_number' => $allocation->adl?->adl_number ?? 'Unassigned ADL',
+                    'fund_sponsor' => $allocation->fund_sponsor ?: '—',
+                    'partner' => $allocation->partner ?: '—',
+                    'municipality' => $allocation->municipality ?: '—',
+                    'district' => $allocation->district ?: '—',
+                    'province' => $allocation->province ?: 'Unassigned Province',
+                    'allocation_cents' => $allocationCents,
+                    'accomplishment_cents' => $accomplishmentCents,
+                    'accomplishment_rate' => $allocationCents > 0
+                        ? round(($accomplishmentCents / $allocationCents) * 100, 2)
+                        : 0.0,
+                    'accomplishment_beneficiaries' => $accomplishedBeneficiaries,
+                    'balance_cents' => $allocationCents - $accomplishmentCents,
+                ];
+            })
+            ->values();
+    }
+
+    /** @param Collection<int, array<string, mixed>> $rows */
+    private function fundStatusTemplateTotals(Collection $rows): array
+    {
+        $allocationCents = (int) $rows->sum('allocation_cents');
+        $accomplishmentCents = (int) $rows->sum('accomplishment_cents');
+
+        return [
+            'allocation_cents' => $allocationCents,
+            'accomplishment_cents' => $accomplishmentCents,
+            'accomplishment_rate' => $allocationCents > 0
+                ? round(($accomplishmentCents / $allocationCents) * 100, 2)
+                : 0.0,
+            'accomplishment_beneficiaries' => (int) $rows->sum('accomplishment_beneficiaries'),
+            'balance_cents' => $allocationCents - $accomplishmentCents,
+        ];
+    }
+
+    /** @param Collection<int, Project> $projects */
+    private function financiallyAccomplishedBeneficiaries(Collection $projects): int
+    {
+        return (int) $projects
+            ->filter(function (Project $project): bool {
+                if ($project->implementation_mode === ImplementationMode::THROUGH_ACP) {
+                    return $project->acpPayment !== null
+                        && $this->paymentService->amountToCents($project->acpPayment->amount) > 0;
+                }
+
+                return (int) $project->obligations->sum(
+                    fn ($obligation): int => $this->paymentService->amountToCents($obligation->amount)
+                ) > 0;
+            })
+            ->sum('beneficiaries_total');
     }
 
     /**

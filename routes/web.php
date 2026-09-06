@@ -92,6 +92,9 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
     Route::get('/notifications', [NotificationCenterController::class, 'index'])
         ->name('notifications.index');
 
+    Route::get('/notifications/feed', [NotificationCenterController::class, 'feed'])
+        ->name('notifications.feed');
+
     Route::middleware('role:admin')->group(function () {
         Route::get('/audit-trail', [AuditTrailController::class, 'index'])
             ->name('audit.index');

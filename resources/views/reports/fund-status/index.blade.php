@@ -13,6 +13,7 @@
         $disbursed = (int) ($overallRow['disbursed_cents'] ?? 0);
         $undisbursed = (int) ($overallRow['undisbursed_obligation_cents'] ?? 0);
         $cashBalance = (int) ($overallRow['balance_cents'] ?? 0);
+        $fundStatusTemplate = $report['fund_status_template'] ?? null;
     @endphp
 
     <div class="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -91,6 +92,7 @@
         </form>
     </section>
 
+    @unless ($fundStatusTemplate)
     <section class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         @foreach ([
             ['TUPAD Allocation', $allocation, 'Total grant allocation in the selected fund scope'],
@@ -125,6 +127,8 @@
         </article>
     </section>
 
+    @endunless
+
     @if ($viewKey === 'district')
         <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-900">
             <strong>District financial integrity:</strong> projects may span multiple districts and the current database does not store an exact district-level financial allocation. District rows therefore do not divide or guess project money.
@@ -133,28 +137,37 @@
 
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-            <div><h2 class="text-sm font-bold text-slate-900">{{ $viewConfig['label'] }} Data</h2><p class="mt-1 text-xs text-slate-500">The same validated cohort is used by screen, Print, PDF, Excel, and CSV outputs.</p></div>
+            <div>
+                <h2 class="text-sm font-bold text-slate-900">{{ $viewConfig['label'] }}</h2>
+                <p class="mt-1 text-xs text-slate-500">
+                    {{ $fundStatusTemplate ? 'Official table structure follows the approved TUPAD fund-status reporting template.' : 'The same validated cohort is used by screen, Print, PDF, Excel, and CSV outputs.' }}
+                </p>
+            </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('reports.export.excel', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Excel</a>
                 <a href="{{ route('reports.export.csv', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">CSV</a>
             </div>
         </div>
-        @if ($report['warning'])
-            <div class="border-b border-amber-200 bg-amber-50 px-5 py-3 text-xs leading-5 text-amber-800">{{ $report['warning'] }}</div>
-        @endif
-        @if ($report['rows']->isEmpty())
-            <div class="px-5 py-12 text-center"><div class="text-sm font-semibold text-slate-700">No fund-status data matched the selected criteria.</div><div class="mt-1 text-xs text-slate-500">Adjust the filters and try again.</div></div>
+        @if ($fundStatusTemplate)
+            @include('reports.fund-status.partials.template-table-screen', ['report' => $report])
         @else
-            <div class="overflow-x-auto">
-                <table class="tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1500px] w-full text-xs">
-                    <thead class="bg-slate-50 text-slate-600"><tr>@foreach ($report['columns'] as $column)<th @class(['border-b border-slate-200 px-4 py-3 font-bold', 'text-right' => $column['align'] === 'right', 'text-left' => $column['align'] !== 'right'])>{{ $column['label'] }}</th>@endforeach</tr></thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @foreach ($report['display_rows'] as $row)
-                            <tr class="hover:bg-slate-50/70">@foreach ($report['columns'] as $column)<td @class(['whitespace-nowrap px-4 py-3 text-slate-700', 'text-right tabular-nums' => $column['align'] === 'right', 'text-left' => $column['align'] !== 'right'])>{{ $row[$column['key']] ?? '—' }}</td>@endforeach</tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            @if ($report['warning'])
+                <div class="border-b border-amber-200 bg-amber-50 px-5 py-3 text-xs leading-5 text-amber-800">{{ $report['warning'] }}</div>
+            @endif
+            @if ($report['rows']->isEmpty())
+                <div class="px-5 py-12 text-center"><div class="text-sm font-semibold text-slate-700">No fund-status data matched the selected criteria.</div><div class="mt-1 text-xs text-slate-500">Adjust the filters and try again.</div></div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1500px] w-full text-xs">
+                        <thead class="bg-slate-50 text-slate-600"><tr>@foreach ($report['columns'] as $column)<th @class(['border-b border-slate-200 px-4 py-3 font-bold', 'text-right' => $column['align'] === 'right', 'text-left' => $column['align'] !== 'right'])>{{ $column['label'] }}</th>@endforeach</tr></thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach ($report['display_rows'] as $row)
+                                <tr class="hover:bg-slate-50/70">@foreach ($report['columns'] as $column)<td @class(['whitespace-nowrap px-4 py-3 text-slate-700', 'text-right tabular-nums' => $column['align'] === 'right', 'text-left' => $column['align'] !== 'right'])>{{ $row[$column['key']] ?? '—' }}</td>@endforeach</tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         @endif
     </section>
 @endsection

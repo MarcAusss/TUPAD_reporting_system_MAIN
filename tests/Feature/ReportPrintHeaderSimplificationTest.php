@@ -27,7 +27,7 @@ class ReportPrintHeaderSimplificationTest extends TestCase
             ->assertSee('dole-official-letterhead', false)
             ->assertSee('report-print-meta-strip', false)
             ->assertSee('Report Type:')
-            ->assertSee('TUPAD FUND STATUS REPORT')
+            ->assertSee('Summary per Province')
             ->assertSee('Date:')
             ->assertDontSee('official-print-header__meta', false)
             ->assertDontSee('official-print-header__title', false);

@@ -11,7 +11,10 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="tupad-shell min-h-screen text-[#0f2347] antialiased">
+<body class="tupad-shell min-h-screen text-[#0f2347] antialiased"
+    data-notification-feed-url="{{ url('/notifications/feed') }}"
+    data-notification-user-id="{{ auth()->id() }}"
+    data-notification-poll-ms="10000">
     <a href="#main-content"
         class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-100 focus:rounded-lg focus:bg-[#063b86] focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg">
         Skip to main content
@@ -161,18 +164,20 @@
                     </div>
 
                     <a href="{{ route('notifications.index') }}"
+                        data-notification-bell
                         class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#dfe6f0] bg-white text-[#355378] transition hover:bg-slate-50 {{ request()->routeIs('notifications.*') ? 'ring-2 ring-blue-100' : '' }}"
                         aria-label="Notifications{{ $notificationCount > 0 ? ': '.$notificationCount.' active item(s)' : '' }}">
                         <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
                             <path d="M10 21h4"></path>
                         </svg>
-                        @if ($notificationCount > 0)
-                            <span class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b42318] px-1.5 py-0.5 text-[9px] font-extrabold leading-4 text-white ring-2 ring-white">
-                                {{ $notificationCount > 99 ? '99+' : $notificationCount }}
-                            </span>
-                        @endif
-                        <span class="sr-only">Notifications</span>
+                        <span data-notification-badge
+                            class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b42318] px-1.5 py-0.5 text-[9px] font-extrabold leading-4 text-white ring-2 ring-white {{ $notificationCount > 0 ? '' : 'hidden' }}">
+                            {{ $notificationCount > 99 ? '99+' : $notificationCount }}
+                        </span>
+                        <span data-notification-live-label class="sr-only">
+                            {{ $notificationCount > 0 ? $notificationCount.' active notification item(s)' : 'No active notifications' }}
+                        </span>
                     </a>
 
                     <div class="hidden h-9 w-px bg-[#e0e7f0] sm:block"></div>
@@ -268,6 +273,10 @@
             </footer>
         </div>
     </div>
+
+    <div data-notification-toast-region
+        class="pointer-events-none fixed right-4 top-24 z-[90] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2"
+        aria-live="polite" aria-atomic="false"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {

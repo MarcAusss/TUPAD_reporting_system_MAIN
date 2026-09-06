@@ -27,173 +27,91 @@ class AutomaticImplementationPeriodTest extends TestCase
         ]);
     }
 
-    public function test_twenty_day_project_calculates_end_date_twenty_days_after_start_date(): void
+    public function test_manual_end_date_is_saved_exactly_as_submitted(): void
     {
-        $project =
-            $this->createApprovedProject(
-                duration: 20
-            );
+        $project = $this->createApprovedProject(duration: 20);
 
-        $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.implementation.period',
-                    $project
-                ),
-                [
-                    'start_date' => '2026-08-25',
-                    'remarks' => 'Approved schedule.',
-                ]
-            )
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.period', $project), [
+                'start_date' => '2026-08-25',
+                'end_date' => '2026-09-10',
+                'remarks' => 'Approved schedule.',
+            ])
             ->assertRedirect();
 
         $project->refresh();
 
         $this->assertSame(
             '2026-08-25',
-            $project
-                ->implementation
-                ->start_date
-                ->toDateString()
+            $project->implementation->start_date->toDateString()
         );
 
         $this->assertSame(
-            '2026-09-14',
-            $project
-                ->implementation
-                ->end_date
-                ->toDateString()
+            '2026-09-10',
+            $project->implementation->end_date->toDateString()
         );
     }
 
-    public function test_end_date_uses_each_projects_own_duration(): void
+    public function test_project_duration_does_not_override_manual_end_date(): void
     {
-        $tenDay =
-            $this->createApprovedProject(
-                duration: 10
-            );
+        $tenDay = $this->createApprovedProject(duration: 10);
 
-        $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.implementation.period',
-                    $tenDay
-                ),
-                [
-                    'start_date' => '2026-08-01',
-                ]
-            )
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.period', $tenDay), [
+                'start_date' => '2026-08-01',
+                'end_date' => '2026-08-20',
+            ])
             ->assertRedirect();
 
         $this->assertSame(
-            '2026-08-11',
-            $tenDay
-                ->fresh()
-                ->implementation
-                ->end_date
-                ->toDateString()
+            '2026-08-20',
+            $tenDay->fresh()->implementation->end_date->toDateString()
         );
 
-        $thirtyDay =
-            $this->createApprovedProject(
-                duration: 30
-            );
+        $thirtyDay = $this->createApprovedProject(duration: 30);
 
-        $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.implementation.period',
-                    $thirtyDay
-                ),
-                [
-                    'start_date' => '2026-08-01',
-                ]
-            )
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.period', $thirtyDay), [
+                'start_date' => '2026-08-01',
+                'end_date' => '2026-08-12',
+            ])
             ->assertRedirect();
 
         $this->assertSame(
-            '2026-08-31',
-            $thirtyDay
-                ->fresh()
-                ->implementation
-                ->end_date
-                ->toDateString()
+            '2026-08-12',
+            $thirtyDay->fresh()->implementation->end_date->toDateString()
         );
     }
 
-    public function test_manipulated_end_date_is_ignored_by_server(): void
+    public function test_end_date_cannot_be_earlier_than_start_date(): void
     {
-        $project =
-            $this->createApprovedProject(
-                duration: 20
-            );
+        $project = $this->createApprovedProject(duration: 20);
 
-        $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.implementation.period',
-                    $project
-                ),
-                [
-                    'start_date' => '2026-08-25',
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.period', $project), [
+                'start_date' => '2026-08-25',
+                'end_date' => '2026-08-24',
+            ])
+            ->assertSessionHasErrors('end_date');
 
-                    // Must never override the calculated value.
-                    'end_date' => '2099-12-31',
-                ]
-            )
-            ->assertRedirect();
-
-        $this->assertSame(
-            '2026-09-14',
-            $project
-                ->fresh()
-                ->implementation
-                ->end_date
-                ->toDateString()
-        );
+        $this->assertDatabaseMissing('project_implementations', [
+            'project_id' => $project->id,
+        ]);
     }
 
-    public function test_project_detail_shows_readonly_automatic_end_date(): void
+    public function test_project_detail_shows_editable_manual_end_date(): void
     {
-        $project =
-            $this->createApprovedProject(
-                duration: 20
-            );
+        $project = $this->createApprovedProject(duration: 20);
 
-        $response =
-            $this
-                ->actingAs($this->tc)
-                ->get(
-                    route(
-                        'projects.show',
-                        $project
-                    )
-                );
+        $response = $this->actingAs($this->tc)
+            ->get(route('projects.show', $project));
 
         $response->assertOk();
-
-        $response->assertSee(
-            'Automatic End Date'
-        );
-
-        $response->assertSee(
-            'data-duration-days="20"',
-            false
-        );
-
-        $response->assertSee(
-            'id="implementation-end-date"',
-            false
-        );
-
-        $response->assertSee(
-            'readonly',
-            false
-        );
+        $response->assertSee('Enter the planned implementation Start Date and End Date.');
+        $response->assertSee('name="end_date"', false);
+        $response->assertSee('id="implementation-end-date"', false);
+        $response->assertDontSee('Automatic End Date');
+        $response->assertDontSee('data-duration-days=', false);
     }
 
     private function createApprovedProject(
