@@ -140,10 +140,123 @@
         </p>
     </div>
 
-    <div class="md:col-span-2"><label class="mb-1 block text-xs font-semibold">Local Chief Executive / Party-list</label><input name="local_chief_executive_partylist" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
-    <div><label class="mb-1 block text-xs font-semibold">Province</label><input name="province" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div><div><label class="mb-1 block text-xs font-semibold">District</label><input name="district" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
-    <div><label class="mb-1 block text-xs font-semibold">City / Municipality</label><input name="municipality" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div><div><label class="mb-1 block text-xs font-semibold">Location Display</label><input name="location" required class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
-    <div><label class="mb-1 block text-xs font-semibold">Grant Allocation</label><input type="number" step="0.01" min="0.01" name="grant_amount" required class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div><div><label class="mb-1 block text-xs font-semibold">Admin Cost Allocation</label><input type="number" step="0.01" min="0" name="admin_cost_amount" value="0" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"></div>
+    <div class="md:col-span-2">
+        <label for="local_chief_executive_partylist" class="mb-1 block text-xs font-semibold">
+            Local Chief Executive / Party-list
+        </label>
+        <input
+            id="local_chief_executive_partylist"
+            name="local_chief_executive_partylist"
+            value="{{ old('local_chief_executive_partylist') }}"
+            maxlength="255"
+            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+        >
+    </div>
+
+    <div class="md:col-span-2 border-t border-slate-100 pt-2">
+        <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+            Allocation Scope
+        </div>
+        <p class="mt-1 text-xs leading-5 text-slate-500">
+            Province is required. District and City / Municipality are optional and should only be filled when the allocation is restricted to that area.
+        </p>
+    </div>
+
+    <div>
+        <label for="allocationProvince" class="mb-1 block text-xs font-semibold">
+            Province <span class="text-red-600">*</span>
+        </label>
+        <input
+            id="allocationProvince"
+            name="province"
+            value="{{ old('province') }}"
+            maxlength="150"
+            required
+            autocomplete="off"
+            placeholder="e.g. Catanduanes"
+            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+        >
+        @error('province')
+            <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+        @enderror
+    </div>
+
+    <div>
+        <label for="allocationDistrict" class="mb-1 block text-xs font-semibold">
+            District <span class="font-normal text-slate-400">(optional)</span>
+        </label>
+        <input
+            id="allocationDistrict"
+            name="district"
+            value="{{ old('district') }}"
+            maxlength="100"
+            autocomplete="off"
+            placeholder="Leave blank for province-wide allocation"
+            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+        >
+    </div>
+
+    <div>
+        <label for="allocationMunicipality" class="mb-1 block text-xs font-semibold">
+            City / Municipality <span class="font-normal text-slate-400">(optional)</span>
+        </label>
+        <input
+            id="allocationMunicipality"
+            name="municipality"
+            value="{{ old('municipality') }}"
+            maxlength="150"
+            autocomplete="off"
+            placeholder="Leave blank if not municipality-specific"
+            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+        >
+    </div>
+
+    <div>
+        <label class="mb-1 block text-xs font-semibold">
+            Allocation Scope
+        </label>
+        <div
+            id="allocationScopeDisplay"
+            class="flex min-h-10 w-full items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700"
+            aria-live="polite"
+        >
+            Province required
+        </div>
+        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+            Generated automatically. No separate Location Display entry is required.
+        </p>
+    </div>
+
+    <div>
+        <label for="grant_amount" class="mb-1 block text-xs font-semibold">
+            Grant Allocation <span class="text-red-600">*</span>
+        </label>
+        <input
+            id="grant_amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            name="grant_amount"
+            value="{{ old('grant_amount') }}"
+            required
+            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+        >
+    </div>
+
+    <div>
+        <label for="admin_cost_amount" class="mb-1 block text-xs font-semibold">
+            Admin Cost Allocation
+        </label>
+        <input
+            id="admin_cost_amount"
+            type="number"
+            step="0.01"
+            min="0"
+            name="admin_cost_amount"
+            value="{{ old('admin_cost_amount', 0) }}"
+            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+        >
+    </div>
     <div class="md:col-span-2"><label class="mb-1 block text-xs font-semibold">Remarks</label><textarea name="remarks" rows="2" class="w-full rounded-lg border border-slate-300 p-3 text-sm"></textarea></div><div class="md:col-span-2 text-right"><button class="h-10 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white">Save Allocation</button></div>
 </form></section>
 <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -545,6 +658,62 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const allocationProvince =
+            document.getElementById('allocationProvince');
+
+        const allocationDistrict =
+            document.getElementById('allocationDistrict');
+
+        const allocationMunicipality =
+            document.getElementById('allocationMunicipality');
+
+        const allocationScopeDisplay =
+            document.getElementById('allocationScopeDisplay');
+
+        function updateAllocationScope() {
+            if (!allocationScopeDisplay) {
+                return;
+            }
+
+            const province =
+                allocationProvince?.value.trim() ?? '';
+
+            const district =
+                allocationDistrict?.value.trim() ?? '';
+
+            const municipality =
+                allocationMunicipality?.value.trim() ?? '';
+
+            const parts = [
+                municipality,
+                district,
+                province,
+            ].filter(Boolean);
+
+            allocationScopeDisplay.textContent =
+                parts.length > 0
+                    ? parts.join(', ')
+                    : 'Province required';
+        }
+
+        [
+            allocationProvince,
+            allocationDistrict,
+            allocationMunicipality,
+        ].forEach(function (input) {
+            input?.addEventListener(
+                'input',
+                updateAllocationScope
+            );
+
+            input?.addEventListener(
+                'change',
+                updateAllocationScope
+            );
+        });
+
+        updateAllocationScope();
+
         const amountInput =
             document.getElementById('realignmentAmount');
 

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
@@ -25,9 +25,6 @@
         'resources/js/app.js',
     ])
 
-    {{-- TUPAD Reporting System favicon --}}
-    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-    <link rel="shortcut icon" type="image/png" href="{{ asset('images/favicon.png') }}">
 </head>
 
 <body class="min-h-screen bg-slate-100">

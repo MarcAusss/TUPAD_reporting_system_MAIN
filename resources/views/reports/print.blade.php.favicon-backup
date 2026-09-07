@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -91,9 +91,6 @@
             @endif
         }
     </style>
-    {{-- TUPAD Reporting System favicon --}}
-    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-    <link rel="shortcut icon" type="image/png" href="{{ asset('images/favicon.png') }}">
 </head>
 
 <body>
@@ -108,7 +105,7 @@
         @php
             $matrix = $report['physical_financial_matrix'];
             $dimension = $report['dimension'];
-            $matrixMoney = static fn (mixed $cents): string => 'â‚±' . number_format(((int) $cents) / 100, 2);
+            $matrixMoney = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
             $matrixNumber = static fn (mixed $value): string => number_format((int) $value);
             $total = $matrix['total'];
         @endphp
@@ -310,7 +307,7 @@
         @elseif ($isLaborMarketMatrix)
             @php
                 $laborMatrix = $report['labor_market_print_matrix'];
-                $laborMoney = static fn (mixed $cents): string => 'â‚±' . number_format(((int) $cents) / 100, 2);
+                $laborMoney = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
             @endphp
 
             <div class="report-table-wrap">
@@ -360,7 +357,7 @@
                             <tr>
                                 @foreach ($report['columns'] as $column)
                                     <td class="{{ $column['align'] === 'right' ? 'right' : '' }}">
-                                        {{ $row[$column['key']] ?? 'â€”' }}
+                                        {{ $row[$column['key']] ?? '—' }}
                                     </td>
                                 @endforeach
                             </tr>
@@ -388,4 +385,3 @@
 </body>
 
 </html>
-

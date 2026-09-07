@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
 <head>
@@ -9,9 +9,6 @@
     <title>@yield('title', 'Dashboard') | {{ config('app.name', 'TUPAD Reporting System') }}</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    {{-- TUPAD Reporting System favicon --}}
-    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-    <link rel="shortcut icon" type="image/png" href="{{ asset('images/favicon.png') }}">
 </head>
 
 <body class="tupad-shell min-h-screen text-[#0f2347] antialiased"
@@ -231,7 +228,7 @@
                 {{-- Global success/error feedback --}}
                 @if (session('success'))
                     <div class="tupad-feedback tupad-feedback-success mb-5" role="status">
-                        <div class="tupad-feedback-icon">âœ“</div>
+                        <div class="tupad-feedback-icon">✓</div>
 
                         <div>
                             <div class="tupad-feedback-title">
@@ -271,8 +268,8 @@
 
             <footer
                 class="mx-auto flex w-full max-w-[1660px] flex-col gap-2 px-5 pb-6 pt-1 text-center text-[10px] text-[#8794a8] sm:flex-row sm:justify-between sm:text-left xl:px-6">
-                <span>Department of Labor and Employment Â· TUPAD Reporting System</span>
-                <span>{{ now()->format('Y') }} Â· Internal Government Information System</span>
+                <span>Department of Labor and Employment · TUPAD Reporting System</span>
+                <span>{{ now()->format('Y') }} · Internal Government Information System</span>
             </footer>
         </div>
     </div>
@@ -330,4 +327,3 @@
 </body>
 
 </html>
-

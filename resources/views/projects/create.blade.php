@@ -1634,22 +1634,28 @@
                 row.dataset.ppeRow = 'true';
 
                 row.className =
-                    'grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1.5fr_1fr_1fr_1fr_auto]';
+                    'grid min-w-0 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 xl:grid-cols-12';
 
                 row.innerHTML = `
             <select
                 name="ppe_items[${index}][ppe_type]"
-                class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-2"
             >
                 <option value="non_hazardous">Non-Hazardous</option>
                 <option value="hazardous">Hazardous</option>
             </select>
 
-            <input
+            <select
                 name="ppe_items[${index}][product]"
-                placeholder="PPE Product"
-                class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-3"
             >
+                <option value="">PPE Product</option>
+                <option value="TUPAD Shirt">TUPAD Shirt</option>
+                <option value="Gloves">Gloves</option>
+                <option value="Rubber Boots">Rubber Boots</option>
+                <option value="Mask">Mask</option>
+                <option value="Bucket Hat">Bucket Hat</option>
+            </select>
 
             <input
                 data-ppe-count
@@ -1657,7 +1663,7 @@
                 type="number"
                 min="1"
                 placeholder="Beneficiaries"
-                class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-2"
             >
 
             <input
@@ -1667,20 +1673,20 @@
                 min="0"
                 step="0.01"
                 placeholder="Unit Amount"
-                class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-2"
             >
 
             <input
                 data-ppe-total
                 readonly
                 value="₱0.00"
-                class="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold"
+                class="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold xl:col-span-2"
             >
 
             <button
                 type="button"
                 data-remove-ppe
-                class="h-10 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
+                class="inline-flex h-10 w-full min-w-0 items-center justify-center whitespace-nowrap rounded-lg border border-red-200 bg-white px-2 text-xs font-semibold text-red-600 hover:bg-red-50 xl:col-span-1"
             >
                 Remove
             </button>
