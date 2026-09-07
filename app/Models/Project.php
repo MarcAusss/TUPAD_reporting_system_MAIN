@@ -326,6 +326,26 @@ class Project extends Model
 
     public function getFullLocationAttribute(): string
     {
+        $this->loadMissing([
+            'projectLocations.province',
+            'projectLocations.municipality',
+            'projectLocations.barangays',
+        ]);
+
+        $primaryLocation = $this->projectLocations->first();
+
+        if ($primaryLocation) {
+            $primaryBarangay = $primaryLocation->barangays
+                ->sortBy('id')
+                ->first();
+
+            return collect([
+                $primaryBarangay?->name,
+                $primaryLocation->municipality?->name,
+                $primaryLocation->province?->name,
+            ])->filter()->implode(', ');
+        }
+
         if (
             $this->barangayReference
             && $this->municipalityReference

@@ -9,6 +9,10 @@
     @php
         $isPhysicalFinancial = ($report['type'] ?? null) === \App\Enums\ReportType::PHYSICAL_FINANCIAL
             && is_array($report['physical_financial_matrix'] ?? null);
+        $isLaborMarketMatrix = is_array($report['labor_market_print_matrix'] ?? null);
+        $isSprsMatrix = is_array($report['sprs_print_matrix'] ?? null);
+        $isFundStatusTemplate = ($report['type'] ?? null) === \App\Enums\ReportType::FUND_STATUS
+            && is_array($report['fund_status_template'] ?? null);
     @endphp
 
     <style>
@@ -17,21 +21,6 @@
         .toolbar { margin-bottom: 14px; text-align: right; }
         .toolbar button { border: 1px solid #94a3b8; border-radius: 4px; background: #fff; padding: 8px 14px; cursor: pointer; }
 
-        .official-print-header { display: grid; grid-template-columns: 180px minmax(0, 1fr) 170px; min-height: 82px; border-top: 4px solid #0d9bc0; border-bottom: 1px solid #cbd5e1; background: #fff; }
-        .official-print-header__brand { padding: 10px 14px 9px 10px; border-right: 1px solid #e2e8f0; }
-        .official-print-header__logo { display: block; width: 118px; height: auto; object-fit: contain; object-position: left center; }
-        .official-print-header__system { margin-top: 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; color: #334155; }
-        .official-print-header__office { margin-top: 1px; font-size: 7px; color: #64748b; }
-        .official-print-header__title { display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; padding: 8px 16px; text-align: center; }
-        .official-print-header__agency { font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #475569; }
-        .official-print-header__report { margin-top: 4px; font-size: 15px; line-height: 1.15; font-weight: 800; color: #0f172a; }
-        .official-print-header__scope { margin-top: 4px; font-size: 8px; font-weight: 600; color: #64748b; }
-        .official-print-header__period { margin-top: 2px; font-size: 7px; font-weight: 700; color: #0d7490; }
-        .official-print-header__meta { padding: 8px 10px; border-left: 1px solid #e2e8f0; background: #f8fafc; }
-        .official-print-header__meta-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid #e2e8f0; font-size: 7px; }
-        .official-print-header__meta-row:last-child { border-bottom: 0; }
-        .official-print-header__meta-row span { color: #64748b; }
-        .official-print-header__meta-row strong { color: #0f172a; text-align: right; }
 
         .criteria { margin-top: 9px; border: 1px solid #cbd5e1; padding: 7px 9px; background: #f8fafc; }
         .criteria span { display: inline-block; margin: 2px 13px 2px 0; }
@@ -51,10 +40,7 @@
         .footer { margin-top: 9px; border-top: 1px solid #cbd5e1; padding-top: 6px; color: #64748b; font-size: 7px; }
 
         .pf-print-page { break-after: page; }
-        .pf-print-page:last-child { break-after: auto; }
-        .pf-print-page .official-print-header { grid-template-columns: 135px minmax(0, 1fr) 130px; min-height: 72px; }
-        .pf-print-page .official-print-header__logo { width: 92px; }
-        .pf-print-page .official-print-header__report { font-size: 12px; }
+        .pf-print-page:last-of-type { break-after: auto; }
         .pf-print-page .criteria { font-size: 7px; }
         .pf-period-title { margin: 10px 0 6px; text-align: center; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         .pf-matrix { table-layout: fixed; }
@@ -67,10 +53,37 @@
         .pf-total td { background: #3f3f3f; color: #fff; font-weight: 800; }
         .pf-note { margin-top: 7px; font-size: 6.8px; line-height: 1.35; color: #64748b; }
 
+        .sprs-matrix { table-layout: fixed; }
+        .sprs-matrix th, .sprs-matrix td { text-align: center; font-size: 6.8px; padding: 4px 3px; }
+        .sprs-matrix .sprs-label { width: 86px; text-align: left; font-weight: 700; }
+        .sprs-matrix .sprs-overall { background: #d9edf3; font-weight: 800; }
+        .sprs-matrix .sprs-province { background: #e8f1f8; font-weight: 700; }
+        .sprs-matrix .sprs-meta { width: 105px; text-align: left; }
+        .sprs-matrix .sprs-quarter td { background: #f8fafc; font-weight: 800; }
+        .sprs-matrix .sprs-grand-total td { background: #3f3f3f; color: #fff; font-weight: 800; }
+        .sprs-matrix .sprs-future td { color: #94a3b8; background: #f8fafc; }
+        .sprs-note { margin-top: 7px; font-size: 6.8px; line-height: 1.4; color: #64748b; }
+
+        .pf-print-page .dole-official-letterhead__inner {
+            grid-template-columns: 82px minmax(0, 1fr) 132px;
+            gap: 9px;
+        }
+        .pf-print-page .dole-official-letterhead__dole-logo { width: 58px; max-height: 58px; }
+        .pf-print-page .dole-official-letterhead__bagong-logo { width: 36px; max-height: 46px; }
+        .pf-print-page .dole-official-letterhead__iso-logo { width: 88px; max-height: 46px; }
+        .pf-print-page .dole-official-letterhead__republic { font-size: 7.2pt; }
+        .pf-print-page .dole-official-letterhead__department { font-size: 8.4pt; }
+        .pf-print-page .dole-official-letterhead__region { font-size: 7.5pt; }
+        .pf-print-page .dole-official-letterhead__address,
+        .pf-print-page .dole-official-letterhead__contact,
+        .pf-print-page .dole-official-letterhead__email { font-size: 6.2pt; }
+        .pf-print-page .report-print-meta-strip { padding: 5px 7px; }
+        .pf-print-page .report-print-meta-strip__item { font-size: 6.8px; }
+
         @media print {
             body { padding: 0; }
             .no-print { display: none; }
-            .official-print-header { break-inside: avoid; }
+            .dole-official-letterhead, .report-print-meta-strip { break-inside: avoid; }
             @if ($isPhysicalFinancial)
                 @page { size: Letter portrait; margin: 9mm; }
             @else
@@ -85,7 +98,10 @@
         <button type="button" onclick="window.print()">Print Report</button>
     </div>
 
-    @if ($isPhysicalFinancial)
+    @if ($isFundStatusTemplate)
+        @include('reports.partials.official-print-header', ['report' => $report])
+        @include('reports.fund-status.partials.template-table-print', ['report' => $report])
+    @elseif ($isPhysicalFinancial)
         @php
             $matrix = $report['physical_financial_matrix'];
             $dimension = $report['dimension'];
@@ -192,7 +208,7 @@
                     </div>
 
                     <div class="pf-note">
-                        <strong>Portrait layout:</strong> one reporting period per Letter-size portrait page. Short-Term and Long-Term subdivisions were removed as requested.
+                        <strong>Portrait layout:</strong> one reporting period per Letter-size portrait page.
                     </div>
                 </section>
             @endforeach
@@ -219,40 +235,153 @@
             <div class="warning"><strong>Data note:</strong> {{ $report['warning'] }}</div>
         @endif
 
-        <div class="report-table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        @foreach ($report['columns'] as $column)
-                            <th class="{{ $column['align'] === 'right' ? 'right' : '' }}">{{ $column['label'] }}</th>
-                        @endforeach
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($report['display_rows'] as $row)
+        @if ($isSprsMatrix)
+            @php
+                $sprsMatrix = $report['sprs_print_matrix'];
+                $sprsNumber = static fn (mixed $value): string => number_format((int) $value);
+            @endphp
+
+            <div class="report-table-wrap">
+                <table class="sprs-matrix" aria-label="Statistical Performance Reporting System province and month matrix">
+                    <thead>
                         <tr>
-                            @foreach ($report['columns'] as $column)
-                                <td class="{{ $column['align'] === 'right' ? 'right' : '' }}">
-                                    {{ $row[$column['key']] ?? '—' }}
-                                </td>
+                            <th rowspan="2" class="sprs-label">Province/<br>Month</th>
+                            <th colspan="2" class="sprs-overall">Overall</th>
+                            @foreach ($sprsMatrix['province_headers'] as $provinceLabel)
+                                <th colspan="2" class="sprs-province">{{ $provinceLabel }}</th>
+                            @endforeach
+                            <th rowspan="2" class="sprs-meta">Date<br>Accomplished</th>
+                            <th rowspan="2" class="sprs-meta">Remarks</th>
+                        </tr>
+                        <tr>
+                            <th>Total</th>
+                            <th>Female</th>
+                            @foreach ($sprsMatrix['province_headers'] as $provinceLabel)
+                                <th>Total</th>
+                                <th>Female</th>
                             @endforeach
                         </tr>
-                    @empty
-                        <tr>
-                            <td class="empty" colspan="{{ count($report['columns']) }}">
-                                No records match the selected report criteria.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach ($sprsMatrix['rows'] as $row)
+                            @php
+                                $rowClasses = collect([
+                                    $row['row_type'] === 'quarter' ? 'sprs-quarter' : null,
+                                    $row['row_type'] === 'grand_total' ? 'sprs-grand-total' : null,
+                                    !$row['included'] ? 'sprs-future' : null,
+                                ])->filter()->implode(' ');
+                            @endphp
+                            <tr
+                                class="{{ $rowClasses }}"
+                                data-sprs-row="{{ $row['slug'] }}"
+                                data-sprs-included="{{ $row['included'] ? '1' : '0' }}"
+                            >
+                                <td class="sprs-label">{{ $row['label'] }}</td>
+                                <td data-sprs-cell="{{ $row['slug'] }}-overall-total">
+                                    {{ $row['included'] ? $sprsNumber(data_get($row, 'overall.total', 0)) : '' }}
+                                </td>
+                                <td data-sprs-cell="{{ $row['slug'] }}-overall-female">
+                                    {{ $row['included'] ? $sprsNumber(data_get($row, 'overall.female', 0)) : '' }}
+                                </td>
 
-        <footer class="footer">
-            {{ number_format($report['rows']->count()) }} reporting row(s). Generated from the validated
-            Phase 8 reporting data layer; no project reference values were accepted from the browser.
-        </footer>
+                                @foreach ($sprsMatrix['province_headers'] as $provinceKey => $provinceLabel)
+                                    <td data-sprs-cell="{{ $row['slug'] }}-{{ str_replace('_', '-', $provinceKey) }}-total">
+                                        {{ $row['included'] ? $sprsNumber(data_get($row, 'provinces.'.$provinceKey.'.total', 0)) : '' }}
+                                    </td>
+                                    <td data-sprs-cell="{{ $row['slug'] }}-{{ str_replace('_', '-', $provinceKey) }}-female">
+                                        {{ $row['included'] ? $sprsNumber(data_get($row, 'provinces.'.$provinceKey.'.female', 0)) : '' }}
+                                    </td>
+                                @endforeach
+
+                                <td class="sprs-meta">{{ $row['date_accomplished'] }}</td>
+                                <td class="sprs-meta">{{ $row['remarks'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sprs-note">
+                <strong>Reporting basis:</strong> {{ $sprsMatrix['basis_note'] }}
+            </div>
+        @elseif ($isLaborMarketMatrix)
+            @php
+                $laborMatrix = $report['labor_market_print_matrix'];
+                $laborMoney = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
+            @endphp
+
+            <div class="report-table-wrap">
+                <table class="labor-market-matrix">
+                    <thead>
+                        <tr>
+                            <th>Intervention</th>
+                            <th class="right">No. of Interested TUPAD Beneficiaries Reffered</th>
+                            <th class="right">Female</th>
+                            <th class="right">No. of Reffered TUPAD Beneficiaries Provided with Intervention</th>
+                            <th class="right">Female</th>
+                            <th>Amount Released under the Intervention</th>
+                            <th>Types of Skills Training/Livelihood/Employment Services Availed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($laborMatrix['rows'] as $row)
+                            <tr data-labor-program="{{ $row['program'] }}" data-labor-has-data="{{ $row['has_data'] ? '1' : '0' }}">
+                                <td>{{ $row['label'] }}</td>
+                                <td class="right">{{ $row['has_data'] ? number_format((int) $row['interested_referred_total']) : '' }}</td>
+                                <td class="right">{{ $row['has_data'] ? number_format((int) $row['interested_referred_female']) : '' }}</td>
+                                <td class="right">{{ $row['has_data'] ? number_format((int) $row['provided_intervention_total']) : '' }}</td>
+                                <td class="right">{{ $row['has_data'] ? number_format((int) $row['provided_intervention_female']) : '' }}</td>
+                                <td>{{ $row['has_data'] ? $laborMoney($row['amount_released_cents']) : '' }}</td>
+                                <td>{{ $row['has_data'] ? $row['services_availed'] : '' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="footer">
+                {{ $laborMatrix['basis_note'] }}
+            </div>
+        @else
+            <div class="report-table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            @foreach ($report['columns'] as $column)
+                                <th class="{{ $column['align'] === 'right' ? 'right' : '' }}">{{ $column['label'] }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($report['display_rows'] as $row)
+                            <tr>
+                                @foreach ($report['columns'] as $column)
+                                    <td class="{{ $column['align'] === 'right' ? 'right' : '' }}">
+                                        {{ $row[$column['key']] ?? '—' }}
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @empty
+                            <tr>
+                                <td class="empty" colspan="{{ count($report['columns']) }}">
+                                    No records match the selected report criteria.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="footer">
+                {{ number_format($report['rows']->count()) }} reporting row(s). Generated from the validated
+                validated reporting records; no project reference values were accepted from the browser.
+            </footer>
+        @endif
     @endif
+
+    @unless ($isFundStatusTemplate)
+        @include('reports.partials.signatories', ['report' => $report])
+    @endunless
 </body>
 
 </html>

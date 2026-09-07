@@ -77,10 +77,19 @@
 <section id="per-adl-breakdown" class="scroll-mt-28 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
     <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 class="text-sm font-semibold text-slate-900">PER ADL (Current) Summary</h2><p class="mt-1 text-xs text-slate-500">Calculated from allocations, official projects, obligations and project statuses.</p></div></div>
     <div class="border-b border-slate-100 bg-slate-50 px-5 py-2 text-[11px] font-medium text-slate-500">
-        Scroll horizontally to review the complete workbook-aligned breakdown.
+        Scroll horizontally to review the complete official fund breakdown.
     </div>
-    <div class="tupad-data-scroll overflow-x-auto"><table class="min-w-[2200px] w-full text-xs">
-        <thead class="bg-[#fff0bf] text-[#10294f]"><tr><th class="p-3 text-left">Fund Sponsor</th><th class="p-3 text-left">Partner</th><th class="p-3 text-left">Province</th><th class="p-3 text-left">District</th><th class="p-3 text-left">Municipality</th><th class="p-3 text-right">Allocation Grants</th><th class="p-3 text-right">Admin Cost</th><th class="p-3 text-right">Allocation Total</th><th class="p-3 text-right">Re-alignment</th><th class="p-3 text-left">MAF</th><th class="p-3 text-right">Target Grants</th><th class="p-3 text-right">Target Ben.</th><th class="p-3 text-right">Obligated</th><th class="p-3 text-right">%</th><th class="p-3 text-right">Wages</th><th class="p-3 text-right">PPE</th><th class="p-3 text-right">Insurance</th><th class="p-3 text-right">Ben.</th><th class="p-3 text-right">Female</th><th class="p-3 text-right">Unutilized</th></tr></thead>
+    <div class="tupad-data-scroll overflow-x-auto"><table class="tupad-system-table tupad-wide-table min-w-[2200px] w-full text-xs">
+        <thead>
+            <tr class="tupad-column-groups">
+                <th colspan="5">Fund &amp; Geography</th>
+                <th colspan="9">Allocation &amp; Targets</th>
+                <th colspan="6">Project Cost &amp; Beneficiaries</th>
+            </tr>
+            <tr class="tupad-column-labels">
+                <th class="p-3 text-left">Fund Sponsor</th><th class="p-3 text-left">Partner</th><th class="p-3 text-left">Province</th><th class="p-3 text-left">District</th><th class="p-3 text-left">Municipality</th><th class="p-3 text-right">Allocation Grants</th><th class="p-3 text-right">Admin Cost</th><th class="p-3 text-right">Allocation Total</th><th class="p-3 text-right">Re-alignment</th><th class="p-3 text-left">MAF</th><th class="p-3 text-right">Target Grants</th><th class="p-3 text-right">Target Ben.</th><th class="p-3 text-right">Obligated</th><th class="p-3 text-right">%</th><th class="p-3 text-right">Wages</th><th class="p-3 text-right">PPE</th><th class="p-3 text-right">Insurance</th><th class="p-3 text-right">Ben.</th><th class="p-3 text-right">Female</th><th class="p-3 text-right">Unutilized</th>
+            </tr>
+        </thead>
         <tbody class="divide-y divide-slate-100">@forelse($perAdlRows as $row)<tr class="hover:bg-slate-50"><td class="p-3">{{ $row['fund_sponsor'] }}</td><td class="p-3">{{ $row['partner'] }}</td><td class="p-3">{{ $row['province'] ?: '—' }}</td><td class="p-3">{{ $row['district'] ?: '—' }}</td><td class="p-3">{{ $row['municipality'] ?: '—' }}</td>@foreach(['allocation_grants','allocation_admin_cost','allocation_total','realignment_grants'] as $k)<td class="p-3 text-right">₱{{ number_format($row[$k],2) }}</td>@endforeach<td class="p-3">{{ $row['maf'] ?: '—' }}</td><td class="p-3 text-right">₱{{ number_format($row['target_grants'],2) }}</td><td class="p-3 text-right">{{ number_format($row['target_beneficiaries']) }}</td><td class="p-3 text-right">₱{{ number_format($row['obligated_grants'],2) }}</td><td class="p-3 text-right">{{ number_format($row['utilization'],2) }}%</td>@foreach(['wages','ppe','insurance'] as $k)<td class="p-3 text-right">₱{{ number_format($row[$k],2) }}</td>@endforeach<td class="p-3 text-right">{{ number_format($row['beneficiaries']) }}</td><td class="p-3 text-right">{{ number_format($row['female']) }}</td><td class="p-3 text-right">₱{{ number_format($row['unutilized'],2) }}</td></tr>@empty<tr><td colspan="20" class="p-8 text-center text-slate-400">No allocations yet.</td></tr>@endforelse</tbody>
     </table></div>
 </section>
@@ -388,7 +397,7 @@
     </div>
 
     <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
+        <table class="tupad-system-table min-w-full text-sm">
             <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                     <th class="whitespace-nowrap p-3 text-left">
@@ -483,7 +492,7 @@
     </div>
 
     <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
+        <table class="tupad-system-table min-w-full text-sm">
             <thead class="bg-slate-50">
                 <tr>
                     <th class="p-3 text-left">Fund Sponsor</th>

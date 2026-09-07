@@ -28,9 +28,8 @@
         <header class="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm lg:px-7">
             <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div class="flex items-center gap-4">
-                    <div class="grid h-12 w-12 shrink-0 grid-cols-2 gap-1 rounded-xl bg-[#063b86] p-2.5">
-                        <span class="rounded-sm bg-white"></span><span class="rounded-sm bg-white/75"></span>
-                        <span class="rounded-sm bg-white/75"></span><span class="rounded-sm bg-white"></span>
+                    <div class="flex h-14 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
+                        <img src="{{ asset('images/mainlogo.jpg') }}" alt="TUPAD Reporting System logo" class="h-full w-full object-contain">
                     </div>
                     <div>
                         <div class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-blue-700">Department of Labor and Employment</div>
@@ -65,7 +64,7 @@
                         <div class="text-xs font-extrabold uppercase tracking-[0.15em] text-blue-700">Section 1</div>
                         <h2 class="mt-1 text-3xl font-extrabold tracking-tight text-slate-900 lg:text-4xl">Executive Overview</h2>
                     </div>
-                    <div class="text-sm font-semibold text-slate-500">Phase 8 reporting data</div>
+                    <div class="text-sm font-semibold text-slate-500">Validated reporting data</div>
                 </div>
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     @foreach ([

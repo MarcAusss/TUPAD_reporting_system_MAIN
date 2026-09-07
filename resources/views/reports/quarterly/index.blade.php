@@ -134,13 +134,13 @@
         <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
                 <h2 class="text-sm font-bold text-slate-900">Consolidated Quarterly Progress Report (CQPR) Project Cohort</h2>
-                <p class="mt-1 text-xs leading-5 text-slate-500">Only projects with a CQPR monitoring date inside {{ $quarterLabel }} are included. Official Print/PDF uses the Phase 14F government report layout.</p>
+                <p class="mt-1 text-xs leading-5 text-slate-500">Only projects with a CQPR monitoring date inside {{ $quarterLabel }} are included. Official Print/PDF uses the approved government report layout.</p>
             </div>
             @if ($rows->isEmpty())
                 <div class="px-5 py-12 text-center text-sm font-semibold text-slate-600">No CQPR records matched the selected quarter.</div>
             @else
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                    <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                         <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                             <tr><th class="px-4 py-3">CQPR Date</th><th class="px-4 py-3">Project Code</th><th class="min-w-64 px-4 py-3">Project</th><th class="px-4 py-3">Location</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Beneficiaries</th></tr>
                         </thead>
@@ -180,7 +180,7 @@
                 </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                         <tr><th class="px-4 py-3">Program</th><th class="px-4 py-3 text-right">Records</th><th class="px-4 py-3 text-right">Projects</th><th class="px-4 py-3 text-right">Referred</th><th class="px-4 py-3 text-right">Female</th><th class="px-4 py-3 text-right">Provided Intervention</th><th class="px-4 py-3 text-right">Amount Released</th></tr>
                     </thead>
@@ -195,6 +195,6 @@
     @endif
 
     <div class="mt-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-900">
-        Official CQPR and quarterly Print/PDF outputs now use the Phase 14F government layout. Screen totals retain the source-specific reporting periods shown above.
+        Official CQPR and quarterly Print/PDF outputs use the approved government report layout. Screen totals retain the source-specific reporting periods shown above.
     </div>
 @endsection

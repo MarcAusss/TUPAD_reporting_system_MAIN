@@ -37,12 +37,6 @@ class Province extends Model
         );
     }
 
-    public function projectDrafts(): HasMany
-    {
-        return $this->hasMany(
-            ProjectDraft::class
-        );
-    }
 
     public function assignedCoordinators(): HasMany
     {

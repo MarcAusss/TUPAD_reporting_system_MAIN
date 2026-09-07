@@ -8,7 +8,6 @@ use App\Models\Project;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -409,58 +408,28 @@ class ProjectImplementationController extends Controller
 
         $validated = $request->validate([
             'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'remarks' => ['nullable', 'string', 'max:3000'],
         ]);
 
         /*
         |--------------------------------------------------------------------------
-        | Automatic Implementation End Date
+        | Manually Recorded Implementation Period
         |--------------------------------------------------------------------------
         |
-        | The project's approved Duration / Number of Days is the source of truth.
-        | The TC selects only the Start Date.
-        |
-        | Example:
-        | Duration: 20 days
-        | Start:    August 25, 2026
-        | End:      September 14, 2026
-        |
-        | Any end_date sent by a manipulated request is ignored.
+        | Start Date and End Date are both authoritative user inputs. The approved
+        | project duration remains reference information only and is not used to
+        | calculate or overwrite the End Date.
         |
         */
-
-        $durationDays =
-            max(
-                1,
-                (int) $project->number_of_days
-            );
-
-        $startDate =
-            Carbon::parse(
-                $validated['start_date']
-            )->startOfDay();
-
-        $endDate =
-            $startDate
-                ->copy()
-                ->addDays(
-                    $durationDays
-                );
 
         $project->implementation()->updateOrCreate(
             ['project_id' => $project->id],
             [
-                'start_date' =>
-                    $startDate->toDateString(),
-
-                'end_date' =>
-                    $endDate->toDateString(),
-
-                'remarks' =>
-                    $validated['remarks'] ?? null,
-
-                'recorded_by' =>
-                    $request->user()->id,
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'remarks' => $validated['remarks'] ?? null,
+                'recorded_by' => $request->user()->id,
             ]
         );
 
@@ -471,11 +440,7 @@ class ProjectImplementationController extends Controller
 
         return back()->with(
             'success',
-            sprintf(
-                'Implementation period saved. End Date was automatically calculated as %s from the %d-day project duration.',
-                $endDate->format('F d, Y'),
-                $durationDays,
-            )
+            'Implementation period saved successfully.'
         );
     }
 

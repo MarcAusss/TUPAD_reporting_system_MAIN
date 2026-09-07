@@ -111,7 +111,7 @@ class MajorRevisionPhase11ReleaseVerificationTest extends TestCase
     {
         $this->seed(Fy2025TupadProjectSeeder::class);
 
-        $this->assertDatabaseCount('projects', 30);
+        $this->assertDatabaseCount('projects', 60);
 
         $this->assertEqualsCanonicalizing(
             ['Albay', 'Camarines Norte', 'Camarines Sur', 'Catanduanes', 'Masbate', 'Sorsogon'],
@@ -119,10 +119,10 @@ class MajorRevisionPhase11ReleaseVerificationTest extends TestCase
         );
 
         foreach (['Albay', 'Camarines Norte', 'Camarines Sur', 'Catanduanes', 'Masbate', 'Sorsogon'] as $province) {
-            $this->assertSame(5, Project::query()->where('province', $province)->count());
+            $this->assertSame(10, Project::query()->where('province', $province)->count());
         }
 
-        $this->assertSame(30, Project::query()->where('status', ProjectStatus::ONGOING_PROFILING->value)->count());
+        $this->assertSame(60, Project::query()->where('status', ProjectStatus::ONGOING_PROFILING->value)->count());
         $this->assertDatabaseCount('project_approvals', 0);
 
         Project::query()->with('projectLocations.barangays')->each(function (Project $project): void {

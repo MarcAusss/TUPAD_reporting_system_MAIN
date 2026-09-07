@@ -70,21 +70,40 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
             ->assertExitCode(1);
     }
 
-    public function test_fy2025_seeder_assigns_demo_tc_to_active_albay_reference(): void
+    public function test_fy2025_seeder_assigns_demo_coordinators_to_active_province_references(): void
     {
         $this->seed(Fy2025TupadProjectSeeder::class);
 
         $albay = Province::query()->where('code', '050500000')->firstOrFail();
 
-        $tc = User::query()->where('username', 'tc')->firstOrFail();
+        $orlan = User::query()->where('username', 'Orlan')->firstOrFail();
 
-        $this->assertSame(UserRole::TC, $tc->role);
-        $this->assertSame($albay->id, $tc->assigned_province_id);
-        $this->assertTrue($tc->assignedProvince()->where('is_active', true)->exists());
+        $this->assertSame(UserRole::TC, $orlan->role);
+        $this->assertSame($albay->id, $orlan->assigned_province_id);
+        $this->assertTrue($orlan->assignedProvince()->where('is_active', true)->exists());
+        $this->assertTrue($orlan->must_change_password);
+        $this->assertFalse(Hash::check('password', (string) $orlan->password));
+        $this->assertDatabaseMissing('users', ['username' => 'tc']);
 
-        foreach (['admin', 'focal', 'gip'] as $username) {
+        User::query()
+            ->where('role', UserRole::TC->value)
+            ->get()
+            ->each(function (User $coordinator): void {
+                $this->assertNotNull($coordinator->assigned_province_id);
+                $this->assertTrue($coordinator->assignedProvince()->where('is_active', true)->exists());
+                $this->assertTrue($coordinator->must_change_password);
+                $this->assertFalse(Hash::check('password', (string) $coordinator->password));
+            });
+
+        foreach (['admin', 'focal'] as $username) {
             $this->assertNull(User::query()->where('username', $username)->value('assigned_province_id'));
         }
+
+        $this->assertFalse(User::query()->where('username', 'gip')->exists());
+
+        $this->artisan('tupad:release-verify')
+            ->expectsOutputToContain('Release verification PASSED')
+            ->assertExitCode(0);
     }
 
     public function test_focal_created_coordinator_login_password_change_and_province_scope_work_end_to_end(): void
@@ -119,7 +138,7 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
             'password' => 'focal-password',
         ]);
 
-        $this->actingAs($focal)
+        $response = $this->actingAs($focal)
             ->post(route('users.store'), [
                 'name' => 'Juls Coordinator',
                 'username' => 'juls',
@@ -129,21 +148,43 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
                 'role' => UserRole::ADMIN->value,
                 'password' => 'browser-supplied-password',
             ])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('temporary_password');
 
+        $temporaryPassword = session('temporary_password');
         $juls = User::query()->where('username', 'juls')->firstOrFail();
 
+        $this->assertIsString($temporaryPassword);
         $this->assertSame(UserRole::TC, $juls->role);
         $this->assertSame($masbate->id, $juls->assigned_province_id);
-        $this->assertTrue(Hash::check('password', $juls->password));
+        $this->assertTrue($juls->must_change_password);
+        $this->assertTrue(Hash::check($temporaryPassword, $juls->password));
         $this->assertFalse(Hash::check('browser-supplied-password', $juls->password));
 
         $this->post(route('logout'))->assertRedirect(route('login'));
 
         $this->post(route('login.store'), [
             'username' => 'juls',
-            'password' => 'password',
+            'password' => $temporaryPassword,
+        ])->assertRedirect(route('password.change.required'));
+
+        $this->get(route('dashboard'))
+            ->assertRedirect(route('password.change.required'));
+
+        $this->patch(route('password.change.update'), [
+            'current_password' => $temporaryPassword,
+            'password' => 'Juls!SecurePassword2026',
+            'password_confirmation' => 'Juls!SecurePassword2026',
+            'assigned_province_id' => $albay->id,
+            'role' => UserRole::ADMIN->value,
         ])->assertRedirect(route('dashboard'));
+
+        $juls->refresh();
+        $this->assertFalse($juls->must_change_password);
+        $this->assertNotNull($juls->password_changed_at);
+        $this->assertSame(UserRole::TC, $juls->role);
+        $this->assertSame($masbate->id, $juls->assigned_province_id);
+        $this->assertTrue(Hash::check('Juls!SecurePassword2026', $juls->password));
 
         $this->get(route('account.show'))
             ->assertOk()
@@ -158,32 +199,19 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
         $this->get(route('locations.municipalities', $albay))
             ->assertForbidden();
 
-        $this->patch(route('account.password.update'), [
-            'current_password' => 'password',
-            'password' => 'Juls-secure-password-2026',
-            'password_confirmation' => 'Juls-secure-password-2026',
-            'assigned_province_id' => $albay->id,
-            'role' => UserRole::ADMIN->value,
-        ])->assertRedirect(route('account.show'));
-
-        $juls->refresh();
-        $this->assertSame(UserRole::TC, $juls->role);
-        $this->assertSame($masbate->id, $juls->assigned_province_id);
-        $this->assertTrue(Hash::check('Juls-secure-password-2026', $juls->password));
-
         $this->post(route('logout'))->assertRedirect(route('login'));
 
         $this->from(route('login'))
             ->post(route('login.store'), [
                 'username' => 'juls',
-                'password' => 'password',
+                'password' => $temporaryPassword,
             ])
             ->assertRedirect(route('login'))
             ->assertSessionHasErrors(['username']);
 
         $this->post(route('login.store'), [
             'username' => 'juls',
-            'password' => 'Juls-secure-password-2026',
+            'password' => 'Juls!SecurePassword2026',
         ])->assertRedirect(route('dashboard'));
     }
 

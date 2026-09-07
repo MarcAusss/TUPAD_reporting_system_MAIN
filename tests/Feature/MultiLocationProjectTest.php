@@ -36,6 +36,10 @@ class MultiLocationProjectTest extends TestCase
             'is_active' => true,
         ]);
 
+        $tc->forceFill([
+            'assigned_province_id' => $albay->id,
+        ])->save();
+
         $tabaco = Municipality::create([
             'province_id' => $albay->id,
             'name' => 'Tabaco City',
@@ -182,14 +186,24 @@ class MultiLocationProjectTest extends TestCase
         ]);
 
         $albay = Province::create([
+            'code' => '050500000',
             'name' => 'Albay',
             'is_active' => true,
         ]);
 
+        $tc->forceFill([
+            'assigned_province_id' => $albay->id,
+        ])->save();
+
         $sorsogon = Province::create([
+            'code' => '056200000',
             'name' => 'Sorsogon',
             'is_active' => true,
         ]);
+
+        $tc->forceFill([
+            'assigned_province_id' => $albay->id,
+        ])->save();
 
         $sorsogonCity = Municipality::create([
             'province_id' => $sorsogon->id,
@@ -264,9 +278,14 @@ class MultiLocationProjectTest extends TestCase
         ]);
 
         $albay = Province::create([
+            'code' => '050500000',
             'name' => 'Albay',
             'is_active' => true,
         ]);
+
+        $tc->forceFill([
+            'assigned_province_id' => $albay->id,
+        ])->save();
 
         Municipality::create([
             'province_id' => $albay->id,

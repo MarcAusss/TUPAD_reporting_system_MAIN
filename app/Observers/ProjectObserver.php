@@ -3,9 +3,16 @@
 namespace App\Observers;
 
 use App\Models\Project;
+use App\Services\Projects\ProjectLocationCanonicalService;
 
 class ProjectObserver
 {
+    public function saving(Project $project): void
+    {
+        app(ProjectLocationCanonicalService::class)
+            ->applyCanonicalSnapshotBeforeSave($project);
+    }
+
     public function created(Project $project): void
     {
         $project->statusHistory()->create([

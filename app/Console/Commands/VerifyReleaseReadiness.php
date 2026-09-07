@@ -7,7 +7,9 @@ use App\Enums\ProjectStatus;
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
 use App\Enums\UserRole;
+use App\Models\Project;
 use App\Models\User;
+use App\Services\Projects\ProjectLocationCanonicalService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -43,6 +45,7 @@ class VerifyReleaseReadiness extends Command
             $this->verifyProvinceAuthorizationIntegrity();
             $this->verifyFinancialIntegrity();
             $this->verifyBeneficiaryIntegrity();
+            $this->verifyProjectLocationCanonicalIntegrity();
             $this->verifyWorkflowAndAuditIntegrity();
         }
 
@@ -77,7 +80,7 @@ class VerifyReleaseReadiness extends Command
     private function verifySchema(): void
     {
         $required = [
-            'users' => ['username', 'role', 'is_active', 'assigned_province_id'],
+            'users' => ['username', 'role', 'is_active', 'assigned_province_id', 'must_change_password', 'password_changed_at'],
             'adls' => ['grants', 'admin_cost', 'total'],
             'adl_realignments' => ['adl_id', 'amount'],
             'adl_allocations' => [
@@ -191,6 +194,17 @@ class VerifyReleaseReadiness extends Command
                 }
             }
         }
+
+        foreach (['project_drafts', 'project_draft_ppe_items'] as $retiredTable) {
+            if (Schema::hasTable($retiredTable)) {
+                $this->failures[] = "Retired GIP workflow table [{$retiredTable}] still exists. Apply all migrations before release.";
+            }
+        }
+
+        if (Schema::hasColumn('users', 'supervisor_tc_id')) {
+            $this->failures[] = 'Retired users.supervisor_tc_id column still exists. Apply all migrations before release.';
+        }
+
     }
 
     private function verifyApplicationConfiguration(): void
@@ -332,6 +346,21 @@ class VerifyReleaseReadiness extends Command
                 .$regionalUsersWithProvince->implode(', ').'.';
         }
 
+        $legacyGipAccounts = DB::table('users')->where('role', 'gip')->pluck('username');
+
+        if ($legacyGipAccounts->isNotEmpty()) {
+            $this->failures[] = 'Retired GIP role value still exists on account(s): '.$legacyGipAccounts->implode(', ').'. Apply the GIP retirement migration.';
+        }
+
+        $activeRetiredAccounts = DB::table('users')
+            ->where('role', UserRole::RETIRED->value)
+            ->where('is_active', true)
+            ->pluck('username');
+
+        if ($activeRetiredAccounts->isNotEmpty()) {
+            $this->failures[] = 'Historical retired account(s) are active: '.$activeRetiredAccounts->implode(', ').'.';
+        }
+
         $unscopableProjects = DB::table('projects')
             ->whereNull('province_id')
             ->where(function ($query): void {
@@ -343,21 +372,6 @@ class VerifyReleaseReadiness extends Command
 
         if ($unscopableProjects > 0) {
             $this->failures[] = "{$unscopableProjects} project(s) have neither province_id nor a legacy province name and cannot be safely exposed to a province-scoped Coordinator.";
-        }
-
-        if (Schema::hasTable('project_drafts')) {
-            $unscopableDrafts = DB::table('project_drafts')
-                ->whereNull('province_id')
-                ->where(function ($query): void {
-                    $query
-                        ->whereNull('province')
-                        ->orWhereRaw("TRIM(COALESCE(province, '')) = ''");
-                })
-                ->count();
-
-            if ($unscopableDrafts > 0) {
-                $this->warnings[] = "{$unscopableDrafts} project draft(s) have no province identity and will fail closed for TUPAD Coordinators until corrected.";
-            }
         }
     }
 
@@ -703,6 +717,27 @@ class VerifyReleaseReadiness extends Command
         if ($invalidLaborCounts > 0) {
             $this->failures[] = "{$invalidLaborCounts} labor-market referral row(s) contain invalid beneficiary or amount values.";
         }
+    }
+
+    private function verifyProjectLocationCanonicalIntegrity(): void
+    {
+        $canonicalLocations = app(ProjectLocationCanonicalService::class);
+
+        Project::query()
+            ->with([
+                'projectLocations.province',
+                'projectLocations.municipality',
+                'projectLocations.barangays',
+            ])
+            ->orderBy('id')
+            ->each(function (Project $project) use ($canonicalLocations): void {
+                try {
+                    $canonicalLocations->assertProjectIntegrity($project);
+                } catch (\Throwable $exception) {
+                    $this->failures[] = "Project #{$project->id} canonical location integrity failed.";
+                    $this->failureDetails[] = "Project #{$project->id}: {$exception->getMessage()}";
+                }
+            });
     }
 
     private function verifyWorkflowAndAuditIntegrity(): void

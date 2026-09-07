@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Province;
 use App\Models\User;
+use App\Services\Auth\TemporaryPasswordGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class UserManagementController extends Controller
@@ -17,141 +19,187 @@ class UserManagementController extends Controller
 
     public function index(Request $request): View
     {
+        $actor = $request->user();
+        $canManageAllRoles = $actor->isAdmin();
+
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
+            'role' => ['nullable', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::assignable()))],
             'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
         ]);
 
-        $coordinators = User::query()
-            ->with('assignedProvince:id,name')
-            ->where('role', UserRole::TC->value)
+        $accounts = User::query()
+            ->whereIn('role', array_map(fn (UserRole $role) => $role->value, UserRole::assignable()))
+            ->with('assignedProvince:id,name,code')
+            ->when(! $canManageAllRoles, fn ($query) => $query->where('role', UserRole::TC->value))
+            ->when($canManageAllRoles && filled($filters['role'] ?? null), fn ($query) => $query->where('role', $filters['role']))
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $search = trim($search);
-
                 $query->where(function ($subQuery) use ($search): void {
                     $subQuery
                         ->where('name', 'like', "%{$search}%")
                         ->orWhere('username', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('position', 'like', "%{$search}%");
                 });
             })
             ->when($filters['province_id'] ?? null, fn ($query, $provinceId) => $query->where('assigned_province_id', $provinceId))
             ->when(($filters['status'] ?? null) === 'active', fn ($query) => $query->where('is_active', true))
             ->when(($filters['status'] ?? null) === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->orderByRaw("CASE role WHEN 'admin' THEN 1 WHEN 'focal' THEN 2 WHEN 'tc' THEN 3 ELSE 4 END")
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();
 
+        $roleCounts = collect();
+        if ($canManageAllRoles) {
+            $roleCounts = User::query()
+                ->whereIn('role', array_map(fn (UserRole $role) => $role->value, UserRole::assignable()))
+                ->selectRaw('role, COUNT(*) as total')
+                ->groupBy('role')
+                ->pluck('total', 'role');
+        }
+
         return view('users.index', [
-            'coordinators' => $coordinators,
+            'accounts' => $accounts,
             'provinces' => $this->activeProvinces(),
+            'roles' => UserRole::assignable(),
             'filters' => $filters,
+            'canManageAllRoles' => $canManageAllRoles,
+            'roleCounts' => $roleCounts,
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('users.create', [
-            'provinces' => $this->activeProvinces(),
-        ]);
+        return view('users.create', $this->formData($request->user()));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TemporaryPasswordGenerator $passwords): RedirectResponse
     {
-        $data = $this->validateCoordinator($request);
+        $actor = $request->user();
+        $role = $this->requestedRole($request, $actor);
+        $data = $this->validateAccount($request, $role);
         $username = $this->normalizedUsername($data['username']);
+        $temporaryPassword = $passwords->generate();
 
-        $coordinator = User::create([
+        $account = User::create([
             'name' => trim($data['name']),
             'username' => $username,
             'email' => $this->managedEmail($username),
             'position' => $this->nullableTrim($data['position'] ?? null),
-            'role' => UserRole::TC,
+            'role' => $role,
             'is_active' => $request->boolean('is_active', true),
-            'supervisor_tc_id' => null,
-            'assigned_province_id' => (int) $data['assigned_province_id'],
-            'password' => 'password',
+            'assigned_province_id' => $role === UserRole::TC ? (int) $data['assigned_province_id'] : null,
+            'password' => $temporaryPassword,
+            'must_change_password' => true,
+            'password_changed_at' => null,
         ]);
 
         return redirect()
-            ->route('users.edit', $coordinator)
-            ->with('success', 'TUPAD Coordinator account created. The default password is "password".');
+            ->route('users.edit', $account)
+            ->with('success', $account->role->label().' account created. Copy the temporary password now; it will not be shown again after this request.')
+            ->with('temporary_password', $temporaryPassword)
+            ->with('temporary_password_username', $account->username);
     }
 
-    public function edit(User $user): View
+    public function edit(Request $request, User $user): View
     {
-        $coordinator = $this->managedCoordinator($user);
+        $actor = $request->user();
+        $account = $this->managedAccount($actor, $user);
 
-        return view('users.edit', [
-            'coordinator' => $coordinator->load('assignedProvince:id,name'),
-            'provinces' => $this->activeProvinces(),
-        ]);
+        return view('users.edit', array_merge(
+            $this->formData($actor, $account),
+            ['account' => $account->load('assignedProvince:id,name')],
+        ));
     }
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        $coordinator = $this->managedCoordinator($user);
-        $data = $this->validateCoordinator($request, $coordinator);
+        $actor = $request->user();
+        $account = $this->managedAccount($actor, $user);
+        $role = $this->requestedRole($request, $actor, $account);
+
+        if ($actor->is($account) && $role !== UserRole::ADMIN) {
+            throw ValidationException::withMessages([
+                'role' => 'You cannot change your own Administrator role from User Administration.',
+            ]);
+        }
+
+        if ($actor->is($account) && ! $request->boolean('is_active')) {
+            throw ValidationException::withMessages([
+                'is_active' => 'You cannot deactivate your own signed-in account.',
+            ]);
+        }
+
+        $data = $this->validateAccount($request, $role, $account);
         $username = $this->normalizedUsername($data['username']);
 
-        $coordinator->fill([
+        $account->fill([
             'name' => trim($data['name']),
             'username' => $username,
             'position' => $this->nullableTrim($data['position'] ?? null),
-            'assigned_province_id' => (int) $data['assigned_province_id'],
-            'is_active' => $request->boolean('is_active'),
-            'role' => UserRole::TC,
-            'supervisor_tc_id' => null,
+            'assigned_province_id' => $role === UserRole::TC ? (int) $data['assigned_province_id'] : null,
+            'is_active' => $actor->is($account) ? true : $request->boolean('is_active'),
+            'role' => $role,
         ]);
 
-        if ($this->isManagedEmail($coordinator->email)) {
-            $coordinator->email = $this->managedEmail($username);
+        if ($this->isManagedEmail($account->email)) {
+            $account->email = $this->managedEmail($username);
         }
 
-        $coordinator->save();
+        $account->save();
 
-        return redirect()
-            ->route('users.edit', $coordinator)
-            ->with('success', 'Coordinator account updated successfully.');
+        return redirect()->route('users.edit', $account)->with('success', 'User account updated successfully.');
     }
 
-    public function toggleStatus(User $user): RedirectResponse
+    public function toggleStatus(Request $request, User $user): RedirectResponse
     {
-        $coordinator = $this->managedCoordinator($user);
-        $coordinator->is_active = ! $coordinator->is_active;
-        $coordinator->save();
+        $actor = $request->user();
+        $account = $this->managedAccount($actor, $user);
+
+        abort_if($actor->is($account), 403, 'You cannot deactivate your own signed-in account.');
+
+        $account->is_active = ! $account->is_active;
+        $account->save();
 
         return back()->with(
             'success',
-            $coordinator->is_active
-                ? 'Coordinator account activated.'
-                : 'Coordinator account deactivated.'
+            $account->is_active
+                ? $account->role->label().' account activated.'
+                : $account->role->label().' account deactivated.'
         );
     }
 
-    public function resetPassword(User $user): RedirectResponse
+    public function resetPassword(Request $request, User $user, TemporaryPasswordGenerator $passwords): RedirectResponse
     {
-        $coordinator = $this->managedCoordinator($user);
-        $coordinator->password = Hash::make('password');
-        $coordinator->save();
+        $actor = $request->user();
+        $account = $this->managedAccount($actor, $user);
 
-        return back()->with('success', 'Password reset to the default password "password".');
+        abort_if($actor->is($account), 403, 'Use My Account to change your own password.');
+
+        $temporaryPassword = $passwords->generate();
+
+        $account->forceFill([
+            'password' => $temporaryPassword,
+            'must_change_password' => true,
+            'password_changed_at' => null,
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        return back()
+            ->with('success', 'Password reset. Copy the temporary password now; the user must replace it at the next sign-in.')
+            ->with('temporary_password', $temporaryPassword)
+            ->with('temporary_password_username', $account->username);
     }
 
-    private function validateCoordinator(Request $request, ?User $coordinator = null): array
+    private function validateAccount(Request $request, UserRole $role, ?User $account = null): array
     {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'username' => [
-                'required',
-                'string',
-                'max:50',
-                'regex:/^[A-Za-z0-9._-]+$/',
-                Rule::unique('users', 'username')->ignore($coordinator?->id),
-            ],
-            'position' => ['nullable', 'string', 'max:255'],
-            'assigned_province_id' => [
+        $provinceRules = ['nullable'];
+
+        if ($role === UserRole::TC) {
+            $provinceRules = [
                 'required',
                 'integer',
                 Rule::exists('provinces', 'id')->where(
@@ -159,7 +207,21 @@ class UserManagementController extends Controller
                         ->where('is_active', true)
                         ->whereIn('code', array_keys((array) config('tupad_mapping.provinces', [])))
                 ),
+            ];
+        }
+
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'username' => [
+                'required',
+                'string',
+                'max:50',
+                'regex:/^[A-Za-z0-9._-]+$/',
+                Rule::unique('users', 'username')->ignore($account?->id),
             ],
+            'position' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::assignable()))],
+            'assigned_province_id' => $provinceRules,
             'is_active' => ['nullable', 'boolean'],
         ], [
             'username.regex' => 'The username may contain only letters, numbers, periods, underscores, and hyphens.',
@@ -167,11 +229,45 @@ class UserManagementController extends Controller
         ]);
     }
 
-    private function managedCoordinator(User $user): User
+    private function requestedRole(Request $request, User $actor, ?User $account = null): UserRole
     {
-        abort_unless($user->isTc(), 404);
+        if (! $actor->isAdmin()) {
+            return UserRole::TC;
+        }
 
+        $value = $request->input('role', $account?->role?->value);
+        if (! is_string($value) || $value === '') {
+            throw ValidationException::withMessages(['role' => 'Select an account role.']);
+        }
+
+        $role = UserRole::tryFrom($value);
+        if (! $role || ! in_array($role, UserRole::assignable(), true)) {
+            throw ValidationException::withMessages(['role' => 'Select a valid account role.']);
+        }
+
+        return $role;
+    }
+
+    private function managedAccount(User $actor, User $user): User
+    {
+        if ($actor->isAdmin()) {
+            abort_if($user->role === UserRole::RETIRED, 404);
+            return $user;
+        }
+
+        abort_unless($user->isTc(), 404);
         return $user;
+    }
+
+    private function formData(User $actor, ?User $account = null): array
+    {
+        return [
+            'account' => $account,
+            'provinces' => $this->activeProvinces(),
+            'roles' => UserRole::assignable(),
+            'canManageAllRoles' => $actor->isAdmin(),
+            'isSelfAccount' => $account ? $actor->is($account) : false,
+        ];
     }
 
     private function activeProvinces()
@@ -201,7 +297,6 @@ class UserManagementController extends Controller
     private function nullableTrim(mixed $value): ?string
     {
         $value = trim((string) $value);
-
         return $value === '' ? null : $value;
     }
 }

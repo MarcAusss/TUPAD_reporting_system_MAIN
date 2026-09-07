@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
 use App\Models\Project;
+use App\Models\Province;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -17,9 +18,12 @@ class ProjectFormDetailUxTest extends TestCase
 
     public function test_project_create_has_section_navigation_and_clear_save_action(): void
     {
+        $albay = $this->bicolProvince('Albay', '050500000');
+
         $tc = User::factory()->create([
             'role' => UserRole::TC,
             'is_active' => true,
+            'assigned_province_id' => $albay->id,
         ]);
 
         $response = $this
@@ -34,11 +38,14 @@ class ProjectFormDetailUxTest extends TestCase
         $response->assertSee('href="#costing"', false);
     }
 
-    public function test_project_detail_has_recommended_next_action_and_section_navigation(): void
+    public function test_project_detail_has_action_required_and_workspace_navigation(): void
     {
+        $albay = $this->bicolProvince('Albay', '050500000');
+
         $tc = User::factory()->create([
             'role' => UserRole::TC,
             'is_active' => true,
+            'assigned_province_id' => $albay->id,
         ]);
 
         $focal = User::factory()->create([
@@ -72,6 +79,7 @@ class ProjectFormDetailUxTest extends TestCase
             'partner' => 'LGU Albay',
             'project_series' => 'Regular TUPAD 2026',
             'tevs_date_verified' => now()->toDateString(),
+            'province_id' => $albay->id,
             'province' => 'Albay',
             'district' => '2nd District',
             'municipality' => 'Legazpi City',
@@ -96,15 +104,23 @@ class ProjectFormDetailUxTest extends TestCase
             ->get(route('projects.show', $project));
 
         $response->assertOk();
-        $response->assertSee('Recommended Next Action');
-        $response->assertSee(
-            'Complete profiling, then submit the project to TSSD Evaluation.'
-        );
+        $response->assertSee('Action Required');
+        $response->assertSee('Complete profiling and submit for TSSD evaluation');
+        $response->assertSee('Continue Workflow');
         $response->assertSee('Ongoing Profiling');
         $response->assertSee('Submit to TSSD Evaluation');
-        $response->assertSee('Project Snapshot');
-        $response->assertSee('href="#overview"', false);
-        $response->assertSee('href="#evaluation"', false);
-        $response->assertSee('href="#history"', false);
+        $response->assertSee('Project Progress');
+        $response->assertSee('data-workspace-tab-target="overview"', false);
+        $response->assertSee('data-workspace-tab-target="workflow"', false);
+        $response->assertSee('data-workspace-tab-target="history"', false);
+    }
+
+    private function bicolProvince(string $name, string $code): Province
+    {
+        return Province::query()->create([
+            'name' => $name,
+            'code' => $code,
+            'is_active' => true,
+        ]);
     }
 }

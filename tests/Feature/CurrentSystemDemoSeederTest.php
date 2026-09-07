@@ -5,125 +5,59 @@ namespace Tests\Feature;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectApproval;
-use Database\Seeders\CurrentSystemDemoSeeder;
-use Database\Seeders\UserSeeder;
+use Database\Seeders\Fy2025TupadProjectSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\Concerns\SeedsBicolTestLocations;
 use Tests\TestCase;
 
 class CurrentSystemDemoSeederTest extends TestCase
 {
     use RefreshDatabase;
-    use SeedsBicolTestLocations;
 
-    protected function setUp(): void
+    public function test_current_seed_creates_sixty_ongoing_profiling_projects_without_approval_codes(): void
     {
-        parent::setUp();
+        $this->seed(Fy2025TupadProjectSeeder::class);
 
-        $this->seedBicolTestLocations();
-        $this->seed(UserSeeder::class);
+        $this->assertDatabaseCount('projects', 60);
+        $this->assertDatabaseCount('project_approvals', 0);
+        $this->assertSame(
+            60,
+            Project::query()->where('status', ProjectStatus::ONGOING_PROFILING->value)->count(),
+        );
+        $this->assertSame(0, ProjectApproval::query()->whereNotNull('project_code')->count());
     }
 
-    public function test_seeder_creates_one_code_per_approved_project_and_multi_district_project(): void
+    public function test_current_seed_covers_all_bicol_provinces_with_ten_projects_each(): void
     {
-        $this->seed(CurrentSystemDemoSeeder::class);
+        $this->seed(Fy2025TupadProjectSeeder::class);
 
-        $project = Project::query()
-            ->where('project_title', 'Albay Multi-District Community Works')
-            ->firstOrFail();
-
-        $this->assertSame(
-            ProjectStatus::FOR_IMPLEMENTATION,
-            $project->status
-        );
-
-        $this->assertSame(
-            'TUPAD-ALB-2026-001',
-            $project->approval?->project_code
-        );
-
-        $this->assertSame(
-            1,
-            ProjectApproval::query()
-                ->where('project_id', $project->id)
-                ->count()
-        );
-
-        $this->assertSame(
-            3,
-            $project->projectLocations()->count()
-        );
+        $provinces = [
+            'Albay',
+            'Camarines Norte',
+            'Camarines Sur',
+            'Catanduanes',
+            'Masbate',
+            'Sorsogon',
+        ];
 
         $this->assertEqualsCanonicalizing(
-            [
-                '1st District',
-                '2nd District',
-                '3rd District',
-            ],
-            $project->projectLocations()
-                ->pluck('district')
-                ->all()
+            $provinces,
+            Project::query()->distinct()->pluck('province')->all(),
         );
 
-        $this->assertSame(
-            1,
-            ProjectApproval::query()
-                ->where('project_code', 'TUPAD-ALB-2026-001')
-                ->count()
-        );
+        foreach ($provinces as $province) {
+            $this->assertSame(10, Project::query()->where('province', $province)->count());
+        }
     }
 
-    public function test_for_approval_demo_project_has_no_code_until_user_approves_it(): void
+    public function test_source_project_codes_are_kept_as_traceability_not_as_premature_approval_records(): void
     {
-        $this->seed(CurrentSystemDemoSeeder::class);
+        $this->seed(Fy2025TupadProjectSeeder::class);
 
-        $project = Project::query()
-            ->where('project_title', 'Camarines Sur Community Rehabilitation')
-            ->firstOrFail();
+        $traceable = Project::query()
+            ->where('remarks', 'like', '%Source project code:%')
+            ->count();
 
-        $this->assertSame(
-            ProjectStatus::FOR_APPROVAL,
-            $project->status
-        );
-
-        $this->assertFalse(
-            $project->approval()->exists()
-        );
-    }
-
-    public function test_demo_projects_cover_all_bicol_provinces_and_keep_unique_project_codes(): void
-    {
-        $this->seed(CurrentSystemDemoSeeder::class);
-
-        $this->assertEqualsCanonicalizing(
-            [
-                'Albay',
-                'Camarines Norte',
-                'Camarines Sur',
-                'Catanduanes',
-                'Masbate',
-                'Sorsogon',
-            ],
-            Project::query()
-                ->distinct()
-                ->pluck('province')
-                ->all()
-        );
-
-        $codes = ProjectApproval::query()
-            ->whereNotNull('project_code')
-            ->pluck('project_code')
-            ->all();
-
-        $this->assertContains('TUPAD-ALB-2026-001', $codes);
-        $this->assertContains('TUPAD-CAN-2026-001', $codes);
-        $this->assertContains('TUPAD-CAT-2026-001', $codes);
-        $this->assertContains('TUPAD-MAS-2026-001', $codes);
-        $this->assertContains('TUPAD-SOR-2026-001', $codes);
-
-        $this->assertCount(
-            count(array_unique($codes)),
-            $codes
-        );
+        $this->assertGreaterThan(0, $traceable);
+        $this->assertDatabaseCount('project_approvals', 0);
     }
 }

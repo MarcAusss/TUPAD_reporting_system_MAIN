@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnforceCoordinatorProvinceScope;
 use App\Http\Middleware\EnsureCoordinatorHasAssignedProvince;
+use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureUserHasRole;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,6 +21,7 @@ return Application::configure(
             'role' => EnsureUserHasRole::class,
             'province.assigned' => EnsureCoordinatorHasAssignedProvince::class,
             'province.scope' => EnforceCoordinatorProvinceScope::class,
+            'password.changed' => EnsurePasswordChanged::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

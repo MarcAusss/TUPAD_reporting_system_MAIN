@@ -17,7 +17,6 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
     private User $admin;
     private User $focal;
     private User $tc;
-    private User $gip;
 
     protected function setUp(): void
     {
@@ -48,12 +47,6 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
             'assigned_province_id' => $this->masbate->id,
             'password' => 'starting-password',
         ]);
-
-        $this->gip = User::factory()->create([
-            'role' => UserRole::GIP,
-            'is_active' => true,
-            'supervisor_tc_id' => $this->tc->id,
-        ]);
     }
 
     public function test_tc_can_open_read_only_account_page_with_assigned_province(): void
@@ -74,7 +67,7 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
 
     public function test_non_tc_roles_cannot_access_coordinator_self_service_account_routes(): void
     {
-        foreach ([$this->admin, $this->focal, $this->gip] as $user) {
+        foreach ([$this->admin, $this->focal] as $user) {
             $this->actingAs($user)
                 ->get(route('account.show'))
                 ->assertForbidden();
@@ -82,8 +75,8 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
             $this->actingAs($user)
                 ->patch(route('account.password.update'), [
                     'current_password' => 'password',
-                    'password' => 'replacement-password',
-                    'password_confirmation' => 'replacement-password',
+                    'password' => 'Replacement!Password2026',
+                    'password_confirmation' => 'Replacement!Password2026',
                 ])
                 ->assertForbidden();
         }
@@ -97,8 +90,8 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
         $this->actingAs($this->tc)
             ->patch(route('account.password.update'), [
                 'current_password' => 'starting-password',
-                'password' => 'new-secure-password',
-                'password_confirmation' => 'new-secure-password',
+                'password' => 'NewSecure!Password2026',
+                'password_confirmation' => 'NewSecure!Password2026',
                 'username' => 'browser.changed.username',
                 'assigned_province_id' => null,
                 'role' => UserRole::ADMIN->value,
@@ -109,7 +102,7 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
 
         $this->tc->refresh();
 
-        $this->assertTrue(Hash::check('new-secure-password', $this->tc->password));
+        $this->assertTrue(Hash::check('NewSecure!Password2026', $this->tc->password));
         $this->assertFalse(Hash::check('starting-password', $this->tc->password));
         $this->assertSame($originalUsername, $this->tc->username);
         $this->assertSame($originalProvinceId, $this->tc->assigned_province_id);
@@ -123,8 +116,8 @@ class MajorRevisionPhase13CCoordinatorAccountPasswordTest extends TestCase
             ->from(route('account.show'))
             ->patch(route('account.password.update'), [
                 'current_password' => 'wrong-current-password',
-                'password' => 'new-secure-password',
-                'password_confirmation' => 'new-secure-password',
+                'password' => 'NewSecure!Password2026',
+                'password_confirmation' => 'NewSecure!Password2026',
             ])
             ->assertRedirect(route('account.show'))
             ->assertSessionHasErrors(['current_password']);

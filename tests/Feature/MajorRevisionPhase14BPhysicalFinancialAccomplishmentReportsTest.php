@@ -36,16 +36,17 @@ class MajorRevisionPhase14BPhysicalFinancialAccomplishmentReportsTest extends Te
         $this->albay = $this->province('Albay', '050500000');
     }
 
-    public function test_workspace_exposes_five_accomplishment_views_and_existing_export_actions(): void
+    public function test_workspace_exposes_four_table_first_accomplishment_views_and_existing_export_actions(): void
     {
         $response = $this->actingAs($this->admin)
             ->get(route('reports.workspace.physical-financial'))
             ->assertOk()
             ->assertSee('Overall Accomplishment')
+            ->assertSee('Accomplishment per Semester')
             ->assertSee('Accomplishment per Quarter')
             ->assertSee('Accomplishment per Month')
-            ->assertSee('Short-Term Accomplishment')
-            ->assertSee('Long-Term Accomplishment')
+            ->assertDontSee('Short-Term Accomplishment')
+            ->assertDontSee('Long-Term Accomplishment')
             ->assertSee('Detailed Generator')
             ->assertSee('Print')
             ->assertSee('PDF')
@@ -78,59 +79,56 @@ class MajorRevisionPhase14BPhysicalFinancialAccomplishmentReportsTest extends Te
         $quarter = $this->actingAs($this->admin)
             ->get(route('reports.workspace.physical-financial', ['view' => 'quarter']))
             ->assertOk()
-            ->assertSee('Q1 2026')
-            ->assertSee('Q2 2026')
-            ->assertDontSee('Q3 2025');
+            ->assertSee('1st Quarter')
+            ->assertSee('2nd Quarter');
 
         $this->assertSame(2026, $quarter->viewData('filters')['fiscal_year']);
         $this->assertSame('quarter', $quarter->viewData('report')['dimension']->value);
+        $this->assertSame(2, (int) $quarter->viewData('matrixTotal')['project_count']);
 
         $month = $this->actingAs($this->admin)
             ->get(route('reports.workspace.physical-financial', ['view' => 'month']))
             ->assertOk()
-            ->assertSee('January 2026')
-            ->assertSee('April 2026')
-            ->assertDontSee('August 2025');
+            ->assertSee('January')
+            ->assertSee('April');
 
         $this->assertSame('month', $month->viewData('report')['dimension']->value);
+        $this->assertSame(2, (int) $month->viewData('matrixTotal')['project_count']);
 
         CarbonImmutable::setTestNow();
     }
 
-    public function test_short_and_long_term_views_apply_authoritative_term_filters_server_side(): void
+    public function test_semester_view_uses_authoritative_period_matrix_and_ignores_removed_term_filters(): void
     {
         $this->project($this->masbate, [
-            'project_title' => 'SHORT PROJECT',
-            'number_of_days' => 20,
-            'term' => ProjectTerm::SHORT_TERM,
+            'project_title' => 'FIRST SEMESTER PROJECT',
+            'date_received' => '2026-02-15',
+            'status' => ProjectStatus::COMPLETED,
             'beneficiaries_total' => 10,
         ]);
         $this->project($this->masbate, [
-            'project_title' => 'LONG PROJECT',
-            'number_of_days' => 60,
-            'term' => ProjectTerm::LONG_TERM,
+            'project_title' => 'SECOND SEMESTER PROJECT',
+            'date_received' => '2026-08-15',
+            'status' => ProjectStatus::COMPLETED,
             'beneficiaries_total' => 20,
         ]);
 
-        $short = $this->actingAs($this->admin)
+        $response = $this->actingAs($this->admin)
             ->get(route('reports.workspace.physical-financial', [
-                'view' => 'short-term',
+                'view' => 'semester',
+                'fiscal_year' => 2026,
                 'term' => ProjectTerm::LONG_TERM->value,
             ]))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('1st Semester')
+            ->assertSee('2nd Semester')
+            ->assertDontSee('Short-Term Accomplishment')
+            ->assertDontSee('Long-Term Accomplishment');
 
-        $this->assertSame(ProjectTerm::SHORT_TERM->value, $short->viewData('filters')['term']);
-        $this->assertSame(1, (int) $short->viewData('overallRow')['project_count']);
-        $this->assertSame(10, (int) $short->viewData('overallRow')['beneficiaries_total']);
-        $this->assertSame(ProjectTerm::SHORT_TERM->value, $short->viewData('exportQuery')['term']);
-
-        $long = $this->actingAs($this->admin)
-            ->get(route('reports.workspace.physical-financial', ['view' => 'long-term']))
-            ->assertOk();
-
-        $this->assertSame(ProjectTerm::LONG_TERM->value, $long->viewData('filters')['term']);
-        $this->assertSame(1, (int) $long->viewData('overallRow')['project_count']);
-        $this->assertSame(20, (int) $long->viewData('overallRow')['beneficiaries_total']);
+        $this->assertArrayNotHasKey('term', $response->viewData('filters'));
+        $this->assertArrayNotHasKey('term', $response->viewData('exportQuery'));
+        $this->assertSame(10, $response->viewData('matrixTotal')['periods']['semester-1']['physical']);
+        $this->assertSame(20, $response->viewData('matrixTotal')['periods']['semester-2']['physical']);
     }
 
     public function test_coordinator_workspace_is_forced_to_assigned_province_and_foreign_filter_is_denied(): void
@@ -149,7 +147,7 @@ class MajorRevisionPhase14BPhysicalFinancialAccomplishmentReportsTest extends Te
             ->assertOk();
 
         $this->assertSame($this->masbate->id, (int) $response->viewData('filters')['province_id']);
-        $this->assertSame(1, (int) $response->viewData('overallRow')['project_count']);
+        $this->assertSame(1, (int) $response->viewData('matrixTotal')['project_count']);
         $this->assertTrue($response->viewData('provinceLocked'));
 
         $this->actingAs($tc)
@@ -176,7 +174,7 @@ class MajorRevisionPhase14BPhysicalFinancialAccomplishmentReportsTest extends Te
             ->assertSessionHasErrors('status');
     }
 
-    public function test_screen_ratios_use_non_invented_operational_denominators(): void
+    public function test_screen_uses_official_target_accomplishment_and_balance_matrix_without_invented_ratios(): void
     {
         $this->project($this->masbate, [
             'status' => ProjectStatus::COMPLETED,
@@ -193,9 +191,15 @@ class MajorRevisionPhase14BPhysicalFinancialAccomplishmentReportsTest extends Te
             ->get(route('reports.workspace.physical-financial'))
             ->assertOk();
 
-        $this->assertSame(50.0, $response->viewData('ratios')['completion']);
-        $this->assertSame(50.0, $response->viewData('ratios')['female_share']);
-        $response->assertSee('These screen indicators do not redefine the official government report formula.');
+        $matrix = $response->viewData('matrixTotal');
+        $this->assertSame(20, $matrix['target']['physical']);
+        $this->assertSame(10, $matrix['accomplishment']['physical']);
+        $this->assertSame(10, $matrix['balance']['physical']);
+        $this->assertArrayNotHasKey('ratios', $response->viewData());
+        $response
+            ->assertSee('Reporting basis:')
+            ->assertDontSee('Short-Term Accomplishment')
+            ->assertDontSee('Long-Term Accomplishment');
     }
 
     private function province(string $name, string $code): Province

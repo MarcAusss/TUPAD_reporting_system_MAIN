@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Models\Project;
-use App\Models\ProjectDraft;
 use App\Models\Province;
 use App\Models\User;
 use App\Services\Auth\ProvinceAccessService;
@@ -47,13 +46,12 @@ class MajorRevisionPhase13AProvinceScopedAuthenticationFoundationTest extends Te
         $tc = $this->user(UserRole::TC, $masbate->id);
         $admin = $this->user(UserRole::ADMIN);
         $focal = $this->user(UserRole::FOCAL);
-        $gip = $this->user(UserRole::GIP);
 
         $this->assertTrue($this->provinceAccess->isProvinceScoped($tc));
         $this->assertTrue($this->provinceAccess->canAccessProvince($tc, $masbate));
         $this->assertFalse($this->provinceAccess->canAccessProvince($tc, $albay));
 
-        foreach ([$admin, $focal, $gip] as $regionalUser) {
+        foreach ([$admin, $focal] as $regionalUser) {
             $this->assertFalse($this->provinceAccess->isProvinceScoped($regionalUser));
             $this->assertTrue($this->provinceAccess->canAccessProvince($regionalUser, $masbate));
             $this->assertTrue($this->provinceAccess->canAccessProvince($regionalUser, $albay));
@@ -88,15 +86,10 @@ class MajorRevisionPhase13AProvinceScopedAuthenticationFoundationTest extends Te
             'province_id' => null,
             'province' => '  MASBATE  ',
         ]);
-        $legacyMasbateDraft = new ProjectDraft([
-            'province_id' => null,
-            'province' => 'masbate',
-        ]);
 
         $this->assertTrue($this->provinceAccess->canAccessProject($tc, $exactMasbateProject));
         $this->assertFalse($this->provinceAccess->canAccessProject($tc, $albayProject));
         $this->assertTrue($this->provinceAccess->canAccessProject($tc, $legacyMasbateProject));
-        $this->assertTrue($this->provinceAccess->canAccessProjectDraft($tc, $legacyMasbateDraft));
     }
 
     public function test_assigned_province_query_returns_only_coordinators_province(): void

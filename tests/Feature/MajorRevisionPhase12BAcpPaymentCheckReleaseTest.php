@@ -22,7 +22,6 @@ class MajorRevisionPhase12BAcpPaymentCheckReleaseTest extends TestCase
     private User $admin;
     private User $focal;
     private User $tc;
-    private User $gip;
     private AdlAllocation $allocation;
     private int $sequence = 0;
 
@@ -33,7 +32,6 @@ class MajorRevisionPhase12BAcpPaymentCheckReleaseTest extends TestCase
         $this->admin = User::factory()->create(['role' => UserRole::ADMIN, 'is_active' => true]);
         $this->focal = User::factory()->create(['role' => UserRole::FOCAL, 'is_active' => true]);
         $this->tc = User::factory()->create(['role' => UserRole::TC, 'is_active' => true]);
-        $this->gip = User::factory()->create(['role' => UserRole::GIP, 'is_active' => true]);
 
         $adl = Adl::create([
             'adl_number' => 'ADL-MR12B-001',
@@ -75,7 +73,7 @@ class MajorRevisionPhase12BAcpPaymentCheckReleaseTest extends TestCase
         ]);
     }
 
-    public function test_focal_and_admin_can_access_acp_payment_but_tc_and_gip_cannot(): void
+    public function test_focal_and_admin_can_access_acp_payment_but_tc_cannot(): void
     {
         $project = $this->createProject(ProjectStatus::FOR_PAYMENT);
 
@@ -89,10 +87,6 @@ class MajorRevisionPhase12BAcpPaymentCheckReleaseTest extends TestCase
             ->assertOk();
 
         $this->actingAs($this->tc)
-            ->get(route('acp-payments.show', $project))
-            ->assertForbidden();
-
-        $this->actingAs($this->gip)
             ->get(route('acp-payments.show', $project))
             ->assertForbidden();
     }

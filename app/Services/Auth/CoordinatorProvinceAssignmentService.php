@@ -2,7 +2,7 @@
 
 namespace App\Services\Auth;
 
-use App\Models\ProjectDraft;
+use App\Models\Project;
 use App\Models\Province;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -14,7 +14,7 @@ final class CoordinatorProvinceAssignmentService
      *
      * When $repair is true, legacy/missing assignments are repaired only when
      * there is one authoritative province that can be inferred from existing
-     * coordinator/GIP draft relationships. The built-in local `tc` demo account
+     * coordinator project relationships. The built-in local `tc` demo account
      * may fall back to Albay outside production so development access does not
      * break after older seed histories.
      */
@@ -94,29 +94,15 @@ final class CoordinatorProvinceAssignmentService
 
     private function inferUniqueProvince(User $user): ?Province
     {
-        $candidateIds = collect();
-
-        $candidateIds->push(...ProjectDraft::query()
-            ->where('assigned_tc_id', $user->id)
+        $candidateIds = Project::query()
+            ->where(function ($query) use ($user): void {
+                $query
+                    ->where('created_by', $user->id)
+                    ->orWhere('updated_by', $user->id);
+            })
             ->whereNotNull('province_id')
             ->distinct()
             ->pluck('province_id')
-            ->all());
-
-        $gipIds = User::query()
-            ->where('supervisor_tc_id', $user->id)
-            ->pluck('id');
-
-        if ($gipIds->isNotEmpty()) {
-            $candidateIds->push(...ProjectDraft::query()
-                ->whereIn('encoded_by', $gipIds)
-                ->whereNotNull('province_id')
-                ->distinct()
-                ->pluck('province_id')
-                ->all());
-        }
-
-        $candidateIds = $candidateIds
             ->map(static fn (mixed $id): int => (int) $id)
             ->filter(static fn (int $id): bool => $id > 0)
             ->unique()

@@ -4,139 +4,6 @@
 
 @section('content')
 
-    @if ($dashboardMode === 'gip')
-
-        <x-page-header eyebrow="GIP Workspace" title="Dashboard"
-            description="Track project drafts you encoded, review returned items, and continue work that still needs TC confirmation.">
-            <x-slot:actions>
-                <a href="{{ route('project-drafts.create') }}"
-                    class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
-                    + New Project Draft
-                </a>
-            </x-slot:actions>
-        </x-page-header>
-
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-            @foreach ([['All Drafts', $totalDrafts, 'Project drafts encoded by your account.'], ['Pending TC Review', $pendingDrafts, 'Submitted drafts waiting for TC review.'], ['Returned', $returnedDrafts, 'Drafts requiring correction or clarification.'], ['Confirmed', $confirmedDrafts, 'Drafts successfully confirmed by TC.']] as [$label, $value, $description])
-                <article class="tupad-card p-5">
-
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                        {{ $label }}
-                    </div>
-
-                    <div class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">
-                        {{ number_format($value) }}
-                    </div>
-
-                    <p class="mt-1 text-xs leading-5 text-slate-500">
-                        {{ $description }}
-                    </p>
-
-                </article>
-            @endforeach
-
-        </div>
-
-        <div class="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
-
-            <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
-                <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-900">
-                            Recent Project Drafts
-                        </h2>
-
-                        <p class="mt-1 text-xs text-slate-500">
-                            Continue from the most recently updated draft.
-                        </p>
-                    </div>
-
-                    <a href="{{ route('project-drafts.index') }}"
-                        class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                        View All Drafts
-                    </a>
-
-                </div>
-
-                <div class="divide-y divide-slate-100">
-
-                    @forelse($recentDrafts as $draft)
-                        <a href="{{ route('project-drafts.show', $draft) }}"
-                            class="flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50">
-                            <div class="min-w-0">
-
-                                <div class="truncate text-sm font-semibold text-slate-900">
-                                    {{ $draft->project_title }}
-                                </div>
-
-                                <div class="mt-1 text-xs text-slate-500">
-                                    {{ $draft->status->label() }}
-                                    ·
-                                    {{ $draft->updated_at->format('M d, Y g:i A') }}
-                                </div>
-
-                            </div>
-
-                            <span class="shrink-0 text-xs font-semibold text-blue-700">
-                                Open →
-                            </span>
-                        </a>
-
-                    @empty
-
-                        <x-empty-state title="No project drafts yet"
-                            message="Create your first project draft to begin the GIP encoding workflow.">
-                            <x-slot:action>
-                                <a href="{{ route('project-drafts.create') }}"
-                                    class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800">
-                                    Create Project Draft
-                                </a>
-                            </x-slot:action>
-                        </x-empty-state>
-                    @endforelse
-
-                </div>
-
-            </section>
-
-            <aside class="rounded-xl border border-blue-200 bg-blue-50 p-5">
-
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-600">
-                    Recommended Workflow
-                </div>
-
-                <ol class="mt-4 space-y-4">
-
-                    @foreach ([['1', 'Create or update a draft', 'Encode the project information assigned to GIP.'], ['2', 'Submit for TC review', 'The TUPAD Coordinator validates the draft.'], ['3', 'Correct returned drafts', 'Update only the items requested for correction.'], ['4', 'Wait for confirmation', 'Confirmed drafts become available to the official workflow.']] as [$step, $title, $description])
-                        <li class="flex gap-3">
-
-                            <div
-                                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">
-                                {{ $step }}
-                            </div>
-
-                            <div>
-                                <div class="text-xs font-semibold text-blue-950">
-                                    {{ $title }}
-                                </div>
-
-                                <p class="mt-1 text-[11px] leading-5 text-blue-700">
-                                    {{ $description }}
-                                </p>
-                            </div>
-
-                        </li>
-                    @endforeach
-
-                </ol>
-
-            </aside>
-
-        </div>
-    @else
         @php
             $user = auth()->user();
 
@@ -226,199 +93,201 @@
         </x-page-header>
 
         {{-- =====================================================
+        Action queue aging summary
+    ====================================================== --}}
+        <section class="mb-5" data-dashboard-aging-summary>
+            <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-900">Action Queue Aging</h2>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Prioritize records that have remained in their current workflow status the longest.
+                    </p>
+                </div>
+                <p class="text-[10px] leading-4 text-slate-400 sm:max-w-md sm:text-right">
+                    Attention at {{ $actionQueueData['attention_days'] }}+ days; critical at
+                    {{ $actionQueueData['critical_days'] }}+ days. These are internal dashboard indicators, not statutory deadlines.
+                </p>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                @foreach ([
+                    ['Pending Actions', $actionQueueData['total_pending'], 'Projects currently waiting in your role-specific queues.'],
+                    ['Needs Attention', $actionQueueData['aged_pending'], 'Items aged '.$actionQueueData['attention_days'].' days or more.'],
+                    ['Critical Aging', $actionQueueData['critical_pending'], 'Items aged '.$actionQueueData['critical_days'].' days or more.'],
+                    ['Oldest Pending', $actionQueueData['oldest_days'].' days', 'Age of the oldest pending action visible to your account.'],
+                ] as [$label, $value, $description])
+                    <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $label }}</div>
+                        <div class="mt-2 text-2xl font-extrabold text-slate-900">
+                            {{ is_numeric($value) ? number_format($value) : $value }}
+                        </div>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">{{ $description }}</p>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+
+        {{-- =====================================================
         Role-specific work queue
     ====================================================== --}}
         @if (in_array($roleMode, ['tc', 'admin'], true))
-
-            <section class="mb-5">
-
-                <div class="mb-3 flex items-end justify-between gap-4">
-
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-900">
-                            Project Workflow
-                        </h2>
-
-                        <p class="mt-1 text-xs text-slate-500">
-                            Open a queue to continue projects that require action.
-                        </p>
-                    </div>
-
-                </div>
-
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-
-                    @foreach ([['tssd-evaluation', 'TSSD Evaluation', $workflowCounts['tssd']], ['for-approval', 'For Approval', $workflowCounts['approval']], ['implementation', 'Implementation', $workflowCounts['implementation']], ['post-documents', 'Post-Documents', $workflowCounts['post_documents']]] as [$queue, $label, $count])
-                        <a href="{{ route('project-workflow.index', ['queue' => $queue]) }}"
-                            class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
-
-                            <div
-                                class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 group-hover:text-blue-600">
-                                Pending Queue
-                            </div>
-
-                            <div class="mt-2 flex items-end justify-between gap-3">
-
-                                <div class="text-sm font-semibold text-slate-800 group-hover:text-blue-950">
-                                    {{ $label }}
-                                </div>
-
-                                <div class="text-2xl font-extrabold text-slate-900 group-hover:text-blue-900">
-                                    {{ number_format($count) }}
-                                </div>
-
-                            </div>
-
-                        </a>
-                    @endforeach
-
-                </div>
-
-            </section>
-
             <section class="mb-5">
                 <div class="mb-3">
-                    <h2 class="text-sm font-semibold text-slate-900">Through ACP Workflow</h2>
-                    <p class="mt-1 text-xs text-slate-500">Separate ACP queues for check-funded implementation and liquidation.</p>
+                    <h2 class="text-sm font-semibold text-slate-900">Project Workflow</h2>
+                    <p class="mt-1 text-xs text-slate-500">Open a queue to continue projects that require action.</p>
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <a href="{{ route('acp-workflow.implementation') }}"
-                        class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">ACP Implementation</div>
-                        <div class="mt-2 flex items-end justify-between gap-3">
-                            <div class="text-sm font-semibold text-slate-900">Implementation</div>
-                            <div class="text-2xl font-extrabold text-slate-900">{{ number_format($workflowCounts['acp_implementation']) }}</div>
-                        </div>
-                        <div class="mt-1 text-xs text-slate-500">For Implementation or Ongoing Implementation.</div>
-                    </a>
-
-                    @if ($roleMode === 'admin')
-                        @foreach ([
-                            ['acp-workflow.payment', 'ACP Payment', $workflowCounts['acp_payment']],
-                            ['acp-workflow.check-release', 'Check Release', $workflowCounts['acp_check_release']],
-                            ['acp-workflow.liquidation', 'Liquidation', $workflowCounts['acp_liquidation']],
-                        ] as [$routeName, $label, $count])
-                            <a href="{{ route($routeName) }}"
-                                class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                                <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Through ACP</div>
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    @foreach (['tssd', 'compliance', 'approval', 'implementation', 'post_documents'] as $queueKey)
+                        @php($queue = $actionQueueData['queues'][$queueKey] ?? null)
+                        @if ($queue)
+                            <a href="{{ $queue['url'] }}" data-dashboard-queue="{{ $queueKey }}"
+                                class="group rounded-xl border bg-white p-4 shadow-sm transition {{ $queue['critical_count'] > 0 ? 'border-rose-200 hover:bg-rose-50' : ($queue['aged_count'] > 0 ? 'border-amber-200 hover:bg-amber-50' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50') }}">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Pending Queue</div>
+                                    @if ($queue['aged_count'] > 0)
+                                        <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-800">
+                                            {{ number_format($queue['aged_count']) }} aged
+                                        </span>
+                                    @endif
+                                </div>
                                 <div class="mt-2 flex items-end justify-between gap-3">
-                                    <div class="text-sm font-semibold text-slate-900">{{ $label }}</div>
-                                    <div class="text-2xl font-extrabold text-slate-900">{{ number_format($count) }}</div>
+                                    <div class="text-sm font-semibold text-slate-800">{{ $queue['label'] }}</div>
+                                    <div class="text-2xl font-extrabold text-slate-900">{{ number_format($queue['count']) }}</div>
+                                </div>
+                                <div class="mt-2 flex items-center justify-between gap-3 text-[10px] text-slate-500">
+                                    <span>{{ $queue['description'] }}</span>
+                                    <span class="shrink-0 font-semibold">Oldest {{ $queue['oldest_days'] }}d</span>
                                 </div>
                             </a>
-                        @endforeach
-                    @endif
+                        @endif
+                    @endforeach
                 </div>
             </section>
+
+            @php($acpImplementation = $actionQueueData['queues']['acp_implementation'] ?? null)
+            @if ($acpImplementation || $roleMode === 'admin')
+                <section class="mb-5">
+                    <div class="mb-3">
+                        <h2 class="text-sm font-semibold text-slate-900">Through ACP Workflow</h2>
+                        <p class="mt-1 text-xs text-slate-500">Separate ACP implementation and financial queues.</p>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        @foreach (['acp_implementation', 'acp_payment', 'acp_check_release', 'acp_liquidation'] as $queueKey)
+                            @php($queue = $actionQueueData['queues'][$queueKey] ?? null)
+                            @if ($queue)
+                                <a href="{{ $queue['url'] }}" data-dashboard-queue="{{ $queueKey }}"
+                                    class="rounded-xl border bg-white p-4 shadow-sm {{ $queue['critical_count'] > 0 ? 'border-rose-200 hover:bg-rose-50' : ($queue['aged_count'] > 0 ? 'border-amber-200 hover:bg-amber-50' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50') }}">
+                                    <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Through ACP</div>
+                                    <div class="mt-2 flex items-end justify-between gap-3">
+                                        <div class="text-sm font-semibold text-slate-900">{{ $queue['label'] }}</div>
+                                        <div class="text-2xl font-extrabold text-slate-900">{{ number_format($queue['count']) }}</div>
+                                    </div>
+                                    <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+                                        <span>{{ number_format($queue['aged_count']) }} aged</span>
+                                        <span class="font-semibold">Oldest {{ $queue['oldest_days'] }}d</span>
+                                    </div>
+                                </a>
+                            @endif
+                        @endforeach
+                    </div>
+                </section>
+            @endif
         @elseif($roleMode === 'focal')
             <section class="mb-5">
-
                 <div class="mb-3">
-                    <h2 class="text-sm font-semibold text-slate-900">
-                        Focal Work Queue
-                    </h2>
-
-                    <p class="mt-1 text-xs text-slate-500">
-                        Shortcuts to the fund and payment areas that require Focal attention.
-                    </p>
+                    <h2 class="text-sm font-semibold text-slate-900">Focal Work Queue</h2>
+                    <p class="mt-1 text-xs text-slate-500">Fund monitoring and financial actions that require Focal attention.</p>
                 </div>
 
                 <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-
                     <a href="{{ route('adl.index') }}"
                         class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                            Fund Management
-                        </div>
-
-                        <div class="mt-2 text-sm font-semibold text-slate-900">
-                            {{ number_format($totalAdls) }} ADL Record(s)
-                        </div>
-
-                        <div class="mt-1 text-xs text-slate-500">
-                            Review allocations and remaining balances.
-                        </div>
+                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Fund Management</div>
+                        <div class="mt-2 text-sm font-semibold text-slate-900">{{ number_format($totalAdls) }} ADL Record(s)</div>
+                        <div class="mt-1 text-xs text-slate-500">Review allocations and remaining balances.</div>
                     </a>
 
                     @if (Route::has('fund-monitoring.per-adl-current'))
                         <a href="{{ route('fund-monitoring.per-adl-current') }}"
                             class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                                Monitoring
-                            </div>
-
-                            <div class="mt-2 text-sm font-semibold text-slate-900">
-                                PER ADL (Current)
-                            </div>
-
-                            <div class="mt-1 text-xs text-slate-500">
-                                Open the current workbook-aligned fund register.
-                            </div>
+                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Monitoring</div>
+                            <div class="mt-2 text-sm font-semibold text-slate-900">PER ADL (Current)</div>
+                            <div class="mt-1 text-xs text-slate-500">Open the current official fund monitoring register.</div>
                         </a>
                     @endif
 
-                    <a href="{{ route('payments.index') }}"
-                        class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                            Payment
-                        </div>
-
-                        <div class="mt-2 text-sm font-semibold text-slate-900">
-                            {{ number_format($workflowCounts['payment']) }} Waiting
-                        </div>
-
-                        <div class="mt-1 text-xs text-slate-500">
-                            Projects requiring obligation or disbursement action.
-                        </div>
-                    </a>
-
-                    <a href="{{ route('reports.index') }}"
-                        class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                            Reporting
-                        </div>
-
-                        <div class="mt-2 text-sm font-semibold text-slate-900">
-                            Reports
-                        </div>
-
-                        <div class="mt-1 text-xs text-slate-500">
-                            Filter, print, or export official project records.
-                        </div>
-                    </a>
-
-                </div>
-
-            </section>
-
-            <section class="mb-5">
-                <div class="mb-3">
-                    <h2 class="text-sm font-semibold text-slate-900">Through ACP Financial Queue</h2>
-                    <p class="mt-1 text-xs text-slate-500">Payment, check release, and liquidation are separate from Direct Administration wage processing.</p>
-                </div>
-
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    @foreach ([
-                        ['acp-workflow.payment', 'For Payment', $workflowCounts['acp_payment'], 'Record the official ACP payment amount from the approved project cost.'],
-                        ['acp-workflow.check-release', 'Check Release', $workflowCounts['acp_check_release'], 'Record release of the official check to the proponent.'],
-                        ['acp-workflow.liquidation', 'Liquidation', $workflowCounts['acp_liquidation'], 'Record partial or final liquidation against the released check.'],
-                    ] as [$routeName, $label, $count, $description])
-                        <a href="{{ route($routeName) }}"
-                            class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Through ACP</div>
-                            <div class="mt-2 flex items-end justify-between gap-3">
-                                <div class="text-sm font-semibold text-slate-900">{{ $label }}</div>
-                                <div class="text-2xl font-extrabold text-slate-900">{{ number_format($count) }}</div>
-                            </div>
-                            <div class="mt-1 text-xs leading-5 text-slate-500">{{ $description }}</div>
-                        </a>
+                    @foreach (['payment', 'acp_payment', 'acp_check_release', 'acp_liquidation'] as $queueKey)
+                        @php($queue = $actionQueueData['queues'][$queueKey] ?? null)
+                        @if ($queue)
+                            <a href="{{ $queue['url'] }}" data-dashboard-queue="{{ $queueKey }}"
+                                class="rounded-xl border bg-white p-4 shadow-sm {{ $queue['critical_count'] > 0 ? 'border-rose-200 hover:bg-rose-50' : ($queue['aged_count'] > 0 ? 'border-amber-200 hover:bg-amber-50' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50') }}">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Financial Action</div>
+                                <div class="mt-2 flex items-end justify-between gap-3">
+                                    <div class="text-sm font-semibold text-slate-900">{{ $queue['label'] }}</div>
+                                    <div class="text-2xl font-extrabold text-slate-900">{{ number_format($queue['count']) }}</div>
+                                </div>
+                                <p class="mt-1 text-xs leading-5 text-slate-500">{{ $queue['description'] }}</p>
+                                <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+                                    <span>{{ number_format($queue['aged_count']) }} aged</span>
+                                    <span class="font-semibold">Oldest {{ $queue['oldest_days'] }}d</span>
+                                </div>
+                            </a>
+                        @endif
                     @endforeach
                 </div>
             </section>
-
         @endif
 
+        @if ($actionQueueData['oldest_items']->isNotEmpty())
+            <section class="tupad-table-shell mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-dashboard-oldest-actions>
+                <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-900">Oldest Pending Actions</h2>
+                        <p class="mt-1 text-xs text-slate-500">Oldest visible items across the queues assigned to your role.</p>
+                    </div>
+                    <span class="text-[10px] font-semibold text-slate-400">Age is measured from the latest recorded status transition.</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="tupad-system-table min-w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Project</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Queue</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Status</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Location</th>
+                                <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Age</th>
+                                <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach ($actionQueueData['oldest_items'] as $item)
+                                <tr>
+                                    <td class="px-5 py-3 text-sm font-semibold text-slate-900">{{ $item['project_title'] }}</td>
+                                    <td class="px-5 py-3 text-xs text-slate-600">{{ $item['queue_label'] }}</td>
+                                    <td class="px-5 py-3 text-xs text-slate-600">{{ $item['status_label'] }}</td>
+                                    <td class="px-5 py-3 text-xs text-slate-500">{{ $item['location'] ?: 'Location not available' }}</td>
+                                    <td class="px-5 py-3 text-right">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold {{ $item['critical'] ? 'bg-rose-50 text-rose-700' : ($item['needs_attention'] ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600') }}">
+                                            {{ $item['age_days'] }} days
+                                        </span>
+                                    </td>
+                                    <td class="px-5 py-3 text-right">
+                                        <a href="{{ $item['queue_url'] }}" class="text-xs font-semibold text-blue-700 hover:text-blue-900">Open Queue →</a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        @endif
+
+        @if ($roleMode === 'focal')
+            @include('dashboard.partials.geographic-analytics')
+        @else
         {{-- =====================================================
         Program snapshot
     ====================================================== --}}
@@ -436,7 +305,7 @@
 
             <div class="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
 
-                <article class="tupad-card p-5">
+                <article class="tupad-card tupad-metric-card p-5">
                     <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Active Projects
                     </div>
@@ -450,7 +319,7 @@
                     </div>
                 </article>
 
-                <article class="tupad-card p-5">
+                <article class="tupad-card tupad-metric-card p-5">
                     <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Beneficiaries
                     </div>
@@ -464,7 +333,7 @@
                     </div>
                 </article>
 
-                <article class="tupad-card p-5">
+                <article class="tupad-card tupad-metric-card p-5">
                     <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Completed Projects
                     </div>
@@ -478,7 +347,7 @@
                     </div>
                 </article>
 
-                <article class="tupad-card p-5">
+                <article class="tupad-card tupad-metric-card p-5">
                     <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Total Program Budget
                     </div>
@@ -495,6 +364,8 @@
             </div>
 
         </section>
+
+        @endif
 
         {{-- =====================================================
         Fund trend and utilization
@@ -652,7 +523,7 @@
 
             <div class="overflow-x-auto">
 
-                <table class="min-w-full">
+                <table class="tupad-system-table min-w-full">
 
                     <thead class="bg-slate-50">
 
@@ -758,6 +629,5 @@
 
         </section>
 
-    @endif
 
 @endsection

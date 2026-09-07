@@ -27,8 +27,6 @@ class ProjectWorkflowTest extends TestCase
 
     private User $focal;
 
-    private User $gip;
-
     private Adl $adl;
 
     private AdlAllocation $allocation;
@@ -79,17 +77,6 @@ class ProjectWorkflowTest extends TestCase
             'password' => Hash::make('password'),
         ]);
 
-        $this->gip = User::create([
-            'name' => 'Test GIP',
-            'username' => 'test-gip',
-            'email' => 'test-gip@example.test',
-            'position' => 'GIP',
-            'role' => UserRole::GIP,
-            'is_active' => true,
-            'supervisor_tc_id' => $this->tc->id,
-            'password' => Hash::make('password'),
-        ]);
-
         /*
         |--------------------------------------------------------------------------
         | Geographic References
@@ -97,9 +84,14 @@ class ProjectWorkflowTest extends TestCase
         */
 
         $this->province = Province::create([
+            'code' => '052000000',
             'name' => 'Catanduanes',
             'is_active' => true,
         ]);
+
+        $this->tc->forceFill([
+            'assigned_province_id' => $this->province->id,
+        ])->save();
 
         $this->municipality = Municipality::create([
             'province_id' => $this->province->id,
@@ -385,24 +377,6 @@ class ProjectWorkflowTest extends TestCase
     | Role Restrictions
     |--------------------------------------------------------------------------
     */
-
-    public function test_gip_cannot_access_official_project(): void
-    {
-        $project =
-            $this->createProfilingProject();
-
-        $response = $this
-            ->actingAs($this->gip)
-            ->get(
-                route(
-                    'projects.show',
-                    $project
-                )
-            );
-
-        $response->assertForbidden();
-    }
-
     public function test_focal_cannot_view_profiling_project(): void
     {
         $project =
@@ -441,20 +415,6 @@ class ProjectWorkflowTest extends TestCase
 
         $response->assertOk();
     }
-
-    public function test_gip_cannot_access_official_reports(): void
-    {
-        $response = $this
-            ->actingAs($this->gip)
-            ->get(
-                route(
-                    'reports.index'
-                )
-            );
-
-        $response->assertForbidden();
-    }
-
     /*
     |--------------------------------------------------------------------------
     | Geographic Hierarchy

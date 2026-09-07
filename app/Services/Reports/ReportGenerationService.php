@@ -35,7 +35,12 @@ final class ReportGenerationService
             'title' => $type->label(),
             'official_title' => match ($type) {
                 ReportType::PHYSICAL_FINANCIAL => 'Physical and Financial Accomplishment',
-                ReportType::FUND_STATUS => 'TUPAD FUND STATUS REPORT',
+                ReportType::FUND_STATUS => match ($dimension) {
+                    ReportDimension::OVERALL => 'Fund Utilization Report',
+                    ReportDimension::ADL => 'Summary per ADL',
+                    ReportDimension::PROVINCE => 'Summary per Province',
+                    default => 'TUPAD FUND STATUS REPORT',
+                },
                 ReportType::GEOGRAPHIC_BENEFICIARIES => 'TUPAD GEOGRAPHIC BENEFICIARY REPORT',
                 ReportType::BENEFICIARY_SECTORS => 'TUPAD BENEFICIARY SECTOR REPORT',
                 ReportType::INTERVENTION_FOCUS => 'TUPAD INTERVENTION-FOCUS REPORT',
@@ -72,6 +77,10 @@ final class ReportGenerationService
                         $filters,
                         $dimension,
                     )
+                    : null,
+            'fund_status_template' =>
+                $type === ReportType::FUND_STATUS
+                    ? $this->reportingData->fundStatusTemplate($filters, $dimension)
                     : null,
             'generated_at' => now(),
             'file_base_name' => sprintf(

@@ -5,10 +5,8 @@ namespace App\Models;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-
 
 class User extends Authenticatable
 {
@@ -22,9 +20,10 @@ class User extends Authenticatable
         'position',
         'role',
         'is_active',
-        'supervisor_tc_id',
         'assigned_province_id',
         'password',
+        'must_change_password',
+        'password_changed_at',
     ];
 
     protected $hidden = [
@@ -37,25 +36,11 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
             'is_active' => 'boolean',
             'role' => UserRole::class,
         ];
-    }
-
-    public function supervisorTc(): BelongsTo
-    {
-        return $this->belongsTo(
-            User::class,
-            'supervisor_tc_id'
-        );
-    }
-
-    public function assignedGips(): HasMany
-    {
-        return $this->hasMany(
-            User::class,
-            'supervisor_tc_id'
-        );
     }
 
     public function assignedProvince(): BelongsTo
@@ -86,11 +71,6 @@ class User extends Authenticatable
         return $this->role === UserRole::TC;
     }
 
-    public function isGip(): bool
-    {
-        return $this->role === UserRole::GIP;
-    }
-
     public function isFocal(): bool
     {
         return $this->role === UserRole::FOCAL;
@@ -108,29 +88,5 @@ class User extends Authenticatable
             ->take(2)
             ->map(fn(string $name) => mb_strtoupper(mb_substr($name, 0, 1)))
             ->implode('');
-    }
-
-    public function encodedProjectDrafts(): HasMany
-    {
-        return $this->hasMany(
-            ProjectDraft::class,
-            'encoded_by'
-        );
-    }
-
-    public function assignedProjectDrafts(): HasMany
-    {
-        return $this->hasMany(
-            ProjectDraft::class,
-            'assigned_tc_id'
-        );
-    }
-
-    public function reviewedProjectDrafts(): HasMany
-    {
-        return $this->hasMany(
-            ProjectDraft::class,
-            'reviewed_by'
-        );
     }
 }

@@ -7,6 +7,7 @@ use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectStatus;
 use App\Services\Exports\PdfTableWriter;
 use App\Services\Reports\OfficialPeriodicReportService;
+use App\Services\Reports\ReportDocumentControlService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
@@ -16,6 +17,7 @@ class OfficialPeriodicReportController extends Controller
 {
     public function __construct(
         private readonly OfficialPeriodicReportService $reports,
+        private readonly ReportDocumentControlService $documentControl,
         private readonly PdfTableWriter $pdf,
     ) {}
 
@@ -66,6 +68,9 @@ class OfficialPeriodicReportController extends Controller
             })
             ->validate();
 
-        return $this->reports->build($form, $validated, $request->user());
+        return $this->documentControl->apply(
+            $this->reports->build($form, $validated, $request->user()),
+            $request->user(),
+        );
     }
 }

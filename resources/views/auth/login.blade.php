@@ -37,8 +37,8 @@
 
             <div class="mb-6 text-center">
 
-                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 text-xl font-bold text-white shadow-sm">
-                    T
+                <div class="mx-auto flex h-20 w-16 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
+                    <img src="{{ asset('images/mainlogo.jpg') }}" alt="TUPAD Reporting System logo" class="h-full w-full object-contain">
                 </div>
 
                 <h1 class="mt-4 text-xl font-bold tracking-tight text-slate-900">

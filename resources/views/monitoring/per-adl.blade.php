@@ -3,7 +3,7 @@
 @section('content')
     <x-page-header eyebrow="Monitoring" title="PER ADL (Current)"
         description="Workbook-aligned Focal fund monitoring generated from ADL allocations and the official project workflow." />
-    <section class="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section class="tupad-filter-panel mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div class="min-w-0 flex-1">
                 <label class="mb-2 block text-xs font-semibold text-slate-700">
@@ -34,7 +34,7 @@
             @endif
         </form>
     </section>
-    <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section class="tupad-table-shell overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-sm font-semibold text-slate-900">Current ADL Monitoring Register</h2>
@@ -44,17 +44,24 @@
             </div>
 
             <div class="text-[11px] font-semibold text-slate-400">
-                Horizontal scroll available
+                33-column register · sticky header and ADL identifier
             </div>
         </div>
 
         <div class="tupad-data-scroll overflow-x-auto">
-            <table class="tupad-wide-table min-w-[3300px] w-full text-[11px]">
-                <thead class="bg-[#ffe49a] text-[#172b4d]">
-                    <tr>
-                        @foreach (['ADL No.', 'Fund Sponsor', 'LCE / Party-list', 'Province', 'District', 'City / Municipality', 'Alloc Grants', 'Admin Cost', 'Alloc Total', 'Realignment Grants', 'Date / No. MAF', 'Target Grants', 'Target Ben.', 'Obligated Grants', '%', 'Wages', 'PPE', 'Insurance', 'Ben. Total', 'Female', 'Unutilized', 'IMSD / Payment', 'Implemented / Post-Docs', 'Ongoing Implementation', 'With NTP / For Implementation', 'Approved', 'For Approval', 'Under Evaluation', 'Available Balance', 'Remaining', 'Unused', 'Remarks', 'Action'] as $h)
-                            <th class="whitespace-nowrap border-r border-[#e7c96e] p-3 text-left font-bold">
-                                {{ $h }}</th>
+            <table class="tupad-system-table tupad-wide-table tupad-per-adl-table min-w-[3300px] w-full text-[11px]">
+                <thead>
+                    <tr class="tupad-column-groups">
+                        <th colspan="6">ADL &amp; Geography</th>
+                        <th colspan="9">Allocation &amp; Targets</th>
+                        <th colspan="5">Project Cost &amp; Beneficiaries</th>
+                        <th colspan="8">Workflow Exposure</th>
+                        <th colspan="4">Balances &amp; Notes</th>
+                        <th rowspan="2" class="tupad-table-action">Action</th>
+                    </tr>
+                    <tr class="tupad-column-labels">
+                        @foreach (['ADL No.', 'Fund Sponsor', 'LCE / Party-list', 'Province', 'District', 'City / Municipality', 'Alloc Grants', 'Admin Cost', 'Alloc Total', 'Realignment Grants', 'Date / No. MAF', 'Target Grants', 'Target Ben.', 'Obligated Grants', '%', 'Wages', 'PPE', 'Insurance', 'Ben. Total', 'Female', 'Unutilized', 'IMSD / Payment', 'Implemented / Post-Docs', 'Ongoing Implementation', 'With NTP / For Implementation', 'Approved', 'For Approval', 'Under Evaluation', 'Available Balance', 'Remaining', 'Unused', 'Remarks'] as $h)
+                            <th class="{{ $h === 'Remarks' ? 'tupad-table-remarks' : 'whitespace-nowrap' }} p-3 text-left font-bold">{{ $h }}</th>
                         @endforeach
                     </tr>
                 </thead>
@@ -85,9 +92,10 @@
                             @foreach (['unutilized', 'for_payment', 'post_docs', 'ongoing_implementation', 'for_implementation', 'approved', 'for_approval', 'under_evaluation', 'available_balance', 'remaining', 'unused'] as $k)
                                 <td class="p-3 text-right">₱{{ number_format($r[$k], 2) }}</td>
                             @endforeach
-                            <td class="p-3 max-w-55">
-                                {{ $r['remarks'] ?: '—' }}</td>
-                            <td class="p-3"><a href="{{ route('adl.show', $r['adl_id']) }}"
+                            <td class="tupad-table-remarks p-3">
+                                <div class="tupad-table-remarks-content" title="{{ $r['remarks'] ?: '—' }}">{{ $r['remarks'] ?: '—' }}</div>
+                            </td>
+                            <td class="tupad-table-action p-3"><a href="{{ route('adl.show', $r['adl_id']) }}"
                                     class="inline-flex h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">Manage
                                     ADL</a></td>
                     </tr>@empty<tr>

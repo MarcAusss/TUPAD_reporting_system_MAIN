@@ -100,7 +100,7 @@ final class PdfTableWriter
         $tableWidth = self::PAGE_WIDTH - (self::MARGIN * 2);
         $columnWidth = $tableWidth / $columnCount;
         $fontSize = max(5.2, min(8.5, 52 / $columnCount));
-        $rowsPerPage = 29;
+        $rowsPerPage = 24;
         $chunks = $rows->chunk($rowsPerPage);
 
         if ($chunks->isEmpty()) {
@@ -120,10 +120,10 @@ final class PdfTableWriter
 
             // Phase 14F print header: follows the TUPAD PPE Inventory print/header
             // composition only (brand left, report identity center, metadata right).
-            $headerHeight = 54;
+            $headerHeight = 68;
             $headerBottom = $y - $headerHeight;
             $leftWidth = 150;
-            $rightWidth = 154;
+            $rightWidth = 178;
             $centerX = self::MARGIN + $leftWidth;
             $centerWidth = $tableWidth - $leftWidth - $rightWidth;
             $rightX = self::MARGIN + $tableWidth - $rightWidth;
@@ -195,12 +195,20 @@ final class PdfTableWriter
                 );
             }
 
-            $commands[] = $this->text($rightX + 8, $y - 17, 6.1, 'Generated', true);
-            $commands[] = $this->text($rightX + 58, $y - 17, 6.1, $report['generated_at']->format('M d, Y'));
-            $commands[] = $this->text($rightX + 8, $y - 29, 6.1, 'Time', true);
-            $commands[] = $this->text($rightX + 58, $y - 29, 6.1, $report['generated_at']->format('h:i A'));
-            $commands[] = $this->text($rightX + 8, $y - 41, 6.1, 'Page', true);
-            $commands[] = $this->text($rightX + 58, $y - 41, 6.1, ($pageIndex + 1).' of '.$chunks->count());
+            $documentControl = (array) ($report['document_control'] ?? []);
+            $commands[] = $this->text($rightX + 8, $y - 17, 5.8, 'Reference', true);
+            $commands[] = $this->text(
+                $rightX + 58,
+                $y - 17,
+                5.4,
+                $this->fit((string) ($documentControl['reference'] ?? '—'), $rightWidth - 66, 5.4),
+            );
+            $commands[] = $this->text($rightX + 8, $y - 29, 5.8, 'Version', true);
+            $commands[] = $this->text($rightX + 58, $y - 29, 5.6, (string) ($documentControl['version_label'] ?? 'v1.0 · Rev 0'));
+            $commands[] = $this->text($rightX + 8, $y - 41, 5.8, 'Generated', true);
+            $commands[] = $this->text($rightX + 58, $y - 41, 5.6, $report['generated_at']->format('M d, Y h:i A'));
+            $commands[] = $this->text($rightX + 8, $y - 53, 5.8, 'Page', true);
+            $commands[] = $this->text($rightX + 58, $y - 53, 5.8, ($pageIndex + 1).' of '.$chunks->count());
 
             $y = $headerBottom - 10;
 
@@ -282,11 +290,20 @@ final class PdfTableWriter
             if ($report['warning']) {
                 $commands[] = $this->text(
                     self::MARGIN,
-                    max(12, $y - 12),
+                    max(105, $y - 12),
                     6.5,
                     'Note: '.$this->truncate((string) $report['warning'], 190),
                 );
             }
+
+            $commands = array_merge(
+                $commands,
+                $this->documentControlCommands(
+                    $report,
+                    self::PAGE_WIDTH,
+                    $pageIndex === $chunks->count() - 1,
+                ),
+            );
 
             return implode("\n", $commands);
         })->all();
@@ -298,19 +315,29 @@ final class PdfTableWriter
         $matrix = $report['physical_financial_matrix'];
         $dimension = $report['dimension']->value ?? 'overall';
 
-        if ($dimension === 'overall') {
-            return [$this->physicalFinancialOverallPage($report, $matrix)];
-        }
+        $pages = $dimension === 'overall'
+            ? [$this->physicalFinancialOverallPage($report, $matrix)]
+            : collect($matrix['periods'] ?? [])
+                ->map(
+                    fn (array $period): string =>
+                        $this->physicalFinancialPeriodPage(
+                            $report,
+                            $matrix,
+                            $period,
+                        )
+                )
+                ->all();
 
-        return collect($matrix['periods'] ?? [])
-            ->map(
-                fn (array $period): string =>
-                    $this->physicalFinancialPeriodPage(
-                        $report,
-                        $matrix,
-                        $period,
-                    )
-            )
+        $lastPage = max(0, count($pages) - 1);
+
+        return collect($pages)
+            ->map(function (string $content, int $index) use ($report, $lastPage): string {
+                return $content."\n".implode("\n", $this->documentControlCommands(
+                    $report,
+                    self::LETTER_PAGE_WIDTH,
+                    $index === $lastPage,
+                ));
+            })
             ->all();
     }
 
@@ -509,7 +536,7 @@ final class PdfTableWriter
             self::MARGIN,
             max(30, $currentY - 16),
             5.8,
-            'Letter portrait layout - one reporting period per page. Short-Term and Long-Term subdivisions removed.',
+            'Letter portrait layout - one reporting period per page.',
         );
 
         return implode("\n", array_filter($commands));
@@ -572,6 +599,13 @@ final class PdfTableWriter
             5.7,
             $this->fit($period, 70, 5.7),
         );
+        $commands[] = $this->text(self::LETTER_PAGE_WIDTH - self::MARGIN - 112, $top - 48, 6.2, 'Version', true);
+        $commands[] = $this->text(
+            self::LETTER_PAGE_WIDTH - self::MARGIN - 68,
+            $top - 48,
+            5.7,
+            $this->fit((string) data_get($report, 'document_control.version_label', 'v1.0 · Rev 0'), 68, 5.7),
+        );
 
         $criteria = collect($report['criteria'] ?? [])
             ->reject(fn (mixed $value, string $label): bool => in_array($label, ['Report Type', 'Grouped By'], true))
@@ -588,6 +622,67 @@ final class PdfTableWriter
         }
 
         return $headerBottom - 28;
+    }
+
+    /** @return array<int, string> */
+    private function documentControlCommands(
+        array $report,
+        float $pageWidth,
+        bool $includeSignatories,
+    ): array {
+        $commands = [];
+        $documentControl = (array) ($report['document_control'] ?? []);
+        $reference = (string) ($documentControl['reference'] ?? '—');
+        $version = (string) ($documentControl['version_label'] ?? 'v1.0 · Rev 0');
+        $generatedBy = (string) ($documentControl['generated_by'] ?? 'System-generated');
+        $classification = (string) ($documentControl['classification'] ?? 'Internal Government Report');
+        $usableWidth = $pageWidth - (self::MARGIN * 2);
+
+        if ($includeSignatories && ! empty($report['signatories'])) {
+            $signatories = array_values((array) $report['signatories']);
+            $count = max(1, count($signatories));
+            $columnWidth = $usableWidth / $count;
+            $top = 92.0;
+
+            foreach ($signatories as $index => $signatory) {
+                $x = self::MARGIN + ($index * $columnWidth);
+                $label = (string) ($signatory['label'] ?? 'Signatory');
+                $name = (string) ($signatory['display_name'] ?? '____________________________');
+                $position = (string) ($signatory['display_position'] ?? 'Name / Signature');
+                $office = (string) ($signatory['office'] ?? '');
+
+                $commands[] = $this->centeredText($x, $top, $columnWidth, 6.2, $label, true);
+                $commands[] = sprintf(
+                    '0.35 0.40 0.45 RG 0.45 w %.2F %.2F m %.2F %.2F l S',
+                    $x + 12,
+                    $top - 28,
+                    $x + $columnWidth - 12,
+                    $top - 28,
+                );
+                $commands[] = $this->centeredText($x, $top - 39, $columnWidth, 6.4, $name, true);
+                $commands[] = $this->centeredText($x, $top - 49, $columnWidth, 5.6, $position);
+
+                if ($office !== '') {
+                    $commands[] = $this->centeredText($x, $top - 58, $columnWidth, 5.2, $office);
+                }
+            }
+        }
+
+        $metadata = sprintf(
+            'Reference: %s | Version: %s | Generated by: %s | Classification: %s',
+            $reference,
+            $version,
+            $generatedBy,
+            $classification,
+        );
+        $commands[] = $this->text(
+            self::MARGIN,
+            10,
+            5.2,
+            $this->truncate($metadata, $pageWidth > 700 ? 220 : 150),
+        );
+
+        return $commands;
     }
 
     private function pfNumber(mixed $value): string

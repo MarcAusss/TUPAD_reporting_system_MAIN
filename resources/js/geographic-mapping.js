@@ -139,6 +139,25 @@ function styleForFeature(feature, payload) {
     };
 }
 
+function syncLabelVisibility(state) {
+    const zoom = state.map.getZoom();
+
+    state.labels.forEach((label) => {
+        const element = label.getElement?.();
+        if (!element) return;
+
+        const isSelectedMunicipality = element.classList.contains('tupad-municipality-label-selected');
+        const isMunicipalityLabel = element.classList.contains('tupad-municipality-label');
+        const isBarangayLabel = element.classList.contains('tupad-barangay-label');
+
+        const hidden = isBarangayLabel
+            ? zoom < 11
+            : (isMunicipalityLabel && !isSelectedMunicipality ? zoom < 8 : false);
+
+        element.classList.toggle('tupad-map-label-hidden', hidden);
+    });
+}
+
 function clearLabels(state) {
     state.labelLoadToken += 1;
     state.labels.forEach((label) => state.map.removeLayer(label));
@@ -281,6 +300,7 @@ async function refreshLabels(root, state, payload) {
     clearLabels(state);
     addBoundaryLabels(state, payload);
     await addBarangayLabels(root, state, payload);
+    syncLabelVisibility(state);
 }
 
 async function loadBoundary(root, state, payload, { animate = true } = {}) {
@@ -507,6 +527,10 @@ async function initializeRoot(root) {
         labelGeoJson: null,
     };
     mapState.set(root, state);
+
+    map.on('zoomend', () => {
+        syncLabelVisibility(state);
+    });
 
     root.addEventListener('click', (event) => {
         if (event.target.closest('[data-map-home]') && state.currentBounds?.isValid()) {

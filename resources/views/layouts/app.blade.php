@@ -11,7 +11,10 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="tupad-shell min-h-screen text-[#0f2347] antialiased">
+<body class="tupad-shell min-h-screen text-[#0f2347] antialiased"
+    data-notification-feed-url="{{ url('/notifications/feed') }}"
+    data-notification-user-id="{{ auth()->id() }}"
+    data-notification-poll-ms="10000">
     <a href="#main-content"
         class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-100 focus:rounded-lg focus:bg-[#063b86] focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg">
         Skip to main content
@@ -24,20 +27,22 @@
         $workspaceLabel = match (true) {
             $user->isFocal() => 'Focal Fund Monitoring Workspace',
             $user->isTc() => 'TUPAD Coordinator Workspace',
-            $user->isGip() => 'GIP Encoding Workspace',
             $user->isAdmin() => 'Administrator Workspace',
             default => 'TUPAD Workspace',
         };
+
+        $notificationSummary = app(\App\Services\Notifications\NotificationCenterService::class)->build($user);
+        $notificationCount = (int) ($notificationSummary['total_count'] ?? 0);
     @endphp
 
     <div class="min-h-screen">
         {{-- Sidebar --}}
         <aside id="sidebar"
             class="tupad-desktop-sidebar fixed inset-y-0 left-0 z-50 flex w-63 -translate-x-full flex-col border-r border-[#dfe6f0] bg-white transition-transform duration-200 lg:translate-x-0">
-            <div class="tupad-sidebar-header flex h-[98px] w-full shrink-0 items-center border-b border-[#e4eaf2] px-6">
+            <div class="tupad-sidebar-header flex h-[78px] w-full shrink-0 items-center border-b border-[#e4eaf2] px-5">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                    <div class="h-13 w-11 relative">
-                        <img src="{{ url ('images/mainlogo.jpg')}}" alt="" class="w-full h-full object-cover">
+                    <div class="flex h-13 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
+                        <img src="{{ asset('images/mainlogo.jpg') }}" alt="TUPAD Reporting System logo" class="h-full w-full object-contain">
                     </div>
 
                     <div>
@@ -48,7 +53,7 @@
 
                 <button type="button" id="sidebarClose"
                     class="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
-                    aria-label="Close sidebar">
+                    aria-label="Close sidebar" aria-controls="sidebar">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 6 6 18"></path>
                         <path d="m6 6 12 12"></path>
@@ -77,382 +82,11 @@
                         <span>Dashboard</span>
                     </a>
 
-                    {{-- =========================================================
-                        FOCAL WORKSPACE
-                    ========================================================== --}}
+                    {{-- Role-specific navigation is kept in focused partials so the main shell remains stable. --}}
                     @if ($user->isFocal())
-
-                        <div class="tupad-nav-section">
-                            Project Management
-                        </div>
-
-                        <a href="{{ route('projects.index') }}"
-                            class="{{ $navClass(
-                                request()->routeIs('projects.index') ||
-                                    request()->routeIs('projects.create') ||
-                                    request()->routeIs('projects.show'),
-                            ) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                <rect x="3" y="7" width="18" height="13" rx="2"></rect>
-                                <path d="M3 12h18"></path>
-                            </svg>
-
-                            <span>Projects</span>
-                        </a>
-
-                        <div class="tupad-nav-section">
-                            Project Summary
-                        </div>
-
-                        <a href="{{ route('project-summary.index') }}"
-                            class="{{ $navClass(request()->routeIs('project-summary.*') || request()->routeIs('projects.summary')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M4 19V9"></path>
-                                <path d="M10 19V5"></path>
-                                <path d="M16 19v-7"></path>
-                                <path d="M22 19H2"></path>
-                            </svg>
-
-                            <span>Provincial Summary</span>
-                        </a>
-
-                        <div class="tupad-nav-section">
-                            Fund Management
-                        </div>
-
-                        <a href="{{ route('adl.index') }}"
-                            class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M12 3v18"></path>
-                                <path
-                                    d="M17 7.5C17 5.57 14.76 4 12 4S7 5.57 7 7.5 9.24 11 12 11s5 1.57 5 3.5S14.76 18 12 18s-5-1.57-5-3.5">
-                                </path>
-                            </svg>
-
-                            <span>ADL</span>
-                        </a>
-
-                        <div class="tupad-nav-section">
-                            Monitoring
-                        </div>
-
-                        @if (Route::has('fund-monitoring.per-adl-current'))
-                            <a href="{{ route('fund-monitoring.per-adl-current') }}"
-                                class="{{ $navClass(request()->routeIs('fund-monitoring.per-adl-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
-                                    <path d="M4 19V9"></path>
-                                    <path d="M10 19V5"></path>
-                                    <path d="M16 19v-7"></path>
-                                    <path d="M22 19H2"></path>
-                                </svg>
-                                <span>PER ADL (Current)</span>
-                            </a>
-                        @endif
-
-                        @if (Route::has('fund-monitoring.summary'))
-                            <a href="{{ route('fund-monitoring.summary') }}"
-                                class="{{ $navClass(request()->routeIs('fund-monitoring.summary')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="1.8">
-                                    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                                    <path d="M8 9h8"></path>
-                                    <path d="M8 13h5"></path>
-                                    <path d="M8 17h7"></path>
-                                </svg>
-                                <span>Summary</span>
-                            </a>
-                        @endif
-
-                        @if (Route::has('fund-monitoring.summary-current'))
-                            <a href="{{ route('fund-monitoring.summary-current') }}"
-                                class="{{ $navClass(request()->routeIs('fund-monitoring.summary-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
-                                    <circle cx="12" cy="12" r="9"></circle>
-                                    <path d="M12 7v5l3 2"></path>
-                                </svg>
-                                <span>Summary (Current)</span>
-                            </a>
-                        @endif
-
-                        @if (Route::has('fund-monitoring.per-province-current'))
-                            <a href="{{ route('fund-monitoring.per-province-current') }}"
-                                class="{{ $navClass(request()->routeIs('fund-monitoring.per-province-current')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
-                                    <path d="M3 21h18"></path>
-                                    <path d="M5 21V9l7-5 7 5v12"></path>
-                                    <path d="M9 21v-6h6v6"></path>
-                                </svg>
-                                <span>Per Province (Current)</span>
-                            </a>
-                        @endif
-
-                        <div class="tupad-nav-section">
-                            Payment
-                        </div>
-
-                        <a href="{{ route('payments.index') }}"
-                            class="{{ $navClass(request()->routeIs('payments.*') || request()->routeIs('projects.payment.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="1.8">
-                                <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                                <path d="M3 10h18"></path>
-                                <path d="M7 15h4"></path>
-                            </svg>
-                            <span>Payment of Wages</span>
-                        </a>
-
-                        <div class="tupad-nav-section">
-                            Through ACP
-                        </div>
-
-                        @foreach ([
-                            'acp-workflow.payment' => 'ACP Payment',
-                            'acp-workflow.check-release' => 'Check Release',
-                            'acp-workflow.liquidation' => 'Liquidation',
-                        ] as $acpRoute => $acpLabel)
-                            <a href="{{ route($acpRoute) }}"
-                                class="{{ $navClass(request()->routeIs($acpRoute) || (request()->routeIs('acp-payments.*') && in_array($acpRoute, ['acp-workflow.payment', 'acp-workflow.check-release'], true)) || (request()->routeIs('acp-liquidations.*') && $acpRoute === 'acp-workflow.liquidation')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                    <path d="M4 6h16v12H4z"></path>
-                                    <path d="M8 10h8 M8 14h5"></path>
-                                </svg>
-                                <span>{{ $acpLabel }}</span>
-                            </a>
-                        @endforeach
-
-                        <div class="tupad-nav-section">
-                            Reporting
-                        </div>
-
-                        <a href="{{ route('executive-dashboard.index') }}"
-                            class="{{ $navClass(request()->routeIs('executive-dashboard.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                                <path d="M7 15V11"></path>
-                                <path d="M12 15V7"></path>
-                                <path d="M17 15v-5"></path>
-                            </svg>
-                            <span>Executive Dashboard</span>
-                        </a>
-
-                        @include('layouts.partials.report-navigation')
-
-                        <div class="tupad-nav-section">
-                            Administration
-                        </div>
-
-                        <a href="{{ route('users.index') }}"
-                            class="{{ $navClass(request()->routeIs('users.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                            </svg>
-                            <span>User Accounts</span>
-                        </a>
-
-                        {{-- =========================================================
-                        TC / ADMIN PROJECT WORKSPACE
-                    ========================================================== --}}
-                    @elseif($user->isTc() || $user->isAdmin())
-                        @if ($user->isAdmin())
-                            <div class="tupad-nav-section">
-                                Fund Management
-                            </div>
-
-                            <a href="{{ route('adl.index') }}"
-                                class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
-                                    <path d="M12 3v18"></path>
-                                    <path
-                                        d="M17 7.5C17 5.57 14.76 4 12 4S7 5.57 7 7.5 9.24 11 12 11s5 1.57 5 3.5S14.76 18 12 18s-5-1.57-5-3.5">
-                                    </path>
-                                </svg>
-                                <span>ADL</span>
-                            </a>
-                        @endif
-
-                        <div class="tupad-nav-section">
-                            Project Management
-                        </div>
-
-                        <a href="{{ route('projects.index') }}"
-                            class="{{ $navClass(
-                                request()->routeIs('projects.index') ||
-                                    request()->routeIs('projects.create') ||
-                                    request()->routeIs('projects.show'),
-                            ) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                <rect x="3" y="7" width="18" height="13" rx="2"></rect>
-                                <path d="M3 12h18"></path>
-                            </svg>
-                            <span>Projects</span>
-                        </a>
-
-                        <a href="{{ route('project-draft-reviews.index') }}"
-                            class="{{ $navClass(request()->routeIs('project-draft-reviews.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="1.8">
-                                <path d="M9 11l3 3L22 4"></path>
-                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                            </svg>
-                            <span>GIP Draft Reviews</span>
-                        </a>
-
-                        <div class="tupad-nav-section">
-                            Project Summary
-                        </div>
-
-                        <a href="{{ route('project-summary.index') }}"
-                            class="{{ $navClass(request()->routeIs('project-summary.*') || request()->routeIs('projects.summary')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M4 19V9"></path>
-                                <path d="M10 19V5"></path>
-                                <path d="M16 19v-7"></path>
-                                <path d="M22 19H2"></path>
-                            </svg>
-
-                            <span>Provincial Summary</span>
-                        </a>
-
-                        <div class="tupad-nav-section">
-                            Project Workflow
-                        </div>
-
-                        @php
-                            $workflowQueue = request()->route('queue');
-                        @endphp
-
-                        @foreach ([
-        'tssd-evaluation' => ['TSSD Evaluation', 'M9 11l2 2 4-4 M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18'],
-        'for-compliance' => ['For Compliance', 'M12 9v4 M12 17h.01 M5 4h14v16H5z'],
-        'for-approval' => ['For Approval', 'M7 12l3 3 7-7 M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1'],
-        'implementation' => ['Implementation', 'M4 21h16 M6 21V9l6-4 6 4v12 M9 14h6'],
-        'post-documents' => ['Post-Documents', 'M5 3h10l4 4v14H5z M15 3v5h5 M8 13h8 M8 17h6'],
-    ] as $queueKey => [$queueLabel, $queueIcon])
-                            <a href="{{ route('project-workflow.index', ['queue' => $queueKey]) }}"
-                                class="{{ $navClass(request()->routeIs('project-workflow.index') && $workflowQueue === $queueKey) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
-                                    <path d="{{ $queueIcon }}"></path>
-                                </svg>
-                                <span>{{ $queueLabel }}</span>
-                            </a>
-                        @endforeach
-
-                        <div class="tupad-nav-section">
-                            Through ACP
-                        </div>
-
-                        <a href="{{ route('acp-workflow.implementation') }}"
-                            class="{{ $navClass(request()->routeIs('acp-workflow.implementation') || request()->routeIs('acp-implementation.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                <path d="M4 21h16 M6 21V9l6-4 6 4v12"></path>
-                            </svg>
-                            <span>ACP Implementation</span>
-                        </a>
-
-                        @if ($user->isAdmin())
-                            @foreach ([
-                                'acp-workflow.payment' => 'ACP Payment',
-                                'acp-workflow.check-release' => 'Check Release',
-                                'acp-workflow.liquidation' => 'Liquidation',
-                            ] as $acpRoute => $acpLabel)
-                                <a href="{{ route($acpRoute) }}"
-                                    class="{{ $navClass(request()->routeIs($acpRoute) || (request()->routeIs('acp-payments.*') && in_array($acpRoute, ['acp-workflow.payment', 'acp-workflow.check-release'], true)) || (request()->routeIs('acp-liquidations.*') && $acpRoute === 'acp-workflow.liquidation')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                                    <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                        <path d="M4 6h16v12H4z"></path>
-                                        <path d="M8 10h8 M8 14h5"></path>
-                                    </svg>
-                                    <span>{{ $acpLabel }}</span>
-                                </a>
-                            @endforeach
-                        @endif
-
-                        @if ($user->isAdmin())
-                            <div class="tupad-nav-section">
-                                Payment
-                            </div>
-
-                            <a href="{{ route('payments.index') }}"
-                                class="{{ $navClass(request()->routeIs('payments.*')) }} flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
-                                    <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                                    <path d="M3 10h18"></path>
-                                    <path d="M7 15h4"></path>
-                                </svg>
-                                <span>Payment of Wages</span>
-                            </a>
-                        @endif
-
-                        <div class="tupad-nav-section">
-                            Reporting
-                        </div>
-
-                        <a href="{{ route('executive-dashboard.index') }}"
-                            class="{{ $navClass(request()->routeIs('executive-dashboard.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                                <path d="M7 15V11"></path>
-                                <path d="M12 15V7"></path>
-                                <path d="M17 15v-5"></path>
-                            </svg>
-                            <span>Executive Dashboard</span>
-                        </a>
-
-                        @include('layouts.partials.report-navigation')
-
-                        @if ($user->isAdmin())
-                            <div class="tupad-nav-section">
-                                Administration
-                            </div>
-
-                            <a href="{{ route('users.index') }}"
-                                class="{{ $navClass(request()->routeIs('users.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                                <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.8">
-                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="9" cy="7" r="4"></circle>
-                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                                </svg>
-                                <span>Users</span>
-                            </a>
-                        @endif
-
-                        {{-- =========================================================
-                        GIP WORKSPACE
-                    ========================================================== --}}
-                    @elseif($user->isGip())
-                        <div class="tupad-nav-section">
-                            Project Management
-                        </div>
-
-                        <a href="{{ route('project-drafts.index') }}"
-                            class="{{ $navClass(request()->routeIs('project-drafts.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8">
-                                <path d="M5 3h10l4 4v14H5z"></path>
-                                <path d="M15 3v5h5"></path>
-                                <path d="M8 13h8"></path>
-                                <path d="M8 17h6"></path>
-                            </svg>
-                            <span>Project Drafts</span>
-                        </a>
-
+                        @include('layouts.partials.sidebar-focal')
+                    @elseif ($user->isTc() || $user->isAdmin())
+                        @include('layouts.partials.sidebar-project-operations')
                     @endif
 
                 </nav>
@@ -488,10 +122,10 @@
         {{-- Main shell --}}
         <div class="tupad-main-shell min-h-screen lg:pl-[252px]">
             <header
-                class="sticky top-0 z-30 flex h-[86px] items-center border-b border-[#dfe6f0] bg-white/95 px-4 backdrop-blur md:px-6 xl:px-8">
+                class="tupad-topbar sticky top-0 z-30 flex h-[78px] items-center border-b border-[#dfe6f0] bg-white/95 px-4 backdrop-blur md:px-6 xl:px-8">
                 <button type="button" id="sidebarToggle"
                     class="mr-3 flex h-10 w-10 items-center justify-center rounded-lg text-[#17325c] hover:bg-slate-100 lg:hidden"
-                    aria-label="Open sidebar">
+                    aria-label="Open sidebar" aria-controls="sidebar" aria-expanded="false">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M4 6h16"></path>
                         <path d="M4 12h16"></path>
@@ -528,6 +162,23 @@
                             {{ $workspaceLabel }}
                         </div>
                     </div>
+
+                    <a href="{{ route('notifications.index') }}"
+                        data-notification-bell
+                        class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#dfe6f0] bg-white text-[#355378] transition hover:bg-slate-50 {{ request()->routeIs('notifications.*') ? 'ring-2 ring-blue-100' : '' }}"
+                        aria-label="Notifications{{ $notificationCount > 0 ? ': '.$notificationCount.' active item(s)' : '' }}">
+                        <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                            <path d="M10 21h4"></path>
+                        </svg>
+                        <span data-notification-badge
+                            class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b42318] px-1.5 py-0.5 text-[9px] font-extrabold leading-4 text-white ring-2 ring-white {{ $notificationCount > 0 ? '' : 'hidden' }}">
+                            {{ $notificationCount > 99 ? '99+' : $notificationCount }}
+                        </span>
+                        <span data-notification-live-label class="sr-only">
+                            {{ $notificationCount > 0 ? $notificationCount.' active notification item(s)' : 'No active notifications' }}
+                        </span>
+                    </a>
 
                     <div class="hidden h-9 w-px bg-[#e0e7f0] sm:block"></div>
 
@@ -572,7 +223,7 @@
                 </form>
             </div>
 
-            <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-[1660px] p-4 md:p-5 xl:p-6">
+            <main id="main-content" tabindex="-1" class="tupad-main-content mx-auto w-full max-w-[1660px] p-4 md:p-5 xl:p-6">
 
                 {{-- Global success/error feedback --}}
                 @if (session('success'))
@@ -623,6 +274,10 @@
         </div>
     </div>
 
+    <div data-notification-toast-region
+        class="pointer-events-none fixed right-4 top-24 z-[90] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2"
+        aria-live="polite" aria-atomic="false"></div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebar');
@@ -634,6 +289,7 @@
                 sidebar?.classList.remove('-translate-x-full');
                 sidebarOverlay?.classList.remove('hidden');
                 document.body.classList.add('overflow-hidden');
+                sidebarToggle?.setAttribute('aria-expanded', 'true');
                 sidebarClose?.focus();
             }
 
@@ -641,6 +297,7 @@
                 sidebar?.classList.add('-translate-x-full');
                 sidebarOverlay?.classList.add('hidden');
                 document.body.classList.remove('overflow-hidden');
+                sidebarToggle?.setAttribute('aria-expanded', 'false');
             }
 
             sidebarToggle?.addEventListener('click', openSidebar);

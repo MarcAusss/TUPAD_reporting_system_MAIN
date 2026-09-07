@@ -68,30 +68,4 @@ class RoleDashboardUxTest extends TestCase
 
         $response->assertDontSee('Release of Assistance');
     }
-
-    public function test_gip_dashboard_is_draft_focused(): void
-    {
-        $gip = User::factory()->create([
-            'role' => UserRole::GIP,
-            'is_active' => true,
-        ]);
-
-        $response = $this
-            ->actingAs($gip)
-            ->get(route('dashboard'));
-
-        $response->assertOk();
-
-        $response->assertSee(
-            'GIP Workspace'
-        );
-
-        $response->assertSee(
-            'Recent Project Drafts'
-        );
-
-        $response->assertSee(
-            'Recommended Workflow'
-        );
-    }
 }

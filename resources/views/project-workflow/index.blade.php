@@ -454,8 +454,7 @@
                             </h2>
 
                             <p class="mt-1 text-xs leading-5 text-slate-500">
-                                Select the Start Date. The End Date is calculated automatically from the approved project
-                                duration.
+                                Enter the planned Start Date and End Date. The approved project duration is shown as reference only.
                             </p>
                         </div>
 
@@ -526,18 +525,11 @@
                                     End Date
                                 </label>
 
-                                <div class="relative">
-                                    <input id="workPeriodEndDate" type="text" readonly value="Select a Start Date"
-                                        class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 pr-28 text-sm font-semibold text-slate-700">
+                                <input id="workPeriodEndDate" name="end_date" type="date" required
+                                    class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#063b86] focus:outline-none focus:ring-2 focus:ring-blue-100">
 
-                                    <span
-                                        class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-blue-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-blue-700">
-                                        Automatic
-                                    </span>
-                                </div>
-
-                                <p id="workPeriodCalculationNote" class="mt-1 text-[11px] leading-4 text-slate-500">
-                                    End Date will be calculated from the approved duration.
+                                <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                    Enter the planned End Date. It cannot be earlier than the Start Date.
                                 </p>
                             </div>
 
@@ -561,7 +553,7 @@
 
                                 <p class="mt-1 text-xs leading-5 text-blue-700">
                                     Before Start Date: For Implementation. On Start Date: Ongoing Implementation.
-                                    On the calculated End Date: For Submission of Post Docs.
+                                    On the End Date: For Submission of Post Docs.
                                 </p>
                             </div>
                         </div>
@@ -588,7 +580,7 @@
 
             <div class="overflow-x-auto">
 
-                <table class="min-w-full">
+                <table class="tupad-system-table min-w-full">
 
                     <thead class="bg-slate-50">
 
@@ -785,109 +777,12 @@
                         'workPeriodEndDate'
                     );
 
-                const calculationNote =
-                    document.getElementById(
-                        'workPeriodCalculationNote'
-                    );
-
                 const remarksInput =
                     document.getElementById(
                         'workPeriodRemarks'
                     );
 
                 let activeDuration = 0;
-
-                function formatDate(
-                    year,
-                    monthIndex,
-                    day
-                ) {
-                    return new Intl.DateTimeFormat(
-                        'en-PH', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: '2-digit',
-                            timeZone: 'UTC',
-                        }
-                    ).format(
-                        new Date(
-                            Date.UTC(
-                                year,
-                                monthIndex,
-                                day
-                            )
-                        )
-                    );
-                }
-
-                function calculateEndDate() {
-                    if (
-                        !startDateInput?.value ||
-                        activeDuration < 1
-                    ) {
-                        if (endDateInput) {
-                            endDateInput.value =
-                                'Select a Start Date';
-                        }
-
-                        if (calculationNote) {
-                            calculationNote.textContent =
-                                'End Date will be calculated from the approved duration.';
-                        }
-
-                        return;
-                    }
-
-                    const parts =
-                        startDateInput
-                        .value
-                        .split('-')
-                        .map(Number);
-
-                    if (parts.length !== 3) {
-                        return;
-                    }
-
-                    const [
-                        year,
-                        month,
-                        day,
-                    ] = parts;
-
-                    const endDate =
-                        new Date(
-                            Date.UTC(
-                                year,
-                                month - 1,
-                                day
-                            )
-                        );
-
-                    /*
-                     * Keep this preview aligned with the current server rule:
-                     * End Date = Start Date + approved number_of_days.
-                     */
-                    endDate.setUTCDate(
-                        endDate.getUTCDate() +
-                        activeDuration
-                    );
-
-                    if (endDateInput) {
-                        endDateInput.value =
-                            formatDate(
-                                endDate.getUTCFullYear(),
-                                endDate.getUTCMonth(),
-                                endDate.getUTCDate()
-                            );
-                    }
-
-                    if (calculationNote) {
-                        calculationNote.textContent =
-                            'Calculated automatically from the ' +
-                            activeDuration +
-                            '-day approved project duration.';
-                    }
-                }
 
                 function openModal(button) {
                     if (
@@ -938,11 +833,13 @@
                         startDateInput.value = '';
                     }
 
+                    if (endDateInput) {
+                        endDateInput.value = '';
+                    }
+
                     if (remarksInput) {
                         remarksInput.value = '';
                     }
-
-                    calculateEndDate();
 
                     modal.classList.remove(
                         'hidden'
@@ -1011,16 +908,6 @@
                             );
                         }
                     );
-
-                startDateInput?.addEventListener(
-                    'change',
-                    calculateEndDate
-                );
-
-                startDateInput?.addEventListener(
-                    'input',
-                    calculateEndDate
-                );
 
                 document.addEventListener(
                     'keydown',

@@ -39,12 +39,6 @@ class Barangay extends Model
         );
     }
 
-    public function projectDrafts(): HasMany
-    {
-        return $this->hasMany(
-            ProjectDraft::class
-        );
-    }
 
     public function getFullLocationAttribute(): string
     {

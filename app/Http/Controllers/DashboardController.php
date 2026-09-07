@@ -2,84 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ImplementationMode;
-use App\Enums\ProjectDraftStatus;
 use App\Enums\ProjectStatus;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
 use App\Models\AuditLog;
 use App\Models\Project;
-use App\Models\ProjectDraft;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Dashboards\DashboardActionQueueService;
+use App\Services\Dashboards\DashboardGeographicAnalyticsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request, ProvinceAccessService $provinceAccess): View
+    public function index(
+        Request $request,
+        ProvinceAccessService $provinceAccess,
+        DashboardActionQueueService $actionQueues,
+        DashboardGeographicAnalyticsService $geographicAnalytics,
+    ): View
     {
         $user = $request->user();
-
-        if ($user->isGip()) {
-            return $this->gipDashboard($user->id);
-        }
-
-        return $this->officialDashboard($user, $provinceAccess);
+        return $this->officialDashboard($user, $provinceAccess, $actionQueues, $geographicAnalytics);
     }
 
-    private function gipDashboard(int $userId): View
-    {
-        $draftQuery = ProjectDraft::query()
-            ->where('encoded_by', $userId);
-
-        return view('dashboard.index', [
-            'dashboardMode' => 'gip',
-
-            'totalDrafts' =>
-                (clone $draftQuery)->count(),
-
-            'pendingDrafts' =>
-                (clone $draftQuery)
-                    ->where(
-                        'status',
-                        ProjectDraftStatus::PENDING_TC_REVIEW
-                    )
-                    ->count(),
-
-            'returnedDrafts' =>
-                (clone $draftQuery)
-                    ->where(
-                        'status',
-                        ProjectDraftStatus::RETURNED_FOR_CORRECTION
-                    )
-                    ->count(),
-
-            'confirmedDrafts' =>
-                (clone $draftQuery)
-                    ->where(
-                        'status',
-                        ProjectDraftStatus::CONFIRMED
-                    )
-                    ->count(),
-
-            'recentDrafts' =>
-                (clone $draftQuery)
-                    ->latest('updated_at')
-                    ->limit(6)
-                    ->get(),
-
-            'recentActivity' =>
-                AuditLog::query()
-                    ->where('user_id', $userId)
-                    ->latest('performed_at')
-                    ->limit(6)
-                    ->get(),
-        ]);
-    }
-
-    private function officialDashboard($user, ProvinceAccessService $provinceAccess): View
+    private function officialDashboard(
+        $user,
+        ProvinceAccessService $provinceAccess,
+        DashboardActionQueueService $actionQueues,
+        DashboardGeographicAnalyticsService $geographicAnalytics,
+    ): View
     {
         $projects = $this->projectQuery($user, $provinceAccess);
 
@@ -170,68 +123,11 @@ class DashboardController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Workflow counts
+        | Role-aware action queues and aging
         |--------------------------------------------------------------------------
         */
 
-        $workflowCounts = [
-            'tssd' => $this->projectQuery($user, $provinceAccess)
-                ->whereIn('status', [
-                    ProjectStatus::TSSD_EVALUATION,
-                    ProjectStatus::FOR_COMPLIANCE,
-                ])
-                ->count(),
-
-            'approval' => $this->projectQuery($user, $provinceAccess)
-                ->where('status', ProjectStatus::FOR_APPROVAL)
-                ->count(),
-
-            'implementation' => $this->projectQuery($user, $provinceAccess)
-                ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
-                ->whereIn('status', [
-                    ProjectStatus::APPROVED,
-                    ProjectStatus::FOR_IMPLEMENTATION,
-                    ProjectStatus::ONGOING_IMPLEMENTATION,
-                ])
-                ->count(),
-
-            'post_documents' => $this->projectQuery($user, $provinceAccess)
-                ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
-                ->where('status', ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS)
-                ->count(),
-
-            'payment' => $this->projectQuery($user, $provinceAccess)
-                ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
-                ->where('status', ProjectStatus::FOR_PAYMENT)
-                ->count(),
-
-            'acp_payment' => $this->projectQuery($user, $provinceAccess)
-                ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
-                ->where('status', ProjectStatus::FOR_PAYMENT)
-                ->count(),
-
-            'acp_check_release' => $this->projectQuery($user, $provinceAccess)
-                ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
-                ->where('status', ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT)
-                ->count(),
-
-            'acp_implementation' => $this->projectQuery($user, $provinceAccess)
-                ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
-                ->whereIn('status', [
-                    ProjectStatus::FOR_IMPLEMENTATION,
-                    ProjectStatus::ONGOING_IMPLEMENTATION,
-                ])
-                ->count(),
-
-            'acp_liquidation' => $this->projectQuery($user, $provinceAccess)
-                ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
-                ->whereIn('status', [
-                    ProjectStatus::FOR_LIQUIDATION,
-                    ProjectStatus::PARTIALLY_LIQUIDATED,
-                ])
-                ->count(),
-        ];
-
+        $actionQueueData = $actionQueues->build($user);
         /*
         |--------------------------------------------------------------------------
         | Recent projects
@@ -320,8 +216,8 @@ class DashboardController extends Controller
             'utilizationPercent' =>
                 $utilizationPercent,
 
-            'workflowCounts' =>
-                $workflowCounts,
+            'actionQueueData' =>
+                $actionQueueData,
 
             'recentProjects' =>
                 $recentProjects,
@@ -341,6 +237,11 @@ class DashboardController extends Controller
                     ->latest('performed_at')
                     ->limit(6)
                     ->get(),
+
+            'geographicAnalytics' =>
+                $user->isFocal()
+                    ? $geographicAnalytics->build($user, ['family' => DashboardGeographicAnalyticsService::PROJECTS])
+                    : null,
 
             'roleMode' =>
                 match (true) {

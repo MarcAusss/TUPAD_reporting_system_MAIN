@@ -6,7 +6,7 @@
     <x-page-header eyebrow="Official Reporting" :title="$section['label']"
         :description="$section['description']" />
 
-    <section class="mb-5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm" aria-label="Report categories">
+    <section class="tupad-report-nav mb-5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm" aria-label="Report categories">
         <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             @foreach ($sections as $key => $reportSection)
                 <a href="{{ route($reportSection['route']) }}"
@@ -20,7 +20,7 @@
         </div>
     </section>
 
-    <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section class="tupad-table-shell rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <div class="text-[11px] font-extrabold uppercase tracking-[0.15em] text-blue-700">
@@ -28,7 +28,7 @@
                 </div>
                 <h2 class="mt-1 text-xl font-extrabold tracking-tight text-slate-900">{{ $section['label'] }}</h2>
                 <p class="mt-1 max-w-4xl text-sm leading-6 text-slate-500">
-                    Select the report view you need. Existing Phase 8/9 data views remain available while dedicated screen and official print layouts are implemented in {{ $section['phase'] }}.
+                    Select the report view you need. Available screens use the same validated reporting sources and official export controls used throughout the system.
                 </p>
             </div>
             <a href="{{ route('reports.index') }}"
@@ -39,7 +39,7 @@
 
         <div class="grid gap-4 p-5 lg:grid-cols-2">
             @foreach ($section['items'] as $item)
-                <article class="flex min-h-52 flex-col rounded-xl border border-slate-200 bg-slate-50/40 p-5">
+                <article class="tupad-report-option flex min-h-52 flex-col rounded-xl border border-slate-200 bg-slate-50/40 p-5">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <h3 class="text-base font-bold text-slate-900">{{ $item['label'] }}</h3>
@@ -48,11 +48,11 @@
 
                         @if ($item['status'] === 'available')
                             <span class="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
-                                Current Data
+                                Available
                             </span>
                         @else
                             <span class="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                                {{ $section['phase'] }}
+                                Unavailable
                             </span>
                         @endif
                     </div>
@@ -99,11 +99,11 @@
                         @elseif (!empty($item['query']))
                             <a href="{{ route('reports.index', $item['query']) }}"
                                 class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-3.5 text-xs font-semibold text-white hover:bg-[#052f6d]">
-                                Open Current Data View
+                                Open Report View
                             </a>
                         @else
                             <div class="text-xs font-semibold text-slate-500">
-                                Navigation structure ready · report-specific data and print implementation follows in {{ $section['phase'] }}.
+                                This report option is not currently available from this workspace.
                             </div>
                         @endif
                     </div>
@@ -112,7 +112,7 @@
         </div>
     </section>
 
-    <div class="mt-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm leading-6 text-blue-900">
-        <strong>Phase 14A scope:</strong> this revision reorganizes report navigation and workspace UX only. Existing report calculations, province security, and Print/PDF/Excel/CSV generation remain unchanged. Official print layouts will be implemented in their dedicated report phases.
+    <div class="mt-5 rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm leading-6 text-blue-900">
+        <strong>Official reporting:</strong> report views and exports use validated system records, role-based access controls, and the same reporting filters shown on screen.
     </div>
 @endsection

@@ -229,7 +229,7 @@ class GeographicMappingPhase6MetricsPolishTest extends TestCase
         $this->assertStringContainsString('.tupad-map-label-hidden', $css);
         $this->assertStringContainsString('wire:model.live="mapMetric"', $blade);
         $this->assertStringContainsString('wire:model.live="reportingPeriod"', $blade);
-        $this->assertStringContainsString("empty_state.has_values", $blade);
+        $this->assertStringContainsString("['empty_state']['has_values']", $blade);
         $this->assertStringContainsString(':quarter=', $workspace);
         $this->assertStringContainsString(':month=', $workspace);
     }

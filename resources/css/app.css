@@ -121,6 +121,47 @@ main table tbody tr { transition: background-color .12s ease; }
 main table tbody tr:hover { background: #f8fbff; }
 main .overflow-x-auto { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
 
+
+/* Report workspace tables: screen-only government palette.
+   Official browser print/PDF views use reports/print.blade.php and retain their approved colors. */
+main .tupad-report-screen-table {
+    width: 100%;
+    border: 1px solid #cbd8e8;
+    background: #fff;
+}
+
+main .tupad-report-screen-table thead tr:first-child th {
+    border-color: #315b91 !important;
+    background: #063b86 !important;
+    color: #ffffff !important;
+}
+
+main .tupad-report-screen-table thead tr:not(:first-child) th {
+    border-color: #cbd8e8 !important;
+    background: #e8f0fa !important;
+    color: #17325c !important;
+}
+
+main .tupad-report-screen-table tbody td {
+    border-color: #dbe5f1 !important;
+    background: #ffffff;
+    color: #334e73;
+}
+
+main .tupad-report-screen-table tbody tr:nth-child(even):not(.tupad-report-total-row) td {
+    background: #f8fbff;
+}
+
+main .tupad-report-screen-table tbody tr:hover:not(.tupad-report-total-row) td {
+    background: #edf5fd !important;
+}
+
+main .tupad-report-screen-table .tupad-report-total-row td {
+    border-color: #315b91 !important;
+    background: #0f2d5c !important;
+    color: #ffffff !important;
+}
+
 /* Buttons and links: navy primary, white secondary, restrained government styling */
 main a[class*='bg-slate-900'], main button[class*='bg-slate-900'],
 main a[class*='bg-[#063b86]'], main button[class*='bg-[#063b86]'] {
@@ -543,6 +584,10 @@ a[href^="#"]:focus-visible {
     font-size: 8px;
 }
 
+.tupad-map-label-hidden {
+    display: none !important;
+}
+
 .tupad-province-label {
     border: 0 !important;
     background: transparent !important;
@@ -628,3 +673,522 @@ a[href^="#"]:focus-visible {
 .tupad-map-tooltip-grid strong { color: #10294f; text-align: right; }
 .tupad-map-tooltip-warning { margin-top: 8px; color: #9a6700; font-size: 9px; font-weight: 700; }
 .tupad-map-tooltip-foot { margin-top: 8px; border-top: 1px solid #edf1f6; padding-top: 7px; color: #7b8aa1; font-size: 9px; }
+
+/* ============================================================
+   P3 Visual / UX polish — production government interface
+   ============================================================ */
+
+/* Page rhythm and top-level shell */
+.tupad-topbar {
+    box-shadow: 0 1px 0 rgba(15, 35, 71, .02);
+}
+
+.tupad-main-content {
+    min-height: calc(100vh - 122px);
+}
+
+.tupad-page-header {
+    padding-bottom: 2px;
+}
+
+.tupad-page-header h1 {
+    color: #0d2449;
+    font-size: 22px;
+    line-height: 1.25;
+    font-weight: 800;
+}
+
+.tupad-page-header p {
+    color: #697b93;
+}
+
+.tupad-page-actions a,
+.tupad-page-actions button {
+    white-space: nowrap;
+}
+
+/* Reusable operational metric cards. */
+.tupad-metric-card {
+    position: relative;
+    min-height: 108px;
+    overflow: hidden;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.tupad-metric-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: #d9e5f4;
+}
+
+.tupad-metric-card:hover {
+    border-color: #cbd9ea !important;
+    box-shadow: 0 3px 10px rgba(15, 35, 71, .055) !important;
+}
+
+.tupad-metric-card [class*='text-2xl'],
+.tupad-metric-card [class*='text-xl'] {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+}
+
+/* Filters: consistent labels, controls, and separation from result tables. */
+.tupad-filter-panel {
+    background: #fbfcfe !important;
+}
+
+.tupad-filter-panel form {
+    row-gap: 14px;
+}
+
+.tupad-filter-panel label {
+    color: #60738e !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    letter-spacing: .065em !important;
+    text-transform: uppercase;
+}
+
+.tupad-filter-panel input,
+.tupad-filter-panel select,
+.tupad-filter-panel textarea {
+    min-height: 40px;
+}
+
+/* Result tables and data registers. */
+.tupad-table-shell {
+    border-color: #dbe3ed !important;
+    background: #fff;
+}
+
+.tupad-table-shell > .overflow-x-auto,
+.tupad-table-shell > div > .overflow-x-auto {
+    scrollbar-gutter: stable;
+}
+
+.tupad-table-shell table th {
+    background: #f7f9fc;
+    color: #526782;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.tupad-table-shell table td {
+    line-height: 1.4;
+}
+
+.tupad-table-shell table tbody tr:nth-child(even) {
+    background: rgba(248, 250, 252, .42);
+}
+
+.tupad-table-shell table tbody tr:hover {
+    background: #f4f8fd;
+}
+
+.tupad-table-shell table td[class*='text-right'],
+.tupad-table-shell table th[class*='text-right'] {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Empty states should look intentional rather than like missing content. */
+.tupad-empty-state {
+    min-height: 168px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(248, 250, 252, .58), rgba(255, 255, 255, 0));
+}
+
+.tupad-empty-state > div:first-child {
+    background: #f8fafc;
+    border-color: #dbe3ed;
+}
+
+/* Report workspace: quieter production-facing selection cards. */
+.tupad-report-nav a {
+    min-height: 62px;
+}
+
+.tupad-report-option {
+    background: #fbfcfe !important;
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+
+.tupad-report-option:hover {
+    border-color: #cbd9ea !important;
+    background: #fff !important;
+    box-shadow: 0 2px 8px rgba(15, 35, 71, .045);
+}
+
+/* Search results use the same interaction language as registries. */
+.tupad-search-page section a[href] {
+    outline-offset: -2px;
+}
+
+/* Sidebar/top bar touch targets and stable active affordance. */
+.tupad-sidebar-scroll details > summary {
+    user-select: none;
+}
+
+.tupad-sidebar-scroll details[open] > summary {
+    color: var(--tupad-navy);
+    background: #f4f8fd;
+}
+
+.tupad-sidebar-scroll details > summary:focus-visible {
+    outline: 2px solid #1765d8;
+    outline-offset: 1px;
+}
+
+/* Responsive government density. */
+@media (max-width: 767px) {
+    .tupad-main-content {
+        min-height: auto;
+    }
+
+    .tupad-page-header {
+        margin-bottom: 18px !important;
+    }
+
+    .tupad-page-actions {
+        width: 100%;
+    }
+
+    .tupad-page-actions > a,
+    .tupad-page-actions > button,
+    .tupad-page-actions > form {
+        flex: 1 1 auto;
+    }
+
+    .tupad-page-actions > form > button {
+        width: 100%;
+    }
+
+    .tupad-filter-panel {
+        padding: 14px !important;
+    }
+
+    .tupad-table-shell > .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tupad-metric-card {
+        min-height: 98px;
+    }
+
+    main input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+    main select,
+    main textarea,
+    main button,
+    main a[class*='inline-flex'] {
+        min-height: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tupad-page-header h1 {
+        font-size: 20px;
+    }
+
+    .tupad-page-actions > a,
+    .tupad-page-actions > button,
+    .tupad-page-actions > form {
+        flex-basis: 100%;
+    }
+}
+
+/* Respect reduced-motion preferences throughout navigation and cards. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+/* ============================================================
+   System-wide data table modernization — screen UI only
+   Official report print/PDF templates are intentionally excluded.
+   ============================================================ */
+main .tupad-system-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #ffffff;
+    color: #273f61;
+    font-variant-numeric: tabular-nums;
+}
+
+main .tupad-system-table thead th {
+    border-right: 1px solid rgba(255, 255, 255, .12) !important;
+    border-bottom: 1px solid #173f73 !important;
+    background: #10294f !important;
+    color: #ffffff !important;
+    padding: 11px 13px !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    letter-spacing: .045em !important;
+    line-height: 1.3;
+    text-transform: uppercase;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+main .tupad-system-table thead th:last-child {
+    border-right: 0 !important;
+}
+
+main .tupad-system-table tbody td {
+    border-bottom: 1px solid #e4eaf2;
+    background: #ffffff;
+    color: #334e73;
+    padding: 11px 13px !important;
+    line-height: 1.4;
+    vertical-align: middle;
+}
+
+main .tupad-system-table tbody tr:nth-child(even) td {
+    background: #f8fafd;
+}
+
+main .tupad-system-table tbody tr:hover td {
+    background: #edf4fc !important;
+}
+
+main .tupad-system-table tbody tr:last-child td {
+    border-bottom-color: transparent;
+}
+
+main .tupad-system-table th[class*='text-right'],
+main .tupad-system-table td[class*='text-right'] {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+}
+
+main .tupad-system-table th[class*='text-center'],
+main .tupad-system-table td[class*='text-center'] {
+    text-align: center !important;
+}
+
+main .tupad-system-table tbody td:first-child {
+    font-weight: 650;
+    color: #17325c;
+}
+
+main .tupad-system-table tbody a {
+    text-underline-offset: 2px;
+}
+
+/* Wide spreadsheet-style registers retain context during horizontal review. */
+main .tupad-system-table.tupad-wide-table thead,
+main .tupad-data-scroll > .tupad-system-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+main .tupad-system-table.tupad-wide-table thead th,
+main .tupad-data-scroll > .tupad-system-table thead th {
+    position: static;
+}
+
+main .tupad-system-table.tupad-wide-table th:first-child,
+main .tupad-system-table.tupad-wide-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 8;
+    box-shadow: 1px 0 0 #dce5f0, 5px 0 10px -10px rgba(15, 35, 71, .55);
+}
+
+main .tupad-system-table.tupad-wide-table thead th:first-child {
+    z-index: 25;
+    background: #0b2346 !important;
+}
+
+main .tupad-system-table.tupad-wide-table tbody td:first-child {
+    background: #ffffff !important;
+}
+
+main .tupad-system-table.tupad-wide-table tbody tr:nth-child(even) td:first-child {
+    background: #f8fafd !important;
+}
+
+main .tupad-system-table.tupad-wide-table tbody tr:hover td:first-child {
+    background: #edf4fc !important;
+}
+
+/* Optional grouped headers make very wide operational registers scannable. */
+main .tupad-system-table thead tr.tupad-column-groups th {
+    border-right-color: rgba(255, 255, 255, .15) !important;
+    border-bottom-color: #315b91 !important;
+    background: #071d44 !important;
+    color: #dce9f9 !important;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+    font-size: 9px !important;
+    letter-spacing: .08em !important;
+    text-align: center !important;
+}
+
+main .tupad-system-table thead tr.tupad-column-labels th {
+    border-right: 1px solid #c9d8ea !important;
+    border-bottom: 1px solid #b7c9df !important;
+    background: #e8f0fa !important;
+    color: #17325c !important;
+    font-size: 9px !important;
+    letter-spacing: .035em !important;
+}
+
+main .tupad-system-table thead tr.tupad-column-labels th:first-child {
+    background: #dce8f6 !important;
+}
+
+/* Totals and summary rows use a restrained navy treatment. */
+main .tupad-system-table tfoot td,
+main .tupad-system-table .tupad-table-total-row td,
+main .tupad-system-table .tupad-report-total-row td {
+    border-top: 1px solid #315b91 !important;
+    border-bottom-color: #315b91 !important;
+    background: #10294f !important;
+    color: #ffffff !important;
+    font-weight: 800;
+}
+
+/* Screen report tables retain their two-tier report hierarchy. */
+main .tupad-system-table.tupad-report-screen-table thead tr:first-child th {
+    background: #063b86 !important;
+    color: #ffffff !important;
+}
+
+main .tupad-system-table.tupad-report-screen-table thead tr:not(:first-child) th {
+    border-right-color: #cbd8e8 !important;
+    border-bottom-color: #cbd8e8 !important;
+    background: #e8f0fa !important;
+    color: #17325c !important;
+}
+
+/* Table shells and scrollbars read as one modern register instead of a loose HTML table. */
+main .tupad-table-shell,
+main section:has(> .tupad-data-scroll) {
+    border-color: #d6e0ec !important;
+    box-shadow: 0 1px 3px rgba(15, 35, 71, .045) !important;
+}
+
+main .tupad-data-scroll {
+    background: #ffffff;
+    scrollbar-gutter: stable;
+}
+
+main .tupad-data-scroll::-webkit-scrollbar {
+    height: 11px;
+}
+
+main .tupad-data-scroll::-webkit-scrollbar-track {
+    background: #f0f4f9;
+}
+
+main .tupad-data-scroll::-webkit-scrollbar-thumb {
+    border: 3px solid #f0f4f9;
+    border-radius: 999px;
+    background: #9fb2ca;
+}
+
+main .tupad-data-scroll::-webkit-scrollbar-thumb:hover {
+    background: #7f98b8;
+}
+
+/* Compact action buttons embedded in tables. */
+main .tupad-system-table td a[class*='inline-flex'],
+main .tupad-system-table td button[class*='inline-flex'] {
+    min-height: 32px !important;
+    border-radius: 7px !important;
+    font-size: 11px !important;
+    white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+    main .tupad-system-table thead th,
+    main .tupad-system-table tbody td {
+        padding: 10px 11px !important;
+    }
+}
+
+/* A grouped header spanning multiple data columns should scroll with its group;
+   only the true identifier column stays pinned horizontally. */
+main .tupad-system-table.tupad-wide-table thead tr.tupad-column-groups th[colspan]:first-child {
+    position: static;
+    left: auto;
+    box-shadow: none;
+}
+
+
+/* PER ADL wide-register containment fix.
+   The legacy 3300px monitoring rule keeps ordinary cells on one line, but remarks
+   must wrap inside their own column and the action column remains visible. */
+main .tupad-per-adl-table th.tupad-table-remarks,
+main .tupad-per-adl-table td.tupad-table-remarks {
+    min-width: 300px !important;
+    width: 340px !important;
+    max-width: 340px !important;
+    white-space: normal !important;
+}
+
+main .tupad-per-adl-table td.tupad-table-remarks {
+    vertical-align: top;
+    color: #355378;
+    line-height: 1.45;
+}
+
+main .tupad-per-adl-table .tupad-table-remarks-content {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+main .tupad-per-adl-table th.tupad-table-action,
+main .tupad-per-adl-table td.tupad-table-action {
+    position: sticky !important;
+    right: 0;
+    min-width: 112px !important;
+    width: 112px !important;
+    max-width: 112px !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+    box-shadow: -1px 0 0 #dce5f0, -8px 0 16px -16px rgba(15, 35, 71, .65);
+}
+
+main .tupad-per-adl-table thead th.tupad-table-action {
+    z-index: 30;
+    background: #071d44 !important;
+    color: #ffffff !important;
+}
+
+main .tupad-per-adl-table tbody td.tupad-table-action {
+    z-index: 10;
+    background: #ffffff !important;
+}
+
+main .tupad-per-adl-table tbody tr:nth-child(even) td.tupad-table-action {
+    background: #f8fafd !important;
+}
+
+main .tupad-per-adl-table tbody tr:hover td.tupad-table-action {
+    background: #edf4fc !important;
+}
+
+main .tupad-per-adl-table td.tupad-table-action > a,
+main .tupad-per-adl-table td.tupad-table-action > button {
+    justify-content: center;
+    width: 100%;
+}

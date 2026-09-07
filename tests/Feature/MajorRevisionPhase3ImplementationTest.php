@@ -200,6 +200,7 @@ class MajorRevisionPhase3ImplementationTest extends TestCase
                 ),
                 [
                     'start_date' => '2026-08-26',
+                    'end_date' => '2026-09-15',
                 ]
             )
             ->assertRedirect();
@@ -258,6 +259,7 @@ class MajorRevisionPhase3ImplementationTest extends TestCase
                 ),
                 [
                     'start_date' => '2026-07-20',
+                    'end_date' => '2026-08-09',
                 ]
             )
             ->assertRedirect();

@@ -86,7 +86,7 @@ class GeographicMappingPhase5CoordinatorScopeTest extends TestCase
             ->assertOk()
             ->assertSee('TUPAD Distribution Map')
             ->assertSee('MASBATE MAP')
-            ->assertSee('BENEFICIARIES BY MUNICIPALITY / CITY')
+            ->assertSee('PROJECTS BY MUNICIPALITY / CITY')
             ->assertSee('Assigned Province Scope')
             ->assertDontSee('Back to Region');
 

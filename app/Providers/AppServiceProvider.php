@@ -7,8 +7,10 @@ use App\Models\AdlAllocation;
 use App\Models\AdlRealignment;
 use App\Models\Project;
 use App\Models\ProjectApproval;
+use App\Models\ProjectAcpLiquidation;
+use App\Models\ProjectAcpCheckRelease;
+use App\Models\ProjectAcpPayment;
 use App\Models\ProjectBeneficiarySector;
-use App\Models\ProjectDraft;
 use App\Models\ProjectDisbursement;
 use App\Models\ProjectEvaluation;
 use App\Models\ProjectImplementation;
@@ -20,6 +22,7 @@ use App\Models\ProjectOrientation;
 use App\Models\ProjectPayout;
 use App\Models\ProjectPostDocument;
 use App\Models\ProjectPpeDelivery;
+use App\Models\ReformulatedTarget;
 use App\Models\User;
 use App\Observers\AuditObserver;
 use App\Observers\ProjectObserver;
@@ -57,9 +60,11 @@ class AppServiceProvider extends ServiceProvider
             AdlRealignment::class,
 
             Project::class,
-            ProjectDraft::class,
             ProjectEvaluation::class,
             ProjectApproval::class,
+            ProjectAcpPayment::class,
+            ProjectAcpCheckRelease::class,
+            ProjectAcpLiquidation::class,
 
             ProjectInsuranceEnrollment::class,
             ProjectPpeDelivery::class,
@@ -77,6 +82,7 @@ class AppServiceProvider extends ServiceProvider
 
             User::class,
             ProjectBeneficiary::class,
+            ReformulatedTarget::class,
         ];
 
         foreach ($auditedModels as $model) {

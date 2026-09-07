@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
-use App\Models\ProjectDraft;
 use App\Models\Province;
 use Illuminate\Console\Command;
 
@@ -15,7 +14,7 @@ class BackfillProjectLocationReferences extends Command
         {--dry-run : Show what would be changed without updating records}';
 
     protected $description =
-        'Backfill province, municipality, and barangay reference IDs for existing projects and project drafts.';
+        'Backfill province, municipality, and barangay reference IDs for existing official projects.';
 
     public function handle(): int
     {
@@ -38,13 +37,6 @@ class BackfillProjectLocationReferences extends Command
 
         $this->newLine();
 
-        $draftResults =
-            $this->backfillDrafts(
-                $dryRun
-            );
-
-        $this->newLine();
-
         $this->table(
             [
                 'Record Type',
@@ -58,12 +50,6 @@ class BackfillProjectLocationReferences extends Command
                     $projectResults['updated'],
                     $projectResults['already_linked'],
                     $projectResults['unresolved'],
-                ],
-                [
-                    'Project Drafts',
-                    $draftResults['updated'],
-                    $draftResults['already_linked'],
-                    $draftResults['unresolved'],
                 ],
             ]
         );
@@ -146,88 +132,6 @@ class BackfillProjectLocationReferences extends Command
 
             if (!$dryRun) {
                 $project->updateQuietly([
-                    'province_id' =>
-                        $location['province']->id,
-
-                    'municipality_id' =>
-                        $location['municipality']->id,
-
-                    'barangay_id' =>
-                        $location['barangay']->id,
-                ]);
-            }
-
-            $results['updated']++;
-        }
-
-        return $results;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | GIP Project Drafts
-    |--------------------------------------------------------------------------
-    */
-
-    private function backfillDrafts(
-        bool $dryRun
-    ): array {
-        $results = [
-            'updated' => 0,
-            'already_linked' => 0,
-            'unresolved' => 0,
-        ];
-
-        $drafts = ProjectDraft::query()
-            ->orderBy('id')
-            ->get();
-
-        foreach ($drafts as $draft) {
-            if (
-                $draft->province_id
-                && $draft->municipality_id
-                && $draft->barangay_id
-            ) {
-                $results['already_linked']++;
-
-                continue;
-            }
-
-            $location = $this->resolveLocation(
-                provinceName: $draft->province,
-                municipalityName: $draft->municipality,
-                barangayName: $draft->barangay,
-            );
-
-            if (!$location) {
-                $results['unresolved']++;
-
-                $this->warn(
-                    sprintf(
-                        'Draft #%d unresolved: %s / %s / %s',
-                        $draft->id,
-                        $draft->province ?: '[empty]',
-                        $draft->municipality ?: '[empty]',
-                        $draft->barangay ?: '[empty]',
-                    )
-                );
-
-                continue;
-            }
-
-            $this->line(
-                sprintf(
-                    'Draft #%d: %s → IDs [%d, %d, %d]',
-                    $draft->id,
-                    $draft->project_title,
-                    $location['province']->id,
-                    $location['municipality']->id,
-                    $location['barangay']->id,
-                )
-            );
-
-            if (!$dryRun) {
-                $draft->updateQuietly([
                     'province_id' =>
                         $location['province']->id,
 

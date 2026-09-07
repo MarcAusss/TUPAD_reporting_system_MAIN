@@ -94,23 +94,16 @@ class PhysicalFinancialOfficialPrintMatrixLayoutTest extends TestCase
             new ReportFilters(),
         );
 
-        $matrix = $report['physical_financial_print_matrix'];
+        $matrix = $report['physical_financial_matrix'];
         $row = $matrix['rows']->firstWhere('province', 'Albay');
 
         $this->assertNotNull($row);
-        $this->assertSame(10, $row['target_short_physical']);
-        $this->assertSame(600000, $row['target_short_financial_cents']);
-        $this->assertSame(10, $row['accomplishment_short_physical']);
-        $this->assertSame(250000, $row['accomplishment_short_financial_cents']);
-        $this->assertSame(0, $row['balance_short_physical']);
-        $this->assertSame(350000, $row['balance_short_financial_cents']);
-
-        $this->assertSame(20, $row['target_long_physical']);
-        $this->assertSame(1200000, $row['target_long_financial_cents']);
-        $this->assertSame(0, $row['accomplishment_long_physical']);
-        $this->assertSame(0, $row['accomplishment_long_financial_cents']);
-        $this->assertSame(20, $row['balance_long_physical']);
-        $this->assertSame(1200000, $row['balance_long_financial_cents']);
+        $this->assertSame(30, $row['target']['physical']);
+        $this->assertSame(1800000, $row['target']['financial_cents']);
+        $this->assertSame(10, $row['accomplishment']['physical']);
+        $this->assertSame(250000, $row['accomplishment']['financial_cents']);
+        $this->assertSame(20, $row['balance']['physical']);
+        $this->assertSame(1550000, $row['balance']['financial_cents']);
 
         $this->actingAs($admin)
             ->get(route('reports.print', [
@@ -118,19 +111,19 @@ class PhysicalFinancialOfficialPrintMatrixLayoutTest extends TestCase
                 'group_by' => ReportDimension::OVERALL->value,
             ]))
             ->assertOk()
-            ->assertSee('rowspan="3"', false)
-            ->assertSee('colspan="4"', false)
+            ->assertSee('rowspan="2"', false)
+            ->assertSee('colspan="2"', false)
             ->assertSee('Reformulated Target')
             ->assertSee('Accomplishment')
             ->assertSee('Balance')
-            ->assertSee('Short Term')
-            ->assertSee('Long Term')
             ->assertSee('Physical')
             ->assertSee('Financial')
             ->assertSee('Albay')
-            ->assertSee('₱6,000.00')
+            ->assertSee('₱18,000.00')
             ->assertSee('₱2,500.00')
-            ->assertSee('₱3,500.00')
+            ->assertSee('₱15,500.00')
+            ->assertDontSee('Short Term')
+            ->assertDontSee('Long Term')
             ->assertSee('TOTAL');
     }
 

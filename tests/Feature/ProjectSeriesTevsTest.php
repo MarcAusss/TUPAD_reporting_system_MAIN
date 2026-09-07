@@ -47,9 +47,14 @@ class ProjectSeriesTevsTest extends TestCase
         ]);
 
         $province = Province::create([
+            'code' => '050500000',
             'name' => 'Albay',
             'is_active' => true,
         ]);
+
+        $tc->forceFill([
+            'assigned_province_id' => $province->id,
+        ])->save();
 
         $municipality = Municipality::create([
             'province_id' => $province->id,

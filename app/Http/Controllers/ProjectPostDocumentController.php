@@ -160,10 +160,6 @@ class ProjectPostDocumentController extends Controller
 
         $user = $request->user();
 
-        if ($user->isGip()) {
-            abort(403);
-        }
-
         if (
             $user->isFocal()
             && ! in_array(

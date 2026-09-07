@@ -38,20 +38,23 @@ class FreshDatabaseBaselineTest extends TestCase
         }
 
         $this->assertTrue(Schema::hasColumn('users', 'assigned_province_id'));
+        $this->assertFalse(Schema::hasColumn('users', 'supervisor_tc_id'));
+        $this->assertFalse(Schema::hasTable('project_drafts'));
+        $this->assertFalse(Schema::hasTable('project_draft_ppe_items'));
         $this->assertTrue(Schema::hasColumn('projects', 'province_id'));
         $this->assertTrue(Schema::hasColumn('projects', 'insurance_beneficiaries'));
         $this->assertTrue(Schema::hasColumn('project_location_barangay', 'beneficiaries_total'));
         $this->assertTrue(Schema::hasColumn('project_location_barangay', 'beneficiaries_female'));
     }
 
-    public function test_fy2025_seeder_rebuilds_reference_users_and_thirty_ongoing_projects(): void
+    public function test_fy2025_seeder_rebuilds_reference_users_and_sixty_ongoing_projects(): void
     {
         $this->seed(Fy2025TupadProjectSeeder::class);
 
         $this->assertDatabaseCount('provinces', 6);
         $this->assertDatabaseCount('municipalities', 114);
         $this->assertDatabaseCount('barangays', 3465);
-        $this->assertDatabaseCount('projects', 30);
+        $this->assertDatabaseCount('projects', 60);
 
         foreach ([
             'Albay',
@@ -61,20 +64,22 @@ class FreshDatabaseBaselineTest extends TestCase
             'Masbate',
             'Sorsogon',
         ] as $province) {
-            $this->assertSame(5, Project::query()->where('province', $province)->count());
+            $this->assertSame(10, Project::query()->where('province', $province)->count());
         }
 
         $this->assertSame(
-            30,
+            60,
             Project::query()->where('status', ProjectStatus::ONGOING_PROFILING->value)->count(),
         );
 
-        $tc = User::query()->where('username', 'tc')->firstOrFail();
+        $tc = User::query()->where('username', 'Orlan')->firstOrFail();
         $this->assertSame(UserRole::TC, $tc->role);
         $this->assertSame('050500000', $tc->assignedProvince?->code);
 
-        foreach (['admin', 'focal', 'gip'] as $username) {
+        foreach (['admin', 'focal'] as $username) {
             $this->assertTrue(User::query()->where('username', $username)->exists());
         }
+
+        $this->assertFalse(User::query()->where('username', 'gip')->exists());
     }
 }

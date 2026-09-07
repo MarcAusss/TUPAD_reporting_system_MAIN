@@ -12,7 +12,7 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_authorized_roles_can_open_all_report_workspaces_while_gip_cannot(): void
+    public function test_authorized_roles_can_open_all_report_workspaces(): void
     {
         $routes = [
             'reports.workspace.physical-financial',
@@ -31,13 +31,6 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
                     ->assertOk();
             }
         }
-
-        $gip = User::factory()->create(['role' => UserRole::GIP, 'is_active' => true]);
-        foreach ($routes as $route) {
-            $this->actingAs($gip)
-                ->get(route($route))
-                ->assertForbidden();
-        }
     }
 
     public function test_sidebar_reports_dropdown_exposes_five_top_level_report_categories(): void
@@ -55,7 +48,7 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
             ->assertSee('Geographic Mapping');
     }
 
-    public function test_physical_financial_workspace_contains_requested_five_views_and_current_data_links(): void
+    public function test_physical_financial_workspace_contains_current_four_table_views_and_current_data_links(): void
     {
         $admin = User::factory()->create(['role' => UserRole::ADMIN, 'is_active' => true]);
 
@@ -63,10 +56,11 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
             ->get(route('reports.workspace.physical-financial'))
             ->assertOk()
             ->assertSee('Overall Accomplishment')
+            ->assertSee('Accomplishment per Semester')
             ->assertSee('Accomplishment per Quarter')
             ->assertSee('Accomplishment per Month')
-            ->assertSee('Short-Term Accomplishment')
-            ->assertSee('Long-Term Accomplishment');
+            ->assertDontSee('Short-Term Accomplishment')
+            ->assertDontSee('Long-Term Accomplishment');
 
         $response->assertSee(route('reports.workspace.physical-financial', [
             'view' => 'quarter',
@@ -83,10 +77,10 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
             ->assertOk()
             ->assertSee('Fund Utilization Report')
             ->assertSee('TUPAD Allocation')
-            ->assertSee('Accomplishment (Obligated)')
+            ->assertSee('Accomplishment')
             ->assertSee('Balance')
-            ->assertSee('Report ADL')
-            ->assertSee('Report Province')
+            ->assertSee('Summary per ADL')
+            ->assertSee('Summary per Province')
             ->assertSee('Report Status')
             ->assertSee('Report Sponsor')
             ->assertSee('Report NGA')
@@ -124,12 +118,24 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
             ->assertSee('Beneficiary Mapping')
             ->assertSee('Sector Mapping')
             ->assertSee('Intervention-Focus Mapping')
-            ->assertSee('Barangay')
+            ->assertSee('TUPAD Distribution Map')
+            ->assertSee('Mapping Data Register');
+
+        $this->actingAs($admin)
+            ->get(route('reports.workspace.geographic-mapping', [
+                'view' => 'sectors',
+                'sector_group' => \App\Enums\BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE,
+            ]))
+            ->assertOk()
             ->assertSee('Priority / Vulnerable Sectors')
-            ->assertSee('Occupational / Livelihood Sectors')
             ->assertSee('Persons with Disabilities')
-            ->assertSee('Persons Deprived of Liberty')
-            ->assertSee('Transport Workers')
+            ->assertSee('Persons Deprived of Liberty');
+
+        $this->actingAs($admin)
+            ->get(route('reports.workspace.geographic-mapping', [
+                'view' => 'interventions',
+            ]))
+            ->assertOk()
             ->assertSee('Administrative, Clerical and Logistical Support');
     }
 

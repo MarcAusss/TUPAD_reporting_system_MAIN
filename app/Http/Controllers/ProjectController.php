@@ -13,6 +13,11 @@ use App\Models\Project;
 use App\Models\ProjectLocation;
 use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
+use App\Http\Requests\ProjectRegistryRequest;
+use App\Services\Projects\ProjectCreateReferenceService;
+use App\Services\Projects\ProjectLocationCanonicalService;
+use App\Services\Projects\ProjectRegistryService;
+use App\Services\Projects\ProjectWorkspacePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,32 +27,23 @@ use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
+
     /*
     |--------------------------------------------------------------------------
     | Official Project List
     |--------------------------------------------------------------------------
     */
 
-    public function index(Request $request, ProvinceAccessService $provinceAccess): View
-    {
-        $projects = $provinceAccess->scopeProjects(Project::query(), $request->user())
-            ->with([
-                'allocation.adl',
-                'creator',
-                'provinceReference',
-                'municipalityReference',
-                'barangayReference',
-                'projectLocations.province',
-                'projectLocations.municipality',
-                'projectLocations.barangays',
-            ])
-            ->latest('date_received')
-            ->latest('id')
-            ->paginate(15);
-
+    public function index(
+        ProjectRegistryRequest $request,
+        ProjectRegistryService $registry,
+    ): View {
         return view(
             'projects.index',
-            compact('projects')
+            $registry->viewData(
+                $request->user(),
+                $request->validated(),
+            ),
         );
     }
 
@@ -92,72 +88,13 @@ class ProjectController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function create(Request $request, ProvinceAccessService $provinceAccess): View
-    {
-        $allocationQuery = $provinceAccess->scopeAdlAllocations(
-            AdlAllocation::query(),
-            $request->user(),
-        );
-
-        $allocations = (clone $allocationQuery)
-            ->with('adl')
-            ->orderByDesc('id')
-            ->get();
-
-        $provinces = $provinceAccess->scopeProvinces(
-            Province::query(),
-            $request->user(),
-        )
-            ->where('is_active', true)
-            ->whereIn('name', [
-                'Albay',
-                'Camarines Norte',
-                'Camarines Sur',
-                'Catanduanes',
-                'Masbate',
-                'Sorsogon',
-            ])
-            ->orderBy('name')
-            ->get();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Focal-maintained Sponsor / Partner choices
-        |--------------------------------------------------------------------------
-        */
-
-        $fundSponsorOptions = (clone $allocationQuery)
-            ->whereNotNull('fund_sponsor')
-            ->where('fund_sponsor', '!=', '')
-            ->distinct()
-            ->orderBy('fund_sponsor')
-            ->pluck('fund_sponsor')
-            ->map(fn ($value) => trim((string) $value))
-            ->filter()
-            ->unique()
-            ->values();
-
-        $partnerOptions = (clone $allocationQuery)
-            ->whereNotNull('partner')
-            ->where('partner', '!=', '')
-            ->distinct()
-            ->orderBy('partner')
-            ->pluck('partner')
-            ->map(fn ($value) => trim((string) $value))
-            ->filter()
-            ->unique()
-            ->values();
-
+    public function create(
+        Request $request,
+        ProjectCreateReferenceService $references,
+    ): View {
         return view(
             'projects.create',
-            [
-                'allocations' => $allocations,
-                'provinces' => $provinces,
-                'fundSponsorOptions' => $fundSponsorOptions,
-                'partnerOptions' => $partnerOptions,
-                'implementationModes' => ImplementationMode::cases(),
-                'ppeTypes' => PpeType::cases(),
-            ]
+            $references->viewData($request->user()),
         );
     }
 
@@ -167,7 +104,11 @@ class ProjectController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function store(Request $request, ProvinceAccessService $provinceAccess): RedirectResponse
+    public function store(
+        Request $request,
+        ProvinceAccessService $provinceAccess,
+        ProjectLocationCanonicalService $canonicalLocations,
+    ): RedirectResponse
     {
         $validated = $this->validateProject($request);
 
@@ -199,7 +140,8 @@ class ProjectController extends Controller
         return DB::transaction(function () use (
             $request,
             $validated,
-            $provinceAccess
+            $provinceAccess,
+            $canonicalLocations
         ) {
             /*
             |--------------------------------------------------------------------------
@@ -848,6 +790,11 @@ class ProjectController extends Controller
                 );
             }
 
+            // project_locations + project_location_barangay are authoritative.
+            // Keep the legacy columns on projects as a synchronized compatibility
+            // snapshot for older reports/components that still read them directly.
+            $canonicalLocations->synchronizeCompatibilitySnapshot($project);
+
             /*
             |--------------------------------------------------------------------------
             | Create PPE Items
@@ -882,7 +829,8 @@ class ProjectController extends Controller
 
     public function show(
         Request $request,
-        Project $project
+        Project $project,
+        ProjectWorkspacePresenter $workspacePresenter,
     ): View {
         $user = $request->user();
 
@@ -891,10 +839,6 @@ class ProjectController extends Controller
         | Project Viewing Authorization
         |--------------------------------------------------------------------------
         */
-
-        if ($user->isGip()) {
-            abort(403);
-        }
 
         if ($user->isFocal()) {
             $allowedStatuses = $project->implementation_mode === ImplementationMode::THROUGH_ACP
@@ -959,9 +903,15 @@ class ProjectController extends Controller
             'statusHistory.changer',
         ]);
 
+        $workspace = $workspacePresenter->present(
+            $project,
+            $user,
+            $request->string('workspace')->toString(),
+        );
+
         return view(
             'projects.show',
-            compact('project')
+            compact('project', 'workspace')
         );
     }
 

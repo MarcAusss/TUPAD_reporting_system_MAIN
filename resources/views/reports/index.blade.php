@@ -387,7 +387,7 @@
         </div>
 
         <div class="tupad-data-scroll overflow-x-auto">
-            <table class="min-w-full">
+            <table class="tupad-system-table tupad-report-screen-table min-w-full">
                 <thead class="bg-slate-50">
                     <tr>
                         @foreach ($report['columns'] as $column)

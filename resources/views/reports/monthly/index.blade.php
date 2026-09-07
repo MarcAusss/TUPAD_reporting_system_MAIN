@@ -171,7 +171,7 @@
             </div>
         @else
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                         <tr>
                             <th class="px-4 py-3 font-bold">Date</th>
@@ -220,6 +220,6 @@
     </section>
 
     <div class="mt-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-900">
-        Official Print/PDF now uses the Phase 14F government report layout while preserving the source dates and encoded program classifications shown on this screen.
+        Official Print/PDF uses the approved government report layout while preserving the source dates and encoded program classifications shown on this screen.
     </div>
 @endsection

@@ -25,3 +25,18 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+# Local overlay / backup artifacts
+/FILE_LIST.txt
+/SHA256SUMS.txt
+/README_DIRECT_EXTRACT.md
+/README_OVERLAY.md
+/TUPAD_*_OVERLAY/
+/resources/css/*.phase*_backup
+/resources/js/*.phase*_backup
+*.bak
+*.old
+*.orig
+*.rej
+*~
+
+/storage/app/release-audits/

@@ -26,9 +26,15 @@
         />
 
         <div class="flex shrink-0 flex-wrap gap-2">
+            @if (auth()->user()?->isFocal())
+                <a href="{{ route('reports.reformulated-targets.edit', ['fiscal_year' => $filters['fiscal_year'] ?? now('Asia/Manila')->year]) }}"
+                    class="inline-flex h-10 items-center rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-[#063b86] hover:bg-blue-100">
+                    Edit Reformulated Target
+                </a>
+            @endif
             <a href="{{ route('reports.index', $exportQuery) }}"
                 class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                Detailed Data
+                Detailed Generator
             </a>
             <a href="{{ route('reports.print', $exportQuery) }}" target="_blank"
                 class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -172,7 +178,7 @@
         </div>
 
         <div class="overflow-x-auto p-4">
-            <table class="w-full min-w-max border-collapse text-[11px] text-slate-800">
+            <table class="tupad-report-screen-table w-full min-w-max border-collapse text-[11px] text-slate-800">
                 @if ($viewKey === 'overall')
                     <thead>
                         <tr>
@@ -279,7 +285,7 @@
                     @endforeach
 
                     @php($total = $matrix['total'])
-                    <tr class="bg-[#3f3f3f] font-extrabold text-white">
+                    <tr class="tupad-report-total-row font-extrabold text-white">
                         <td class="border border-slate-700 px-3 py-2">TOTAL</td>
 
                         @if ($viewKey === 'overall')

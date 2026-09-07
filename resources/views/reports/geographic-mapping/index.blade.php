@@ -48,6 +48,12 @@
             :intervention-focus="$filters['intervention_focus'] ?? null" />
     @endif
 
+    @if ($report['warning'])
+        <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+            <strong>Data integrity note:</strong> {{ $report['warning'] }}
+        </div>
+    @endif
+
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -68,7 +74,7 @@
             <div class="px-5 py-12 text-center text-sm text-slate-500">No mapping rows available.</div>
         @else
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-50">
                         <tr>
                             @foreach ($report['columns'] as $column)
