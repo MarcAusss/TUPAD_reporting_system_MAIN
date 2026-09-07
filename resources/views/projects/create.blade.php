@@ -84,7 +84,7 @@
                                 Allocation
                             </label>
 
-                            <select name="adl_allocation_id" required
+                            <select id="adlAllocationSelect" name="adl_allocation_id" required
                                 class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200">
 
                                 <option value="">
@@ -92,7 +92,16 @@
                                 </option>
 
                                 @foreach ($allocations as $allocation)
-                                    <option value="{{ $allocation->id }}" @selected(old('adl_allocation_id') == $allocation->id)>
+                                    @php($allocationFinance = $allocationFinancials->get($allocation->id))
+                                    <option
+                                        value="{{ $allocation->id }}"
+                                        data-adl-number="{{ $allocation->adl->adl_number }}"
+                                        data-location="{{ $allocation->location }}"
+                                        data-allocation="{{ number_format(($allocationFinance['allocation_cents'] ?? 0) / 100, 2, '.', '') }}"
+                                        data-utilized="{{ number_format(($allocationFinance['utilized_cents'] ?? 0) / 100, 2, '.', '') }}"
+                                        data-remaining="{{ number_format(max(0, $allocationFinance['remaining_cents'] ?? 0) / 100, 2, '.', '') }}"
+                                        @selected(old('adl_allocation_id') == $allocation->id)
+                                    >
                                         {{ $allocation->adl->adl_number }}
                                         —
                                         {{ $allocation->location }}
@@ -107,6 +116,31 @@
                                 Select the ADL allocation that will fund this official project.
                                 Fund Sponsor and Partner are encoded below by the TUPAD Coordinator.
                             </p>
+
+                            <div id="allocationBudgetPanel" class="mt-4 hidden rounded-xl border border-blue-200 bg-blue-50 p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-blue-700">Selected Allocation Capacity</div>
+                                        <div id="allocationBudgetLabel" class="mt-1 text-sm font-semibold text-blue-950"></div>
+                                    </div>
+                                    <div id="allocationBudgetState" class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-blue-700">Available</div>
+                                </div>
+                                <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                                    <div class="rounded-lg bg-white px-3 py-3">
+                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Allocation</div>
+                                        <div id="allocationOriginalAmount" class="mt-1 text-sm font-bold text-slate-900">₱0.00</div>
+                                    </div>
+                                    <div class="rounded-lg bg-white px-3 py-3">
+                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Already Utilized</div>
+                                        <div id="allocationUtilizedAmount" class="mt-1 text-sm font-bold text-slate-900">₱0.00</div>
+                                    </div>
+                                    <div class="rounded-lg bg-white px-3 py-3">
+                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Remaining Available</div>
+                                        <div id="allocationRemainingAmount" class="mt-1 text-sm font-bold text-emerald-700">₱0.00</div>
+                                    </div>
+                                </div>
+                                <div id="allocationProjectCostMessage" class="mt-3 text-xs font-medium text-blue-800">Enter project cost inputs to compare against the remaining allocation.</div>
+                            </div>
 
                         </div>
 
@@ -589,6 +623,7 @@
                                 <input id="beneficiariesFemale" name="beneficiaries_female" type="number"
                                     min="0" value="{{ old('beneficiaries_female', 0) }}" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                <p id="femaleBeneficiaryLimit" class="mt-1 text-[11px] text-slate-500">Maximum: enter Total Beneficiaries first.</p>
 
                             </div>
 
@@ -705,9 +740,8 @@
                                     placeholder="Beneficiaries requiring insurance" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
-                                <p class="mt-1 text-[11px] leading-4 text-slate-500">
-                                    Enter only beneficiaries who require project-funded insurance.
-                                    This cannot exceed Total Beneficiaries.
+                                <p id="insuranceBeneficiaryLimit" class="mt-1 text-[11px] leading-4 text-slate-500">
+                                    Maximum: enter Total Beneficiaries first.
                                 </p>
 
                                 @error('insurance_beneficiaries')
@@ -1538,6 +1572,16 @@
             const insuranceRate = document.getElementById('insuranceRate');
             const insuranceBeneficiaries = document.getElementById('insuranceBeneficiaries');
             const beneficiariesFemale = document.getElementById('beneficiariesFemale');
+            const femaleBeneficiaryLimit = document.getElementById('femaleBeneficiaryLimit');
+            const insuranceBeneficiaryLimit = document.getElementById('insuranceBeneficiaryLimit');
+            const allocationSelect = document.getElementById('adlAllocationSelect');
+            const allocationBudgetPanel = document.getElementById('allocationBudgetPanel');
+            const allocationBudgetLabel = document.getElementById('allocationBudgetLabel');
+            const allocationOriginalAmount = document.getElementById('allocationOriginalAmount');
+            const allocationUtilizedAmount = document.getElementById('allocationUtilizedAmount');
+            const allocationRemainingAmount = document.getElementById('allocationRemainingAmount');
+            const allocationBudgetState = document.getElementById('allocationBudgetState');
+            const allocationProjectCostMessage = document.getElementById('allocationProjectCostMessage');
 
             beneficiaries?.addEventListener('input', updateAllocationValidation);
             beneficiariesFemale?.addEventListener('input', updateAllocationValidation);
@@ -1560,6 +1604,57 @@
                 }).format(value || 0);
             }
 
+            function selectedAllocationData() {
+                const option = allocationSelect?.options[allocationSelect.selectedIndex];
+                if (!option?.value) return null;
+
+                return {
+                    adl: option.dataset.adlNumber || '',
+                    location: option.dataset.location || '',
+                    allocation: Number(option.dataset.allocation || 0),
+                    utilized: Number(option.dataset.utilized || 0),
+                    remaining: Number(option.dataset.remaining || 0),
+                };
+            }
+
+            function updateAllocationBudgetPanel(projectTotal = 0) {
+                const data = selectedAllocationData();
+
+                if (!data) {
+                    allocationBudgetPanel?.classList.add('hidden');
+                    allocationSelect?.setCustomValidity('');
+                    return;
+                }
+
+                allocationBudgetPanel?.classList.remove('hidden');
+                allocationBudgetLabel.textContent = [data.adl, data.location].filter(Boolean).join(' · ');
+                allocationOriginalAmount.textContent = currency(data.allocation);
+                allocationUtilizedAmount.textContent = currency(data.utilized);
+                allocationRemainingAmount.textContent = currency(data.remaining);
+
+                const afterProject = data.remaining - projectTotal;
+                const exceeded = projectTotal > data.remaining + 0.00001;
+
+                if (exceeded) {
+                    const overBy = Math.abs(afterProject);
+                    allocationBudgetState.textContent = 'Exceeded';
+                    allocationBudgetState.className = 'rounded-full bg-red-100 px-3 py-1 text-[10px] font-bold uppercase text-red-700';
+                    allocationProjectCostMessage.className = 'mt-3 text-xs font-semibold text-red-700';
+                    allocationProjectCostMessage.textContent =
+                        `Total Project Cost ${currency(projectTotal)} exceeds the remaining allocation ${currency(data.remaining)} by ${currency(overBy)}.`;
+                    allocationSelect.setCustomValidity(
+                        `Total Project Cost cannot exceed the remaining allocation of ${currency(data.remaining)}.`
+                    );
+                } else {
+                    allocationBudgetState.textContent = 'Available';
+                    allocationBudgetState.className = 'rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase text-emerald-700';
+                    allocationProjectCostMessage.className = 'mt-3 text-xs font-medium text-emerald-700';
+                    allocationProjectCostMessage.textContent =
+                        `Remaining after this project: ${currency(Math.max(0, afterProject))}.`;
+                    allocationSelect.setCustomValidity('');
+                }
+            }
+
             function calculate() {
                 const dayValue = Number(days.value || 0);
                 const beneficiaryValue = Number(beneficiaries.value || 0);
@@ -1569,9 +1664,21 @@
                     insuranceBeneficiaries.value || 0
                 );
 
-                insuranceBeneficiaries.max = String(
-                    Math.max(0, beneficiaryValue)
-                );
+                const beneficiaryMaximum = Math.max(0, beneficiaryValue);
+
+                beneficiariesFemale.max = String(beneficiaryMaximum);
+                insuranceBeneficiaries.max = String(beneficiaryMaximum);
+
+                femaleBeneficiaryLimit.textContent = `Maximum: ${beneficiaryMaximum.toLocaleString()} beneficiaries.`;
+                insuranceBeneficiaryLimit.textContent = `Maximum: ${beneficiaryMaximum.toLocaleString()} beneficiaries.`;
+
+                if (Number(beneficiariesFemale.value || 0) > beneficiaryMaximum) {
+                    beneficiariesFemale.setCustomValidity(
+                        `Female beneficiaries cannot exceed Total Beneficiaries (${beneficiaryMaximum}).`
+                    );
+                } else {
+                    beneficiariesFemale.setCustomValidity('');
+                }
 
                 if (insuranceBeneficiaryValue > beneficiaryValue) {
                     insuranceBeneficiaries.setCustomValidity(
@@ -1604,9 +1711,19 @@
                             row.querySelector('[data-ppe-count]').value || 0
                         );
 
+                        const countInput = row.querySelector('[data-ppe-count]');
                         const amount = Number(
                             row.querySelector('[data-ppe-unit]').value || 0
                         );
+
+                        countInput.max = String(beneficiaryMaximum);
+                        if (count > beneficiaryMaximum) {
+                            countInput.setCustomValidity(
+                                `PPE beneficiaries cannot exceed Total Beneficiaries (${beneficiaryMaximum}).`
+                            );
+                        } else {
+                            countInput.setCustomValidity('');
+                        }
 
                         const total = count * amount;
 
@@ -1621,9 +1738,9 @@
 
                 ppeTotalPreview.textContent = currency(ppeTotal);
 
-                projectTotalPreview.value = currency(
-                    wages + insurance + ppeTotal
-                );
+                const projectTotal = wages + insurance + ppeTotal;
+                projectTotalPreview.value = currency(projectTotal);
+                updateAllocationBudgetPanel(projectTotal);
             }
 
             function addRow() {
@@ -1645,17 +1762,35 @@
                 <option value="hazardous">Hazardous</option>
             </select>
 
-            <select
-                name="ppe_items[${index}][product]"
-                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-3"
-            >
-                <option value="">PPE Product</option>
-                <option value="TUPAD Shirt">TUPAD Shirt</option>
-                <option value="Gloves">Gloves</option>
-                <option value="Rubber Boots">Rubber Boots</option>
-                <option value="Mask">Mask</option>
-                <option value="Bucket Hat">Bucket Hat</option>
-            </select>
+            <div class="flex min-w-0 flex-col gap-2 xl:col-span-3">
+                <select
+                    data-ppe-product-select
+                    class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                >
+                    <option value="">PPE Product</option>
+                    <option value="TUPAD Shirt">TUPAD Shirt</option>
+                    <option value="Gloves">Gloves</option>
+                    <option value="Rubber Boots">Rubber Boots</option>
+                    <option value="Mask">Mask</option>
+                    <option value="Bucket Hat">Bucket Hat</option>
+                    <option value="__other__">Others</option>
+                </select>
+
+                <input
+                    data-ppe-product-other
+                    type="text"
+                    maxlength="100"
+                    placeholder="Specify other PPE product"
+                    class="hidden h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                >
+
+                <input
+                    data-ppe-product-value
+                    name="ppe_items[${index}][product]"
+                    type="hidden"
+                    value=""
+                >
+            </div>
 
             <input
                 data-ppe-count
@@ -1694,6 +1829,42 @@
 
                 ppeItems.appendChild(row);
 
+                const productSelect = row.querySelector(
+                    '[data-ppe-product-select]'
+                );
+                const productOther = row.querySelector(
+                    '[data-ppe-product-other]'
+                );
+                const productValue = row.querySelector(
+                    '[data-ppe-product-value]'
+                );
+
+                function syncPpeProduct() {
+                    if (productSelect.value === '__other__') {
+                        productOther.classList.remove('hidden');
+                        productOther.required = true;
+                        productValue.value = productOther.value.trim();
+                        return;
+                    }
+
+                    productOther.classList.add('hidden');
+                    productOther.required = false;
+                    productOther.value = '';
+                    productValue.value = productSelect.value;
+                }
+
+                productSelect.addEventListener('change', function() {
+                    syncPpeProduct();
+                    calculate();
+                });
+
+                productOther.addEventListener('input', function() {
+                    productValue.value = productOther.value.trim();
+                    calculate();
+                });
+
+                syncPpeProduct();
+
                 row
                     .querySelectorAll('input, select')
                     .forEach(function(element) {
@@ -1728,6 +1899,8 @@
                 'click',
                 addRow
             );
+
+            allocationSelect?.addEventListener('change', calculate);
 
             calculate();
 
