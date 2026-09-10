@@ -92,7 +92,7 @@
                         minlength="12"
                         autocomplete="new-password"
                         class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    >
+                    > 
                     @error('password')
                         <p class="mt-1.5 text-xs font-medium text-red-600">{{ $message }}</p>
                     @enderror
