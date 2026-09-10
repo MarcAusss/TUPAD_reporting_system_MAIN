@@ -13,11 +13,7 @@ use App\Models\Project;
 use App\Models\ProjectLocation;
 use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
-use App\Http\Requests\ProjectRegistryRequest;
-use App\Services\Projects\ProjectCreateReferenceService;
-use App\Services\Projects\ProjectLocationCanonicalService;
-use App\Services\Projects\ProjectRegistryService;
-use App\Services\Projects\ProjectWorkspacePresenter;
+use App\Services\Finance\FinancialCeilingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,24 +23,274 @@ use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
-
     /*
     |--------------------------------------------------------------------------
     | Official Project List
     |--------------------------------------------------------------------------
     */
 
-    public function index(
-        ProjectRegistryRequest $request,
-        ProjectRegistryService $registry,
-    ): View {
-        return view(
-            'projects.index',
-            $registry->viewData(
-                $request->user(),
-                $request->validated(),
-            ),
-        );
+    public function index(Request $request, ProvinceAccessService $provinceAccess): View
+    {
+        $user = $request->user();
+
+        $statusValues = collect(ProjectStatus::cases())
+            ->map(fn (ProjectStatus $status): string => $status->value)
+            ->all();
+
+        $modeValues = collect(ImplementationMode::cases())
+            ->map(fn (ImplementationMode $mode): string => $mode->value)
+            ->all();
+
+        $sortValues = [
+            'newest',
+            'oldest',
+            'title_asc',
+            'title_desc',
+            'beneficiaries_desc',
+            'beneficiaries_asc',
+            'cost_desc',
+            'cost_asc',
+            'updated_desc',
+        ];
+
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'status' => in_array($request->query('status'), $statusValues, true)
+                ? (string) $request->query('status')
+                : null,
+            'implementation_mode' => in_array($request->query('implementation_mode'), $modeValues, true)
+                ? (string) $request->query('implementation_mode')
+                : null,
+            'province_id' => $request->integer('province_id') ?: null,
+            'municipality_id' => $request->integer('municipality_id') ?: null,
+            'fiscal_year' => $request->integer('fiscal_year') ?: null,
+            'sort' => in_array($request->query('sort'), $sortValues, true)
+                ? (string) $request->query('sort')
+                : 'newest',
+        ];
+
+        if (
+            $filters['fiscal_year'] !== null
+            && ($filters['fiscal_year'] < 2000 || $filters['fiscal_year'] > 2100)
+        ) {
+            $filters['fiscal_year'] = null;
+        }
+
+        $assignedProvince = null;
+
+        if ($provinceAccess->isProvinceScoped($user)) {
+            $assignedProvinceId = $provinceAccess->assignedProvinceId($user);
+
+            $assignedProvince = $assignedProvinceId === null
+                ? null
+                : Province::query()->find($assignedProvinceId);
+
+            $filters['province_id'] = $assignedProvince?->id;
+        }
+
+        $provinces = $provinceAccess
+            ->scopeProvinces(Province::query(), $user)
+            ->where('is_active', true)
+            ->whereIn('name', [
+                'Albay',
+                'Camarines Norte',
+                'Camarines Sur',
+                'Catanduanes',
+                'Masbate',
+                'Sorsogon',
+            ])
+            ->orderBy('name')
+            ->get();
+
+        if (
+            $filters['province_id'] !== null
+            && ! $provinces->contains('id', (int) $filters['province_id'])
+        ) {
+            $filters['province_id'] = $assignedProvince?->id;
+            $filters['municipality_id'] = null;
+        }
+
+        $municipalityQuery = $provinceAccess
+            ->scopeMunicipalities(Municipality::query(), $user)
+            ->with('province')
+            ->where('is_active', true);
+
+        if ($filters['province_id'] !== null) {
+            $municipalityQuery->where(
+                'province_id',
+                (int) $filters['province_id']
+            );
+        }
+
+        $municipalities = $municipalityQuery
+            ->orderBy('name')
+            ->get();
+
+        if (
+            $filters['municipality_id'] !== null
+            && ! $municipalities->contains('id', (int) $filters['municipality_id'])
+        ) {
+            $filters['municipality_id'] = null;
+        }
+
+        $query = $provinceAccess
+            ->scopeProjects(Project::query(), $user)
+            ->with([
+                'allocation.adl',
+                'creator',
+                'approval',
+                'provinceReference',
+                'municipalityReference',
+                'barangayReference',
+                'projectLocations.province',
+                'projectLocations.municipality',
+                'projectLocations.barangays',
+            ]);
+
+        if ($filters['q'] !== '') {
+            $search = $filters['q'];
+
+            $query->where(function ($projectQuery) use ($search): void {
+                $like = '%'.$search.'%';
+
+                $projectQuery
+                    ->where('project_title', 'like', $like)
+                    ->orWhere('fund_sponsor', 'like', $like)
+                    ->orWhere('partner', 'like', $like)
+                    ->orWhere('province', 'like', $like)
+                    ->orWhere('district', 'like', $like)
+                    ->orWhere('municipality', 'like', $like)
+                    ->orWhere('barangay', 'like', $like)
+                    ->orWhereHas('approval', function ($approvalQuery) use ($like): void {
+                        $approvalQuery->where('project_code', 'like', $like);
+                    })
+                    ->orWhereHas('allocation.adl', function ($adlQuery) use ($like): void {
+                        $adlQuery->where('adl_number', 'like', $like);
+                    })
+                    ->orWhereHas('projectLocations', function ($locationQuery) use ($like): void {
+                        $locationQuery
+                            ->where('district', 'like', $like)
+                            ->orWhereHas('municipality', function ($municipalityQuery) use ($like): void {
+                                $municipalityQuery->where('name', 'like', $like);
+                            })
+                            ->orWhereHas('barangays', function ($barangayQuery) use ($like): void {
+                                $barangayQuery->where('name', 'like', $like);
+                            });
+                    });
+            });
+        }
+
+        if ($filters['status'] !== null) {
+            $query->where('status', $filters['status']);
+        }
+
+        if ($filters['implementation_mode'] !== null) {
+            $query->where(
+                'implementation_mode',
+                $filters['implementation_mode']
+            );
+        }
+
+        if ($filters['province_id'] !== null) {
+            $province = $provinces->firstWhere(
+                'id',
+                (int) $filters['province_id']
+            );
+
+            if ($province !== null) {
+                $query->where(function ($provinceQuery) use ($province): void {
+                    $provinceQuery
+                        ->where('province_id', $province->id)
+                        ->orWhere(function ($legacyQuery) use ($province): void {
+                            $legacyQuery
+                                ->whereNull('province_id')
+                                ->where('province', $province->name);
+                        });
+                });
+            }
+        }
+
+        if ($filters['municipality_id'] !== null) {
+            $municipality = $municipalities->firstWhere(
+                'id',
+                (int) $filters['municipality_id']
+            );
+
+            if ($municipality !== null) {
+                $query->where(function ($municipalityQuery) use ($municipality): void {
+                    $municipalityQuery
+                        ->where('municipality_id', $municipality->id)
+                        ->orWhereHas(
+                            'projectLocations',
+                            fn ($locationQuery) => $locationQuery
+                                ->where('municipality_id', $municipality->id)
+                        );
+                });
+            }
+        }
+
+        if ($filters['fiscal_year'] !== null) {
+            $query->whereYear(
+                'date_received',
+                (int) $filters['fiscal_year']
+            );
+        }
+
+        match ($filters['sort']) {
+            'oldest' => $query
+                ->orderBy('date_received')
+                ->orderBy('id'),
+            'title_asc' => $query
+                ->orderBy('project_title')
+                ->orderBy('id'),
+            'title_desc' => $query
+                ->orderByDesc('project_title')
+                ->orderByDesc('id'),
+            'beneficiaries_desc' => $query
+                ->orderByDesc('beneficiaries_total')
+                ->orderByDesc('id'),
+            'beneficiaries_asc' => $query
+                ->orderBy('beneficiaries_total')
+                ->orderBy('id'),
+            'cost_desc' => $query
+                ->orderByDesc('total_project_cost')
+                ->orderByDesc('id'),
+            'cost_asc' => $query
+                ->orderBy('total_project_cost')
+                ->orderBy('id'),
+            'updated_desc' => $query
+                ->orderByDesc('updated_at')
+                ->orderByDesc('id'),
+            default => $query
+                ->orderByDesc('date_received')
+                ->orderByDesc('id'),
+        };
+
+        $projects = $query
+            ->paginate(15)
+            ->withQueryString();
+
+        $fiscalYears = $provinceAccess
+            ->scopeProjects(Project::query(), $user)
+            ->whereNotNull('date_received')
+            ->pluck('date_received')
+            ->map(fn ($date): int => (int) substr((string) $date, 0, 4))
+            ->filter(fn (int $year): bool => $year >= 2000 && $year <= 2100)
+            ->push((int) now()->year)
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        return view('projects.index', [
+            'projects' => $projects,
+            'filters' => $filters,
+            'provinces' => $provinces,
+            'municipalities' => $municipalities,
+            'statuses' => ProjectStatus::cases(),
+            'implementationModes' => ImplementationMode::cases(),
+            'fiscalYears' => $fiscalYears,
+            'assignedProvince' => $assignedProvince,
+        ]);
     }
 
     /*
@@ -88,13 +334,79 @@ class ProjectController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function create(
-        Request $request,
-        ProjectCreateReferenceService $references,
-    ): View {
+    public function create(Request $request, ProvinceAccessService $provinceAccess, FinancialCeilingService $ceilings): View
+    {
+        $allocationQuery = $provinceAccess->scopeAdlAllocations(
+            AdlAllocation::query(),
+            $request->user(),
+        );
+
+        $allocations = (clone $allocationQuery)
+            ->with('adl')
+            ->orderByDesc('id')
+            ->get();
+
+        $provinces = $provinceAccess->scopeProvinces(
+            Province::query(),
+            $request->user(),
+        )
+            ->where('is_active', true)
+            ->whereIn('name', [
+                'Albay',
+                'Camarines Norte',
+                'Camarines Sur',
+                'Catanduanes',
+                'Masbate',
+                'Sorsogon',
+            ])
+            ->orderBy('name')
+            ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Focal-maintained Sponsor / Partner choices
+        |--------------------------------------------------------------------------
+        */
+
+        $fundSponsorOptions = (clone $allocationQuery)
+            ->whereNotNull('fund_sponsor')
+            ->where('fund_sponsor', '!=', '')
+            ->distinct()
+            ->orderBy('fund_sponsor')
+            ->pluck('fund_sponsor')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $partnerOptions = (clone $allocationQuery)
+            ->whereNotNull('partner')
+            ->where('partner', '!=', '')
+            ->distinct()
+            ->orderBy('partner')
+            ->pluck('partner')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $allocationFinancials = $allocations->mapWithKeys(
+            fn (AdlAllocation $allocation): array => [
+                $allocation->id => $ceilings->allocationProjectSummary($allocation),
+            ]
+        );
+
         return view(
             'projects.create',
-            $references->viewData($request->user()),
+            [
+                'allocations' => $allocations,
+                'allocationFinancials' => $allocationFinancials,
+                'provinces' => $provinces,
+                'fundSponsorOptions' => $fundSponsorOptions,
+                'partnerOptions' => $partnerOptions,
+                'implementationModes' => ImplementationMode::cases(),
+                'ppeTypes' => PpeType::cases(),
+            ]
         );
     }
 
@@ -104,11 +416,7 @@ class ProjectController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function store(
-        Request $request,
-        ProvinceAccessService $provinceAccess,
-        ProjectLocationCanonicalService $canonicalLocations,
-    ): RedirectResponse
+    public function store(Request $request, ProvinceAccessService $provinceAccess, FinancialCeilingService $ceilings): RedirectResponse
     {
         $validated = $this->validateProject($request);
 
@@ -141,7 +449,7 @@ class ProjectController extends Controller
             $request,
             $validated,
             $provinceAccess,
-            $canonicalLocations
+            $ceilings
         ) {
             /*
             |--------------------------------------------------------------------------
@@ -525,28 +833,16 @@ class ProjectController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $existingProjectCost = (float) $allocation
-                ->projects()
-                ->sum('total_project_cost');
+            $allocationSummary = $ceilings->allocationProjectSummary($allocation);
+            $projectCostCents = $ceilings->amountToCents($totalProjectCost);
+            $availableProjectBudgetCents = max(0, $allocationSummary['remaining_cents']);
 
-            $availableProjectBudget = round(
-                (float) $allocation->amount
-                - $existingProjectCost,
-                2
-            );
-
-            if ($totalProjectCost > $availableProjectBudget) {
+            if ($projectCostCents > $availableProjectBudgetCents) {
                 throw ValidationException::withMessages([
                     'adl_allocation_id' => sprintf(
-                        'The project cost of ₱%s exceeds the remaining allocation budget of ₱%s.',
-                        number_format(
-                            $totalProjectCost,
-                            2
-                        ),
-                        number_format(
-                            $availableProjectBudget,
-                            2
-                        ),
+                        'Total Project Cost of ₱%s exceeds the selected allocation remaining balance of ₱%s.',
+                        number_format($projectCostCents / 100, 2),
+                        number_format($availableProjectBudgetCents / 100, 2),
                     ),
                 ]);
             }
@@ -790,11 +1086,6 @@ class ProjectController extends Controller
                 );
             }
 
-            // project_locations + project_location_barangay are authoritative.
-            // Keep the legacy columns on projects as a synchronized compatibility
-            // snapshot for older reports/components that still read them directly.
-            $canonicalLocations->synchronizeCompatibilitySnapshot($project);
-
             /*
             |--------------------------------------------------------------------------
             | Create PPE Items
@@ -829,8 +1120,7 @@ class ProjectController extends Controller
 
     public function show(
         Request $request,
-        Project $project,
-        ProjectWorkspacePresenter $workspacePresenter,
+        Project $project
     ): View {
         $user = $request->user();
 
@@ -839,6 +1129,10 @@ class ProjectController extends Controller
         | Project Viewing Authorization
         |--------------------------------------------------------------------------
         */
+
+        if ($user->isGip()) {
+            abort(403);
+        }
 
         if ($user->isFocal()) {
             $allowedStatuses = $project->implementation_mode === ImplementationMode::THROUGH_ACP
@@ -1153,6 +1447,7 @@ class ProjectController extends Controller
                 'required',
                 'integer',
                 'min:0',
+                'lte:beneficiaries_total',
             ],
 
             /*
@@ -1211,7 +1506,7 @@ class ProjectController extends Controller
             'ppe_items.*.product' => [
                 'nullable',
                 'string',
-                'max:255',
+                'max:100',
             ],
 
             'ppe_items.*.beneficiary_count' => [
