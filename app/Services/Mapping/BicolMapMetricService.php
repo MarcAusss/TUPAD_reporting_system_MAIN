@@ -209,7 +209,7 @@ final class BicolMapMetricService
             self::ALLOCATION => 'Allocation choropleth values use the existing province-level fund-status project cohorts. Allocation is intentionally unavailable below province geography; no municipality or barangay amount is inferred.',
             default => $baseNote !== ''
                 ? $baseNote
-                : 'Beneficiary choropleth values use exact project-location/barangay geographic allocations.',
+                : 'Beneficiary choropleth values use exact beneficiary address allocations encoded in the Beneficiaries workspace.',
         };
     }
 }

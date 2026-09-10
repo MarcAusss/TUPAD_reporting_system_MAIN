@@ -220,7 +220,7 @@ final class DashboardGeographicAnalyticsService
         }
 
         if ($family === self::BENEFICIARIES) {
-            return 'Total/Female values use the same exact project-location and barangay allocations used by the Geographic Mapping report.';
+            return 'Total/Female values use the exact beneficiary address allocations encoded in the Beneficiaries workspace and used by Beneficiary Mapping.';
         }
 
         return 'Total counts all official projects associated with each geographic row. Through ACP is the subset using Through ACP implementation mode. A multi-location project may appear in more than one geographic row, while the scope summary remains the authoritative unique project total.';

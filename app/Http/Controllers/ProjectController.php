@@ -870,6 +870,10 @@ class ProjectController extends Controller
             'projectLocations.municipality',
             'projectLocations.barangays',
 
+            'beneficiaryAddresses.province',
+            'beneficiaryAddresses.municipality',
+            'beneficiaryAddresses.barangay',
+
             'beneficiarySectors.recorder',
             'beneficiarySectors.updater',
             'laborMarketReferrals.recorder',
@@ -909,9 +913,21 @@ class ProjectController extends Controller
             $request->string('workspace')->toString(),
         );
 
+        $beneficiaryAddressProvinceId = $user->isTc()
+            ? $user->assigned_province_id
+            : ($project->province_id ?: $project->projectLocations->first()?->province_id);
+
+        $beneficiaryAddressProvince = $beneficiaryAddressProvinceId
+            ? Province::query()->find($beneficiaryAddressProvinceId)
+            : null;
+
         return view(
             'projects.show',
-            compact('project', 'workspace')
+            compact(
+                'project',
+                'workspace',
+                'beneficiaryAddressProvince',
+            )
         );
     }
 

@@ -31,7 +31,7 @@ final class BicolMapDataService
         $projects = $this->reporting->projects($filters);
 
         $beneficiaryRows = $this->reporting
-            ->beneficiaryGeography($filters, ReportDimension::PROVINCE, $projects)
+            ->beneficiaryGeography($filters, ReportDimension::PROVINCE)
             ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
         $projectRows = $this->reporting
             ->physicalFinancial($filters, ReportDimension::PROVINCE, $projects)
@@ -196,7 +196,7 @@ final class BicolMapDataService
             ],
             'label_boundary' => null,
             'filters' => $this->filterPayload($filters),
-            'data_note' => 'Municipality map and ranking use exact beneficiary allocations from project-location/barangay records. Project money is not divided or inferred across municipalities.',
+            'data_note' => 'Municipality map and ranking use exact beneficiary address allocations encoded in the Beneficiaries workspace. Project money is not divided or inferred across municipalities.',
         ];
     }
 
@@ -239,21 +239,19 @@ final class BicolMapDataService
         $projects = $this->reporting->projects($detailFilters);
 
         $beneficiaryRows = $this->reporting
-            ->beneficiaryGeography($detailFilters, ReportDimension::BARANGAY, $projects)
+            ->beneficiaryGeography($detailFilters, ReportDimension::BARANGAY)
             ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
         $projectRows = $this->reporting
             ->physicalFinancial($detailFilters, ReportDimension::BARANGAY, $projects)
             ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
         $ongoingRows = $this->statusGeographyRows(
             $detailFilters,
-            $projects,
             ProjectStatus::ONGOING_IMPLEMENTATION,
             ReportDimension::BARANGAY,
             $beneficiaryRows,
         );
         $completedRows = $this->statusGeographyRows(
             $detailFilters,
-            $projects,
             ProjectStatus::COMPLETED,
             ReportDimension::BARANGAY,
             $beneficiaryRows,
@@ -355,7 +353,7 @@ final class BicolMapDataService
                 'geometry' => 'Point',
             ],
             'filters' => $this->filterPayload($detailFilters),
-            'data_note' => 'Selected-municipality chart rows use exact barangay beneficiary allocations. Municipality polygons stay visible for geographic context; barangay names are a lazy label-only layer. Financial values are not divided across barangays.',
+            'data_note' => 'Selected-municipality chart rows use exact beneficiary-address barangay allocations. Municipality polygons stay visible for geographic context; barangay names are a lazy label-only layer. Financial values are not divided across barangays.',
         ];
     }
 
@@ -363,21 +361,19 @@ final class BicolMapDataService
     private function municipalityRows(Province $province, ReportFilters $filters, Collection $projects): Collection
     {
         $beneficiaryRows = $this->reporting
-            ->beneficiaryGeography($filters, ReportDimension::MUNICIPALITY, $projects)
+            ->beneficiaryGeography($filters, ReportDimension::MUNICIPALITY)
             ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
         $projectRows = $this->reporting
             ->physicalFinancial($filters, ReportDimension::MUNICIPALITY, $projects)
             ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
         $ongoingRows = $this->statusGeographyRows(
             $filters,
-            $projects,
             ProjectStatus::ONGOING_IMPLEMENTATION,
             ReportDimension::MUNICIPALITY,
             $beneficiaryRows,
         );
         $completedRows = $this->statusGeographyRows(
             $filters,
-            $projects,
             ProjectStatus::COMPLETED,
             ReportDimension::MUNICIPALITY,
             $beneficiaryRows,
@@ -535,13 +531,11 @@ final class BicolMapDataService
     }
 
     /**
-     * @param Collection<int,Project> $projects
      * @param Collection<string,array<string,mixed>> $baseRows
      * @return Collection<string,array<string,mixed>>
      */
     private function statusGeographyRows(
         ReportFilters $filters,
-        Collection $projects,
         ProjectStatus $status,
         ReportDimension $dimension,
         Collection $baseRows,
@@ -552,16 +546,31 @@ final class BicolMapDataService
                 : collect();
         }
 
-        $statusProjects = $projects
-            ->filter(fn (Project $project): bool => $project->status === $status)
-            ->values();
-
-        if ($statusProjects->isEmpty()) {
-            return collect();
-        }
+        $statusFilters = new ReportFilters(
+            dateFrom: $filters->dateFrom,
+            dateTo: $filters->dateTo,
+            fiscalYear: $filters->fiscalYear,
+            quarter: $filters->quarter,
+            month: $filters->month,
+            term: $filters->term,
+            status: $status,
+            implementationMode: $filters->implementationMode,
+            adlId: $filters->adlId,
+            provinceId: $filters->provinceId,
+            district: $filters->district,
+            municipalityId: $filters->municipalityId,
+            barangayId: $filters->barangayId,
+            sponsor: $filters->sponsor,
+            partner: $filters->partner,
+            projectCode: $filters->projectCode,
+            sectorGroup: $filters->sectorGroup,
+            sector: $filters->sector,
+            interventionFocus: $filters->interventionFocus,
+            laborMarketProgram: $filters->laborMarketProgram,
+        );
 
         return $this->reporting
-            ->beneficiaryGeography($filters, $dimension, $statusProjects)
+            ->beneficiaryGeography($statusFilters, $dimension)
             ->keyBy(fn (array $row): string => (string) ($row['key'] ?? ''));
     }
 }
