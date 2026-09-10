@@ -7,7 +7,7 @@
         eyebrow="Account"
         title="My Account"
         description="Review your assigned TUPAD Coordinator account and securely change your password."
-    />
+    />  
 
     <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
         <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -17,7 +17,7 @@
                     Your username, role, province assignment, and designation are managed by the Focal account and cannot be edited here.
                 </p>
             </div>
-
+    
             <dl class="grid gap-px bg-slate-200 sm:grid-cols-2">
                 @foreach ([
                     ['Full Name', $coordinator->name],
@@ -30,7 +30,7 @@
                     <div class="bg-white px-5 py-5">
                         <dt class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{{ $label }}</dt>
                         <dd class="mt-2 text-sm font-semibold text-slate-900">{{ $value }}</dd>
-                    </div>
+                    </div>  
                 @endforeach
             </dl>
 

@@ -84,7 +84,6 @@ final class ExecutiveDashboardService
         $provinceRows = $this->reporting->beneficiaryGeography(
             $filters,
             ReportDimension::PROVINCE,
-            $projectCohort,
         );
         $sectorRows = $this->reporting->sectorAggregation(
             $filters,
@@ -119,10 +118,7 @@ final class ExecutiveDashboardService
                 $projectCohort,
             )->first();
 
-        $geographicBeneficiaries = $this->geographicBeneficiaryTotals(
-            $filters,
-            $projectCohort,
-        );
+        $geographicBeneficiaries = $this->geographicBeneficiaryTotals($filters);
         $beneficiariesTotal = $geographicBeneficiaries['beneficiaries_total']
             ?? (int) $overall['beneficiaries_total'];
         $beneficiariesFemale = $geographicBeneficiaries['beneficiaries_female']
@@ -213,7 +209,7 @@ final class ExecutiveDashboardService
                 ? 'Financial KPIs are intentionally unavailable for district, municipality, or barangay filters because the system has no authoritative financial allocation at those levels.'
                 : null,
             'financial_basis_note' => 'Direct Administration obligation/disbursement values come from wage obligation tranches and disbursements. Through ACP obligation-stage values come from the official ACP payment record, disbursement-stage values come from the released check, and liquidation is reported separately.',
-            'geography_note' => 'Geographic beneficiary totals use exact project_location_barangay beneficiary allocations. Legacy rows without an exact pivot allocation are not guessed.',
+            'geography_note' => 'Geographic beneficiary totals use exact beneficiary address allocations from the Beneficiaries workspace. Projects without a complete address allocation are not geographically guessed.',
             'sector_note' => 'Sector classifications may overlap. Sector counts are project-level classification totals for the matching project cohort and must not be added together as unique beneficiary totals or treated as geographic allocations.',
             'labor_market_note' => 'Labor market metrics use project_labor_market_referrals.reporting_month. Geographic filters select matching project cohorts; referral values remain project-level and are not divided across localities.',
         ];
@@ -321,10 +317,7 @@ final class ExecutiveDashboardService
         ];
     }
 
-    private function geographicBeneficiaryTotals(
-        ReportFilters $filters,
-        Collection $projects,
-    ): ?array
+    private function geographicBeneficiaryTotals(ReportFilters $filters): ?array
     {
         $dimension = match (true) {
             $filters->barangayId !== null => ReportDimension::BARANGAY,
@@ -341,7 +334,6 @@ final class ExecutiveDashboardService
         $rows = $this->reporting->beneficiaryGeography(
             $filters,
             $dimension,
-            $projects,
         );
 
         return [

@@ -21,6 +21,7 @@ use App\Http\Controllers\ProjectAcpLiquidationController;
 use App\Http\Controllers\ProjectAcpPaymentController;
 use App\Http\Controllers\ProjectAcpWorkflowQueueController;
 use App\Http\Controllers\ProjectApprovalController;
+use App\Http\Controllers\ProjectBeneficiaryAddressController;
 use App\Http\Controllers\ProjectClassificationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectProvinceSummaryController;
@@ -506,6 +507,13 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         )
             ->whereNumber('project')
             ->name('projects.classifications.update');
+
+        Route::put(
+            '/projects/{project}/beneficiary-addresses',
+            [ProjectBeneficiaryAddressController::class, 'update']
+        )
+            ->whereNumber('project')
+            ->name('projects.beneficiary-addresses.update');
 
         Route::post(
             '/projects/{project}/labor-market-referrals',

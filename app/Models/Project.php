@@ -293,6 +293,13 @@ class Project extends Model
             ->orderBy('sector_key');
     }
 
+    public function beneficiaryAddresses(): HasMany
+    {
+        return $this->hasMany(ProjectBeneficiaryAddress::class)
+            ->orderBy('municipality_id')
+            ->orderBy('barangay_id');
+    }
+
     public function laborMarketReferrals(): HasMany
     {
         return $this->hasMany(ProjectLaborMarketReferral::class)

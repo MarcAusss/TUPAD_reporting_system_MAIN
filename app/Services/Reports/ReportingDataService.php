@@ -10,6 +10,7 @@ use App\Enums\ProjectStatus;
 use App\Enums\ReportDimension;
 use App\Models\AdlAllocation;
 use App\Models\Project;
+use App\Models\ProjectBeneficiaryAddress;
 use App\Models\ProjectLocation;
 use App\Models\Province;
 use App\Reports\ReportFilters;
@@ -36,7 +37,7 @@ final class ReportingDataService
         ?Collection $projects = null,
     ): Collection {
         if ($groupBy->isFineGeography()) {
-            return $this->beneficiaryGeography($filters, $groupBy, $projects)
+            return $this->projectLocationGeography($filters, $groupBy, $projects)
                 ->map(fn (array $row): array => $row + [
                     'wages_cents' => null,
                     'ppe_cents' => null,
@@ -76,7 +77,7 @@ final class ReportingDataService
         ?Collection $projects = null,
     ): Collection {
         if ($groupBy->isFineGeography()) {
-            return $this->beneficiaryGeography($filters, $groupBy, $projects)
+            return $this->projectLocationGeography($filters, $groupBy, $projects)
                 ->map(fn (array $row): array => $row + [
                     'allocation_cents' => null,
                     'payable_wages_cents' => null,
@@ -410,10 +411,11 @@ final class ReportingDataService
     }
 
     /**
-     * Exact beneficiary geography. Fine-grained rows never infer or divide
-     * project money and never substitute a project total for a missing pivot.
+     * Project-location geography remains authoritative for Project Mapping and
+     * other project-location based fine-grained reports. This is deliberately
+     * separate from beneficiary residence/address geography.
      */
-    public function beneficiaryGeography(
+    public function projectLocationGeography(
         ReportFilters $filters,
         ReportDimension $groupBy = ReportDimension::BARANGAY,
         ?Collection $projects = null,
@@ -425,12 +427,11 @@ final class ReportingDataService
             ReportDimension::BARANGAY,
         ], true)) {
             throw new InvalidArgumentException(
-                'Beneficiary geography supports province, district, municipality, or barangay grouping.'
+                'Project location geography supports province, district, municipality, or barangay grouping.'
             );
         }
 
         $projects ??= $this->projects($filters);
-
         $rows = [];
 
         foreach ($projects as $project) {
@@ -562,6 +563,106 @@ final class ReportingDataService
                         count($incompleteProjectIds) === 0,
                     'allocation_basis' =>
                         'project_location_barangay_exact_only',
+                ];
+            })
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+    }
+
+    /**
+     * Beneficiary residence geography. Counts come only from beneficiary
+     * address allocations encoded in the Beneficiaries workspace.
+     */
+    public function beneficiaryGeography(
+        ReportFilters $filters,
+        ReportDimension $groupBy = ReportDimension::BARANGAY,
+        ?Collection $projects = null,
+    ): Collection {
+        if (! in_array($groupBy, [
+            ReportDimension::PROVINCE,
+            ReportDimension::DISTRICT,
+            ReportDimension::MUNICIPALITY,
+            ReportDimension::BARANGAY,
+        ], true)) {
+            throw new InvalidArgumentException(
+                'Beneficiary geography supports province, district, municipality, or barangay grouping.'
+            );
+        }
+
+        // Beneficiary geography is intentionally independent from project-location
+        // geography. Fine geographic filters are applied to beneficiary address
+        // allocations below, not to project_locations.
+        $projects ??= $this->projects(
+            $this->withoutGeographicFilters($filters)
+        );
+
+        $rows = [];
+
+        foreach ($projects as $project) {
+            $allAddresses = $project->beneficiaryAddresses->values();
+
+            if ($allAddresses->isEmpty()) {
+                $this->addGeographicAllocation(
+                    $rows,
+                    $this->legacyGeographyDescriptor($project, $groupBy),
+                    $project->id,
+                    0,
+                    0,
+                    false,
+                );
+
+                continue;
+            }
+
+            $projectAllocationComplete =
+                (int) $allAddresses->sum('beneficiaries_total') === (int) $project->beneficiaries_total
+                && (int) $allAddresses->sum('beneficiaries_female') === (int) $project->beneficiaries_female;
+
+            $matchingAddresses = $this->matchingBeneficiaryAddresses(
+                $project,
+                $filters,
+            );
+
+            // The project has beneficiary address data, but none of those
+            // addresses match the requested beneficiary-geography filter.
+            if ($matchingAddresses->isEmpty()) {
+                continue;
+            }
+
+            foreach ($matchingAddresses as $address) {
+                $this->addGeographicAllocation(
+                    $rows,
+                    $this->beneficiaryAddressDescriptor($address, $groupBy),
+                    $project->id,
+                    (int) $address->beneficiaries_total,
+                    (int) $address->beneficiaries_female,
+                    $projectAllocationComplete,
+                );
+            }
+        }
+
+        return collect($rows)
+            ->map(function (array $row) use ($groupBy): array {
+                $projectIds = array_keys($row['project_ids']);
+                $incompleteProjectIds = array_keys(
+                    $row['incomplete_project_ids']
+                );
+
+                return [
+                    'dimension' => $groupBy->value,
+                    'key' => $row['key'],
+                    'label' => $row['label'],
+                    'project_count' => count($projectIds),
+                    'beneficiaries_total' => $row['beneficiaries_total'],
+                    'beneficiaries_female' => $row['beneficiaries_female'],
+                    'exact_project_count' =>
+                        count(array_diff($projectIds, $incompleteProjectIds)),
+                    'legacy_unallocated_project_count' =>
+                        count($incompleteProjectIds),
+                    'has_complete_exact_allocation' =>
+                        count($incompleteProjectIds) === 0,
+                    'allocation_basis' =>
+                        'project_beneficiary_addresses_exact_only',
                 ];
             })
             ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
@@ -915,6 +1016,9 @@ final class ReportingDataService
             'projectLocations.province',
             'projectLocations.municipality',
             'projectLocations.barangays',
+            'beneficiaryAddresses.province',
+            'beneficiaryAddresses.municipality',
+            'beneficiaryAddresses.barangay',
             'beneficiarySectors',
             'laborMarketReferrals',
         ]);
@@ -1413,6 +1517,89 @@ final class ReportingDataService
             || $filters->sector !== null
             || $filters->interventionFocus !== null
             || $filters->laborMarketProgram !== null;
+    }
+
+    private function withoutGeographicFilters(ReportFilters $filters): ReportFilters
+    {
+        return new ReportFilters(
+            dateFrom: $filters->dateFrom,
+            dateTo: $filters->dateTo,
+            fiscalYear: $filters->fiscalYear,
+            quarter: $filters->quarter,
+            month: $filters->month,
+            term: $filters->term,
+            status: $filters->status,
+            implementationMode: $filters->implementationMode,
+            adlId: $filters->adlId,
+            provinceId: null,
+            district: null,
+            municipalityId: null,
+            barangayId: null,
+            sponsor: $filters->sponsor,
+            partner: $filters->partner,
+            projectCode: $filters->projectCode,
+            sectorGroup: $filters->sectorGroup,
+            sector: $filters->sector,
+            interventionFocus: $filters->interventionFocus,
+            laborMarketProgram: $filters->laborMarketProgram,
+        );
+    }
+
+    /** @return Collection<int, ProjectBeneficiaryAddress> */
+    private function matchingBeneficiaryAddresses(
+        Project $project,
+        ReportFilters $filters,
+    ): Collection {
+        return $project->beneficiaryAddresses
+            ->filter(function (ProjectBeneficiaryAddress $address) use ($filters): bool {
+                if ($filters->provinceId && (int) $address->province_id !== $filters->provinceId) {
+                    return false;
+                }
+
+                if ($filters->district && $address->municipality?->district !== $filters->district) {
+                    return false;
+                }
+
+                if ($filters->municipalityId && (int) $address->municipality_id !== $filters->municipalityId) {
+                    return false;
+                }
+
+                if ($filters->barangayId && (int) $address->barangay_id !== $filters->barangayId) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->values();
+    }
+
+    private function beneficiaryAddressDescriptor(
+        ProjectBeneficiaryAddress $address,
+        ReportDimension $dimension,
+    ): array {
+        return match ($dimension) {
+            ReportDimension::PROVINCE => [
+                'key' => (string) $address->province_id,
+                'label' => $address->province?->name ?: 'Unassigned Province',
+            ],
+            ReportDimension::DISTRICT => [
+                'key' => $this->normalizedKey(
+                    $address->province_id.'-'.($address->municipality?->district ?: 'unassigned')
+                ),
+                'label' => $address->municipality?->district ?: 'Unassigned District',
+            ],
+            ReportDimension::MUNICIPALITY => [
+                'key' => (string) $address->municipality_id,
+                'label' => $address->municipality?->name ?: 'Unassigned Municipality',
+            ],
+            ReportDimension::BARANGAY => [
+                'key' => (string) $address->barangay_id,
+                'label' => $address->barangay?->name ?: 'Unassigned Barangay',
+            ],
+            default => throw new InvalidArgumentException(
+                'Invalid beneficiary geographic dimension.'
+            ),
+        };
     }
 
     /** @return Collection<int, ProjectLocation> */

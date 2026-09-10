@@ -366,19 +366,19 @@ class GeographicMappingReportController extends Controller
                 [
                     'label' => 'Exactly Allocated',
                     'value' => (int) $rows->sum('beneficiaries_total'),
-                    'hint' => 'Only beneficiary counts with exact encoded geographic allocation.',
+                    'hint' => 'Beneficiaries with exact address allocations encoded in the Beneficiaries workspace.',
                 ],
                 [
                     'label' => 'Exact Female',
                     'value' => (int) $rows->sum('beneficiaries_female'),
-                    'hint' => 'Female beneficiaries from exact geographic allocations only.',
+                    'hint' => 'Female beneficiaries from exact beneficiary address allocations only.',
                 ],
                 [
                     'label' => 'Areas Needing Review',
                     'value' => $rows->filter(
                         fn (array $row): bool => ! (bool) ($row['has_complete_exact_allocation'] ?? false)
                     )->count(),
-                    'hint' => 'Areas containing legacy/unallocated beneficiary records.',
+                    'hint' => 'Areas containing projects without a complete beneficiary address allocation.',
                 ],
             ],
             'sectors' => [
