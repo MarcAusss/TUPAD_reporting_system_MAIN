@@ -30,7 +30,7 @@
                     <div class="bg-white px-5 py-5">
                         <dt class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{{ $label }}</dt>
                         <dd class="mt-2 text-sm font-semibold text-slate-900">{{ $value }}</dd>
-                    </div>
+                    </div>  
                 @endforeach
             </dl>
 
