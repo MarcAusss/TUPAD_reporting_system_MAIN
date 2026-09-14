@@ -277,7 +277,7 @@ final class ProjectWorkspacePresenter
                     'implementation',
                 ),
             ProjectStatus::FOR_LIQUIDATION,
-            ProjectStatus::PARTIALLY_LIQUIDATED => ($user->isAdmin() || $user->isFocal())
+            ProjectStatus::PARTIALLY_LIQUIDATED => ($user->isAdmin() || $user->isFocal() || $user->isTc())
                 ? $this->externalAction(
                     'Action Required',
                     $project->status === ProjectStatus::PARTIALLY_LIQUIDATED
@@ -289,9 +289,9 @@ final class ProjectWorkspacePresenter
                     'financial',
                 )
                 : $this->internalAction(
-                    'Pending Focal/Admin Action',
+                    'Pending Coordinator/Focal/Admin Action',
                     'ACP liquidation is pending',
-                    'A Focal or Administrator account must complete the liquidation stage.',
+                    'A TUPAD Coordinator, Focal, or Administrator account must complete the liquidation stage.',
                     'View ACP Workflow',
                     'workflow',
                     'implementation',

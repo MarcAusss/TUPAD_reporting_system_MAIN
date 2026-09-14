@@ -306,7 +306,7 @@ class ProjectStatusEngine
     private function preImplementationRequirementsComplete(Project $project): bool
     {
         return $project->insuranceEnrollment !== null
-            && $project->ppeDelivery !== null
+            && $project->ppeDeliveries->isNotEmpty()
             && $project->noticeToProceed !== null;
     }
 
@@ -345,7 +345,7 @@ class ProjectStatusEngine
             ProjectStatus::APPROVED => [
                 'approval',
                 'insuranceEnrollment',
-                'ppeDelivery',
+                'ppeDeliveries',
                 'noticeToProceed',
             ],
 
@@ -358,7 +358,7 @@ class ProjectStatusEngine
                     ]
                     : [
                         'insuranceEnrollment',
-                        'ppeDelivery',
+                        'ppeDeliveries',
                         'noticeToProceed',
                         'orientation',
                         'implementation',

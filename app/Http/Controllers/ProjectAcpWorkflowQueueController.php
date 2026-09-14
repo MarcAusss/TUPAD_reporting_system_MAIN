@@ -161,7 +161,7 @@ class ProjectAcpWorkflowQueueController extends Controller
             'liquidation' => [
                 'title' => 'Through ACP — Liquidation',
                 'description' => 'Through ACP projects waiting for full or additional liquidation records.',
-                'owner' => 'Focal / Administrator',
+                'owner' => 'TUPAD Coordinator / Focal / Administrator',
                 'statuses' => [
                     ProjectStatus::FOR_LIQUIDATION->value,
                     ProjectStatus::PARTIALLY_LIQUIDATED->value,

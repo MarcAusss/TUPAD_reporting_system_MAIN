@@ -175,6 +175,11 @@ class ProjectEvaluationController extends Controller
                         ->evaluated_at
                         ->toDateString(),
             ],
+            'compliance_remarks' => [
+                'required',
+                'string',
+                'max:5000',
+            ],
         ]);
 
         return DB::transaction(
@@ -239,6 +244,10 @@ class ProjectEvaluationController extends Controller
                         $validated[
                             'compliance_date'
                         ],
+                    'compliance_remarks' =>
+                        trim(
+                            $validated['compliance_remarks']
+                        ),
                     'complied_by' =>
                         $request->user()->id,
                     'complied_at' =>

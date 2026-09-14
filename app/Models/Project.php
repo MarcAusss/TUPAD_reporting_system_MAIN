@@ -147,11 +147,12 @@ class Project extends Model
         );
     }
 
-    public function ppeDelivery(): HasOne
+    public function ppeDeliveries(): HasMany
     {
-        return $this->hasOne(
+        return $this->hasMany(
             ProjectPpeDelivery::class
-        );
+        )->orderBy('delivery_receipt_date')
+            ->orderBy('id');
     }
 
     public function noticeToProceed(): HasOne
@@ -178,7 +179,7 @@ class Project extends Model
     public function preImplementationRequirementsComplete(): bool
     {
         return $this->insuranceEnrollment()->exists()
-            && $this->ppeDelivery()->exists()
+            && $this->ppeDeliveries()->exists()
             && $this->noticeToProceed()->exists();
     }
 
@@ -415,6 +416,13 @@ class Project extends Model
         return $this->hasMany(
             ProjectBeneficiary::class
         );
+    }
+
+    public function beneficiaryReplacements(): HasMany
+    {
+        return $this->hasMany(
+            ProjectBeneficiaryReplacement::class
+        )->orderByDesc('performed_at');
     }
     public function beneficiaryRegistryCount(): int
     {

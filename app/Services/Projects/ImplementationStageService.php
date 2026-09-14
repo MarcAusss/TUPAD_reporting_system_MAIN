@@ -35,7 +35,7 @@ class ImplementationStageService
     ): ProjectStatus {
         $project->loadMissing([
             'insuranceEnrollment',
-            'ppeDelivery',
+            'ppeDeliveries',
             'noticeToProceed',
             'orientation',
             'implementation',
@@ -171,7 +171,7 @@ class ImplementationStageService
         Project $project
     ): bool {
         return (bool) $project->insuranceEnrollment
-            && (bool) $project->ppeDelivery
+            && $project->ppeDeliveries->isNotEmpty()
             && (bool) $project->noticeToProceed
             && (bool) $project->orientation
             && (bool) $project->implementation;

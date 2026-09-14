@@ -38,13 +38,13 @@ class AdlController extends Controller
         | Official ADL Total Rule
         |--------------------------------------------------------------------------
         |
-        | Total must always be the same amount entered under Grants.
-        | Administrative Cost is tracked separately and is NOT added to Total.
+        | Total is Grants + Administrative Cost, matching how an ADL allocation's
+        | own total_amount is already derived (grant_amount + admin_cost_amount).
         | The server calculates this so a manually manipulated request cannot
         | override the rule.
         |
         */
-        $total = $grants;
+        $total = $grants + $adminCost;
 
         $adl = Adl::create([
             'adl_number' => trim($validated['adl_number']),
@@ -86,7 +86,7 @@ class AdlController extends Controller
 
         $grants = round((float) $validated['grants'], 2);
         $adminCost = round((float) ($validated['admin_cost'] ?? 0), 2);
-        $total = $grants;
+        $total = $grants + $adminCost;
 
         $realignments = (float) $adl->realignments()->sum('amount');
         $newAdjustedGrants = $grants + $realignments;

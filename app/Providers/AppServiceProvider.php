@@ -5,11 +5,14 @@ namespace App\Providers;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
 use App\Models\AdlRealignment;
+use App\Models\NgaTarget;
 use App\Models\Project;
 use App\Models\ProjectApproval;
 use App\Models\ProjectAcpLiquidation;
 use App\Models\ProjectAcpCheckRelease;
 use App\Models\ProjectAcpPayment;
+use App\Models\ProjectBeneficiaryAddress;
+use App\Models\ProjectBeneficiaryReplacement;
 use App\Models\ProjectBeneficiarySector;
 use App\Models\ProjectDisbursement;
 use App\Models\ProjectEvaluation;
@@ -79,10 +82,13 @@ class AppServiceProvider extends ServiceProvider
 
             ProjectBeneficiarySector::class,
             ProjectLaborMarketReferral::class,
+            ProjectBeneficiaryAddress::class,
+            ProjectBeneficiaryReplacement::class,
 
             User::class,
             ProjectBeneficiary::class,
             ReformulatedTarget::class,
+            NgaTarget::class,
         ];
 
         foreach ($auditedModels as $model) {

@@ -16,6 +16,35 @@
             </x-slot:actions>
         </x-page-header>
 
+        @if($allocations->isEmpty())
+            <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
+                <div class="text-xs font-bold uppercase tracking-widest text-red-700">
+                    No Allocation Available
+                </div>
+
+                <p class="mt-1 text-xs leading-5 text-red-800">
+                    {{ $exhaustedAllocationCount > 0
+                        ? "Every ADL allocation you can access ({$exhaustedAllocationCount}) has no remaining balance."
+                        : 'No ADL allocation is available to you yet.' }}
+                    A new official project cannot be encoded until an allocation with remaining budget exists.
+                </p>
+            </div>
+        @elseif($exhaustedAllocationCount > 0)
+            <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+                <div class="text-xs font-bold uppercase tracking-widest text-amber-700">
+                    Some Allocations Hidden
+                </div>
+
+                <p class="mt-1 text-xs leading-5 text-amber-800">
+                    {{ $exhaustedAllocationCount }}
+                    ADL allocation{{ $exhaustedAllocationCount === 1 ? '' : 's' }}
+                    with no remaining balance {{ $exhaustedAllocationCount === 1 ? 'is' : 'are' }} not shown in the
+                    Allocation dropdown below, since {{ $exhaustedAllocationCount === 1 ? 'it' : 'they' }} can no
+                    longer fund a new project.
+                </p>
+            </div>
+        @endif
+
         <div class="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
             <div class="text-xs font-bold uppercase tracking-widest text-blue-700">
                 Encoding Guide
@@ -84,7 +113,7 @@
                                 Allocation
                             </label>
 
-                            <select name="adl_allocation_id" required
+                            <select id="adlAllocationSelect" name="adl_allocation_id" required
                                 class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200">
 
                                 <option value="">
@@ -92,7 +121,16 @@
                                 </option>
 
                                 @foreach ($allocations as $allocation)
-                                    <option value="{{ $allocation->id }}" @selected(old('adl_allocation_id') == $allocation->id)>
+                                    @php($allocationFinance = $allocationFinancials->get($allocation->id))
+                                    <option
+                                        value="{{ $allocation->id }}"
+                                        data-adl-number="{{ $allocation->adl->adl_number }}"
+                                        data-location="{{ $allocation->location }}"
+                                        data-allocation="{{ number_format(($allocationFinance['allocation_cents'] ?? 0) / 100, 2, '.', '') }}"
+                                        data-utilized="{{ number_format(($allocationFinance['utilized_cents'] ?? 0) / 100, 2, '.', '') }}"
+                                        data-remaining="{{ number_format(max(0, $allocationFinance['remaining_cents'] ?? 0) / 100, 2, '.', '') }}"
+                                        @selected(old('adl_allocation_id') == $allocation->id)
+                                    >
                                         {{ $allocation->adl->adl_number }}
                                         —
                                         {{ $allocation->location }}
@@ -107,6 +145,31 @@
                                 Select the ADL allocation that will fund this official project.
                                 Fund Sponsor and Partner are encoded below by the TUPAD Coordinator.
                             </p>
+
+                            <div id="allocationBudgetPanel" class="mt-4 hidden rounded-xl border border-blue-200 bg-blue-50 p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-blue-700">Selected Allocation Capacity</div>
+                                        <div id="allocationBudgetLabel" class="mt-1 text-sm font-semibold text-blue-950"></div>
+                                    </div>
+                                    <div id="allocationBudgetState" class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-blue-700">Available</div>
+                                </div>
+                                <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                                    <div class="rounded-lg bg-white px-3 py-3">
+                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Allocation</div>
+                                        <div id="allocationOriginalAmount" class="mt-1 text-sm font-bold text-slate-900">₱0.00</div>
+                                    </div>
+                                    <div class="rounded-lg bg-white px-3 py-3">
+                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Already Utilized</div>
+                                        <div id="allocationUtilizedAmount" class="mt-1 text-sm font-bold text-slate-900">₱0.00</div>
+                                    </div>
+                                    <div class="rounded-lg bg-white px-3 py-3">
+                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Remaining Available</div>
+                                        <div id="allocationRemainingAmount" class="mt-1 text-sm font-bold text-emerald-700">₱0.00</div>
+                                    </div>
+                                </div>
+                                <div id="allocationProjectCostMessage" class="mt-3 text-xs font-medium text-blue-800">Enter project cost inputs to compare against the remaining allocation.</div>
+                            </div>
 
                         </div>
 
@@ -412,8 +475,9 @@
                                             </p>
 
                                             <p class="mt-1 pl-10 text-[11px] font-medium leading-5 text-blue-700">
-                                                For every selected barangay, encode its exact Total and Female beneficiary
-                                                allocation. The barangay allocations must equal the declared project totals.
+                                                For every selected barangay, encode its exact Total beneficiary
+                                                allocation. The barangay totals automatically become the project's Total
+                                                Beneficiaries below.
                                             </p>
 
                                         </div>
@@ -469,8 +533,8 @@
 
                                         <div id="locationAllocationStatus" tabindex="-1"
                                             class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800">
-                                            Enter the project beneficiary totals below, then allocate the same totals across
-                                            the selected barangays.
+                                            Encode the Total beneficiary allocation for every selected barangay. The sum
+                                            automatically becomes the project's Total Beneficiaries.
                                         </div>
 
                                         <div
@@ -575,8 +639,12 @@
                                 </label>
 
                                 <input id="beneficiariesTotal" name="beneficiaries_total" type="number" min="1"
-                                    value="{{ old('beneficiaries_total') }}" required
-                                    class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                    value="{{ old('beneficiaries_total', 0) }}" readonly required
+                                    class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold">
+
+                                <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                    Automatically totaled from the barangay allocations encoded in Project Location.
+                                </p>
 
                             </div>
 
@@ -589,6 +657,7 @@
                                 <input id="beneficiariesFemale" name="beneficiaries_female" type="number"
                                     min="0" value="{{ old('beneficiaries_female', 0) }}" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                <p id="femaleBeneficiaryLimit" class="mt-1 text-[11px] text-slate-500">Maximum: enter Total Beneficiaries first.</p>
 
                             </div>
 
@@ -633,9 +702,11 @@
                                     PPE Requirements
                                 </h2>
 
-                                <p class="mt-1 text-xs text-slate-500">
+                                <p class="mt-1 text-xs text-slate-500 w-216.5">
                                     Encode Non-Hazardous or Hazardous PPE, product, covered beneficiaries, and amount per
-                                    beneficiary. PPE totals are included automatically in the project amount.
+                                    beneficiary. PPE totals are included automatically in the project amount. Long-Term
+                                    projects (31–90 days) also ask for the Quantity issued per beneficiary; Short-Term
+                                    projects (10–30 days) do not.
                                 </p>
                             </div>
 
@@ -705,9 +776,8 @@
                                     placeholder="Beneficiaries requiring insurance" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
-                                <p class="mt-1 text-[11px] leading-4 text-slate-500">
-                                    Enter only beneficiaries who require project-funded insurance.
-                                    This cannot exceed Total Beneficiaries.
+                                <p id="insuranceBeneficiaryLimit" class="mt-1 text-[11px] leading-4 text-slate-500">
+                                    Maximum: enter Total Beneficiaries first.
                                 </p>
 
                                 @error('insurance_beneficiaries')
@@ -1046,7 +1116,7 @@
                         <div class="selected-barangays mt-3 space-y-2"></div>
 
                         <div class="mt-2 text-[10px] leading-4 text-slate-400">
-                            Allocation columns: Total beneficiaries / Female beneficiaries.
+                            Allocation column: Total beneficiaries.
                         </div>
                     </div>
                 `;
@@ -1201,8 +1271,6 @@
                             row.dataset.barangayId, {
                                 total: row.querySelector('.barangay-beneficiaries-total')?.value ??
                                     '',
-                                female: row.querySelector('.barangay-beneficiaries-female')?.value ??
-                                    '',
                             }
                         );
                     });
@@ -1230,12 +1298,11 @@
                     const barangayId = String(checkbox.value);
                     const current = existingValues.get(barangayId) ?? {
                         total: '',
-                        female: '',
                     };
 
                     const row = document.createElement('div');
                     row.className =
-                        'barangay-allocation-row grid gap-2 rounded-lg border border-blue-100 bg-blue-50/50 p-3 sm:grid-cols-[minmax(0,1fr)_105px_105px] sm:items-center';
+                        'barangay-allocation-row grid gap-2 rounded-lg border border-blue-100 bg-blue-50/50 p-3 sm:grid-cols-[minmax(0,1fr)_105px] sm:items-center';
                     row.dataset.barangayId = barangayId;
                     row.dataset.barangayName = checkbox.dataset.name;
 
@@ -1262,22 +1329,6 @@
                                 value="${escapeHtml(current.total)}"
                                 data-barangay-id="${barangayId}"
                                 class="barangay-beneficiaries-total h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs"
-                            >
-                        </label>
-
-                        <label class="block">
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                                Female
-                            </span>
-                            <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                required
-                                name="project_locations[${card.dataset.index}][barangay_allocations][${barangayId}][beneficiaries_female]"
-                                value="${escapeHtml(current.female)}"
-                                data-barangay-id="${barangayId}"
-                                class="barangay-beneficiaries-female h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs"
                             >
                         </label>
                     `;
@@ -1309,97 +1360,76 @@
             }
 
             function updateAllocationValidation() {
-                if (!locationAllocationStatus) {
-                    return true;
-                }
-
-                const projectTotal = Number(
-                    document.getElementById('beneficiariesTotal')?.value ??
-                    0
-                );
-
-                const projectFemale = Number(
-                    document.getElementById('beneficiariesFemale')?.value ??
-                    0
-                );
-
                 const allocationRows = Array.from(
                     projectLocations.querySelectorAll('.barangay-allocation-row')
                 );
 
-                if (allocationRows.length === 0) {
-                    locationAllocationStatus.className =
-                        'mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
-                    locationAllocationStatus.textContent =
-                        'Select barangays and encode their beneficiary allocations.';
-                    return false;
-                }
-
                 let allocatedTotal = 0;
-                let allocatedFemale = 0;
                 let incomplete = false;
-                let femaleExceedsBarangay = false;
 
                 allocationRows.forEach(row => {
                     const totalInput = row.querySelector(
                         '.barangay-beneficiaries-total'
                     );
 
-                    const femaleInput = row.querySelector(
-                        '.barangay-beneficiaries-female'
-                    );
-
-                    if (
-                        totalInput?.value === '' ||
-                        femaleInput?.value === ''
-                    ) {
+                    if (totalInput?.value === '') {
                         incomplete = true;
                         return;
                     }
 
-                    const total = Number(totalInput.value);
-                    const female = Number(femaleInput.value);
-
-                    allocatedTotal += total;
-                    allocatedFemale += female;
-
-                    if (female > total) {
-                        femaleExceedsBarangay = true;
-                    }
+                    allocatedTotal += Number(totalInput.value);
                 });
 
-                if (femaleExceedsBarangay) {
-                    locationAllocationStatus.className =
-                        'mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-[11px] font-medium leading-5 text-red-700';
-                    locationAllocationStatus.textContent =
-                        'A barangay Female allocation cannot exceed that barangay Total allocation.';
-                    return false;
+                /*
+                |--------------------------------------------------------------------------
+                | Total Beneficiaries is derived, not encoded directly. Keep it in sync
+                | with the barangay allocations entered in Project Location.
+                |--------------------------------------------------------------------------
+                */
+
+                const beneficiariesTotalInput =
+                    document.getElementById('beneficiariesTotal');
+
+                if (
+                    beneficiariesTotalInput &&
+                    beneficiariesTotalInput.value !== String(allocatedTotal)
+                ) {
+                    beneficiariesTotalInput.value = String(allocatedTotal);
+                    calculate();
                 }
 
-                if (incomplete || projectTotal <= 0) {
+                if (!locationAllocationStatus) {
+                    return allocationRows.length > 0 && !incomplete && allocatedTotal > 0;
+                }
+
+                if (allocationRows.length === 0) {
                     locationAllocationStatus.className =
                         'mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
                     locationAllocationStatus.textContent =
-                        `Allocated: ${allocatedTotal.toLocaleString()} total / ${allocatedFemale.toLocaleString()} female. Complete all barangay allocations and the project beneficiary totals.`;
+                        'Select barangays and encode their Total beneficiary allocation.';
                     return false;
                 }
 
-                const totalsMatch =
-                    allocatedTotal === projectTotal &&
-                    allocatedFemale === projectFemale;
-
-                if (!totalsMatch) {
+                if (incomplete) {
                     locationAllocationStatus.className =
                         'mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
                     locationAllocationStatus.textContent =
-                        `Allocated ${allocatedTotal.toLocaleString()} of ${projectTotal.toLocaleString()} total beneficiaries and ${allocatedFemale.toLocaleString()} of ${projectFemale.toLocaleString()} female beneficiaries.`;
+                        `Allocated so far: ${allocatedTotal.toLocaleString()} total. Complete every selected barangay's Total allocation.`;
+                    return false;
+                }
+
+                if (allocatedTotal <= 0) {
+                    locationAllocationStatus.className =
+                        'mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
+                    locationAllocationStatus.textContent =
+                        'Encode at least one barangay Total beneficiary allocation.';
                     return false;
                 }
 
                 locationAllocationStatus.className =
                     'mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-[11px] font-semibold leading-5 text-emerald-700';
                 locationAllocationStatus.textContent =
-                    `Allocation complete: ${allocatedTotal.toLocaleString()} total / ${allocatedFemale.toLocaleString()} female beneficiaries.`;
+                    `Total Beneficiaries automatically set to ${allocatedTotal.toLocaleString()} from the barangay allocations.`;
 
                 return true;
             }
@@ -1438,10 +1468,6 @@
                                 name: input.dataset.name,
                                 total: allocationRow?.querySelector(
                                         '.barangay-beneficiaries-total'
-                                    )?.value ??
-                                    '',
-                                female: allocationRow?.querySelector(
-                                        '.barangay-beneficiaries-female'
                                     )?.value ??
                                     '',
                             };
@@ -1510,8 +1536,7 @@
                                                             ${escapeHtml(barangay.name)}
                                                         </span>
                                                         <span class="shrink-0 font-semibold text-blue-800">
-                                                            ${barangay.total === '' ? '—' : Number(barangay.total).toLocaleString()} total ·
-                                                            ${barangay.female === '' ? '—' : Number(barangay.female).toLocaleString()} female
+                                                            ${barangay.total === '' ? '—' : Number(barangay.total).toLocaleString()} total
                                                         </span>
                                                     </div>
                                                 `
@@ -1538,9 +1563,16 @@
             const insuranceRate = document.getElementById('insuranceRate');
             const insuranceBeneficiaries = document.getElementById('insuranceBeneficiaries');
             const beneficiariesFemale = document.getElementById('beneficiariesFemale');
-
-            beneficiaries?.addEventListener('input', updateAllocationValidation);
-            beneficiariesFemale?.addEventListener('input', updateAllocationValidation);
+            const femaleBeneficiaryLimit = document.getElementById('femaleBeneficiaryLimit');
+            const insuranceBeneficiaryLimit = document.getElementById('insuranceBeneficiaryLimit');
+            const allocationSelect = document.getElementById('adlAllocationSelect');
+            const allocationBudgetPanel = document.getElementById('allocationBudgetPanel');
+            const allocationBudgetLabel = document.getElementById('allocationBudgetLabel');
+            const allocationOriginalAmount = document.getElementById('allocationOriginalAmount');
+            const allocationUtilizedAmount = document.getElementById('allocationUtilizedAmount');
+            const allocationRemainingAmount = document.getElementById('allocationRemainingAmount');
+            const allocationBudgetState = document.getElementById('allocationBudgetState');
+            const allocationProjectCostMessage = document.getElementById('allocationProjectCostMessage');
 
             const termPreview = document.getElementById('termPreview');
             const wagesPreview = document.getElementById('wagesPreview');
@@ -1560,6 +1592,57 @@
                 }).format(value || 0);
             }
 
+            function selectedAllocationData() {
+                const option = allocationSelect?.options[allocationSelect.selectedIndex];
+                if (!option?.value) return null;
+
+                return {
+                    adl: option.dataset.adlNumber || '',
+                    location: option.dataset.location || '',
+                    allocation: Number(option.dataset.allocation || 0),
+                    utilized: Number(option.dataset.utilized || 0),
+                    remaining: Number(option.dataset.remaining || 0),
+                };
+            }
+
+            function updateAllocationBudgetPanel(projectTotal = 0) {
+                const data = selectedAllocationData();
+
+                if (!data) {
+                    allocationBudgetPanel?.classList.add('hidden');
+                    allocationSelect?.setCustomValidity('');
+                    return;
+                }
+
+                allocationBudgetPanel?.classList.remove('hidden');
+                allocationBudgetLabel.textContent = [data.adl, data.location].filter(Boolean).join(' · ');
+                allocationOriginalAmount.textContent = currency(data.allocation);
+                allocationUtilizedAmount.textContent = currency(data.utilized);
+                allocationRemainingAmount.textContent = currency(data.remaining);
+
+                const afterProject = data.remaining - projectTotal;
+                const exceeded = projectTotal > data.remaining + 0.00001;
+
+                if (exceeded) {
+                    const overBy = Math.abs(afterProject);
+                    allocationBudgetState.textContent = 'Exceeded';
+                    allocationBudgetState.className = 'rounded-full bg-red-100 px-3 py-1 text-[10px] font-bold uppercase text-red-700';
+                    allocationProjectCostMessage.className = 'mt-3 text-xs font-semibold text-red-700';
+                    allocationProjectCostMessage.textContent =
+                        `Total Project Cost ${currency(projectTotal)} exceeds the remaining allocation ${currency(data.remaining)} by ${currency(overBy)}.`;
+                    allocationSelect.setCustomValidity(
+                        `Total Project Cost cannot exceed the remaining allocation of ${currency(data.remaining)}.`
+                    );
+                } else {
+                    allocationBudgetState.textContent = 'Available';
+                    allocationBudgetState.className = 'rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase text-emerald-700';
+                    allocationProjectCostMessage.className = 'mt-3 text-xs font-medium text-emerald-700';
+                    allocationProjectCostMessage.textContent =
+                        `Remaining after this project: ${currency(Math.max(0, afterProject))}.`;
+                    allocationSelect.setCustomValidity('');
+                }
+            }
+
             function calculate() {
                 const dayValue = Number(days.value || 0);
                 const beneficiaryValue = Number(beneficiaries.value || 0);
@@ -1569,9 +1652,21 @@
                     insuranceBeneficiaries.value || 0
                 );
 
-                insuranceBeneficiaries.max = String(
-                    Math.max(0, beneficiaryValue)
-                );
+                const beneficiaryMaximum = Math.max(0, beneficiaryValue);
+
+                beneficiariesFemale.max = String(beneficiaryMaximum);
+                insuranceBeneficiaries.max = String(beneficiaryMaximum);
+
+                femaleBeneficiaryLimit.textContent = `Maximum: ${beneficiaryMaximum.toLocaleString()} beneficiaries.`;
+                insuranceBeneficiaryLimit.textContent = `Maximum: ${beneficiaryMaximum.toLocaleString()} beneficiaries.`;
+
+                if (Number(beneficiariesFemale.value || 0) > beneficiaryMaximum) {
+                    beneficiariesFemale.setCustomValidity(
+                        `Female beneficiaries cannot exceed Total Beneficiaries (${beneficiaryMaximum}).`
+                    );
+                } else {
+                    beneficiariesFemale.setCustomValidity('');
+                }
 
                 if (insuranceBeneficiaryValue > beneficiaryValue) {
                     insuranceBeneficiaries.setCustomValidity(
@@ -1581,9 +1676,11 @@
                     insuranceBeneficiaries.setCustomValidity('');
                 }
 
+                const isLongTerm = dayValue >= 31 && dayValue <= 90;
+
                 if (dayValue >= 10 && dayValue <= 30) {
                     termPreview.value = 'Short-Term';
-                } else if (dayValue >= 31 && dayValue <= 90) {
+                } else if (isLongTerm) {
                     termPreview.value = 'Long-Term';
                 } else {
                     termPreview.value = '';
@@ -1604,11 +1701,53 @@
                             row.querySelector('[data-ppe-count]').value || 0
                         );
 
+                        const countInput = row.querySelector('[data-ppe-count]');
                         const amount = Number(
                             row.querySelector('[data-ppe-unit]').value || 0
                         );
 
-                        const total = count * amount;
+                        countInput.max = String(beneficiaryMaximum);
+                        if (count > beneficiaryMaximum) {
+                            countInput.setCustomValidity(
+                                `PPE beneficiaries cannot exceed Total Beneficiaries (${beneficiaryMaximum}).`
+                            );
+                        } else {
+                            countInput.setCustomValidity('');
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | PPE Quantity (Long-Term only)
+                        |--------------------------------------------------------------------------
+                        |
+                        | Short-Term projects issue a single PPE set per beneficiary, so the
+                        | Quantity input only appears — and only counts toward the total — for
+                        | Long-Term projects.
+                        |--------------------------------------------------------------------------
+                        */
+
+                        const quantityInput = row.querySelector('[data-ppe-quantity]');
+                        let quantity = 1;
+
+                        quantityInput.classList.toggle('hidden', !isLongTerm);
+                        quantityInput.disabled = !isLongTerm;
+                        quantityInput.required = isLongTerm;
+
+                        if (isLongTerm) {
+                            quantity = Math.max(0, Number(quantityInput.value || 0));
+
+                            if (quantityInput.value === '' || quantity < 1) {
+                                quantityInput.setCustomValidity(
+                                    'Enter the PPE quantity per beneficiary for this Long-Term project.'
+                                );
+                            } else {
+                                quantityInput.setCustomValidity('');
+                            }
+                        } else {
+                            quantityInput.setCustomValidity('');
+                        }
+
+                        const total = count * amount * (isLongTerm ? quantity : 1);
 
                         row.querySelector('[data-ppe-total]').value =
                             currency(total);
@@ -1621,9 +1760,9 @@
 
                 ppeTotalPreview.textContent = currency(ppeTotal);
 
-                projectTotalPreview.value = currency(
-                    wages + insurance + ppeTotal
-                );
+                const projectTotal = wages + insurance + ppeTotal;
+                projectTotalPreview.value = currency(projectTotal);
+                updateAllocationBudgetPanel(projectTotal);
             }
 
             function addRow() {
@@ -1645,17 +1784,35 @@
                 <option value="hazardous">Hazardous</option>
             </select>
 
-            <select
-                name="ppe_items[${index}][product]"
-                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-3"
-            >
-                <option value="">PPE Product</option>
-                <option value="TUPAD Shirt">TUPAD Shirt</option>
-                <option value="Gloves">Gloves</option>
-                <option value="Rubber Boots">Rubber Boots</option>
-                <option value="Mask">Mask</option>
-                <option value="Bucket Hat">Bucket Hat</option>
-            </select>
+            <div class="flex min-w-0 flex-col gap-2 xl:col-span-3">
+                <select
+                    data-ppe-product-select
+                    class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                >
+                    <option value="">PPE Product</option>
+                    <option value="TUPAD Shirt">TUPAD Shirt</option>
+                    <option value="Gloves">Gloves</option>
+                    <option value="Rubber Boots">Rubber Boots</option>
+                    <option value="Mask">Mask</option>
+                    <option value="Bucket Hat">Bucket Hat</option>
+                    <option value="__other__">Others</option>
+                </select>
+
+                <input
+                    data-ppe-product-other
+                    type="text"
+                    maxlength="100"
+                    placeholder="Specify other PPE product"
+                    class="hidden h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                >
+
+                <input
+                    data-ppe-product-value
+                    name="ppe_items[${index}][product]"
+                    type="hidden"
+                    value=""
+                >
+            </div>
 
             <input
                 data-ppe-count
@@ -1677,6 +1834,16 @@
             >
 
             <input
+                data-ppe-quantity
+                name="ppe_items[${index}][quantity]"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Qty / Beneficiary"
+                class="hidden h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-2"
+            >
+
+            <input
                 data-ppe-total
                 readonly
                 value="₱0.00"
@@ -1694,6 +1861,42 @@
 
                 ppeItems.appendChild(row);
 
+                const productSelect = row.querySelector(
+                    '[data-ppe-product-select]'
+                );
+                const productOther = row.querySelector(
+                    '[data-ppe-product-other]'
+                );
+                const productValue = row.querySelector(
+                    '[data-ppe-product-value]'
+                );
+
+                function syncPpeProduct() {
+                    if (productSelect.value === '__other__') {
+                        productOther.classList.remove('hidden');
+                        productOther.required = true;
+                        productValue.value = productOther.value.trim();
+                        return;
+                    }
+
+                    productOther.classList.add('hidden');
+                    productOther.required = false;
+                    productOther.value = '';
+                    productValue.value = productSelect.value;
+                }
+
+                productSelect.addEventListener('change', function() {
+                    syncPpeProduct();
+                    calculate();
+                });
+
+                productOther.addEventListener('input', function() {
+                    productValue.value = productOther.value.trim();
+                    calculate();
+                });
+
+                syncPpeProduct();
+
                 row
                     .querySelectorAll('input, select')
                     .forEach(function(element) {
@@ -1709,11 +1912,14 @@
                         row.remove();
                         calculate();
                     });
+
+                calculate();
             }
 
             [
                 days,
                 beneficiaries,
+                beneficiariesFemale,
                 wageRate,
                 insuranceRate,
                 insuranceBeneficiaries,
@@ -1728,6 +1934,8 @@
                 'click',
                 addRow
             );
+
+            allocationSelect?.addEventListener('change', calculate);
 
             calculate();
 

@@ -2,6 +2,7 @@
     $reportsOpen = request()->routeIs('reports.*');
     $reportWorkspaceRoutes = [
         'reports.workspace.physical-financial' => 'Physical & Financial',
+        'reports.workspace.nga-targets' => 'NGA Target Accomplishment',
         'reports.workspace.fund-status' => 'Fund Status',
         'reports.workspace.monthly' => 'Monthly Reports',
         'reports.workspace.quarterly' => 'Quarterly Reports',

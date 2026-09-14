@@ -13,6 +13,8 @@ use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MonthlyQuarterlyReportController;
+use App\Http\Controllers\NgaTargetController;
+use App\Http\Controllers\NgaTargetReportController;
 use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\OfficialPeriodicReportController;
 use App\Http\Controllers\ProjectAcpCheckReleaseController;
@@ -22,8 +24,10 @@ use App\Http\Controllers\ProjectAcpPaymentController;
 use App\Http\Controllers\ProjectAcpWorkflowQueueController;
 use App\Http\Controllers\ProjectApprovalController;
 use App\Http\Controllers\ProjectBeneficiaryAddressController;
+use App\Http\Controllers\ProjectBeneficiaryReplacementController;
 use App\Http\Controllers\ProjectClassificationController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectDetailController;
 use App\Http\Controllers\ProjectProvinceSummaryController;
 use App\Http\Controllers\ProjectDisbursementController;
 use App\Http\Controllers\ProjectEvaluationController;
@@ -208,6 +212,9 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         Route::get('/reports/physical-financial', [PhysicalFinancialAccomplishmentController::class, 'index'])
             ->name('reports.workspace.physical-financial');
 
+        Route::get('/reports/nga-targets', [NgaTargetReportController::class, 'index'])
+            ->name('reports.workspace.nga-targets');
+
         Route::get('/reports/fund-status', [FundStatusReportController::class, 'index'])
             ->name('reports.workspace.fund-status');
 
@@ -308,6 +315,33 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
     /*
     |--------------------------------------------------------------------------
+    | NGA Targets — Admin & Focal
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('role:admin,focal')->group(function () {
+
+        Route::get('/targets', [NgaTargetController::class, 'index'])
+            ->name('targets.index');
+
+        Route::get('/targets/create', [NgaTargetController::class, 'create'])
+            ->name('targets.create');
+
+        Route::post('/targets', [NgaTargetController::class, 'store'])
+            ->name('targets.store');
+
+        Route::get('/targets/{target}/edit', [NgaTargetController::class, 'edit'])
+            ->name('targets.edit');
+
+        Route::put('/targets/{target}', [NgaTargetController::class, 'update'])
+            ->name('targets.update');
+
+        Route::delete('/targets/{target}', [NgaTargetController::class, 'destroy'])
+            ->name('targets.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | ADL / Payment — Admin & Focal
     |--------------------------------------------------------------------------
     */
@@ -347,9 +381,6 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         Route::get('/acp-workflow/check-release', [ProjectAcpWorkflowQueueController::class, 'checkRelease'])
             ->name('acp-workflow.check-release');
 
-        Route::get('/acp-workflow/liquidation', [ProjectAcpWorkflowQueueController::class, 'liquidation'])
-            ->name('acp-workflow.liquidation');
-
         Route::get('/payments/{project}', [ProjectPaymentController::class, 'show'])
             ->whereNumber('project')
             ->name('payments.show');
@@ -385,6 +416,25 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
             ->whereNumber('project')
             ->whereNumber('attachment')
             ->name('projects.acp-check-release.attachments.download');
+
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | ACP Liquidation — Admin, TC & Focal
+    |--------------------------------------------------------------------------
+    |
+    | Liquidation is processed by the TUPAD Coordinator in addition to Focal
+    | and Administrator. Kept as its own group (rather than folded into the
+    | admin,focal ACP payment/check-release block above) so Payment/Check
+    | Release stay Focal/Admin-only while Liquidation opens up to TC.
+    |
+    */
+
+    Route::middleware('role:admin,tc,focal')->group(function () {
+
+        Route::get('/acp-workflow/liquidation', [ProjectAcpWorkflowQueueController::class, 'liquidation'])
+            ->name('acp-workflow.liquidation');
 
         Route::get('/acp-liquidations/{project}', [ProjectAcpLiquidationController::class, 'show'])
             ->whereNumber('project')
@@ -471,6 +521,12 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         */
 
         Route::get(
+            '/project-workflow/compliance-history',
+            [ProjectWorkflowQueueController::class, 'complianceHistory']
+        )
+            ->name('project-workflow.compliance-history');
+
+        Route::get(
             '/project-workflow/{queue}',
             [ProjectWorkflowQueueController::class, 'index']
         )
@@ -514,6 +570,20 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         )
             ->whereNumber('project')
             ->name('projects.beneficiary-addresses.update');
+
+        Route::put(
+            '/projects/{project}/details',
+            [ProjectDetailController::class, 'update']
+        )
+            ->whereNumber('project')
+            ->name('projects.details.update');
+
+        Route::post(
+            '/projects/{project}/beneficiary-replacements',
+            [ProjectBeneficiaryReplacementController::class, 'store']
+        )
+            ->whereNumber('project')
+            ->name('projects.beneficiary-replacements.store');
 
         Route::post(
             '/projects/{project}/labor-market-referrals',

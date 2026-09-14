@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Models\ProjectPpeItem;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProjectImplementationController extends Controller
 {
@@ -172,7 +174,7 @@ class ProjectImplementationController extends Controller
                 */
 
                 $project
-                    ->ppeDelivery()
+                    ->ppeDeliveries()
                     ->updateOrCreate(
                         [
                             'project_id' =>
@@ -308,26 +310,127 @@ class ProjectImplementationController extends Controller
         );
     }
 
+    /**
+     * Record one PPE delivery receipt. A project may have several receipts
+     * (e.g. shirts in one batch, boots in another) — each submission of this
+     * form adds a new receipt rather than replacing a prior one.
+     */
     public function ppe(Request $request, Project $project): RedirectResponse
     {
         $this->ensurePreparationAllowed($project);
 
+        $project->loadMissing('ppeItems');
+        $hasPlannedItems = $project->ppeItems->isNotEmpty();
+
         $validated = $request->validate([
             'delivery_receipt_date' => ['required', 'date'],
-            'ppe_provided' => ['required', 'string', 'max:5000'],
             'remarks' => ['nullable', 'string', 'max:3000'],
+
+            'items' => [
+                $hasPlannedItems ? 'required' : 'nullable',
+                'array',
+            ],
+            'items.*.ppe_item_id' => [
+                'required',
+                'integer',
+                Rule::exists('project_ppe_items', 'id')
+                    ->where('project_id', $project->id),
+            ],
+            'items.*.quantity' => [
+                'required',
+                'integer',
+                'min:1',
+            ],
         ]);
 
-        $project->ppeDelivery()->updateOrCreate(
-            ['project_id' => $project->id],
-            [
+        $items = collect($validated['items'] ?? [])
+            ->unique(fn (array $entry): int => (int) $entry['ppe_item_id'])
+            ->values();
+
+        if ($hasPlannedItems && $items->isEmpty()) {
+            throw ValidationException::withMessages([
+                'items' => 'Select at least one PPE item that was delivered.',
+            ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Do Not Exceed What Was Planned
+        |--------------------------------------------------------------------------
+        |
+        | Each project_ppe_items row already declares how many units are
+        | planned (Beneficiaries x Quantity). A delivery receipt cannot push
+        | the cumulative delivered amount for that item past that plan.
+        |
+        */
+
+        foreach ($items as $entry) {
+            /** @var ProjectPpeItem|null $ppeItem */
+            $ppeItem = $project->ppeItems->firstWhere(
+                'id',
+                (int) $entry['ppe_item_id']
+            );
+
+            if (! $ppeItem) {
+                continue;
+            }
+
+            $remaining = $ppeItem->remainingDeliverableQuantity();
+
+            if ((int) $entry['quantity'] > $remaining) {
+                /*
+                |--------------------------------------------------------------------------
+                | Error Key Matches the Submitted Field
+                |--------------------------------------------------------------------------
+                |
+                | The form names each item's inputs items[{ppe_item_id}][...], so the
+                | error must be keyed by the item's own id (not the loop position,
+                | which was re-indexed by the earlier unique()->values() call) for
+                | the per-item @error() block in the view to pick it up.
+                |
+                */
+
+                throw ValidationException::withMessages([
+                    "items.{$ppeItem->id}.quantity" => sprintf(
+                        'Only %s unit(s) of "%s" remain to be delivered (planned: %s).',
+                        number_format($remaining),
+                        $ppeItem->product,
+                        number_format($ppeItem->plannedQuantity()),
+                    ),
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($request, $project, $validated, $items): void {
+            $summary = $items->isEmpty()
+                ? 'No PPE items required for this project.'
+                : $items
+                    ->map(function (array $entry) use ($project): string {
+                        $ppeItem = $project->ppeItems->firstWhere(
+                            'id',
+                            (int) $entry['ppe_item_id']
+                        );
+
+                        return ($ppeItem?->product ?? 'PPE item')
+                            .' x'.(int) $entry['quantity'];
+                    })
+                    ->implode(', ');
+
+            $delivery = $project->ppeDeliveries()->create([
                 'delivery_receipt_date' => $validated['delivery_receipt_date'],
-                'ppe_provided' => $validated['ppe_provided'],
+                'ppe_provided' => $summary,
                 'inventory_reference' => null,
                 'remarks' => $validated['remarks'] ?? null,
                 'recorded_by' => $request->user()->id,
-            ]
-        );
+            ]);
+
+            foreach ($items as $entry) {
+                $delivery->items()->create([
+                    'ppe_item_id' => (int) $entry['ppe_item_id'],
+                    'quantity' => (int) $entry['quantity'],
+                ]);
+            }
+        });
 
         $this->refreshPreImplementationStatus(
             $project,
@@ -336,7 +439,7 @@ class ProjectImplementationController extends Controller
 
         return back()->with(
             'success',
-            'PPE delivery information saved successfully.'
+            'PPE delivery receipt saved successfully.'
         );
     }
 
@@ -375,6 +478,14 @@ class ProjectImplementationController extends Controller
 
         $validated = $request->validate([
             'orientation_date' => ['required', 'date'],
+            'beneficiaries_oriented' => [
+                'required',
+                'integer',
+                'min:0',
+                'lte:'.(int) $project->beneficiaries_total,
+            ],
+            'venue' => ['required', 'string', 'max:255'],
+            'oriented_by' => ['required', 'string', 'max:255'],
             'alkansssya_conducted' => ['nullable', 'boolean'],
             'yakap_conducted' => ['nullable', 'boolean'],
             'remarks' => ['nullable', 'string', 'max:3000'],
@@ -384,6 +495,9 @@ class ProjectImplementationController extends Controller
             ['project_id' => $project->id],
             [
                 'orientation_date' => $validated['orientation_date'],
+                'beneficiaries_oriented' => $validated['beneficiaries_oriented'],
+                'venue' => trim($validated['venue']),
+                'oriented_by' => trim($validated['oriented_by']),
                 'alkansssya_conducted' => $request->boolean('alkansssya_conducted'),
                 'yakap_conducted' => $request->boolean('yakap_conducted'),
                 'remarks' => $validated['remarks'] ?? null,

@@ -400,6 +400,7 @@ class VerifyReleaseReadiness extends Command
                 'a.id',
                 'a.adl_number',
                 'a.grants',
+                'a.admin_cost',
                 'a.total',
                 DB::raw('COALESCE(alloc.allocated, 0) as allocated'),
                 DB::raw('COALESCE(realign.realigned, 0) as realigned'),
@@ -407,8 +408,10 @@ class VerifyReleaseReadiness extends Command
             ->get();
 
         foreach ($adls as $adl) {
-            if ($this->moneyToCents($adl->total) !== $this->moneyToCents($adl->grants)) {
-                $this->failures[] = "ADL [{$adl->adl_number}] has total different from grants. Current system rule requires ADL total = grants; administrative cost is tracked separately.";
+            $expectedTotal = $this->moneyToCents($adl->grants) + $this->moneyToCents($adl->admin_cost);
+
+            if ($this->moneyToCents($adl->total) !== $expectedTotal) {
+                $this->failures[] = "ADL [{$adl->adl_number}] has total different from grants + admin cost. Current system rule requires ADL total = grants + administrative cost.";
             }
 
             $available = $this->moneyToCents($adl->grants) + $this->moneyToCents($adl->realigned);
