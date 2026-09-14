@@ -6,7 +6,6 @@
 
     @php
 
-
         if (auth()->user()->isFocal()) {
             if ($project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP) {
                 $backUrl = route('projects.index');
@@ -20,26 +19,26 @@
             $backLabel = 'Project Management';
         }
 
-
         $canManageProject = auth()->user()->isAdmin() || auth()->user()->isTc();
         $projectImplementationStarted = $project->implementation()->exists() || $project->acpCheckRelease()->exists();
         $projectEditingLocked = $project->status === \App\Enums\ProjectStatus::COMPLETED;
 
-
-        $canRecordInsuranceClaim = $canManageProject && in_array(
-            $project->status,
-            [
-                \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
-                \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
-                \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
-                \App\Enums\ProjectStatus::FOR_PAYMENT,
-                \App\Enums\ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
-                \App\Enums\ProjectStatus::FOR_LIQUIDATION,
-                \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED,
-                \App\Enums\ProjectStatus::COMPLETED,
-            ],
-            true,
-        );
+        $canRecordInsuranceClaim =
+            $canManageProject &&
+            in_array(
+                $project->status,
+                [
+                    \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
+                    \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
+                    \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
+                    \App\Enums\ProjectStatus::FOR_PAYMENT,
+                    \App\Enums\ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
+                    \App\Enums\ProjectStatus::FOR_LIQUIDATION,
+                    \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED,
+                    \App\Enums\ProjectStatus::COMPLETED,
+                ],
+                true,
+            );
 
     @endphp
 
@@ -1009,15 +1008,15 @@
                         Remove
                     </button>
                     ${requirePwdFlags ? `
-                                                <label class="col-span-2 flex items-center gap-1.5 text-[10px] text-slate-600 sm:col-span-4">
-                                                    <input type="checkbox" name="${name}[${index}][is_pwd]" value="1" class="h-3.5 w-3.5 rounded border-slate-300">
-                                                    PWD
-                                                </label>
-                                                <label class="col-span-2 flex items-center gap-1.5 text-[10px] text-slate-600 sm:col-span-4">
-                                                    <input type="checkbox" name="${name}[${index}][is_rebel_returnee]" value="1" class="h-3.5 w-3.5 rounded border-slate-300">
-                                                    Rebel Returnee
-                                                </label>
-                                            ` : ''}
+                                                            <label class="col-span-2 flex items-center gap-1.5 text-[10px] text-slate-600 sm:col-span-4">
+                                                                <input type="checkbox" name="${name}[${index}][is_pwd]" value="1" class="h-3.5 w-3.5 rounded border-slate-300">
+                                                                PWD
+                                                            </label>
+                                                            <label class="col-span-2 flex items-center gap-1.5 text-[10px] text-slate-600 sm:col-span-4">
+                                                                <input type="checkbox" name="${name}[${index}][is_rebel_returnee]" value="1" class="h-3.5 w-3.5 rounded border-slate-300">
+                                                                Rebel Returnee
+                                                            </label>
+                                                        ` : ''}
                 </div>
             `;
 
@@ -1354,10 +1353,11 @@
                     const form = document.getElementById('insuranceClaimForm');
                     if (!form) return;
 
-                    const roster = @json($project->beneficiaries->map(fn($b) => [
-                        'id' => $b->id,
-                        'name' => $b->full_name,
-                    ])->values());
+                    const roster = @json(
+                        $project->beneficiaries->map(fn($b) => [
+                                    'id' => $b->id,
+                                    'name' => $b->full_name,
+                                ])->values());
 
                     const escapeHtml = value => String(value ?? '')
                         .replaceAll('&', '&amp;')
@@ -4086,7 +4086,8 @@
                                         @endif
                                         &middot;
                                         {{ $claim->beneficiaries->count() }}
-                                        {{ $claim->beneficiaries->count() === 1 ? 'beneficiary' : 'beneficiaries' }} injured
+                                        {{ $claim->beneficiaries->count() === 1 ? 'beneficiary' : 'beneficiaries' }}
+                                        injured
                                     </div>
                                     <div class="mt-1 max-w-2xl truncate text-[11px] text-slate-500">
                                         {{ $claim->incident_description }}
@@ -4120,7 +4121,8 @@
                                     <ul class="mt-2 space-y-1.5 text-xs text-slate-700">
                                         @foreach ($claim->beneficiaries as $injured)
                                             <li>
-                                                <span class="font-semibold text-slate-900">{{ $injured->full_name }}</span>
+                                                <span
+                                                    class="font-semibold text-slate-900">{{ $injured->full_name }}</span>
                                                 <span class="text-slate-500">&mdash; {{ $injured->address }}</span>
                                             </li>
                                         @endforeach
@@ -4187,9 +4189,9 @@
                     <tbody class="divide-y divide-slate-100">
 
                         @forelse($project
-                                ->statusHistory
-                                ->sortByDesc('changed_at')
-                            as $history)
+                                    ->statusHistory
+                                    ->sortByDesc('changed_at')
+                                as $history)
                             <tr>
 
                                 <td class="whitespace-nowrap px-5 py-4 text-sm text-slate-500">
