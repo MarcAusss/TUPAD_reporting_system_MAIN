@@ -424,6 +424,14 @@ class Project extends Model
             ProjectBeneficiaryReplacement::class
         )->orderByDesc('performed_at');
     }
+
+    public function insuranceClaims(): HasMany
+    {
+        return $this->hasMany(
+            ProjectInsuranceClaim::class
+        )->orderByDesc('incident_date')->orderByDesc('id');
+    }
+
     public function beneficiaryRegistryCount(): int
     {
         return $this->beneficiaries()

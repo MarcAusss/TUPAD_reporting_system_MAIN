@@ -32,6 +32,7 @@ use App\Http\Controllers\ProjectProvinceSummaryController;
 use App\Http\Controllers\ProjectDisbursementController;
 use App\Http\Controllers\ProjectEvaluationController;
 use App\Http\Controllers\ProjectImplementationController;
+use App\Http\Controllers\ProjectInsuranceClaimController;
 use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ProjectWorkflowQueueController;
@@ -584,6 +585,13 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         )
             ->whereNumber('project')
             ->name('projects.beneficiary-replacements.store');
+
+        Route::post(
+            '/projects/{project}/insurance-claims',
+            [ProjectInsuranceClaimController::class, 'store']
+        )
+            ->whereNumber('project')
+            ->name('projects.insurance-claims.store');
 
         Route::post(
             '/projects/{project}/labor-market-referrals',
