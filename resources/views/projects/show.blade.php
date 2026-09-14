@@ -1350,6 +1350,10 @@
                             <h3 class="text-xs font-bold uppercase tracking-wide text-slate-500">
                                 Injured Beneficiary(ies)
                             </h3>
+                            <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                Select from the project roster to auto-fill the name, or leave the dropdown on
+                                "Select from Roster (Optional)" to enter someone not yet encoded on the roster.
+                            </p>
 
                             <div id="insuranceClaimRows" class="mt-3 space-y-2"></div>
 
@@ -1402,7 +1406,7 @@
                             'insurance-claim-row grid gap-2 rounded-lg border border-slate-200 bg-white p-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]';
                         wrapper.innerHTML = `
                     <select data-role="beneficiary-picker" class="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-xs">
-                        <option value="">Not on roster / type name</option>
+                        <option value="">Select from Roster (Optional)</option>
                         ${rosterOptionsHtml}
                     </select>
                     <input type="hidden" name="beneficiaries[${index}][beneficiary_id]" data-role="beneficiary-id">
