@@ -1,6 +1,7 @@
 @php
     $workflowQueue = request()->route('queue');
     $workflowOpen = request()->routeIs('project-workflow.*');
+    $complianceHistoryActive = request()->routeIs('project-workflow.compliance-history');
     $acpOpen = request()->routeIs('acp-workflow.*') || request()->routeIs('acp-implementation.*') || request()->routeIs('acp-payments.*') || request()->routeIs('acp-liquidations.*');
 @endphp
 
@@ -10,6 +11,11 @@
     <a href="{{ route('adl.index') }}" class="{{ $navClass(request()->routeIs('adl.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
         <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18"></path><path d="M17 7.5C17 5.57 14.76 4 12 4S7 5.57 7 7.5 9.24 11 12 11s5 1.57 5 3.5S14.76 18 12 18s-5-1.57-5-3.5"></path></svg>
         <span>ADL Management</span>
+    </a>
+
+    <a href="{{ route('targets.index') }}" class="{{ $navClass(request()->routeIs('targets.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+        <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1"></circle></svg>
+        <span>Targets</span>
     </a>
 @endif
 
@@ -40,6 +46,7 @@
         ] as $queueKey => $queueLabel)
             <a href="{{ route('project-workflow.index', ['queue' => $queueKey]) }}" class="{{ request()->routeIs('project-workflow.index') && $workflowQueue === $queueKey ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} flex min-h-9 items-center rounded-lg border px-3 py-2 text-[12px] font-semibold">{{ $queueLabel }}</a>
         @endforeach
+        <a href="{{ route('project-workflow.compliance-history') }}" class="{{ $complianceHistoryActive ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} flex min-h-9 items-center rounded-lg border px-3 py-2 text-[12px] font-semibold">Compliance History</a>
     </div>
 </details>
 
@@ -55,15 +62,19 @@
             @foreach ([
                 'acp-workflow.payment' => 'ACP Payment',
                 'acp-workflow.check-release' => 'Check Release',
-                'acp-workflow.liquidation' => 'Liquidation',
             ] as $acpRoute => $acpLabel)
                 @php
                     $active = request()->routeIs($acpRoute)
-                        || (request()->routeIs('acp-payments.*') && in_array($acpRoute, ['acp-workflow.payment', 'acp-workflow.check-release'], true))
-                        || (request()->routeIs('acp-liquidations.*') && $acpRoute === 'acp-workflow.liquidation');
+                        || (request()->routeIs('acp-payments.*') && in_array($acpRoute, ['acp-workflow.payment', 'acp-workflow.check-release'], true));
                 @endphp
                 <a href="{{ route($acpRoute) }}" class="{{ $active ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} flex min-h-9 items-center rounded-lg border px-3 py-2 text-[12px] font-semibold">{{ $acpLabel }}</a>
             @endforeach
+        @endif
+        @if ($user->isAdmin() || $user->isTc())
+            @php
+                $liquidationActive = request()->routeIs('acp-workflow.liquidation') || request()->routeIs('acp-liquidations.*');
+            @endphp
+            <a href="{{ route('acp-workflow.liquidation') }}" class="{{ $liquidationActive ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} flex min-h-9 items-center rounded-lg border px-3 py-2 text-[12px] font-semibold">Liquidation</a>
         @endif
     </div>
 </details>

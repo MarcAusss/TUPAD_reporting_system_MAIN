@@ -13,6 +13,9 @@ class ProjectOrientation extends Model
     protected $fillable = [
         'project_id',
         'orientation_date',
+        'beneficiaries_oriented',
+        'venue',
+        'oriented_by',
         'alkansssya_conducted',
         'yakap_conducted',
         'remarks',
@@ -23,6 +26,7 @@ class ProjectOrientation extends Model
     {
         return [
             'orientation_date' => 'date',
+            'beneficiaries_oriented' => 'integer',
             'alkansssya_conducted' => 'boolean',
             'yakap_conducted' => 'boolean',
         ];

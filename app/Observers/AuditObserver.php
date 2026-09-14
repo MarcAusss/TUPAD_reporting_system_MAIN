@@ -184,6 +184,12 @@ class AuditObserver
             $model instanceof \App\Models\ProjectBeneficiary =>
             'Beneficiary Registry',
 
+            $model instanceof \App\Models\ProjectBeneficiaryReplacement =>
+            'Beneficiary Replacement',
+
+            $model instanceof \App\Models\ProjectBeneficiaryAddress =>
+            'Beneficiary Address',
+
             $model instanceof \App\Models\ProjectBeneficiarySector =>
             'Beneficiary Sector Classification',
 

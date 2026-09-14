@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\BeneficiaryReplacementRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProjectBeneficiary extends Model
 {
@@ -81,5 +83,35 @@ class ProjectBeneficiary extends Model
     {
         $age = $this->age();
         return $age !== null && $age >= 60;
+    }
+
+    public function replacementMemberships(): HasMany
+    {
+        return $this->hasMany(
+            ProjectBeneficiaryReplacementMember::class,
+            'beneficiary_id'
+        );
+    }
+
+    /**
+     * Whether this beneficiary left the project through a recorded
+     * replacement transaction (the row itself is never deleted).
+     */
+    public function isReplaced(): bool
+    {
+        return $this->replacementMemberships()
+            ->where('role', BeneficiaryReplacementRole::REMOVED)
+            ->exists();
+    }
+
+    /**
+     * Whether this beneficiary joined the project as a replacement,
+     * rather than being part of the originally declared roster.
+     */
+    public function isReplacement(): bool
+    {
+        return $this->replacementMemberships()
+            ->where('role', BeneficiaryReplacementRole::ADDED)
+            ->exists();
     }
 }

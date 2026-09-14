@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Models\ProjectEvaluation;
 use App\Services\Auth\ProvinceAccessService;
 use App\Services\Projects\ImplementationStageService;
 use App\Services\Projects\ProjectStatusEngine;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -101,6 +103,92 @@ class ProjectWorkflowQueueController extends Controller
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Compliance History
+    |--------------------------------------------------------------------------
+    |
+    | Unlike the "For Compliance" queue (a live view filtered to the project's
+    | CURRENT status), this lists every project that ever received a TSSD
+    | "for_compliance" finding, whether it is still pending or has long since
+    | complied and moved on to Approval/Implementation/Completed — so nothing
+    | drops out of the record once it is resolved.
+    |
+    */
+
+    public function complianceHistory(
+        Request $request,
+        ProvinceAccessService $provinceAccess,
+    ): View {
+        $status = $request->string('status')->toString();
+
+        $evaluations = ProjectEvaluation::query()
+            ->where('result', 'for_compliance')
+            ->whereHas(
+                'project',
+                fn (Builder $query): Builder => $provinceAccess->scopeProjects($query, $request->user()),
+            )
+            ->with([
+                'project.allocation.adl',
+                'project.approval',
+                'evaluator',
+                'complier',
+            ])
+            ->when(
+                $request->filled('q'),
+                function (Builder $query) use ($request): void {
+                    $search = trim((string) $request->string('q'));
+
+                    $query->whereHas(
+                        'project',
+                        function (Builder $projectQuery) use ($search): void {
+                            $projectQuery
+                                ->where('project_title', 'like', "%{$search}%")
+                                ->orWhereHas(
+                                    'approval',
+                                    fn ($approvalQuery) => $approvalQuery->where('project_code', 'like', "%{$search}%"),
+                                )
+                                ->orWhere('province', 'like', "%{$search}%")
+                                ->orWhere('municipality', 'like', "%{$search}%")
+                                ->orWhere('barangay', 'like', "%{$search}%");
+                        },
+                    );
+                },
+            )
+            ->when(
+                $status === 'pending',
+                fn (Builder $query) => $query->whereNull('complied_at'),
+            )
+            ->when(
+                $status === 'complied',
+                fn (Builder $query) => $query->whereNotNull('complied_at'),
+            )
+            ->orderByDesc('evaluated_at')
+            ->orderByDesc('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        $countsQuery = ProjectEvaluation::query()
+            ->where('result', 'for_compliance')
+            ->whereHas(
+                'project',
+                fn (Builder $query): Builder => $provinceAccess->scopeProjects($query, $request->user()),
+            );
+
+        $pendingCount = (clone $countsQuery)->whereNull('complied_at')->count();
+        $compliedCount = (clone $countsQuery)->whereNotNull('complied_at')->count();
+
+        return view(
+            'project-workflow.compliance-history',
+            [
+                'evaluations' => $evaluations,
+                'status' => $status,
+                'pendingCount' => $pendingCount,
+                'compliedCount' => $compliedCount,
+            ]
+        );
+    }
+
     private function implementationBoard(
         Request $request,
         array $config,
@@ -114,7 +202,7 @@ class ProjectWorkflowQueueController extends Controller
                     'allocation.adl',
                     'approval',
                     'insuranceEnrollment',
-                    'ppeDelivery',
+                    'ppeDeliveries',
                     'noticeToProceed',
                     'orientation',
                     'implementation',

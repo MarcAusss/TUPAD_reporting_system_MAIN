@@ -14,6 +14,7 @@ use App\Models\ProjectLocation;
 use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
 use App\Services\Finance\FinancialCeilingService;
+use App\Services\Projects\ProjectWorkspacePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -341,7 +342,7 @@ class ProjectController extends Controller
             $request->user(),
         );
 
-        $allocations = (clone $allocationQuery)
+        $allAllocations = (clone $allocationQuery)
             ->with('adl')
             ->orderByDesc('id')
             ->get();
@@ -390,17 +391,36 @@ class ProjectController extends Controller
             ->unique()
             ->values();
 
-        $allocationFinancials = $allocations->mapWithKeys(
+        $allocationFinancials = $allAllocations->mapWithKeys(
             fn (AdlAllocation $allocation): array => [
                 $allocation->id => $ceilings->allocationProjectSummary($allocation),
             ]
         );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Exclude Fully-Utilized Allocations
+        |--------------------------------------------------------------------------
+        |
+        | An allocation with no remaining balance cannot fund a new project
+        | anyway (store() would reject it), so it is left out of the dropdown
+        | entirely rather than shown as a selectable-but-doomed option.
+        |
+        */
+
+        $allocations = $allAllocations->filter(
+            fn (AdlAllocation $allocation): bool =>
+                ($allocationFinancials->get($allocation->id)['remaining_cents'] ?? 0) > 0
+        )->values();
+
+        $exhaustedAllocationCount = $allAllocations->count() - $allocations->count();
 
         return view(
             'projects.create',
             [
                 'allocations' => $allocations,
                 'allocationFinancials' => $allocationFinancials,
+                'exhaustedAllocationCount' => $exhaustedAllocationCount,
                 'provinces' => $provinces,
                 'fundSponsorOptions' => $fundSponsorOptions,
                 'partnerOptions' => $partnerOptions,
@@ -595,23 +615,10 @@ class ProjectController extends Controller
                             $allocatedTotal =
                                 (int) ($allocation['beneficiaries_total'] ?? -1);
 
-                            $allocatedFemale =
-                                (int) ($allocation['beneficiaries_female'] ?? -1);
-
-                            if (
-                                $allocatedTotal < 0
-                                || $allocatedFemale < 0
-                            ) {
+                            if ($allocatedTotal < 0) {
                                 throw ValidationException::withMessages([
                                     "project_locations.{$index}.barangay_allocations.{$barangay->id}" =>
                                         'Barangay beneficiary allocations cannot be negative.',
-                                ]);
-                            }
-
-                            if ($allocatedFemale > $allocatedTotal) {
-                                throw ValidationException::withMessages([
-                                    "project_locations.{$index}.barangay_allocations.{$barangay->id}.beneficiaries_female" =>
-                                        "Female beneficiaries for {$barangay->name} cannot exceed its total beneficiaries.",
                                 ]);
                             }
 
@@ -619,7 +626,6 @@ class ProjectController extends Controller
                                 $barangay->id,
                                 [
                                     'beneficiaries_total' => $allocatedTotal,
-                                    'beneficiaries_female' => $allocatedFemale,
                                 ]
                             );
                         }
@@ -692,29 +698,12 @@ class ProjectController extends Controller
                                 ->sum('beneficiaries_total')
                     );
 
-                $allocatedFemaleBeneficiaries = (int) $resolvedLocations
-                    ->sum(
-                        fn (array $location) =>
-                            $location['beneficiary_allocations']
-                                ->sum('beneficiaries_female')
-                    );
-
                 if ($allocatedBeneficiaries !== $beneficiaries) {
                     throw ValidationException::withMessages([
                         'project_locations' => sprintf(
                             'Barangay beneficiary allocations must total %s. The current allocation totals %s.',
                             number_format($beneficiaries),
                             number_format($allocatedBeneficiaries),
-                        ),
-                    ]);
-                }
-
-                if ($allocatedFemaleBeneficiaries !== $femaleBeneficiaries) {
-                    throw ValidationException::withMessages([
-                        'project_locations' => sprintf(
-                            'Barangay female beneficiary allocations must total %s. The current allocation totals %s.',
-                            number_format($femaleBeneficiaries),
-                            number_format($allocatedFemaleBeneficiaries),
                         ),
                     ]);
                 }
@@ -732,16 +721,12 @@ class ProjectController extends Controller
                  */
 
                 $resolvedLocations = $resolvedLocations
-                    ->map(function (array $location) use (
-                        $beneficiaries,
-                        $femaleBeneficiaries
-                    ) {
+                    ->map(function (array $location) use ($beneficiaries) {
                         $barangay = $location['barangays']->first();
 
                         $location['beneficiary_allocations'] = collect([
                             $barangay->id => [
                                 'beneficiaries_total' => $beneficiaries,
-                                'beneficiaries_female' => $femaleBeneficiaries,
                             ],
                         ]);
 
@@ -805,7 +790,8 @@ class ProjectController extends Controller
 
             $ppeItems = $this->preparePpeItems(
                 $validated['ppe_items'] ?? [],
-                $beneficiaries
+                $beneficiaries,
+                $term
             );
 
             $ppeTotal = round(
@@ -1074,8 +1060,12 @@ class ProjectController extends Controller
                                 'beneficiaries_total' =>
                                     $allocation['beneficiaries_total'] ?? null,
 
-                                'beneficiaries_female' =>
-                                    $allocation['beneficiaries_female'] ?? null,
+                                /*
+                                 * Female beneficiaries are no longer collected per
+                                 * barangay — only the project-level total/female
+                                 * counts are encoded (see Beneficiaries & Wage).
+                                 */
+                                'beneficiaries_female' => null,
                             ],
                         ];
                     })
@@ -1120,7 +1110,8 @@ class ProjectController extends Controller
 
     public function show(
         Request $request,
-        Project $project
+        Project $project,
+        ProjectWorkspacePresenter $workspacePresenter
     ): View {
         $user = $request->user();
 
@@ -1129,10 +1120,6 @@ class ProjectController extends Controller
         | Project Viewing Authorization
         |--------------------------------------------------------------------------
         */
-
-        if ($user->isGip()) {
-            abort(403);
-        }
 
         if ($user->isFocal()) {
             $allowedStatuses = $project->implementation_mode === ImplementationMode::THROUGH_ACP
@@ -1182,7 +1169,8 @@ class ProjectController extends Controller
             'approval.approver',
 
             'insuranceEnrollment.recorder',
-            'ppeDelivery.recorder',
+            'ppeDeliveries.recorder',
+            'ppeDeliveries.items.ppeItem',
             'noticeToProceed.recorder',
             'orientation.recorder',
             'implementation.recorder',
@@ -1405,12 +1393,6 @@ class ProjectController extends Controller
                 'min:0',
             ],
 
-            'project_locations.*.barangay_allocations.*.beneficiaries_female' => [
-                'nullable',
-                'integer',
-                'min:0',
-            ],
-
             /*
             |--------------------------------------------------------------------------
             | Implementation
@@ -1521,6 +1503,12 @@ class ProjectController extends Controller
                 'min:0',
             ],
 
+            'ppe_items.*.quantity' => [
+                'nullable',
+                'integer',
+                'min:1',
+            ],
+
             /*
             |--------------------------------------------------------------------------
             | Remarks
@@ -1543,7 +1531,8 @@ class ProjectController extends Controller
 
     private function preparePpeItems(
         array $items,
-        int $projectBeneficiaries
+        int $projectBeneficiaries,
+        ProjectTerm $term
     ): array {
         $prepared = [];
 
@@ -1627,6 +1616,33 @@ class ProjectController extends Controller
 
             /*
             |--------------------------------------------------------------------------
+            | PPE Quantity
+            |--------------------------------------------------------------------------
+            |
+            | Short-Term projects issue a single PPE set per beneficiary, so quantity
+            | is fixed at 1 and any submitted value is ignored. Long-Term projects may
+            | reissue PPE over the project period, so an explicit quantity is required.
+            |
+            */
+
+            if ($term === ProjectTerm::LONG_TERM) {
+                $quantity = (int) (
+                    $item['quantity']
+                    ?? 0
+                );
+
+                if ($quantity < 1) {
+                    throw ValidationException::withMessages([
+                        "ppe_items.$index.quantity" =>
+                            'Enter the PPE quantity per beneficiary for a Long-Term project.',
+                    ]);
+                }
+            } else {
+                $quantity = 1;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
             | Prepared PPE
             |--------------------------------------------------------------------------
             */
@@ -1643,13 +1659,17 @@ class ProjectController extends Controller
                 'beneficiary_count' =>
                     $beneficiaryCount,
 
+                'quantity' =>
+                    $quantity,
+
                 'unit_amount' =>
                     $unitAmount,
 
                 'total_amount' =>
                     round(
                         $beneficiaryCount
-                        * $unitAmount,
+                        * $unitAmount
+                        * $quantity,
                         2
                     ),
             ];

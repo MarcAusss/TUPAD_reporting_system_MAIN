@@ -18,7 +18,7 @@ class ProvinceMonitoringController extends Controller
             ->where('province', $provinceName)
             ->with([
                 'allocation.adl', 'approval', 'monitoringDetail', 'beneficiaries',
-                'insuranceEnrollment', 'ppeDelivery', 'noticeToProceed', 'implementation',
+                'insuranceEnrollment', 'ppeDeliveries', 'noticeToProceed', 'implementation',
                 'obligations', 'postDocuments',
             ])
             ->latest('date_received')

@@ -38,8 +38,8 @@ class ProjectNoticeToProceed extends Model
     protected function casts(): array
     {
         return [
-            'date_issued' => 'date',
-            'date_released' => 'date',
+            'date_issued' => 'datetime',
+            'date_released' => 'datetime',
         ];
     }
 

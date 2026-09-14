@@ -20,10 +20,19 @@
             </p>
         </div>
 
-        <a href="{{ route('projects.index') }}"
-            class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            View All Projects
-        </a>
+        <div class="flex flex-wrap items-center gap-2">
+            @if ($queue === 'for-compliance')
+                <a href="{{ route('project-workflow.compliance-history') }}"
+                    class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    View Compliance History
+                </a>
+            @endif
+
+            <a href="{{ route('projects.index') }}"
+                class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                View All Projects
+            </a>
+        </div>
 
     </div>
 
@@ -673,12 +682,7 @@
                                             ->sortByDesc('evaluated_at')
                                             ->first();
 
-                                        $queueAgingDays = $complianceEvaluation?->evaluated_at
-                                            ? (int) $complianceEvaluation->evaluated_at
-                                                ->copy()
-                                                ->startOfDay()
-                                                ->diffInDays(now()->startOfDay())
-                                            : 0;
+                                        $queueAgingDays = $complianceEvaluation?->agingDays() ?? 0;
                                     @endphp
 
                                     <td class="px-5 py-4 text-right">

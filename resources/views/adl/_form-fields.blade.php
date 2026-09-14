@@ -59,7 +59,7 @@
         <div class="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
             <h2 class="text-sm font-bold text-[#10294f]">Amount</h2>
             <p class="mt-1 text-xs leading-5 text-slate-500">
-                Grants is the official Total amount. Administrative Cost is recorded separately and is not added to Total.
+                Total is Grants + Administrative Cost.
             </p>
         </div>
 
@@ -109,7 +109,7 @@
                 </div>
 
                 <p class="mt-1.5 text-[11px] text-slate-500">
-                    Tracked separately. This amount does not change Total.
+                    Added to Grants to form Total.
                 </p>
 
                 @error('admin_cost')
@@ -132,13 +132,13 @@
                         min="0"
                         readonly
                         tabindex="-1"
-                        value="{{ $initialGrants }}"
+                        value="{{ round((float) $initialGrants + (float) $initialAdminCost, 2) }}"
                         class="h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 pl-8 pr-3.5 text-sm font-semibold text-slate-700 outline-none"
                     >
                 </div>
 
                 <p class="mt-1.5 text-[11px] text-slate-500">
-                    Automatically follows the Grants amount.
+                    Automatically follows Grants + Administrative Cost.
                 </p>
             </div>
         </div>
@@ -149,18 +149,23 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const grantsInput = document.getElementById('grants');
+            const adminCostInput = document.getElementById('admin_cost');
             const totalInput = document.getElementById('total');
 
-            if (!grantsInput || !totalInput) {
+            if (!grantsInput || !adminCostInput || !totalInput) {
                 return;
             }
 
             const syncTotal = () => {
-                totalInput.value = grantsInput.value;
+                const grants = Number(grantsInput.value || 0);
+                const adminCost = Number(adminCostInput.value || 0);
+                totalInput.value = (grants + adminCost).toFixed(2);
             };
 
             grantsInput.addEventListener('input', syncTotal);
             grantsInput.addEventListener('change', syncTotal);
+            adminCostInput.addEventListener('input', syncTotal);
+            adminCostInput.addEventListener('change', syncTotal);
             syncTotal();
         });
     </script>
