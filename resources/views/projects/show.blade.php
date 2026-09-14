@@ -5,11 +5,7 @@
 @section('content')
 
     @php
-        /*
-    |--------------------------------------------------------------------------
-    | Role-aware Back Link
-    |--------------------------------------------------------------------------
-    */
+
 
         if (auth()->user()->isFocal()) {
             if ($project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP) {
@@ -24,33 +20,11 @@
             $backLabel = 'Project Management';
         }
 
-        /*
-    |--------------------------------------------------------------------------
-    | Project Detail Revision & Beneficiary Replacement Eligibility
-    |--------------------------------------------------------------------------
-    |
-    | Mirrors ProjectDetailController/ProjectBeneficiaryReplacementController:
-    | both actions are blocked once Completed, and the cost-driving detail
-    | fields lock the moment an implementation work period exists (under
-    | either implementation mode).
-    |
-    */
 
         $canManageProject = auth()->user()->isAdmin() || auth()->user()->isTc();
         $projectImplementationStarted = $project->implementation()->exists() || $project->acpCheckRelease()->exists();
         $projectEditingLocked = $project->status === \App\Enums\ProjectStatus::COMPLETED;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Insurance Claim Eligibility
-        |--------------------------------------------------------------------------
-        |
-        | An injury can only occur once implementation has actually begun, so the
-        | Insurance Claim section stays hidden before that — but, unlike other
-        | project mutations, it is NOT locked once Completed: a claim may still
-        | need to be recorded/filed after the project wraps up.
-        |
-        */
 
         $canRecordInsuranceClaim = $canManageProject && in_array(
             $project->status,
