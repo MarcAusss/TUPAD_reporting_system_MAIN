@@ -31,6 +31,7 @@ class Project extends Model
 
         'fund_sponsor',
         'partner',
+        'program',
 
         'project_series',
         'project_series_remarks',

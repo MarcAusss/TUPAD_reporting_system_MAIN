@@ -284,45 +284,68 @@
                                 </p>
                             </div>
 
-                            <div>
-                                <label for="partner" class="mb-2 block text-sm font-semibold text-slate-700">
-                                    Partner
-                                </label>
+                            <div class="md:col-span-2">
+                                <div id="partnerProgramRow" class="grid gap-5 sm:grid-cols-2">
 
-                                <select id="partner" name="partner" required
-                                    class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
-                                    <option value="">Select partner</option>
+                                    <div>
+                                        <label for="partner" class="mb-2 block text-sm font-semibold text-slate-700">
+                                            Partner
+                                        </label>
 
-                                    @foreach ($partnerOptions as $option)
-                                        <option value="{{ $option }}" @selected(old('partner') === $option)>
-                                            {{ $option }}
-                                        </option>
-                                    @endforeach
+                                        <select id="partner" name="partner" required
+                                            class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                            <option value="">Select partner</option>
 
-                                    <option value="__other__" @selected(old('partner') === '__other__')>
-                                        Other — specify below
-                                    </option>
-                                </select>
+                                            @foreach ($partnerOptions as $option)
+                                                <option value="{{ $option }}" @selected(old('partner') === $option)>
+                                                    {{ $option }}
+                                                </option>
+                                            @endforeach
 
-                                @if ($partnerOptions->isEmpty())
-                                    <p class="mt-1 text-[11px] leading-4 text-amber-600">
-                                        No Focal-maintained partner reference exists yet. Select Other if needed.
-                                    </p>
-                                @endif
-                            </div>
+                                            <option value="__other__" @selected(old('partner') === '__other__')>
+                                                Other — specify below
+                                            </option>
+                                        </select>
 
-                            <div id="partnerOtherWrap" class="{{ old('partner') === '__other__' ? '' : 'hidden' }}">
-                                <label for="partner_other" class="mb-2 block text-sm font-semibold text-slate-700">
-                                    Other Partner
-                                </label>
+                                        @if ($partnerOptions->isEmpty())
+                                            <p class="mt-1 text-[11px] leading-4 text-amber-600">
+                                                No Focal-maintained partner reference exists yet. Select Other if needed.
+                                            </p>
+                                        @endif
+                                    </div>
 
-                                <input id="partner_other" name="partner_other" value="{{ old('partner_other') }}"
-                                    maxlength="255" placeholder="Enter partner not listed above"
-                                    class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                    <div>
+                                        <label for="program" class="mb-2 block text-sm font-semibold text-slate-700">
+                                            Program <span class="font-normal text-slate-400">(optional)</span>
+                                        </label>
 
-                                <p class="mt-1 text-[11px] leading-4 text-slate-500">
-                                    Project-specific only. It does not automatically become an official reusable reference.
-                                </p>
+                                        <input id="program" name="program" value="{{ old('program') }}"
+                                            maxlength="255" placeholder="e.g. TUPAD"
+                                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                            Encoded by the TUPAD Coordinator for this project, if applicable.
+                                        </p>
+                                    </div>
+
+                                    <div id="partnerOtherWrap"
+                                        class="{{ old('partner') === '__other__' ? '' : 'hidden' }}">
+                                        <label for="partner_other" class="mb-2 block text-sm font-semibold text-slate-700">
+                                            Other Partner
+                                        </label>
+
+                                        <input id="partner_other" name="partner_other"
+                                            value="{{ old('partner_other') }}" maxlength="255"
+                                            placeholder="Enter partner not listed above"
+                                            class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+
+                                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                            Project-specific only. It does not automatically become an official reusable
+                                            reference.
+                                        </p>
+                                    </div>
+
+                                </div>
                             </div>
 
                         </div>
@@ -913,6 +936,9 @@
             const partnerOtherInput =
                 document.getElementById('partner_other');
 
+            const partnerProgramRow =
+                document.getElementById('partnerProgramRow');
+
             function toggleOtherFundingInput(
                 select,
                 wrapper,
@@ -935,6 +961,21 @@
                 }
             }
 
+            function togglePartnerProgramRowWidth() {
+                const useOther =
+                    partnerSelect?.value === '__other__';
+
+                partnerProgramRow?.classList.toggle(
+                    'sm:grid-cols-3',
+                    useOther
+                );
+
+                partnerProgramRow?.classList.toggle(
+                    'sm:grid-cols-2',
+                    !useOther
+                );
+            }
+
             fundSponsorSelect?.addEventListener(
                 'change',
                 () =>
@@ -947,12 +988,15 @@
 
             partnerSelect?.addEventListener(
                 'change',
-                () =>
-                toggleOtherFundingInput(
-                    partnerSelect,
-                    partnerOtherWrap,
-                    partnerOtherInput
-                )
+                () => {
+                    toggleOtherFundingInput(
+                        partnerSelect,
+                        partnerOtherWrap,
+                        partnerOtherInput
+                    );
+
+                    togglePartnerProgramRowWidth();
+                }
             );
 
             toggleOtherFundingInput(
@@ -966,6 +1010,8 @@
                 partnerOtherWrap,
                 partnerOtherInput
             );
+
+            togglePartnerProgramRowWidth();
 
             const provinceSelect = document.getElementById('province_id');
             const projectLocations = document.getElementById('projectLocations');

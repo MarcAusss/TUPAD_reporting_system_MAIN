@@ -876,6 +876,11 @@ class ProjectController extends Controller
                         $validated['partner']
                     ),
 
+                'program' =>
+                    filled($validated['program'] ?? null)
+                        ? trim($validated['program'])
+                        : null,
+
                 /*
                 |--------------------------------------------------------------------------
                 | Project Series / TEVS Verification
@@ -1301,6 +1306,12 @@ class ProjectController extends Controller
             'partner_other' => [
                 'nullable',
                 'required_if:partner,__other__',
+                'string',
+                'max:255',
+            ],
+
+            'program' => [
+                'nullable',
                 'string',
                 'max:255',
             ],

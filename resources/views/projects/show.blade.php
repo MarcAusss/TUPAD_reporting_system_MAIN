@@ -1008,15 +1008,15 @@
                         Remove
                     </button>
                     ${requirePwdFlags ? `
-                                                            <label class="col-span-2 flex items-center gap-1.5 text-[10px] text-slate-600 sm:col-span-4">
-                                                                <input type="checkbox" name="${name}[${index}][is_pwd]" value="1" class="h-3.5 w-3.5 rounded border-slate-300">
-                                                                PWD
-                                                            </label>
-                                                            <label class="col-span-2 flex items-center gap-1.5 text-[10px] text-slate-600 sm:col-span-4">
-                                                                <input type="checkbox" name="${name}[${index}][is_rebel_returnee]" value="1" class="h-3.5 w-3.5 rounded border-slate-300">
-                                                                Rebel Returnee
-                                                            </label>
-                                                        ` : ''}
+                                                                        <label class="col-span-2 flex items-center gap-1.5 text-[10px] text-slate-600 sm:col-span-4">
+                                                                            <input type="checkbox" name="${name}[${index}][is_pwd]" value="1" class="h-3.5 w-3.5 rounded border-slate-300">
+                                                                            PWD
+                                                                        </label>
+                                                                        <label class="col-span-2 flex items-center gap-1.5 text-[10px] text-slate-600 sm:col-span-4">
+                                                                            <input type="checkbox" name="${name}[${index}][is_rebel_returnee]" value="1" class="h-3.5 w-3.5 rounded border-slate-300">
+                                                                            Rebel Returnee
+                                                                        </label>
+                                                                    ` : ''}
                 </div>
             `;
 
@@ -4189,9 +4189,9 @@
                     <tbody class="divide-y divide-slate-100">
 
                         @forelse($project
-                                    ->statusHistory
-                                    ->sortByDesc('changed_at')
-                                as $history)
+                                        ->statusHistory
+                                        ->sortByDesc('changed_at')
+                                    as $history)
                             <tr>
 
                                 <td class="whitespace-nowrap px-5 py-4 text-sm text-slate-500">
