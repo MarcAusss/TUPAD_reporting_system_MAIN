@@ -16,17 +16,20 @@
     <section class="mb-5 grid gap-3 sm:grid-cols-3">
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Active Alerts</div>
-            <div data-notification-total class="mt-2 text-2xl font-extrabold text-slate-900">{{ number_format($notificationData['total_count']) }}</div>
+            <div data-notification-total class="mt-2 text-2xl font-extrabold text-slate-900">
+                {{ number_format($notificationData['total_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Current records represented by your alerts.</p>
         </article>
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Needs Attention</div>
-            <div data-notification-attention class="mt-2 text-2xl font-extrabold text-amber-700">{{ number_format($notificationData['attention_count']) }}</div>
+            <div data-notification-attention class="mt-2 text-2xl font-extrabold text-amber-700">
+                {{ number_format($notificationData['attention_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Aged or returned records requiring closer review.</p>
         </article>
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Critical Aging</div>
-            <div data-notification-critical class="mt-2 text-2xl font-extrabold text-rose-700">{{ number_format($notificationData['critical_count']) }}</div>
+            <div data-notification-critical class="mt-2 text-2xl font-extrabold text-rose-700">
+                {{ number_format($notificationData['critical_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Workflow items beyond the configured critical threshold.</p>
         </article>
     </section>
@@ -35,7 +38,8 @@
         <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="text-sm font-semibold text-slate-900">Current Notifications</h2>
             <p class="mt-1 text-xs text-slate-500">
-                Notifications update automatically from authoritative workflow state; no browser refresh or separate read/unread record is required.
+                Notifications update automatically from authoritative workflow state; no browser refresh or separate
+                read/unread record is required.
             </p>
         </div>
 
@@ -57,10 +61,12 @@
                     <div class="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
-                                <span class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide {{ $tone }}">
+                                <span
+                                    class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide {{ $tone }}">
                                     {{ $item['category'] }}
                                 </span>
-                                <span class="text-xs font-semibold text-slate-500">{{ number_format($item['count']) }} item(s)</span>
+                                <span class="text-xs font-semibold text-slate-500">{{ number_format($item['count']) }}
+                                    item(s)</span>
                             </div>
                             <div class="mt-2 text-sm font-semibold text-slate-900">{{ $item['title'] }}</div>
                             <p class="mt-1 text-xs leading-5 text-slate-500">{{ $item['message'] }}</p>

@@ -2,6 +2,24 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import tailwindcss from '@tailwindcss/vite';
+import os from 'node:os';
+
+// Auto-detect the machine's LAN IPv4 address so other devices on the
+// same network can load Vite assets (HMR) without hardcoding an IP
+// that changes across networks/DHCP leases. Override with VITE_HOST.
+function getLanIp() {
+    const interfaces = os.networkInterfaces();
+    for (const entries of Object.values(interfaces)) {
+        for (const iface of entries ?? []) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return 'localhost';
+}
+
+const host = process.env.VITE_HOST || getLanIp();
 
 export default defineConfig({
     plugins: [
@@ -19,9 +37,16 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
-    // server: {
-    //     watch: {
-    //         ignored: ['**/storage/framework/views/**'],
-    //     },
-    // },
+    server: {
+        host: '0.0.0.0',
+        port: 5173,
+        strictPort: true,
+        origin: `http://${host}:5173`,
+        hmr: {
+            host,
+        },
+        // watch: {
+        //     ignored: ['**/storage/framework/views/**'],
+        // },
+    },
 });
