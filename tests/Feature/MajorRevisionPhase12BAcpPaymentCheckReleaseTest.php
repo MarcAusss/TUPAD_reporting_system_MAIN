@@ -7,8 +7,11 @@ use App\Enums\ProjectStatus;
 use App\Enums\UserRole;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
+use App\Models\Barangay;
+use App\Models\Municipality;
 use App\Models\Project;
 use App\Models\ProjectAcpCheckReleaseAttachment;
+use App\Models\Province;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -23,6 +26,9 @@ class MajorRevisionPhase12BAcpPaymentCheckReleaseTest extends TestCase
     private User $focal;
     private User $tc;
     private AdlAllocation $allocation;
+    private Province $province;
+    private Municipality $municipality;
+    private Barangay $barangay;
     private int $sequence = 0;
 
     protected function setUp(): void
@@ -32,6 +38,31 @@ class MajorRevisionPhase12BAcpPaymentCheckReleaseTest extends TestCase
         $this->admin = User::factory()->create(['role' => UserRole::ADMIN, 'is_active' => true]);
         $this->focal = User::factory()->create(['role' => UserRole::FOCAL, 'is_active' => true]);
         $this->tc = User::factory()->create(['role' => UserRole::TC, 'is_active' => true]);
+
+        $this->province = Province::create([
+            'code' => '050500000',
+            'name' => 'Albay',
+            'is_active' => true,
+        ]);
+
+        $this->tc->forceFill([
+            'assigned_province_id' => $this->province->id,
+        ])->save();
+
+        $this->municipality = Municipality::create([
+            'province_id' => $this->province->id,
+            'name' => 'City of Legazpi',
+            'district' => '2nd District',
+            'income_class' => null,
+            'is_city' => true,
+            'is_active' => true,
+        ]);
+
+        $this->barangay = Barangay::create([
+            'municipality_id' => $this->municipality->id,
+            'name' => 'Rawis',
+            'is_active' => true,
+        ]);
 
         $adl = Adl::create([
             'adl_number' => 'ADL-MR12B-001',
@@ -58,11 +89,14 @@ class MajorRevisionPhase12BAcpPaymentCheckReleaseTest extends TestCase
         $this->actingAs($this->tc)
             ->post(route('projects.approval.store', $project), [
                 'approval_date' => '2026-08-29',
-                'project_code' => 'ACP-ALB-2026-001',
             ])
             ->assertRedirect();
 
         $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
+        $this->assertDatabaseHas('project_approvals', [
+            'project_id' => $project->id,
+            'project_code' => 'TUPAD-RO5-APO-LEGC-26-08-01',
+        ]);
         $this->assertDatabaseHas('project_status_histories', [
             'project_id' => $project->id,
             'to_status' => ProjectStatus::APPROVED->value,
@@ -253,9 +287,12 @@ class MajorRevisionPhase12BAcpPaymentCheckReleaseTest extends TestCase
             'nature_of_work' => 'Community livelihood support',
             'fund_sponsor' => 'DOLE RO V',
             'partner' => 'ACP Proponent '.$this->sequence,
+            'province_id' => $this->province->id,
+            'municipality_id' => $this->municipality->id,
+            'barangay_id' => $this->barangay->id,
             'province' => 'Albay',
             'district' => '2nd District',
-            'municipality' => 'Legazpi City',
+            'municipality' => 'City of Legazpi',
             'barangay' => 'Rawis',
             'implementation_mode' => $mode,
             'number_of_days' => 10,

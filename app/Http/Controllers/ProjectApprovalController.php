@@ -5,13 +5,20 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Services\Projects\ProjectCodeGenerator;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use RuntimeException;
 
 class ProjectApprovalController extends Controller
 {
+    public function __construct(
+        private readonly ProjectCodeGenerator $projectCodeGenerator,
+    ) {
+    }
+
     public function store(
         Request $request,
         Project $project
@@ -28,36 +35,15 @@ class ProjectApprovalController extends Controller
 
         if ($project->approval()->exists()) {
             return back()->withErrors([
-                'project_code' =>
+                'approval' =>
                     'This project already has an approval record.',
             ]);
         }
-
-        $request->merge([
-            'project_code' =>
-                strtoupper(
-                    trim(
-                        (string) $request->input(
-                            'project_code'
-                        )
-                    )
-                ),
-        ]);
 
         $validated = $request->validate([
             'approval_date' => [
                 'required',
                 'date',
-            ],
-
-            'project_code' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique(
-                    'project_approvals',
-                    'project_code'
-                ),
             ],
 
             'remarks' => [
@@ -77,8 +63,21 @@ class ProjectApprovalController extends Controller
                 !== ProjectStatus::FOR_APPROVAL
             ) {
                 return back()->withErrors([
-                    'project_code' =>
+                    'approval' =>
                         'This project is no longer available for approval.',
+                ]);
+            }
+
+            // The Project Code is entirely system-generated on approval —
+            // the coordinator never types, selects, or edits it.
+            try {
+                $projectCode = $this->projectCodeGenerator->generate(
+                    $lockedProject,
+                    Carbon::parse($validated['approval_date']),
+                );
+            } catch (RuntimeException $e) {
+                return back()->withErrors([
+                    'approval' => $e->getMessage(),
                 ]);
             }
 
@@ -89,11 +88,7 @@ class ProjectApprovalController extends Controller
                         $validated['approval_date'],
 
                     'project_code' =>
-                        strtoupper(
-                            trim(
-                                $validated['project_code']
-                            )
-                        ),
+                        $projectCode,
 
                     'remarks' =>
                         $validated['remarks'] ?? null,

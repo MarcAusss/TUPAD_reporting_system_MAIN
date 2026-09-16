@@ -42,7 +42,7 @@
         {{-- Sidebar --}}
         <aside id="sidebar"
             class="tupad-desktop-sidebar fixed inset-y-0 left-0 z-50 flex w-63 -translate-x-full flex-col border-r border-[#dfe6f0] bg-white transition-transform duration-200 lg:translate-x-0">
-            <div class="tupad-sidebar-header flex h-[78px] w-full shrink-0 items-center border-b border-[#e4eaf2] px-5">
+            <div class="tupad-sidebar-header flex h-19.5 w-full shrink-0 items-center border-b border-[#e4eaf2] px-5">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
                     <div class="flex h-13 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
                         <img src="{{ asset('images/mainlogo.jpg') }}" alt="TUPAD Reporting System logo" class="h-full w-full object-contain">
@@ -68,13 +68,13 @@
                 class="tupad-sidebar-scroll tupad-scrollbar w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-5">
                 <nav class="w-full min-w-0 space-y-1.5" aria-label="Primary navigation">
 
-                    <div class="tupad-nav-section !pt-0">
+                    <div class="tupad-nav-section pt-0!">
                         Main
                     </div>
 
                     <a href="{{ route('dashboard') }}"
                         class="{{ $navClass(request()->routeIs('dashboard')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
-                        <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        <svg class="h-4.75 w-4.75" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="1.8">
                             <rect x="3" y="3" width="7" height="7" rx="1"></rect>
                             <rect x="14" y="3" width="7" height="7" rx="1"></rect>
@@ -123,9 +123,9 @@
         <div id="sidebarOverlay" class="fixed inset-0 z-40 hidden bg-slate-950/35 lg:hidden"></div>
 
         {{-- Main shell --}}
-        <div class="tupad-main-shell min-h-screen lg:pl-[252px]">
+        <div class="tupad-main-shell min-h-screen lg:pl-63">
             <header
-                class="tupad-topbar sticky top-0 z-30 flex h-[78px] items-center border-b border-[#dfe6f0] bg-white/95 px-4 backdrop-blur md:px-6 xl:px-8">
+                class="tupad-topbar sticky top-0 z-30 flex h-19.5 items-center border-b border-[#dfe6f0] bg-white/95 px-4 backdrop-blur md:px-6 xl:px-8">
                 <button type="button" id="sidebarToggle"
                     class="mr-3 flex h-10 w-10 items-center justify-center rounded-lg text-[#17325c] hover:bg-slate-100 lg:hidden"
                     aria-label="Open sidebar" aria-controls="sidebar" aria-expanded="false">
@@ -139,11 +139,11 @@
                 <div class="flex min-w-0 flex-1 items-center">
                     <form method="GET"
                         action="{{ Route::has('search.index') ? route('search.index') : route('dashboard') }}"
-                        role="search" class="hidden w-full max-w-[520px] md:block">
+                        role="search" class="hidden w-full max-w-130 md:block">
                         <label for="global-search" class="sr-only">Search the TUPAD Reporting System</label>
                         <div
                             class="tupad-input flex h-11 items-center rounded-lg px-3.5 focus-within:ring-2 focus-within:ring-[#1765d8]/30">
-                            <svg class="h-[18px] w-[18px] shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none"
+                            <svg class="h-4.5 w-4.5 shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                 <circle cx="11" cy="11" r="7"></circle>
                                 <path d="m20 20-3.5-3.5"></path>
@@ -158,7 +158,7 @@
 
                 <div class="ml-4 flex items-center gap-4">
                     <div class="hidden text-right xl:block">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                             Current Workspace
                         </div>
                         <div class="mt-0.5 text-[11px] font-semibold text-[#355378]">
@@ -170,7 +170,7 @@
                         data-notification-bell
                         class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#dfe6f0] bg-white text-[#355378] transition hover:bg-slate-50 {{ request()->routeIs('notifications.*') ? 'ring-2 ring-blue-100' : '' }}"
                         aria-label="Notifications{{ $notificationCount > 0 ? ': '.$notificationCount.' active item(s)' : '' }}">
-                        <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
                             <path d="M10 21h4"></path>
                         </svg>
@@ -191,7 +191,7 @@
                             {{ $user->initials() }}
                         </div>
                         <div class="hidden min-w-0 md:block">
-                            <div class="max-w-[180px] truncate text-[12px] font-bold text-[#10294f]">
+                            <div class="max-w-45 truncate text-[12px] font-bold text-[#10294f]">
                                 {{ $user->name }}</div>
                             <div class="mt-0.5 text-[10px] text-[#6f7f98]">{{ $user->roleLabel() }}</div>
                         </div>
@@ -212,7 +212,7 @@
                     </label>
 
                     <div class="tupad-input flex h-10 items-center rounded-lg px-3">
-                        <svg class="h-[17px] w-[17px] shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none"
+                        <svg class="h-4.75 w-4.75 shrink-0 text-[#4b6385]" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="1.8">
                             <circle cx="11" cy="11" r="7"></circle>
                             <path d="m20 20-3.5-3.5"></path>
@@ -278,7 +278,7 @@
     </div>
 
     <div data-notification-toast-region
-        class="pointer-events-none fixed right-4 top-24 z-[90] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2"
+        class="pointer-events-none fixed right-4 top-24 z-90 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2"
         aria-live="polite" aria-atomic="false"></div>
 
     <script>

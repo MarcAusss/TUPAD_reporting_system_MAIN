@@ -2476,8 +2476,9 @@
                         </div>
 
                         <p class="mt-1 text-xs leading-5 text-emerald-700">
-                            Assign the official Project Code during approval. One project receives one Project Code, and
-                            that code cannot be reused by another project.
+                            The official Project Code is generated automatically by the system the moment this
+                            project is approved &mdash; it is derived from the coordinator's assigned province, the
+                            project's municipality, and the approval date, and cannot be typed or edited.
                             Saving approval automatically updates the project status to Approved.
                         </p>
 
@@ -2488,42 +2489,21 @@
 
                         @csrf
 
-                        <div class="grid gap-4 md:grid-cols-2">
+                        <div>
 
-                            <div>
+                            <label class="mb-2 block text-xs font-semibold text-slate-700">
+                                Date of Approval
+                            </label>
 
-                                <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                    Date of Approval
-                                </label>
+                            <input name="approval_date" type="date"
+                                value="{{ old('approval_date', now()->format('Y-m-d')) }}" required
+                                class="h-10 w-full max-w-xs rounded-lg border border-slate-300 px-3 text-sm">
 
-                                <input name="approval_date" type="date"
-                                    value="{{ old('approval_date', now()->format('Y-m-d')) }}" required
-                                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
-
-                            </div>
-
-                            <div>
-
-                                <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                    Official Project Code
-                                    <span class="text-rose-600">*</span>
-                                </label>
-
-                                <input name="project_code" type="text" required autocomplete="off"
-                                    value="{{ old('project_code') }}" placeholder="Example: TUPAD-ALB-2026-001"
-                                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-semibold uppercase tracking-wide">
-
-                                <p class="mt-1.5 text-[10px] leading-4 text-slate-500">
-                                    This becomes the single official Project Code for this project after approval.
+                            @error('approval')
+                                <p class="mt-1.5 text-[10px] font-semibold text-rose-600">
+                                    {{ $message }}
                                 </p>
-
-                                @error('project_code')
-                                    <p class="mt-1 text-[10px] font-semibold text-rose-600">
-                                        {{ $message }}
-                                    </p>
-                                @enderror
-
-                            </div>
+                            @enderror
 
                         </div>
 

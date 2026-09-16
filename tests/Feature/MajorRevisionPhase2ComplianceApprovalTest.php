@@ -6,8 +6,10 @@ use App\Enums\ProjectStatus;
 use App\Enums\UserRole;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
+use App\Models\Barangay;
+use App\Models\Municipality;
 use App\Models\Project;
-use App\Models\ProjectApproval;
+use App\Models\Province;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,6 +20,9 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
 
     private User $tc;
     private AdlAllocation $allocation;
+    private Province $province;
+    private Municipality $municipality;
+    private Barangay $barangay;
 
     protected function setUp(): void
     {
@@ -34,6 +39,31 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
                 'role' => UserRole::FOCAL,
                 'is_active' => true,
             ]);
+
+        $this->province = Province::create([
+            'code' => '050500000',
+            'name' => 'Albay',
+            'is_active' => true,
+        ]);
+
+        $this->tc->forceFill([
+            'assigned_province_id' => $this->province->id,
+        ])->save();
+
+        $this->municipality = Municipality::create([
+            'province_id' => $this->province->id,
+            'name' => 'City of Legazpi',
+            'district' => '2nd District',
+            'income_class' => null,
+            'is_city' => true,
+            'is_active' => true,
+        ]);
+
+        $this->barangay = Barangay::create([
+            'municipality_id' => $this->municipality->id,
+            'name' => 'Rawis',
+            'is_active' => true,
+        ]);
 
         $adl =
             Adl::create([
@@ -242,7 +272,7 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
         );
     }
 
-    public function test_approval_normalizes_project_code_and_auto_updates_status_to_approved(): void
+    public function test_approval_automatically_generates_project_code_and_updates_status_to_approved(): void
     {
         $project =
             $this->createProject(
@@ -260,8 +290,6 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
                 [
                     'approval_date' =>
                         now()->toDateString(),
-                    'project_code' =>
-                        '  tupad-alb-2026-099  ',
                     'remarks' =>
                         'Approved.',
                 ]
@@ -273,39 +301,30 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
             $project->fresh()->status
         );
 
+        $expectedProjectCode = sprintf(
+            'TUPAD-RO5-APO-LEGC-%s-%s-01',
+            now()->format('y'),
+            now()->format('m'),
+        );
+
         $this->assertDatabaseHas(
             'project_approvals',
             [
                 'project_id' =>
                     $project->id,
                 'project_code' =>
-                    'TUPAD-ALB-2026-099',
+                    $expectedProjectCode,
             ]
         );
     }
 
-    public function test_project_code_uniqueness_is_checked_after_normalization(): void
+    public function test_sequential_approvals_in_the_same_province_and_month_never_receive_the_same_code(): void
     {
         $first =
             $this->createProject(
-                'First Approved Project',
-                ProjectStatus::APPROVED
+                'First Approval Project',
+                ProjectStatus::FOR_APPROVAL
             );
-
-        ProjectApproval::create([
-            'project_id' =>
-                $first->id,
-            'approval_date' =>
-                now()->toDateString(),
-            'project_code' =>
-                'TUPAD-ALB-2026-100',
-            'remarks' =>
-                null,
-            'approved_by' =>
-                $this->tc->id,
-            'approved_at' =>
-                now(),
-        ]);
 
         $second =
             $this->createProject(
@@ -318,25 +337,42 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
             ->post(
                 route(
                     'projects.approval.store',
+                    $first
+                ),
+                [
+                    'approval_date' =>
+                        now()->toDateString(),
+                ]
+            )
+            ->assertRedirect();
+
+        $this
+            ->actingAs($this->tc)
+            ->post(
+                route(
+                    'projects.approval.store',
                     $second
                 ),
                 [
                     'approval_date' =>
                         now()->toDateString(),
-                    'project_code' =>
-                        'tupad-alb-2026-100',
                 ]
             )
-            ->assertSessionHasErrors(
-                'project_code'
-            );
+            ->assertRedirect();
 
-        $this->assertDatabaseMissing(
-            'project_approvals',
-            [
-                'project_id' =>
-                    $second->id,
-            ]
+        $firstCode = $first->fresh()->approval->project_code;
+        $secondCode = $second->fresh()->approval->project_code;
+
+        $this->assertNotSame($firstCode, $secondCode);
+
+        $this->assertSame(
+            sprintf('TUPAD-RO5-APO-LEGC-%s-%s-01', now()->format('y'), now()->format('m')),
+            $firstCode,
+        );
+
+        $this->assertSame(
+            sprintf('TUPAD-RO5-APO-LEGC-%s-%s-02', now()->format('y'), now()->format('m')),
+            $secondCode,
         );
     }
 
@@ -361,12 +397,18 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
                 'Regular TUPAD 2026',
             'tevs_date_verified' =>
                 now()->toDateString(),
+            'province_id' =>
+                $this->province->id,
+            'municipality_id' =>
+                $this->municipality->id,
+            'barangay_id' =>
+                $this->barangay->id,
             'province' =>
                 'Albay',
             'district' =>
                 '2nd District',
             'municipality' =>
-                'Legazpi City',
+                'City of Legazpi',
             'barangay' =>
                 'Rawis',
             'implementation_mode' =>

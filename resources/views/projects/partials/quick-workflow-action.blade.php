@@ -20,7 +20,7 @@
     };
 @endphp
 
-<section class="sticky top-[86px] z-20 mt-4 rounded-xl border border-blue-200 bg-white/95 shadow-md backdrop-blur" data-quick-workflow-dock>
+<section class="sticky top-21.5 z-20 mt-4 rounded-xl border border-blue-200 bg-white/95 shadow-md backdrop-blur" data-quick-workflow-dock>
     <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
@@ -65,7 +65,7 @@
             : null;
     @endphp
 
-    <div class="fixed inset-0 z-[80] hidden" data-quick-workflow-modal data-auto-open="{{ old('quick_action') === '1' ? 'true' : 'false' }}" role="dialog" aria-modal="true" aria-labelledby="quick-workflow-title">
+    <div class="fixed inset-0 z-80 hidden" data-quick-workflow-modal data-auto-open="{{ old('quick_action') === '1' ? 'true' : 'false' }}" role="dialog" aria-modal="true" aria-labelledby="quick-workflow-title">
         <div class="absolute inset-0 bg-slate-950/50" data-quick-workflow-close></div>
 
         <div class="relative mx-auto flex min-h-full max-w-2xl items-center px-4 py-8">
@@ -164,16 +164,17 @@
                         <form method="POST" action="{{ route('projects.approval.store', $project) }}" class="space-y-4">
                             @csrf
                             <input type="hidden" name="quick_action" value="1">
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div>
-                                    <label for="quick-approval-date" class="mb-2 block text-xs font-semibold text-slate-700">Date of Approval <span class="text-rose-600">*</span></label>
-                                    <input id="quick-approval-date" name="approval_date" type="date" required value="{{ old('approval_date', now()->format('Y-m-d')) }}" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
-                                </div>
-                                <div>
-                                    <label for="quick-project-code" class="mb-2 block text-xs font-semibold text-slate-700">Official Project Code <span class="text-rose-600">*</span></label>
-                                    <input id="quick-project-code" name="project_code" type="text" required autocomplete="off" value="{{ old('project_code') }}" placeholder="Example: TUPAD-ALB-2026-001" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-semibold uppercase tracking-wide">
-                                </div>
+                            <div>
+                                <label for="quick-approval-date" class="mb-2 block text-xs font-semibold text-slate-700">Date of Approval <span class="text-rose-600">*</span></label>
+                                <input id="quick-approval-date" name="approval_date" type="date" required value="{{ old('approval_date', now()->format('Y-m-d')) }}" class="h-10 w-full max-w-xs rounded-lg border border-slate-300 px-3 text-sm">
+                                @error('approval')
+                                    <p class="mt-1.5 text-[10px] font-semibold text-rose-600">{{ $message }}</p>
+                                @enderror
                             </div>
+                            <p class="text-[11px] leading-4 text-slate-500">
+                                The official Project Code is generated automatically by the system on approval and
+                                cannot be entered manually.
+                            </p>
                             <div>
                                 <label for="quick-approval-remarks" class="mb-2 block text-xs font-semibold text-slate-700">Approval Remarks</label>
                                 <textarea id="quick-approval-remarks" name="remarks" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks') }}</textarea>

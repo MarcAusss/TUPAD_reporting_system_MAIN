@@ -682,14 +682,14 @@ class DatabaseValidationHardeningTest extends TestCase
                     'approval_date' =>
                         now()->toDateString(),
 
-                    'project_code' =>
-                        'HARD-CODE-001',
-
                     'remarks' =>
                         null,
                 ]
             )
             ->assertRedirect();
+
+        $originalProjectCode =
+            $project->fresh()->approval->project_code;
 
         /*
         |--------------------------------------------------------------------------
@@ -713,9 +713,6 @@ class DatabaseValidationHardeningTest extends TestCase
                     'approval_date' =>
                         now()->toDateString(),
 
-                    'project_code' =>
-                        'HARD-CODE-002',
-
                     'remarks' =>
                         null,
                 ]
@@ -723,7 +720,9 @@ class DatabaseValidationHardeningTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | Application must not silently create a second approval.
+        | Application must not silently create a second approval, and the
+        | original system-generated code must not be replaced or consume
+        | another series number.
         |--------------------------------------------------------------------------
         */
 
@@ -734,15 +733,9 @@ class DatabaseValidationHardeningTest extends TestCase
                 ->count()
         );
 
-        $this->assertDatabaseMissing(
-            'project_approvals',
-            [
-                'project_id' =>
-                    $project->id,
-
-                'project_code' =>
-                    'HARD-CODE-002',
-            ]
+        $this->assertSame(
+            $originalProjectCode,
+            $project->fresh()->approval->project_code
         );
     }
 
@@ -752,7 +745,7 @@ class DatabaseValidationHardeningTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_project_code_cannot_be_reused_by_another_project(): void
+    public function test_sequential_approvals_never_receive_the_same_generated_project_code(): void
     {
         $projectOne =
             $this->createProjectForApproval();
@@ -770,17 +763,13 @@ class DatabaseValidationHardeningTest extends TestCase
                     'approval_date' =>
                         now()->toDateString(),
 
-                    'project_code' =>
-                        'UNIQUE-CODE-001',
-
                     'remarks' =>
                         null,
                 ]
             )
             ->assertRedirect();
 
-        $response = $this
-            ->actingAs($this->tc)
+        $this->actingAs($this->tc)
             ->post(
                 route(
                     'projects.approval.store',
@@ -790,25 +779,21 @@ class DatabaseValidationHardeningTest extends TestCase
                     'approval_date' =>
                         now()->toDateString(),
 
-                    'project_code' =>
-                        'UNIQUE-CODE-001',
-
                     'remarks' =>
                         null,
                 ]
-            );
+            )
+            ->assertRedirect();
 
-        $response->assertSessionHasErrors(
-            'project_code'
-        );
+        $codeOne = $projectOne->fresh()->approval->project_code;
+        $codeTwo = $projectTwo->fresh()->approval->project_code;
+
+        $this->assertNotSame($codeOne, $codeTwo);
 
         $this->assertSame(
-            1,
+            2,
             \App\Models\ProjectApproval::query()
-                ->where(
-                    'project_code',
-                    'UNIQUE-CODE-001'
-                )
+                ->whereIn('project_code', [$codeOne, $codeTwo])
                 ->count()
         );
     }

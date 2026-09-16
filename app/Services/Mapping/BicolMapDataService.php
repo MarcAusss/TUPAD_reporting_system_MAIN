@@ -115,7 +115,7 @@ final class BicolMapDataService
             'boundary' => [
                 'ready' => is_file($this->foundation->regionBoundaryPath()),
                 'path' => $boundaryPath,
-                'url' => asset($boundaryPath),
+                'url' => '/'.$boundaryPath,
                 'join_key' => 'properties.psgc_code',
             ],
             'label_boundary' => null,
@@ -191,7 +191,7 @@ final class BicolMapDataService
             'boundary' => [
                 'ready' => is_file($this->foundation->municipalityBoundaryPath((string) $province->code)),
                 'path' => $boundaryPath,
-                'url' => asset($boundaryPath),
+                'url' => '/'.$boundaryPath,
                 'join_key' => 'properties.psgc_code',
             ],
             'label_boundary' => null,
@@ -342,13 +342,13 @@ final class BicolMapDataService
             'boundary' => [
                 'ready' => is_file($this->foundation->municipalityBoundaryPath((string) $province->code)),
                 'path' => $boundaryPath,
-                'url' => asset($boundaryPath),
+                'url' => '/'.$boundaryPath,
                 'join_key' => 'properties.psgc_code',
             ],
             'label_boundary' => [
                 'ready' => is_file($this->foundation->barangayLabelPath((string) $municipality->code)),
                 'path' => $labelPath,
-                'url' => asset($labelPath),
+                'url' => '/'.$labelPath,
                 'join_key' => 'properties.psgc_code',
                 'geometry' => 'Point',
             ],

@@ -12,6 +12,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // SQLite has no MODIFY/ALTER COLUMN TYPE syntax, and its dynamic
+        // typing means the declared column type is advisory only — the
+        // application's date casts already handle DATETIME values fine
+        // against a column declared DATE, so this is a safe no-op there.
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement(
             'ALTER TABLE project_notice_to_proceeds
                 MODIFY date_issued DATETIME NOT NULL,
@@ -21,6 +29,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement(
             'ALTER TABLE project_notice_to_proceeds
                 MODIFY date_issued DATE NOT NULL,

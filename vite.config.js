@@ -42,6 +42,11 @@ export default defineConfig({
         port: 5173,
         strictPort: true,
         origin: `http://${host}:5173`,
+        // Vite's default CORS/allowed-hosts policy only trusts localhost-like
+        // origins. Pages loaded from the LAN IP (http://<ip>:8000) are a
+        // different origin than the Vite dev server (http://<ip>:5173), so
+        // without this, asset requests are blocked by CORS entirely.
+        cors: true,
         hmr: {
             host,
         },

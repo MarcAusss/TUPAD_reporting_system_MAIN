@@ -345,9 +345,6 @@ class ProjectWorkflowTest extends TestCase
                     'approval_date' =>
                         now()->toDateString(),
 
-                    'project_code' =>
-                        'TEST-TUPAD-001',
-
                     'remarks' =>
                         'Approved during automated test.',
                 ]
@@ -360,6 +357,12 @@ class ProjectWorkflowTest extends TestCase
             $project->fresh()->status
         );
 
+        $expectedProjectCode = sprintf(
+            'TUPAD-RO5-CPO-VIR-%s-%s-01',
+            now()->format('y'),
+            now()->format('m'),
+        );
+
         $this->assertDatabaseHas(
             'project_approvals',
             [
@@ -367,7 +370,7 @@ class ProjectWorkflowTest extends TestCase
                     $project->id,
 
                 'project_code' =>
-                    'TEST-TUPAD-001',
+                    $expectedProjectCode,
             ]
         );
     }

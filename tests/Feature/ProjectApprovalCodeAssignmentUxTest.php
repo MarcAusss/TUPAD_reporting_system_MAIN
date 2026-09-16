@@ -8,7 +8,33 @@ use Tests\TestCase;
 class ProjectApprovalCodeAssignmentUxTest extends TestCase
 {
     #[Test]
-    public function project_approval_form_explicitly_assigns_one_official_project_code(): void
+    public function project_approval_form_has_no_manual_project_code_input(): void
+    {
+        $view = file_get_contents(
+            resource_path(
+                'views/projects/show.blade.php'
+            )
+        );
+
+        $this->assertStringNotContainsString(
+            'name="project_code"',
+            $view
+        );
+
+        $quickWorkflowView = file_get_contents(
+            resource_path(
+                'views/projects/partials/quick-workflow-action.blade.php'
+            )
+        );
+
+        $this->assertStringNotContainsString(
+            'name="project_code"',
+            $quickWorkflowView
+        );
+    }
+
+    #[Test]
+    public function approved_project_displays_the_system_generated_project_code_as_read_only(): void
     {
         $view = file_get_contents(
             resource_path(
@@ -17,22 +43,7 @@ class ProjectApprovalCodeAssignmentUxTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'Official Project Code',
-            $view
-        );
-
-        $this->assertStringContainsString(
-            'name="project_code"',
-            $view
-        );
-
-        $this->assertStringContainsString(
-            'One project receives one Project Code',
-            $view
-        );
-
-        $this->assertStringContainsString(
-            'single official Project Code for this project',
+            '$project->approval->project_code',
             $view
         );
     }
