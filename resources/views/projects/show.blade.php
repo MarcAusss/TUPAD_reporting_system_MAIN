@@ -2763,18 +2763,35 @@
                 </div>
 
                 @php
-                    $preparationItems = [
-                        'Insurance' => (bool) $project->insuranceEnrollment,
-                        'PPE Delivery' => $project->ppeDeliveries->isNotEmpty(),
-                        'Notice to Proceed' => (bool) $project->noticeToProceed,
-                        'Orientation' => (bool) $project->orientation,
-                        'Implementation Period' => (bool) $project->implementation,
+                    $stepOrder = ['insurance', 'ppe', 'ntp'];
+
+                    if ($project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION) {
+                        $stepOrder[] = 'orientation';
+                        $stepOrder[] = 'implementation-period';
+                    }
+
+                    $stepLabels = [
+                        'insurance' => 'Insurance',
+                        'ppe' => 'PPE Delivery',
+                        'ntp' => 'Notice to Proceed',
+                        'orientation' => 'Orientation',
+                        'implementation-period' => 'Implementation Period',
                     ];
 
-                    $completedPreparation = collect($preparationItems)->filter()->count();
+                    $stepComplete = [
+                        'insurance' => (bool) $project->insuranceEnrollment,
+                        'ppe' => $project->ppeDeliveries->isNotEmpty(),
+                        'ntp' => (bool) $project->noticeToProceed,
+                        'orientation' => (bool) $project->orientation,
+                        'implementation-period' => (bool) $project->implementation,
+                    ];
+
+                    $completedPreparation = collect($stepComplete)->filter()->count();
 
                     $preparationPercent =
-                        count($preparationItems) > 0 ? ($completedPreparation / count($preparationItems)) * 100 : 0;
+                        count($stepComplete) > 0 ? ($completedPreparation / count($stepComplete)) * 100 : 0;
+
+                    $defaultStep = collect($stepOrder)->first(fn ($step) => ! $stepComplete[$step]) ?? end($stepOrder);
                 @endphp
 
                 <div class="border-b border-slate-200 p-5">
@@ -2786,7 +2803,7 @@
                         </span>
 
                         <span class="text-xs font-semibold text-slate-800">
-                            {{ $completedPreparation }}/{{ count($preparationItems) }}
+                            {{ $completedPreparation }}/{{ count($stepComplete) }}
                         </span>
 
                     </div>
@@ -2797,15 +2814,23 @@
 
                     </div>
 
-                    <div class="mt-4 flex flex-wrap gap-2">
+                    <p class="mt-3 text-[11px] leading-4 text-slate-500">
+                        Click any item below to jump straight to it &mdash; your entered data is kept whether you move
+                        back or forward.
+                    </p>
 
-                        @foreach ($preparationItems as $label => $complete)
-                            <span
-                                class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold
-                            {{ $complete ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
-                                {{ $complete ? '✓' : '•' }}
-                                {{ $label }}
-                            </span>
+                    <div class="mt-3 flex flex-wrap gap-2" id="preparation-step-pills">
+
+                        @foreach ($stepLabels as $stepKey => $label)
+                            @php $unlocked = in_array($stepKey, $stepOrder, true); @endphp
+                            <button type="button" data-step-pill="{{ $stepKey }}"
+                                @if (! $unlocked) disabled title="Complete the earlier requirements first" @endif
+                                class="inline-flex items-center gap-1 rounded-full border border-transparent px-2.5 py-1 text-xs font-semibold transition
+                                {{ $stepComplete[$stepKey] ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}
+                                {{ $unlocked ? 'cursor-pointer hover:border-slate-300' : 'cursor-not-allowed opacity-50' }}">
+                                <span>{{ $stepComplete[$stepKey] ? '✓' : '•' }}</span>
+                                <span>{{ $label }}</span>
+                            </button>
                         @endforeach
 
                     </div>
@@ -2817,30 +2842,13 @@
                         [\App\Enums\ProjectStatus::APPROVED, \App\Enums\ProjectStatus::FOR_IMPLEMENTATION],
                         true))
 
-                    <div class="grid gap-5 p-5 xl:grid-cols-2">
+                    <div class="p-5" id="preparation-step-container" data-default-step="{{ $defaultStep }}">
 
-                        {{-- Implementation Requirements --}}
+                        {{-- Insurance Enrollment --}}
 
-                        <div class="xl:col-span-2 overflow-hidden rounded-xl border border-slate-200 bg-white">
-
-                            <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
-                                <h3 class="text-sm font-semibold text-slate-900">
-                                    Implementation Requirements
-                                </h3>
-
-                                <p class="mt-1 text-xs leading-5 text-slate-500">
-                                    Record Insurance, PPE, and Notice to Proceed separately for this Direct Administration
-                                    project. Each saves independently &mdash; once all three are on record, the status
-                                    automatically becomes For Implementation.
-                                </p>
-                            </div>
-
-                            <div class="grid gap-5 p-5 xl:grid-cols-3">
-
-                                {{-- Insurance Enrollment --}}
-
-                                <form method="POST" action="{{ route('projects.implementation.insurance', $project) }}"
-                                    class="rounded-xl border border-slate-200 p-5">
+                        <div data-step-panel="insurance" class="hidden">
+                            <form method="POST" action="{{ route('projects.implementation.insurance', $project) }}"
+                                class="rounded-xl border border-slate-200 p-5">
                                     @csrf
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
@@ -2998,10 +3006,12 @@
                                         Save Insurance Enrollment
                                     </button>
                                 </form>
+                        </div>
 
-                                {{-- PPE Delivery --}}
+                        {{-- PPE Delivery --}}
 
-                                <div class="rounded-xl border border-slate-200 p-5">
+                        <div data-step-panel="ppe" class="hidden">
+                            <div class="rounded-xl border border-slate-200 p-5">
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
                                             <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
@@ -3163,6 +3173,7 @@
                                         </button>
                                     </form>
                                 </div>
+                        </div>
 
                                 <script>
                                     (() => {
@@ -3199,10 +3210,11 @@
                                     })();
                                 </script>
 
-                                {{-- Notice to Proceed --}}
+                        {{-- Notice to Proceed --}}
 
-                                <form method="POST" action="{{ route('projects.implementation.ntp', $project) }}"
-                                    class="rounded-xl border border-slate-200 p-5">
+                        <div data-step-panel="ntp" class="hidden">
+                            <form method="POST" action="{{ route('projects.implementation.ntp', $project) }}"
+                                class="rounded-xl border border-slate-200 p-5">
                                     @csrf
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
@@ -3270,23 +3282,13 @@
                                         Save Notice to Proceed
                                     </button>
                                 </form>
-                            </div>
-
                         </div>
 
                         @if ($project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION)
-                            <div class="xl:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-                                <div class="text-xs font-semibold text-emerald-900">
-                                    Pre-Implementation Requirements Complete
-                                </div>
-                                <p class="mt-1 text-xs leading-5 text-emerald-800">
-                                    The project is now For Implementation. Record the Orientation and Work Period.
-                                    Once both are complete, the actual date controls the automatic implementation status.
-                                </p>
-                            </div>
 
                             {{-- Orientation --}}
 
+                            <div data-step-panel="orientation" class="hidden">
                             <form method="POST" action="{{ route('projects.implementation.orientation', $project) }}"
                                 class="rounded-xl border border-slate-200 p-5">
 
@@ -3423,11 +3425,13 @@
                                 </button>
 
                             </form>
+                            </div>
 
                             {{-- Implementation Period --}}
 
+                            <div data-step-panel="implementation-period" class="hidden">
                             <form method="POST" action="{{ route('projects.implementation.period', $project) }}"
-                                class="rounded-xl border border-slate-200 p-5 xl:col-span-2">
+                                class="rounded-xl border border-slate-200 p-5">
 
                                 @csrf
 
@@ -3488,8 +3492,11 @@
                                 </button>
 
                             </form>
-                        @elseif($project->status === \App\Enums\ProjectStatus::APPROVED)
-                            <div class="xl:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+                            </div>
+                        @endif
+
+                        @if ($project->status === \App\Enums\ProjectStatus::APPROVED)
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
                                 <div class="text-xs font-semibold text-amber-900">
                                     Orientation and Work Period are not open yet
                                 </div>
@@ -3501,6 +3508,58 @@
                         @endif
 
                     </div>
+
+                    <script>
+                        (() => {
+                            const container = document.getElementById('preparation-step-container');
+                            if (!container) return;
+
+                            const panels = container.querySelectorAll('[data-step-panel]');
+                            const pills = document.querySelectorAll('#preparation-step-pills [data-step-pill]');
+
+                            const isValidStep = step => Array.from(panels)
+                                .some(panel => panel.dataset.stepPanel === step);
+
+                            const applyStep = step => {
+                                if (!isValidStep(step)) return;
+
+                                panels.forEach(panel => {
+                                    panel.classList.toggle('hidden', panel.dataset.stepPanel !== step);
+                                });
+
+                                pills.forEach(pill => {
+                                    const active = pill.dataset.stepPill === step;
+                                    pill.classList.toggle('ring-2', active);
+                                    pill.classList.toggle('ring-slate-400', active);
+                                    pill.classList.toggle('ring-offset-1', active);
+                                });
+
+                                container.dataset.activeStep = step;
+                            };
+
+                            const showStep = step => {
+                                applyStep(step);
+
+                                window.requestAnimationFrame(() => {
+                                    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                });
+                            };
+
+                            pills.forEach(pill => {
+                                if (pill.disabled) return;
+
+                                pill.addEventListener('click', () => showStep(pill.dataset.stepPill));
+                            });
+
+                            document.addEventListener('workspace:set-step', event => {
+                                showStep(event.detail?.step);
+                            });
+
+                            const requestedStep = new URLSearchParams(window.location.search).get('step');
+
+                            applyStep(requestedStep && isValidStep(requestedStep) ? requestedStep : container.dataset.defaultStep);
+                        })();
+                    </script>
 
                 @endif
 

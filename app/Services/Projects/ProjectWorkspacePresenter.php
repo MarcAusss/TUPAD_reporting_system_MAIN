@@ -59,15 +59,37 @@ final class ProjectWorkspacePresenter
 
     private function stagesFor(Project $project): array
     {
-        $labels = $project->implementation_mode === ImplementationMode::THROUGH_ACP
-            ? ['Profiling', 'Evaluation', 'Approval', 'ACP Payment', 'Check Release', 'Implementation', 'Liquidation', 'Completed']
-            : ['Profiling', 'Evaluation', 'Approval', 'Preparation', 'Implementation', 'Post Documents', 'Payment', 'Completed'];
+        $definitions = $project->implementation_mode === ImplementationMode::THROUGH_ACP
+            ? [
+                ['label' => 'Profiling', 'tab' => 'workflow', 'anchor' => 'evaluation'],
+                ['label' => 'Evaluation', 'tab' => 'workflow', 'anchor' => 'evaluation'],
+                ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
+                ['label' => 'ACP Payment', 'href' => route('acp-payments.show', $project)],
+                ['label' => 'Check Release', 'href' => route('acp-payments.show', $project)],
+                ['label' => 'Implementation', 'href' => route('acp-implementation.show', $project)],
+                ['label' => 'Liquidation', 'href' => route('acp-liquidations.show', $project)],
+                ['label' => 'Completed', 'tab' => 'overview'],
+            ]
+            : [
+                ['label' => 'Profiling', 'tab' => 'workflow', 'anchor' => 'evaluation'],
+                ['label' => 'Evaluation', 'tab' => 'workflow', 'anchor' => 'evaluation'],
+                ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
+                ['label' => 'Preparation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'insurance'],
+                ['label' => 'Implementation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'orientation'],
+                ['label' => 'Post Documents', 'tab' => 'workflow', 'anchor' => 'post-documents'],
+                ['label' => 'Payment', 'tab' => 'financial', 'anchor' => 'payment'],
+                ['label' => 'Completed', 'tab' => 'overview'],
+            ];
 
-        return collect($labels)
-            ->map(fn (string $label, int $index): array => [
-                'key' => str((string) ($index + 1).'-'.$label)->slug()->toString(),
-                'label' => $label,
+        return collect($definitions)
+            ->map(fn (array $definition, int $index): array => [
+                'key' => str((string) ($index + 1).'-'.$definition['label'])->slug()->toString(),
+                'label' => $definition['label'],
                 'state' => 'upcoming',
+                'tab' => $definition['tab'] ?? null,
+                'anchor' => $definition['anchor'] ?? null,
+                'step' => $definition['step'] ?? null,
+                'href' => $definition['href'] ?? null,
             ])
             ->all();
     }

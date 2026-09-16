@@ -243,26 +243,45 @@ class ProjectProvinceSummaryController extends Controller
             foreach ($provinceProject->projectLocations as $location) {
                 $hasStructuredLocation = true;
 
-                $locationHasExactAllocation =
+                /*
+                |--------------------------------------------------------------------------
+                | Total and Female allocation are tracked independently
+                |--------------------------------------------------------------------------
+                |
+                | beneficiaries_total is captured per barangay for every project location
+                | at creation time and should always be trusted once present. Female is a
+                | separate, best-effort figure that may still be missing. A location must
+                | not be downgraded to the project-level "coverage" fallback for its Total
+                | just because Female happens to be unset.
+                |
+                */
+
+                $locationHasExactTotal =
                     $location->barangays->isNotEmpty()
                     && $location->barangays->every(
                         fn ($barangay) =>
                             $barangay->pivot->beneficiaries_total !== null
-                            && $barangay->pivot->beneficiaries_female !== null
                     );
 
-                if (! $locationHasExactAllocation) {
+                $locationHasExactFemale =
+                    $location->barangays->isNotEmpty()
+                    && $location->barangays->every(
+                        fn ($barangay) =>
+                            $barangay->pivot->beneficiaries_female !== null
+                    );
+
+                if (! $locationHasExactTotal) {
                     $hasLegacyCoverage = true;
                 }
 
-                $municipalityBeneficiaries = $locationHasExactAllocation
+                $municipalityBeneficiaries = $locationHasExactTotal
                     ? (int) $location->barangays->sum(
                         fn ($barangay) =>
                             (int) $barangay->pivot->beneficiaries_total
                     )
                     : (int) $provinceProject->beneficiaries_total;
 
-                $municipalityFemaleBeneficiaries = $locationHasExactAllocation
+                $municipalityFemaleBeneficiaries = $locationHasExactFemale
                     ? (int) $location->barangays->sum(
                         fn ($barangay) =>
                             (int) $barangay->pivot->beneficiaries_female
@@ -281,16 +300,18 @@ class ProjectProvinceSummaryController extends Controller
                         'beneficiaries' => $municipalityBeneficiaries,
                         'female_beneficiaries' =>
                             $municipalityFemaleBeneficiaries,
-                        'is_exact' => $locationHasExactAllocation,
+                        'is_exact' => $locationHasExactTotal,
                     ]);
                 }
 
                 foreach ($location->barangays as $barangay) {
-                    $barangayHasExactAllocation =
-                        $barangay->pivot->beneficiaries_total !== null
-                        && $barangay->pivot->beneficiaries_female !== null;
+                    $barangayHasExactTotal =
+                        $barangay->pivot->beneficiaries_total !== null;
 
-                    if (! $barangayHasExactAllocation) {
+                    $barangayHasExactFemale =
+                        $barangay->pivot->beneficiaries_female !== null;
+
+                    if (! $barangayHasExactTotal) {
                         $hasLegacyCoverage = true;
                     }
 
@@ -304,16 +325,16 @@ class ProjectProvinceSummaryController extends Controller
                         'project' => $provinceProject,
 
                         'beneficiaries' =>
-                            $barangayHasExactAllocation
+                            $barangayHasExactTotal
                                 ? (int) $barangay->pivot->beneficiaries_total
                                 : (int) $provinceProject->beneficiaries_total,
 
                         'female_beneficiaries' =>
-                            $barangayHasExactAllocation
+                            $barangayHasExactFemale
                                 ? (int) $barangay->pivot->beneficiaries_female
                                 : (int) $provinceProject->beneficiaries_female,
 
-                        'is_exact' => $barangayHasExactAllocation,
+                        'is_exact' => $barangayHasExactTotal,
                     ]);
                 }
             }

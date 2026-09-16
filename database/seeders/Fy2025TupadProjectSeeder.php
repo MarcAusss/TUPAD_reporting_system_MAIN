@@ -45,6 +45,14 @@ final class Fy2025TupadProjectSeeder extends Seeder
         'Sorsogon',
     ];
 
+    /**
+     * Toggle just the ADL/Project sample rows. Bicol reference data (provinces
+     * /municipalities/barangays) and development user accounts still seed
+     * normally either way — set this back to true to restore the sample
+     * ADLs/projects.
+     */
+    private const SEED_ADLS_AND_PROJECTS = false;
+
     public function run(): void
     {
         if (app()->environment('production')) {
@@ -55,6 +63,14 @@ final class Fy2025TupadProjectSeeder extends Seeder
 
         $this->seedBicolReferenceData();
         $this->seedDevelopmentUsers();
+
+        if (! self::SEED_ADLS_AND_PROJECTS) {
+            $this->command?->warn(
+                'ADL/Project sample seeding is temporarily disabled (Fy2025TupadProjectSeeder::SEED_ADLS_AND_PROJECTS = false). Bicol reference data and development users were still seeded.'
+            );
+
+            return;
+        }
 
         $actor = $this->seedActor();
         $rows = collect($this->sourceRows());

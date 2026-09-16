@@ -576,11 +576,10 @@
                                         <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
 
                                             <div
-                                                class="grid grid-cols-[minmax(180px,1fr)_90px_110px_110px] gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                                                class="grid grid-cols-[minmax(180px,1fr)_90px_110px] gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">
                                                 <div>Barangay</div>
                                                 <div class="text-right">Projects</div>
                                                 <div class="text-right">Beneficiaries</div>
-                                                <div class="text-right">Female</div>
                                             </div>
 
                                             @foreach ($municipality['barangays'] as $barangay)
@@ -594,7 +593,7 @@
                                                         class="cursor-pointer list-none px-3 py-2.5 hover:bg-slate-50">
 
                                                         <div
-                                                            class="grid grid-cols-[minmax(180px,1fr)_90px_110px_110px] items-center gap-2">
+                                                            class="grid grid-cols-[minmax(180px,1fr)_90px_110px] items-center gap-2">
 
                                                             <div class="flex min-w-0 items-center gap-2">
                                                                 <span
@@ -612,11 +611,6 @@
 
                                                             <div class="text-right text-[10px] font-bold text-slate-700">
                                                                 {{ number_format($barangay['beneficiaries']) }}
-                                                            </div>
-
-                                                            <div
-                                                                class="text-right text-[10px] font-semibold text-slate-600">
-                                                                {{ number_format($barangay['female_beneficiaries']) }}
                                                             </div>
 
                                                         </div>
@@ -652,11 +646,6 @@
                                                                     <span class="font-semibold text-slate-700">
                                                                         {{ number_format($projectEntry['beneficiaries']) }}
                                                                         benef.
-                                                                    </span>
-
-                                                                    <span class="font-semibold text-slate-500">
-                                                                        {{ number_format($projectEntry['female_beneficiaries']) }}
-                                                                        female
                                                                     </span>
                                                                 </div>
 
@@ -705,9 +694,8 @@
         @if ($provinceStats['has_legacy_coverage'])
             <div class="border-t border-amber-200 bg-amber-50 px-5 py-3 text-[10px] leading-5 text-amber-800">
                 <b>Barangay beneficiary figures are coverage totals only for legacy projects without exact allocation.</b>
-                New projects use saved Total and Female beneficiary counts per barangay. Legacy multi-barangay records
-                remain marked as coverage because their historical project total cannot be divided safely without source
-                data.
+                New projects use the saved Total beneficiary count per barangay. Legacy multi-barangay records remain
+                marked as coverage because their historical project total cannot be divided safely without source data.
             </div>
         @else
             <div class="border-t border-emerald-200 bg-emerald-50 px-5 py-3 text-[10px] leading-5 text-emerald-800">

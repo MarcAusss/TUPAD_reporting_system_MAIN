@@ -57,6 +57,7 @@ function initializeWorkspaceTabs(root) {
         link.addEventListener('click', (event) => {
             const tab = link.dataset.workspaceOpenTab;
             const anchor = link.dataset.workspaceAnchor;
+            const step = link.dataset.workspaceStep;
 
             if (!knownTabs.has(tab)) {
                 return;
@@ -73,6 +74,10 @@ function initializeWorkspaceTabs(root) {
                     const url = new URL(window.location.href);
                     url.hash = anchor;
                     window.history.replaceState({}, '', url);
+                }
+
+                if (step) {
+                    document.dispatchEvent(new CustomEvent('workspace:set-step', { detail: { step } }));
                 }
             });
         });

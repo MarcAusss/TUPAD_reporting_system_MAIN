@@ -155,40 +155,61 @@
             ></div>
         </div>
 
-        <ol class="mt-4 grid min-w-[760px] grid-cols-8 gap-2 overflow-x-auto pb-1" aria-label="Project workflow progress">
+        <ol class="mt-4 grid min-w-190 grid-cols-8 gap-2 overflow-x-auto pb-1" aria-label="Project workflow progress">
             @foreach($workspace['stages'] as $index => $stage)
-                <li
-                    @class([
-                        'rounded-lg border px-3 py-3',
-                        'border-emerald-200 bg-emerald-50' => $stage['state'] === 'complete',
-                        'border-blue-300 bg-blue-50 ring-1 ring-blue-200' => $stage['state'] === 'current',
-                        'border-slate-200 bg-white' => $stage['state'] === 'upcoming',
-                    ])
-                    @if($stage['state'] === 'current') aria-current="step" @endif
-                >
-                    <div class="flex items-center gap-2">
-                        <span
-                            @class([
-                                'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
-                                'bg-emerald-700 text-white' => $stage['state'] === 'complete',
-                                'bg-[#063b86] text-white' => $stage['state'] === 'current',
-                                'bg-slate-100 text-slate-500' => $stage['state'] === 'upcoming',
-                            ])
-                        >
-                            {{ $stage['state'] === 'complete' ? '✓' : $index + 1 }}
-                        </span>
+                @php
+                    $stageReachable = in_array($stage['state'], ['complete', 'current'], true);
 
-                        <span
-                            @class([
-                                'text-xs font-semibold leading-4',
-                                'text-emerald-900' => $stage['state'] === 'complete',
-                                'text-blue-950' => $stage['state'] === 'current',
-                                'text-slate-500' => $stage['state'] === 'upcoming',
-                            ])
-                        >
-                            {{ $stage['label'] }}
-                        </span>
-                    </div>
+                    $stageHref = $stage['href']
+                        ?? ($stage['tab']
+                            ? request()->fullUrlWithQuery(array_filter([
+                                'workspace' => $stage['tab'],
+                                'step' => $stage['step'] ?? null,
+                            ])).($stage['anchor'] ? '#'.$stage['anchor'] : '')
+                            : null);
+                @endphp
+                <li>
+                    <{{ $stageReachable && $stageHref ? 'a' : 'div' }}
+                        @if($stageReachable && $stageHref)
+                            href="{{ $stageHref }}"
+                            @unless($stage['href'])
+                                data-workspace-open-tab="{{ $stage['tab'] }}"
+                                data-workspace-anchor="{{ $stage['anchor'] }}"
+                                @if($stage['step']) data-workspace-step="{{ $stage['step'] }}" @endif
+                            @endunless
+                        @endif
+                        @class([
+                            'block rounded-lg border px-3 py-3 transition',
+                            'border-emerald-200 bg-emerald-50 hover:border-emerald-400 hover:shadow-sm cursor-pointer' => $stage['state'] === 'complete',
+                            'border-blue-300 bg-blue-50 ring-1 ring-blue-200 hover:border-blue-400 hover:shadow-sm cursor-pointer' => $stage['state'] === 'current',
+                            'border-slate-200 bg-white opacity-60 cursor-not-allowed' => $stage['state'] === 'upcoming',
+                        ])
+                        @if($stage['state'] === 'current') aria-current="step" @endif
+                    >
+                        <div class="flex items-center gap-2">
+                            <span
+                                @class([
+                                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
+                                    'bg-emerald-700 text-white' => $stage['state'] === 'complete',
+                                    'bg-[#063b86] text-white' => $stage['state'] === 'current',
+                                    'bg-slate-100 text-slate-500' => $stage['state'] === 'upcoming',
+                                ])
+                            >
+                                {{ $stage['state'] === 'complete' ? '✓' : $index + 1 }}
+                            </span>
+
+                            <span
+                                @class([
+                                    'text-xs font-semibold leading-4',
+                                    'text-emerald-900' => $stage['state'] === 'complete',
+                                    'text-blue-950' => $stage['state'] === 'current',
+                                    'text-slate-500' => $stage['state'] === 'upcoming',
+                                ])
+                            >
+                                {{ $stage['label'] }}
+                            </span>
+                        </div>
+                    </{{ $stageReachable && $stageHref ? 'a' : 'div' }}>
                 </li>
             @endforeach
         </ol>
