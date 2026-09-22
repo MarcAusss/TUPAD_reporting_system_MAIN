@@ -65,20 +65,7 @@ class ProjectCodeGenerator
 
         return $province;
     }
-
-    /**
-     * Atomically reserve the next series number for a province/year/month
-     * scope.
-     *
-     * A plain SELECT count()+1 is unsafe: two simultaneous approvals could
-     * both read the same count and produce duplicate series numbers.
-     * Instead this issues a single atomic "insert, or increment if the
-     * scope row already exists" statement. On MySQL/MariaDB the implicit
-     * row lock taken by that statement is held for the lifetime of the
-     * enclosing transaction, so a concurrent approval in the same scope
-     * blocks until this transaction commits or rolls back, then reserves
-     * the next number in turn — never the same one.
-     */
+    
     private function nextSeries(Province $province, int $year, int $month): int
     {
         $now = now();
