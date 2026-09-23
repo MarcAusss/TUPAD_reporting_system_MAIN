@@ -5,6 +5,7 @@ import { initializeDashboardGeographicAnalytics } from './dashboard-geographic-a
 import { initializeGeographicMapping } from './geographic-mapping';
 import { initializeProjectWorkspace } from './project-workspace';
 import { initializeRealtimeNotifications } from './realtime-notifications';
+import { initializeMoneyInputs } from './money-input';
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeTupadUi();
@@ -13,4 +14,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeGeographicMapping();
     initializeProjectWorkspace();
     initializeRealtimeNotifications();
+    initializeMoneyInputs();
 });

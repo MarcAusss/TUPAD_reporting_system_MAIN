@@ -95,42 +95,56 @@
         {{-- =====================================================
         Action queue aging summary
     ====================================================== --}}
-        <section class="mb-5" data-dashboard-aging-summary>
-            <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h2 class="text-sm font-semibold text-slate-900">Action Queue Aging</h2>
-                    <p class="mt-1 text-xs text-slate-500">
-                        Prioritize records that have remained in their current workflow status the longest.
+        @if ($roleMode === 'focal')
+            @include('dashboard.partials.focal-operations-overview')
+
+            {{-- Charts first: the Focal role opens this dashboard mainly to read fund trend and geographic performance, not to browse queue boxes. --}}
+            @include('dashboard.partials.fund-trend-chart')
+            @include('dashboard.partials.geographic-analytics')
+        @elseif ($roleMode === 'tc')
+            @include('dashboard.partials.tc-operations-overview')
+
+            {{-- Charts and program totals next, before the workflow queue tables. --}}
+            @include('dashboard.partials.program-snapshot')
+            @include('dashboard.partials.fund-trend-chart')
+        @else
+            <section class="mb-5" data-dashboard-aging-summary>
+                <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-900">Action Queue Aging</h2>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Prioritize records that have remained in their current workflow status the longest.
+                        </p>
+                    </div>
+                    <p class="text-[10px] leading-4 text-slate-400 sm:max-w-md sm:text-right">
+                        Attention at {{ $actionQueueData['attention_days'] }}+ days; critical at
+                        {{ $actionQueueData['critical_days'] }}+ days. These are internal dashboard indicators, not statutory deadlines.
                     </p>
                 </div>
-                <p class="text-[10px] leading-4 text-slate-400 sm:max-w-md sm:text-right">
-                    Attention at {{ $actionQueueData['attention_days'] }}+ days; critical at
-                    {{ $actionQueueData['critical_days'] }}+ days. These are internal dashboard indicators, not statutory deadlines.
-                </p>
-            </div>
 
-            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                @foreach ([
-                    ['Pending Actions', $actionQueueData['total_pending'], 'Projects currently waiting in your role-specific queues.'],
-                    ['Needs Attention', $actionQueueData['aged_pending'], 'Items aged '.$actionQueueData['attention_days'].' days or more.'],
-                    ['Critical Aging', $actionQueueData['critical_pending'], 'Items aged '.$actionQueueData['critical_days'].' days or more.'],
-                    ['Oldest Pending', $actionQueueData['oldest_days'].' days', 'Age of the oldest pending action visible to your account.'],
-                ] as [$label, $value, $description])
-                    <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $label }}</div>
-                        <div class="mt-2 text-2xl font-extrabold text-slate-900">
-                            {{ is_numeric($value) ? number_format($value) : $value }}
-                        </div>
-                        <p class="mt-1 text-xs leading-5 text-slate-500">{{ $description }}</p>
-                    </article>
-                @endforeach
-            </div>
-        </section>
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    @foreach ([
+                        ['Pending Actions', $actionQueueData['total_pending'], 'Projects currently waiting in your role-specific queues.'],
+                        ['Needs Attention', $actionQueueData['aged_pending'], 'Items aged '.$actionQueueData['attention_days'].' days or more.'],
+                        ['Critical Aging', $actionQueueData['critical_pending'], 'Items aged '.$actionQueueData['critical_days'].' days or more.'],
+                        ['Oldest Pending', $actionQueueData['oldest_days'].' days', 'Age of the oldest pending action visible to your account.'],
+                    ] as [$label, $value, $description])
+                        <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $label }}</div>
+                            <div class="mt-2 text-2xl font-extrabold text-slate-900">
+                                {{ is_numeric($value) ? number_format($value) : $value }}
+                            </div>
+                            <p class="mt-1 text-xs leading-5 text-slate-500">{{ $description }}</p>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+        @endif
 
         {{-- =====================================================
         Role-specific work queue
     ====================================================== --}}
-        @if (in_array($roleMode, ['tc', 'admin'], true))
+        @if ($roleMode === 'admin')
             <section class="mb-5">
                 <div class="mb-3">
                     <h2 class="text-sm font-semibold text-slate-900">Project Workflow</h2>
@@ -194,54 +208,19 @@
                     </div>
                 </section>
             @endif
+        @elseif ($roleMode === 'tc')
+            @include('dashboard.partials.tc-work-queue')
         @elseif($roleMode === 'focal')
-            <section class="mb-5">
-                <div class="mb-3">
-                    <h2 class="text-sm font-semibold text-slate-900">Focal Work Queue</h2>
-                    <p class="mt-1 text-xs text-slate-500">Fund monitoring and financial actions that require Focal attention.</p>
-                </div>
+            @include('dashboard.partials.focal-work-queue')
+        @endif
 
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <a href="{{ route('adl.index') }}"
-                        class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Fund Management</div>
-                        <div class="mt-2 text-sm font-semibold text-slate-900">{{ number_format($totalAdls) }} ADL Record(s)</div>
-                        <div class="mt-1 text-xs text-slate-500">Review allocations and remaining balances.</div>
-                    </a>
-
-                    @if (Route::has('fund-monitoring.per-adl-current'))
-                        <a href="{{ route('fund-monitoring.per-adl-current') }}"
-                            class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50">
-                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Monitoring</div>
-                            <div class="mt-2 text-sm font-semibold text-slate-900">PER ADL (Current)</div>
-                            <div class="mt-1 text-xs text-slate-500">Open the current official fund monitoring register.</div>
-                        </a>
-                    @endif
-
-                    @foreach (['payment', 'acp_payment', 'acp_check_release', 'acp_liquidation'] as $queueKey)
-                        @php($queue = $actionQueueData['queues'][$queueKey] ?? null)
-                        @if ($queue)
-                            <a href="{{ $queue['url'] }}" data-dashboard-queue="{{ $queueKey }}"
-                                class="rounded-xl border bg-white p-4 shadow-sm {{ $queue['critical_count'] > 0 ? 'border-rose-200 hover:bg-rose-50' : ($queue['aged_count'] > 0 ? 'border-amber-200 hover:bg-amber-50' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50') }}">
-                                <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Financial Action</div>
-                                <div class="mt-2 flex items-end justify-between gap-3">
-                                    <div class="text-sm font-semibold text-slate-900">{{ $queue['label'] }}</div>
-                                    <div class="text-2xl font-extrabold text-slate-900">{{ number_format($queue['count']) }}</div>
-                                </div>
-                                <p class="mt-1 text-xs leading-5 text-slate-500">{{ $queue['description'] }}</p>
-                                <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
-                                    <span>{{ number_format($queue['aged_count']) }} aged</span>
-                                    <span class="font-semibold">Oldest {{ $queue['oldest_days'] }}d</span>
-                                </div>
-                            </a>
-                        @endif
-                    @endforeach
-                </div>
-            </section>
+        @if ($roleMode === 'admin')
+            @include('dashboard.partials.program-snapshot')
+            @include('dashboard.partials.fund-trend-chart')
         @endif
 
         @if ($actionQueueData['oldest_items']->isNotEmpty())
-            <section class="tupad-table-shell mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-dashboard-oldest-actions>
+            <section class="tupad-table-shell mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-dashboard-oldest-actions>
                 <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 class="text-sm font-semibold text-slate-900">Oldest Pending Actions</h2>
@@ -284,216 +263,6 @@
                 </div>
             </section>
         @endif
-
-        @if ($roleMode === 'focal')
-            @include('dashboard.partials.geographic-analytics')
-        @else
-        {{-- =====================================================
-        Program snapshot
-    ====================================================== --}}
-        <section>
-
-            <div class="mb-3">
-                <h2 class="text-sm font-semibold text-slate-900">
-                    Program Snapshot
-                </h2>
-
-                <p class="mt-1 text-xs text-slate-500">
-                    Current official project and beneficiary totals.
-                </p>
-            </div>
-
-            <div class="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-
-                <article class="tupad-card tupad-metric-card p-5">
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                        Active Projects
-                    </div>
-
-                    <div class="mt-2 text-2xl font-extrabold text-slate-900">
-                        {{ number_format($activeProjects) }}
-                    </div>
-
-                    <div class="mt-1 text-xs text-slate-500">
-                        {{ number_format($totalProjects) }} total official projects
-                    </div>
-                </article>
-
-                <article class="tupad-card tupad-metric-card p-5">
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                        Beneficiaries
-                    </div>
-
-                    <div class="mt-2 text-2xl font-extrabold text-slate-900">
-                        {{ number_format($totalBeneficiaries) }}
-                    </div>
-
-                    <div class="mt-1 text-xs text-slate-500">
-                        {{ number_format($femaleBeneficiaries) }} female beneficiaries
-                    </div>
-                </article>
-
-                <article class="tupad-card tupad-metric-card p-5">
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                        Completed Projects
-                    </div>
-
-                    <div class="mt-2 text-2xl font-extrabold text-slate-900">
-                        {{ number_format($completedProjects) }}
-                    </div>
-
-                    <div class="mt-1 text-xs text-slate-500">
-                        Completed official workflow
-                    </div>
-                </article>
-
-                <article class="tupad-card tupad-metric-card p-5">
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                        Total Program Budget
-                    </div>
-
-                    <div class="mt-2 truncate text-2xl font-extrabold text-slate-900">
-                        ₱{{ number_format($totalBudget, 2) }}
-                    </div>
-
-                    <div class="mt-1 text-xs text-slate-500">
-                        Current adjusted ADL fund basis
-                    </div>
-                </article>
-
-            </div>
-
-        </section>
-
-        @endif
-
-        {{-- =====================================================
-        Fund trend and utilization
-    ====================================================== --}}
-        <div class="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
-
-            <section class="tupad-card overflow-hidden">
-
-                <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-900">
-                            Project Cost Trend
-                        </h2>
-
-                        <p class="mt-1 text-xs text-slate-500">
-                            Cumulative official project cost by month for FY {{ $currentYear }}.
-                        </p>
-                    </div>
-
-                    <div
-                        class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500">
-                        FY {{ $currentYear }}
-                    </div>
-
-                </div>
-
-                <div class="px-4 pb-4 pt-3 sm:px-5">
-
-                    <svg viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" class="h-60 w-full"
-                        preserveAspectRatio="none" aria-label="Cumulative project cost trend">
-                        <defs>
-                            <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
-                                <stop offset="0%" stop-color="#1765d8" stop-opacity="0.18"></stop>
-
-                                <stop offset="100%" stop-color="#1765d8" stop-opacity="0.01"></stop>
-                            </linearGradient>
-                        </defs>
-
-                        @foreach ([16, 58, 100, 142, 184] as $gridY)
-                            <line x1="26" y1="{{ $gridY }}" x2="700" y2="{{ $gridY }}"
-                                stroke="#e6edf6" stroke-width="1"></line>
-                        @endforeach
-
-                        <polygon points="{{ $areaPoints }}" fill="url(#trendFill)"></polygon>
-
-                        <polyline points="{{ $polyline }}" fill="none" stroke="#1765d8" stroke-width="2.5"
-                            stroke-linecap="round" stroke-linejoin="round"></polyline>
-
-                        @foreach ($points as $point)
-                            <circle cx="{{ $point['x'] }}" cy="{{ $point['y'] }}" r="4" fill="#1765d8"
-                                stroke="#ffffff" stroke-width="2"></circle>
-                        @endforeach
-                    </svg>
-
-                    <div class="grid grid-cols-12 px-2 text-center text-[9px] font-medium text-slate-400">
-                        @foreach ($months as $month)
-                            <span>{{ $month }}</span>
-                        @endforeach
-                    </div>
-
-                </div>
-
-            </section>
-
-            <aside class="tupad-card p-5">
-
-                <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    Available Budget
-                </div>
-
-                <div class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">
-                    ₱{{ number_format($remainingBudget, 2) }}
-                </div>
-
-                <div class="mt-1 text-xs text-slate-500">
-                    Remaining balance
-                </div>
-
-                <div class="mt-5 h-2.5 overflow-hidden rounded-full bg-slate-100">
-
-                    <div class="h-full rounded-full bg-slate-800" style="width: {{ $remainingPercent }}%"></div>
-
-                </div>
-
-                <div class="mt-2 flex items-center justify-between text-[10px] font-semibold text-slate-500">
-                    <span>
-                        {{ number_format($remainingPercent, 1) }}% remaining
-                    </span>
-
-                    <span>
-                        {{ number_format($utilizationPercent, 1) }}% utilized
-                    </span>
-                </div>
-
-                <dl class="mt-5 space-y-3 border-t border-slate-100 pt-4 text-xs">
-
-                    <div class="flex items-center justify-between gap-4">
-                        <dt class="text-slate-500">Allocated</dt>
-                        <dd class="font-semibold text-slate-900">
-                            ₱{{ number_format($totalAllocated, 2) }}
-                        </dd>
-                    </div>
-
-                    <div class="flex items-center justify-between gap-4">
-                        <dt class="text-slate-500">Total Budget</dt>
-                        <dd class="font-semibold text-slate-900">
-                            ₱{{ number_format($totalBudget, 2) }}
-                        </dd>
-                    </div>
-
-                </dl>
-
-                @if ($user->isFocal() || $user->isAdmin())
-                    <a href="{{ route('adl.index') }}"
-                        class="mt-5 flex h-10 items-center justify-center rounded-lg bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800">
-                        View Budget Details
-                    </a>
-                @else
-                    <div
-                        class="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-center text-[11px] text-slate-500">
-                        Fund maintenance is handled by the Focal account.
-                    </div>
-                @endif
-
-            </aside>
-
-        </div>
 
         {{-- =====================================================
         Recent projects

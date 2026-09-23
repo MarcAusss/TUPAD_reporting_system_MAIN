@@ -166,16 +166,19 @@
         <label for="allocationProvince" class="mb-1 block text-xs font-semibold">
             Province <span class="text-red-600">*</span>
         </label>
-        <input
+        <select
             id="allocationProvince"
             name="province"
-            value="{{ old('province') }}"
-            maxlength="150"
             required
-            autocomplete="off"
-            placeholder="e.g. Catanduanes"
-            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
+            class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
         >
+            <option value="">Select province</option>
+            @foreach ($provinces as $province)
+                <option value="{{ $province->name }}" @selected(old('province') === $province->name)>
+                    {{ $province->name }}
+                </option>
+            @endforeach
+        </select>
         @error('province')
             <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
         @enderror
@@ -237,6 +240,7 @@
             step="0.01"
             min="0.01"
             name="grant_amount"
+            data-money-input
             value="{{ old('grant_amount') }}"
             required
             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
@@ -253,6 +257,7 @@
             step="0.01"
             min="0"
             name="admin_cost_amount"
+            data-money-input
             value="{{ old('admin_cost_amount', 0) }}"
             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
         >
@@ -354,6 +359,7 @@
                 step="0.01"
                 min="0.01"
                 name="amount"
+                data-money-input
                 value="{{ old('amount') }}"
                 required
                 placeholder="0.00"
@@ -771,7 +777,7 @@
                 Math.max(
                     0,
                     Number(
-                        amountInput.value || 0
+                        window.TupadMoney.unformat(amountInput.value) || 0
                     )
                 );
 

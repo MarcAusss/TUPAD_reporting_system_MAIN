@@ -125,6 +125,7 @@
                                             step="0.01"
                                             value="{{ old('targets.'.$index.'.financial_target', $row['financial_target']) }}"
                                             data-financial-target
+                                            data-money-input
                                             class="h-10 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 text-right font-semibold tabular-nums text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                                             required>
                                     </div>
@@ -196,7 +197,7 @@
                 });
 
                 form.querySelectorAll('[data-financial-target]').forEach(function (input) {
-                    financial += Number.parseFloat(input.value || '0') || 0;
+                    financial += Number.parseFloat(window.TupadMoney.unformat(input.value) || '0') || 0;
                 });
 
                 physicalTotal.textContent = numberFormatter.format(physical);

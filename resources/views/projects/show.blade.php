@@ -513,6 +513,7 @@
                                     <div>
                                         <label class="mb-2 block text-xs font-semibold text-slate-700">Wage Rate</label>
                                         <input type="number" name="wage_rate" required min="0.01" step="0.01"
+                                            data-money-input
                                             value="{{ old('wage_rate', $project->wage_rate) }}"
                                             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
                                         @error('wage_rate')
@@ -545,6 +546,7 @@
                                     <div>
                                         <label class="mb-2 block text-xs font-semibold text-slate-700">Insurance Rate</label>
                                         <input type="number" name="insurance_rate" required min="0" step="0.01"
+                                            data-money-input
                                             value="{{ old('insurance_rate', $project->insurance_rate) }}"
                                             class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
                                         @error('insurance_rate')
@@ -1681,6 +1683,43 @@
                                                 Save Beneficiary Addresses
                                             </button>
                                         </div>
+
+                                        <div class="mt-4 rounded-lg border border-slate-200 bg-white">
+                                            <div class="border-b border-slate-200 px-3 py-2.5">
+                                                <div class="text-xs font-semibold text-slate-800">Saved Beneficiary Addresses</div>
+                                                <div class="mt-0.5 text-[10px] text-slate-500">
+                                                    Click an entry to jump to it above and edit its Total / Female.
+                                                </div>
+                                            </div>
+
+                                            <div id="beneficiaryAddressSavedList" class="max-h-80 space-y-1.5 overflow-y-auto p-2">
+                                                @forelse ($project->beneficiaryAddresses as $address)
+                                                    <button
+                                                        type="button"
+                                                        data-jump-barangay-id="{{ $address->barangay_id }}"
+                                                        class="beneficiary-address-jump flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left transition hover:bg-blue-50"
+                                                    >
+                                                        <span class="min-w-0">
+                                                            <span class="block truncate text-xs font-semibold text-slate-800">
+                                                                {{ $address->barangay?->name ?? '—' }}
+                                                            </span>
+                                                            <span class="block truncate text-[10px] text-slate-400">
+                                                                {{ $address->municipality?->name ?? '—' }}
+                                                            </span>
+                                                        </span>
+                                                        <span class="shrink-0 text-right text-[10px] font-semibold text-slate-500">
+                                                            {{ number_format($address->beneficiaries_total) }} total
+                                                            <br>
+                                                            {{ number_format($address->beneficiaries_female) }} female
+                                                        </span>
+                                                    </button>
+                                                @empty
+                                                    <div class="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-[11px] text-slate-400">
+                                                        No beneficiary address allocation has been saved yet.
+                                                    </div>
+                                                @endforelse
+                                            </div>
+                                        </div>
                                     </aside>
                                 </div>
                             </form>
@@ -1702,59 +1741,62 @@
                         </div>
                     @endif
 
-                    <details class="border-t border-slate-200" @if ($project->beneficiaryAddresses->isEmpty()) open @endif>
-                        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
-                            <div>
-                                <div class="text-xs font-semibold text-slate-900">View All Beneficiary Address Data</div>
-                                <div class="mt-1 text-[11px] text-slate-500">
-                                    {{ number_format($project->beneficiaryAddresses->count()) }} barangay record(s) ·
-                                    {{ number_format($beneficiaryAddressAllocatedTotal) }} total ·
-                                    {{ number_format($beneficiaryAddressAllocatedFemale) }} female
+                    @unless (auth()->user()->isAdmin() || auth()->user()->isTc())
+                        {{-- Admin/TC already see this same data as the clickable, editable list in the sidebar above. --}}
+                        <details class="border-t border-slate-200" @if ($project->beneficiaryAddresses->isEmpty()) open @endif>
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-900">View All Beneficiary Address Data</div>
+                                    <div class="mt-1 text-[11px] text-slate-500">
+                                        {{ number_format($project->beneficiaryAddresses->count()) }} barangay record(s) ·
+                                        {{ number_format($beneficiaryAddressAllocatedTotal) }} total ·
+                                        {{ number_format($beneficiaryAddressAllocatedFemale) }} female
+                                    </div>
                                 </div>
-                            </div>
-                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">Expand
-                                / Collapse</span>
-                        </summary>
+                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">Expand
+                                    / Collapse</span>
+                            </summary>
 
-                        <div class="overflow-x-auto border-t border-slate-200">
-                            <table class="tupad-system-table min-w-190 w-full">
-                                <thead class="bg-slate-50">
-                                    <tr class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                        <th class="px-4 py-3 text-left">Province</th>
-                                        <th class="px-4 py-3 text-left">District</th>
-                                        <th class="px-4 py-3 text-left">Municipality / City</th>
-                                        <th class="px-4 py-3 text-left">Barangay</th>
-                                        <th class="px-4 py-3 text-right">Total</th>
-                                        <th class="px-4 py-3 text-right">Female</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100 bg-white">
-                                    @forelse($project->beneficiaryAddresses as $address)
-                                        <tr>
-                                            <td class="px-4 py-3 text-xs text-slate-600">
-                                                {{ $address->province?->name ?? '—' }}</td>
-                                            <td class="px-4 py-3 text-xs text-slate-600">
-                                                {{ $address->municipality?->district ?? '—' }}</td>
-                                            <td class="px-4 py-3 text-xs font-semibold text-slate-800">
-                                                {{ $address->municipality?->name ?? '—' }}</td>
-                                            <td class="px-4 py-3 text-xs text-slate-700">
-                                                {{ $address->barangay?->name ?? '—' }}</td>
-                                            <td class="px-4 py-3 text-right text-xs font-semibold text-slate-900">
-                                                {{ number_format($address->beneficiaries_total) }}</td>
-                                            <td class="px-4 py-3 text-right text-xs text-slate-600">
-                                                {{ number_format($address->beneficiaries_female) }}</td>
+                            <div class="overflow-x-auto border-t border-slate-200">
+                                <table class="tupad-system-table min-w-190 w-full">
+                                    <thead class="bg-slate-50">
+                                        <tr class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                            <th class="px-4 py-3 text-left">Province</th>
+                                            <th class="px-4 py-3 text-left">District</th>
+                                            <th class="px-4 py-3 text-left">Municipality / City</th>
+                                            <th class="px-4 py-3 text-left">Barangay</th>
+                                            <th class="px-4 py-3 text-right">Total</th>
+                                            <th class="px-4 py-3 text-right">Female</th>
                                         </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="6" class="px-5 py-8 text-center text-xs text-slate-400">
-                                                No beneficiary address allocation has been encoded yet.
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                    </details>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 bg-white">
+                                        @forelse($project->beneficiaryAddresses as $address)
+                                            <tr>
+                                                <td class="px-4 py-3 text-xs text-slate-600">
+                                                    {{ $address->province?->name ?? '—' }}</td>
+                                                <td class="px-4 py-3 text-xs text-slate-600">
+                                                    {{ $address->municipality?->district ?? '—' }}</td>
+                                                <td class="px-4 py-3 text-xs font-semibold text-slate-800">
+                                                    {{ $address->municipality?->name ?? '—' }}</td>
+                                                <td class="px-4 py-3 text-xs text-slate-700">
+                                                    {{ $address->barangay?->name ?? '—' }}</td>
+                                                <td class="px-4 py-3 text-right text-xs font-semibold text-slate-900">
+                                                    {{ number_format($address->beneficiaries_total) }}</td>
+                                                <td class="px-4 py-3 text-right text-xs text-slate-600">
+                                                    {{ number_format($address->beneficiaries_female) }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="6" class="px-5 py-8 text-center text-xs text-slate-400">
+                                                    No beneficiary address allocation has been encoded yet.
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    @endunless
                 </div>
             </div>
 
@@ -2058,6 +2100,38 @@
                         };
 
                         addButton.addEventListener('click', () => addLocationCard(null));
+
+                        const savedList = document.getElementById('beneficiaryAddressSavedList');
+
+                        savedList?.addEventListener('click', event => {
+                            const trigger = event.target.closest('.beneficiary-address-jump');
+                            if (!trigger) return;
+
+                            const barangayId = trigger.dataset.jumpBarangayId;
+                            const row = root.querySelector(`.beneficiary-address-row[data-barangay-id="${barangayId}"]`);
+
+                            if (!row) {
+                                status.className =
+                                    'mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
+                                status.textContent =
+                                    'That barangay is not currently selected above. Re-select it to edit its allocation.';
+                                status.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'center'
+                                });
+                                return;
+                            }
+
+                            row.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+
+                            row.classList.add('ring-2', 'ring-blue-400');
+                            setTimeout(() => row.classList.remove('ring-2', 'ring-blue-400'), 1500);
+
+                            row.querySelector('.beneficiary-address-total')?.focus();
+                        });
 
                         form.addEventListener('submit', event => {
                             if (!updateStatus()) {

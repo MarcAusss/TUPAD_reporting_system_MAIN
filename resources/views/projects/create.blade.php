@@ -691,6 +691,7 @@
                                 </label>
 
                                 <input id="wageRate" name="wage_rate" type="number" step="0.01" min="0.01"
+                                    data-money-input
                                     value="{{ old('wage_rate', 455) }}" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
@@ -782,7 +783,7 @@
                                 </label>
 
                                 <input id="insuranceRate" name="insurance_rate" type="number" min="0"
-                                    step="0.01" value="{{ old('insurance_rate', 50) }}" required
+                                    step="0.01" data-money-input value="{{ old('insurance_rate', 50) }}" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                             </div>
@@ -1692,8 +1693,8 @@
             function calculate() {
                 const dayValue = Number(days.value || 0);
                 const beneficiaryValue = Number(beneficiaries.value || 0);
-                const wageValue = Number(wageRate.value || 0);
-                const insuranceValue = Number(insuranceRate.value || 0);
+                const wageValue = Number(window.TupadMoney.unformat(wageRate.value) || 0);
+                const insuranceValue = Number(window.TupadMoney.unformat(insuranceRate.value) || 0);
                 const insuranceBeneficiaryValue = Number(
                     insuranceBeneficiaries.value || 0
                 );
@@ -1749,7 +1750,7 @@
 
                         const countInput = row.querySelector('[data-ppe-count]');
                         const amount = Number(
-                            row.querySelector('[data-ppe-unit]').value || 0
+                            window.TupadMoney.unformat(row.querySelector('[data-ppe-unit]').value) || 0
                         );
 
                         countInput.max = String(beneficiaryMaximum);
@@ -1871,6 +1872,7 @@
 
             <input
                 data-ppe-unit
+                data-money-input
                 name="ppe_items[${index}][unit_amount]"
                 type="number"
                 min="0"
@@ -1906,6 +1908,7 @@
         `;
 
                 ppeItems.appendChild(row);
+                window.TupadMoney.initialize(row);
 
                 const productSelect = row.querySelector(
                     '[data-ppe-product-select]'

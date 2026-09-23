@@ -78,6 +78,7 @@
                         step="0.01"
                         min="0"
                         required
+                        data-money-input
                         value="{{ $initialGrants }}"
                         placeholder="0.00"
                         class="h-11 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3.5 text-sm text-slate-900 outline-none transition focus:border-[#1765d8] focus:ring-2 focus:ring-[#1765d8]/15"
@@ -102,6 +103,7 @@
                         type="number"
                         step="0.01"
                         min="0"
+                        data-money-input
                         value="{{ $initialAdminCost }}"
                         placeholder="0.00"
                         class="h-11 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3.5 text-sm text-slate-900 outline-none transition focus:border-[#1765d8] focus:ring-2 focus:ring-[#1765d8]/15"
@@ -132,6 +134,7 @@
                         min="0"
                         readonly
                         tabindex="-1"
+                        data-money-input
                         value="{{ round((float) $initialGrants + (float) $initialAdminCost, 2) }}"
                         class="h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 pl-8 pr-3.5 text-sm font-semibold text-slate-700 outline-none"
                     >
@@ -157,9 +160,9 @@
             }
 
             const syncTotal = () => {
-                const grants = Number(grantsInput.value || 0);
-                const adminCost = Number(adminCostInput.value || 0);
-                totalInput.value = (grants + adminCost).toFixed(2);
+                const grants = Number(window.TupadMoney.unformat(grantsInput.value) || 0);
+                const adminCost = Number(window.TupadMoney.unformat(adminCostInput.value) || 0);
+                totalInput.value = window.TupadMoney.format((grants + adminCost).toFixed(2));
             };
 
             grantsInput.addEventListener('input', syncTotal);

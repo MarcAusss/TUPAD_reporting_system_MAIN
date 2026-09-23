@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Adl;
+use App\Models\Province;
 use App\Services\Monitoring\PerAdlSummaryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,6 +73,10 @@ class AdlController extends Controller
         return view('adl.show', [
             'adl' => $adl,
             'perAdlRows' => $summaryService->rowsForAdl($adl),
+            'provinces' => Province::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 

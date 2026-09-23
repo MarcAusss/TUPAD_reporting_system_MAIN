@@ -106,6 +106,7 @@
                         min="0.01"
                         step="0.01"
                         required
+                        data-money-input
                         value="{{ old('amount') }}"
                         class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                     >

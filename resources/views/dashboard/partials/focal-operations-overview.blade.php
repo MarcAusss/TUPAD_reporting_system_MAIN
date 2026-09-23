@@ -34,7 +34,12 @@
             </div>
 
             <aside class="border-t border-slate-200 bg-slate-50/45 p-5 xl:border-l xl:border-t-0" data-focal-fund-position>
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Fund Position</div>
+                <div class="flex items-center justify-between gap-3">
+                    <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Fund Position</div>
+                    <a href="{{ route('adl.index') }}" class="text-[10px] font-semibold text-blue-700 hover:text-blue-900">
+                        {{ number_format($totalAdls) }} ADL{{ $totalAdls === 1 ? '' : 's' }} →
+                    </a>
+                </div>
                 <div class="mt-1 flex items-end justify-between gap-3">
                     <div>
                         <div class="text-xs text-slate-500">Available budget</div>

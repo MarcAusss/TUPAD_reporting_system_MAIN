@@ -186,6 +186,7 @@
                         min="0.01"
                         max="{{ $paymentService->centsToDecimal($summary['unobligated_cents']) }}"
                         step="0.01"
+                        data-money-input
                         required
                         value="{{ old('amount', $paymentService->centsToDecimal($summary['unobligated_cents'])) }}"
                         class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
@@ -397,6 +398,7 @@
                                     min="0.01"
                                     max="{{ $paymentService->centsToDecimal($trancheRemaining) }}"
                                     step="0.01"
+                                    data-money-input
                                     required
                                     value="{{ $paymentService->centsToDecimal($trancheRemaining) }}"
                                     class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"

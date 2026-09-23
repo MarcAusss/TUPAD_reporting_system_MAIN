@@ -53,7 +53,7 @@
                     <label for="password" class="mb-1.5 block text-sm font-semibold text-slate-700">
                         New Password <span class="text-red-600">*</span>
                     </label>
-                    <input id="password" name="password" type="password" required minlength="12" autocomplete="new-password"
+                    <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"
                         class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                     @error('password')
                         <p class="mt-1.5 text-xs font-medium text-red-600">{{ $message }}</p>
@@ -64,12 +64,12 @@
                     <label for="password_confirmation" class="mb-1.5 block text-sm font-semibold text-slate-700">
                         Confirm New Password <span class="text-red-600">*</span>
                     </label>
-                    <input id="password_confirmation" name="password_confirmation" type="password" required minlength="12" autocomplete="new-password"
+                    <input id="password_confirmation" name="password_confirmation" type="password" required minlength="8" autocomplete="new-password"
                         class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                 </div>
 
                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
-                    Use at least 12 characters with uppercase and lowercase letters, a number, and a symbol.
+                    Use at least 8 characters.
                 </div>
 
                 <button type="submit" class="inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">

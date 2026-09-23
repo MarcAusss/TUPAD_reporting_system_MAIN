@@ -246,6 +246,7 @@
                     min="0"
                     step="0.01"
                     name="amount_released"
+                    data-money-input
                     required
                     value="{{ old('amount_released', '0.00') }}"
                     class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"

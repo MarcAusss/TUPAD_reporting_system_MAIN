@@ -91,6 +91,7 @@
                         step="0.01"
                         min="0"
                         required
+                        data-money-input
                         value="{{ old('amount', $editing ? $target->amount : '') }}"
                         placeholder="0.00"
                         class="h-11 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3.5 text-sm text-slate-900 outline-none transition focus:border-[#1765d8] focus:ring-2 focus:ring-[#1765d8]/15"

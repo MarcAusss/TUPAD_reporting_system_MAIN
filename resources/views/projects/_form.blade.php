@@ -260,6 +260,7 @@
                 </label>
 
                 <input id="wageRate" name="wage_rate" type="number" min="0.01" step="0.01" required
+                    data-money-input
                     value="{{ old('wage_rate', $editing ? $draft->wage_rate : '') }}"
                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
@@ -346,6 +347,7 @@
                 </label>
 
                 <input id="insuranceRate" name="insurance_rate" type="number" min="0" step="0.01"
+                    data-money-input
                     required value="{{ old('insurance_rate', $editing ? $draft->insurance_rate : 50) }}"
                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
@@ -422,8 +424,8 @@
             function calculate() {
                 const dayValue = Number(days.value || 0);
                 const beneficiaryValue = Number(beneficiaries.value || 0);
-                const wageValue = Number(wageRate.value || 0);
-                const insuranceValue = Number(insuranceRate.value || 0);
+                const wageValue = Number(window.TupadMoney.unformat(wageRate.value) || 0);
+                const insuranceValue = Number(window.TupadMoney.unformat(insuranceRate.value) || 0);
 
                 if (dayValue >= 10 && dayValue <= 30) {
                     termPreview.value = 'Short-Term';
@@ -452,7 +454,7 @@
                         );
 
                         const unit = Number(
-                            row.querySelector('[data-ppe-unit]').value || 0
+                            window.TupadMoney.unformat(row.querySelector('[data-ppe-unit]').value) || 0
                         );
 
                         const total = count * unit;
@@ -527,6 +529,7 @@
 
             <input
                 data-ppe-unit
+                data-money-input
                 name="ppe_items[${index}][unit_amount]"
                 type="number"
                 min="0"
@@ -552,6 +555,7 @@
         `;
 
                 ppeItems.appendChild(row);
+                window.TupadMoney.initialize(row);
 
                 row
                     .querySelectorAll('input, select')

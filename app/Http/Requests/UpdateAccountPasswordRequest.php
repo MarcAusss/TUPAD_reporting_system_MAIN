@@ -23,11 +23,7 @@ class UpdateAccountPasswordRequest extends FormRequest
             'password' => [
                 'required',
                 'string',
-                Password::min(12)
-                    ->letters()
-                    ->mixedCase()
-                    ->numbers()
-                    ->symbols(),
+                Password::min(8),
                 'confirmed',
                 'different:current_password',
             ],
