@@ -14,5 +14,6 @@ final class DatabaseSeeder extends Seeder
         }
 
         $this->call(Fy2025TupadProjectSeeder::class);
+        $this->call(ProvinceProjectStatusCoverageSeeder::class);
     }
 }
