@@ -1544,19 +1544,28 @@
             </div>
 
             @php
+                $ppeProfilesByBarangay = $project->barangayPpeProfiles->keyBy('barangay_id');
+                $ppeItemCountsByBarangay = $project->barangayPpeItemCounts->groupBy('barangay_id');
+
                 $beneficiaryAddressGroups = $project->beneficiaryAddresses
                     ->groupBy('municipality_id')
-                    ->map(function ($addresses, $municipalityId) {
+                    ->map(function ($addresses, $municipalityId) use ($ppeProfilesByBarangay, $ppeItemCountsByBarangay) {
                         return [
                             'municipality_id' => (int) $municipalityId,
                             'barangays' => $addresses
-                                ->map(
-                                    fn($address) => [
+                                ->map(function ($address) use ($ppeProfilesByBarangay, $ppeItemCountsByBarangay) {
+                                    $profile = $ppeProfilesByBarangay->get($address->barangay_id);
+                                    $counts = $ppeItemCountsByBarangay->get($address->barangay_id, collect());
+
+                                    return [
                                         'barangay_id' => (int) $address->barangay_id,
                                         'beneficiaries_total' => (int) $address->beneficiaries_total,
                                         'beneficiaries_female' => (int) $address->beneficiaries_female,
-                                    ],
-                                )
+                                        'hazardous_workers' => $profile?->hazardous_workers,
+                                        'complete_set_workers' => $profile?->complete_set_workers,
+                                        'ppe_items' => $counts->pluck('recipients', 'project_ppe_item_id')->all(),
+                                    ];
+                                })
                                 ->values()
                                 ->all(),
                         ];
@@ -1569,6 +1578,23 @@
                     ->all();
                 $beneficiaryAddressAllocatedTotal = (int) $project->beneficiaryAddresses->sum('beneficiaries_total');
                 $beneficiaryAddressAllocatedFemale = (int) $project->beneficiaryAddresses->sum('beneficiaries_female');
+
+                $ppeDistributionItems = $project->ppeItems->map(fn ($item) => [
+                    'id' => $item->id,
+                    'product' => $item->product,
+                    'type' => $item->ppe_type->value,
+                    'type_label' => $item->ppe_type->label(),
+                    'beneficiary_count' => (int) $item->beneficiary_count,
+                    'given_to_everyone' => (int) $item->beneficiary_count === (int) $project->beneficiaries_total,
+                    'unit_amount' => (float) $item->unit_amount,
+                ])->values()->all();
+
+                $ppeDistributionHasHazardous = $project->ppeItems->contains(
+                    fn ($item) => $item->ppe_type === \App\Enums\PpeType::HAZARDOUS
+                );
+                $ppeDistributionHazardousCount = $project->ppeItems
+                    ->where('ppe_type', \App\Enums\PpeType::HAZARDOUS)
+                    ->count();
             @endphp
 
             <div class="border-b border-slate-200 bg-slate-50/70 p-5">
@@ -1678,6 +1704,10 @@
                                                 Complete the beneficiary address allocation.
                                             </div>
 
+                                            @if (!empty($ppeDistributionItems))
+                                                <div id="beneficiaryAddressPpeProgress" class="mt-3 space-y-1.5"></div>
+                                            @endif
+
                                             <button type="submit"
                                                 class="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6b]">
                                                 Save Beneficiary Addresses
@@ -1694,6 +1724,9 @@
 
                                             <div id="beneficiaryAddressSavedList" class="max-h-80 space-y-1.5 overflow-y-auto p-2">
                                                 @forelse ($project->beneficiaryAddresses as $address)
+                                                    @php
+                                                        $bcbProfile = $ppeProfilesByBarangay->get($address->barangay_id);
+                                                    @endphp
                                                     <button
                                                         type="button"
                                                         data-jump-barangay-id="{{ $address->barangay_id }}"
@@ -1706,6 +1739,11 @@
                                                             <span class="block truncate text-[10px] text-slate-400">
                                                                 {{ $address->municipality?->name ?? '—' }}
                                                             </span>
+                                                            @if ($bcbProfile)
+                                                                <span class="mt-0.5 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+                                                                    {{ number_format($bcbProfile->hazardous_workers) }} hazardous
+                                                                </span>
+                                                            @endif
                                                         </span>
                                                         <span class="shrink-0 text-right text-[10px] font-semibold text-slate-500">
                                                             {{ number_format($address->beneficiaries_total) }} total
@@ -1718,6 +1756,59 @@
                                                         No beneficiary address allocation has been saved yet.
                                                     </div>
                                                 @endforelse
+                                            </div>
+                                        </div>
+
+                                        <div id="beneficiaryAddressEditModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+                                            <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl">
+                                                <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                                                    <div>
+                                                        <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Same Barangay</div>
+                                                        <div id="beneficiaryAddressEditModalName" class="mt-0.5 text-sm font-semibold text-slate-900">&mdash;</div>
+                                                    </div>
+                                                    <button type="button" id="beneficiaryAddressEditModalClose" class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">&times;</button>
+                                                </div>
+
+                                                <div class="overflow-y-auto px-5 py-4">
+                                                    <div id="beneficiaryAddressEditModalWarning" class="hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] leading-5 text-amber-800"></div>
+
+                                                    <div id="beneficiaryAddressEditModalFields">
+                                                        <div class="grid grid-cols-2 gap-3">
+                                                            <label>
+                                                                <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Total</span>
+                                                                <input type="number" min="0" step="1" id="beneficiaryAddressEditModalTotal" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-xs">
+                                                            </label>
+                                                            <label>
+                                                                <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Female</span>
+                                                                <input type="number" min="0" step="1" id="beneficiaryAddressEditModalFemale" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-xs">
+                                                            </label>
+                                                        </div>
+
+                                                        <div id="beneficiaryAddressEditModalPpe" class="mt-4"></div>
+
+                                                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                                                <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE summary</div>
+                                                                <div id="beneficiaryAddressEditModalSummary" class="mt-2 space-y-1 text-[11px] text-slate-600">&mdash;</div>
+                                                            </div>
+                                                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                                                <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Price of overall</div>
+                                                                <div id="beneficiaryAddressEditModalOverall" class="mt-2 text-lg font-bold text-slate-900">&#8369;0.00</div>
+                                                                <div class="mt-0.5 text-[10px] text-slate-400">Total price of all PPE items for this barangay</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-4">
+                                                    <p class="text-[10px] leading-4 text-slate-400">
+                                                        Saving here updates the fields above. Click "Save Beneficiary Addresses" to persist the change.
+                                                    </p>
+                                                    <div class="flex shrink-0 items-center gap-2">
+                                                        <button type="button" id="beneficiaryAddressEditModalCancel" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 px-4 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                                                        <button type="button" id="beneficiaryAddressEditModalSave" class="inline-flex h-9 items-center justify-center rounded-lg bg-[#063b86] px-4 text-[11px] font-semibold text-white hover:bg-[#052f6b]">Save Changes</button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </aside>
@@ -1767,6 +1858,7 @@
                                             <th class="px-4 py-3 text-left">Barangay</th>
                                             <th class="px-4 py-3 text-right">Total</th>
                                             <th class="px-4 py-3 text-right">Female</th>
+                                            <th class="px-4 py-3 text-right">Hazardous</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 bg-white">
@@ -1784,10 +1876,12 @@
                                                     {{ number_format($address->beneficiaries_total) }}</td>
                                                 <td class="px-4 py-3 text-right text-xs text-slate-600">
                                                     {{ number_format($address->beneficiaries_female) }}</td>
+                                                <td class="px-4 py-3 text-right text-xs text-slate-600">
+                                                    {{ $ppeProfilesByBarangay->get($address->barangay_id)?->hazardous_workers !== null ? number_format($ppeProfilesByBarangay->get($address->barangay_id)->hazardous_workers) : '—' }}</td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="px-5 py-8 text-center text-xs text-slate-400">
+                                                <td colspan="7" class="px-5 py-8 text-center text-xs text-slate-400">
                                                     No beneficiary address allocation has been encoded yet.
                                                 </td>
                                             </tr>
@@ -1799,6 +1893,8 @@
                     @endunless
                 </div>
             </div>
+
+            @include('projects.partials.barangay-cost-breakdown')
 
             @if ((auth()->user()->isAdmin() || auth()->user()->isTc()) && $beneficiaryAddressProvince)
                 <script>
@@ -1816,6 +1912,12 @@
                         const municipalityUrl = @json(route('locations.municipalities', $beneficiaryAddressProvince));
                         const declaredTotal = Number(@json((int) $project->beneficiaries_total));
                         const declaredFemale = Number(@json((int) $project->beneficiaries_female));
+                        const ppeItems = @json($ppeDistributionItems);
+                        const ppeHasHazardous = @json($ppeDistributionHasHazardous);
+                        const ppeHazardousCount = Number(@json($ppeDistributionHazardousCount));
+                        // Every PPE item is explicitly declared per barangay by the
+                        // coordinator — none are auto-assumed as "given to everyone".
+                        const ppeDistributable = ppeItems;
                         let municipalityOptions = [];
                         let nextIndex = 0;
 
@@ -1858,7 +1960,92 @@
                             });
                         };
 
+                        const ppeProgressBox = document.getElementById('beneficiaryAddressPpeProgress');
+
+                        const maybeDefaultHazardousWorkers = row => {
+                            const hazardousInput = row.querySelector('.beneficiary-hazardous-workers');
+                            if (!hazardousInput || hazardousInput.value !== '') return;
+
+                            const maxRecipients = ppeItems
+                                .filter(item => item.type === 'hazardous')
+                                .reduce((max, item) => {
+                                    const recipients = Number(row.querySelector(`.beneficiary-ppe-item-input[data-ppe-item-id="${item.id}"]`)?.value || 0);
+
+                                    return Math.max(max, recipients);
+                                }, 0);
+
+                            hazardousInput.value = maxRecipients;
+                        };
+
+                        const updatePpeProgress = () => {
+                            if (ppeItems.length === 0) return true;
+
+                            const rows = Array.from(root.querySelectorAll('.beneficiary-address-row'));
+                            let valid = true;
+                            const lines = [];
+
+                            ppeDistributable.forEach(item => {
+                                const sum = rows.reduce((total, row) => {
+                                    const input = row.querySelector(`.beneficiary-ppe-item-input[data-ppe-item-id="${item.id}"]`);
+                                    return total + Number(input?.value || 0);
+                                }, 0);
+
+                                const ok = sum === item.beneficiary_count;
+                                if (!ok) valid = false;
+
+                                lines.push(`
+                                    <div class="flex items-center justify-between rounded-md px-2.5 py-1.5 text-[11px] ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}">
+                                        <span class="truncate">${escapeHtml(item.product)}</span>
+                                        <span class="shrink-0 font-semibold">${sum} of ${item.beneficiary_count} distributed</span>
+                                    </div>
+                                `);
+                            });
+
+                            rows.forEach(row => {
+                                const hazardousInput = row.querySelector('.beneficiary-hazardous-workers');
+                                const completeSetInput = row.querySelector('.beneficiary-complete-set-workers');
+
+                                hazardousInput?.classList.remove('border-red-400');
+                                completeSetInput?.classList.remove('border-red-400');
+
+                                if (!ppeHasHazardous) return;
+
+                                const barangayTotal = Number(row.querySelector('.beneficiary-address-total')?.value || 0);
+
+                                const hazardousRecipients = ppeItems
+                                    .filter(item => item.type === 'hazardous')
+                                    .map(item => Number(row.querySelector(`.beneficiary-ppe-item-input[data-ppe-item-id="${item.id}"]`)?.value || 0));
+
+                                const maxRecipients = hazardousRecipients.length ? Math.max(...hazardousRecipients) : 0;
+                                const sumRecipients = hazardousRecipients.reduce((a, b) => a + b, 0);
+                                const minRecipients = hazardousRecipients.length ? Math.min(...hazardousRecipients) : 0;
+                                const ceiling = Math.min(sumRecipients, barangayTotal);
+                                const hazardousValue = Number(hazardousInput?.value || 0);
+
+                                if (hazardousInput && hazardousInput.value !== '' && (hazardousValue < maxRecipients || hazardousValue > ceiling)) {
+                                    valid = false;
+                                    hazardousInput.classList.add('border-red-400');
+                                }
+
+                                if (completeSetInput && completeSetInput.value !== '') {
+                                    const completeSetValue = Number(completeSetInput.value);
+
+                                    if (completeSetValue > minRecipients || completeSetValue > hazardousValue) {
+                                        valid = false;
+                                        completeSetInput.classList.add('border-red-400');
+                                    }
+                                }
+                            });
+
+                            if (ppeProgressBox) {
+                                ppeProgressBox.innerHTML = lines.join('');
+                            }
+
+                            return valid;
+                        };
+
                         const updateStatus = () => {
+                            const ppeValid = updatePpeProgress();
                             const totalInputs = Array.from(root.querySelectorAll('.beneficiary-address-total'));
                             const femaleInputs = Array.from(root.querySelectorAll('.beneficiary-address-female'));
 
@@ -1911,10 +2098,97 @@
                                 return false;
                             }
 
+                            if (!ppeValid) {
+                                status.className =
+                                    'mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
+                                status.textContent =
+                                    'Complete the PPE distribution below: every item must be fully distributed, and hazardous/complete-set counts must fit within range.';
+                                return false;
+                            }
+
                             status.className =
                                 'mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-[11px] font-semibold leading-5 text-emerald-700';
                             status.textContent = 'Beneficiary address allocation is complete and ready to save.';
                             return true;
+                        };
+
+                        const ppeRowMarkup = (groupIndex, barangayIndex, values) => {
+                            if (ppeItems.length === 0) return '';
+
+                            const items = values.ppe_items || {};
+
+                            const hazardousField = ppeHasHazardous
+                                ? `
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Hazardous workers</span>
+                                    <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][hazardous_workers]" value="${escapeHtml(values.hazardous_workers ?? '')}" class="beneficiary-hazardous-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>`
+                                : `<input type="hidden" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][hazardous_workers]" value="0">`;
+
+                            const completeSetField = ppeHazardousCount >= 2
+                                ? `
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Complete set <span class="font-normal normal-case text-slate-400">(optional)</span></span>
+                                    <input type="number" min="0" step="1" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][complete_set_workers]" value="${escapeHtml(values.complete_set_workers ?? '')}" class="beneficiary-complete-set-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>`
+                                : '';
+
+                            const itemFields = ppeDistributable.map(item => `
+                                <div class="rounded-lg border border-slate-200 bg-white p-2">
+                                    <div class="mb-1.5 flex items-start justify-between gap-1">
+                                        <span class="truncate text-[9px] font-bold uppercase tracking-wide text-slate-500" title="${escapeHtml(item.product)} (${escapeHtml(item.type_label)})">${escapeHtml(item.product)}</span>
+                                        <span class="shrink-0 text-[9px] font-bold text-emerald-700">₱${Number(item.unit_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <input type="number" min="0" step="1" required data-ppe-item-id="${item.id}" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][ppe_items][${item.id}]" value="${escapeHtml(items[item.id] ?? '')}" class="beneficiary-ppe-item-input h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </div>`).join('');
+
+                            return `
+                        <div class="mt-3 border-t border-slate-100 pt-3">
+                            <div class="mb-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE distribution for this barangay</div>
+                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                ${hazardousField}
+                                ${completeSetField}
+                                ${itemFields}
+                            </div>
+                        </div>`;
+                        };
+
+                        // Unnamed mirror of ppeRowMarkup for the edit modal: same box layout,
+                        // but without `name` attributes so it never gets submitted alongside
+                        // the real row inputs it writes back into on Save.
+                        const modalPpeMarkup = (values) => {
+                            if (ppeItems.length === 0) return '';
+
+                            const items = values.ppe_items || {};
+
+                            const hazardousField = ppeHasHazardous ? `
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Hazardous workers</span>
+                                    <input type="number" min="0" step="1" value="${escapeHtml(values.hazardous_workers ?? '')}" class="modal-hazardous-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>` : '';
+
+                            const completeSetField = ppeHazardousCount >= 2 ? `
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Complete set <span class="font-normal normal-case text-slate-400">(optional)</span></span>
+                                    <input type="number" min="0" step="1" value="${escapeHtml(values.complete_set_workers ?? '')}" class="modal-complete-set-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>` : '';
+
+                            const itemBoxes = ppeDistributable.map(item => `
+                                <div class="rounded-lg border border-slate-200 bg-white p-2">
+                                    <div class="mb-1.5 flex items-start justify-between gap-1">
+                                        <span class="truncate text-[9px] font-bold uppercase tracking-wide text-slate-500" title="${escapeHtml(item.product)} (${escapeHtml(item.type_label)})">${escapeHtml(item.product)}</span>
+                                        <span class="shrink-0 text-[9px] font-bold text-emerald-700">₱${Number(item.unit_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <input type="number" min="0" step="1" data-modal-ppe-item-id="${item.id}" value="${escapeHtml(items[item.id] ?? '')}" class="modal-ppe-item-input h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </div>`).join('');
+
+                            return `
+                        <div class="mb-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE distribution for this barangay</div>
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            ${hazardousField}
+                            ${completeSetField}
+                            ${itemBoxes}
+                        </div>`;
                         };
 
                         const renderSelectedBarangays = (card, groupIndex) => {
@@ -1926,6 +2200,12 @@
                                     {
                                         total: row.querySelector('.beneficiary-address-total')?.value ?? '',
                                         female: row.querySelector('.beneficiary-address-female')?.value ?? '',
+                                        hazardous_workers: row.querySelector('.beneficiary-hazardous-workers')?.value ?? '',
+                                        complete_set_workers: row.querySelector('.beneficiary-complete-set-workers')?.value ?? '',
+                                        ppe_items: Object.fromEntries(
+                                            Array.from(row.querySelectorAll('.beneficiary-ppe-item-input'))
+                                                .map(input => [input.dataset.ppeItemId, input.value])
+                                        ),
                                     },
                                 ])
                             );
@@ -1941,32 +2221,60 @@
 
                             checked.forEach((checkbox, barangayIndex) => {
                                 const barangayId = checkbox.value;
+                                let ppeItemsData = {};
+                                try {
+                                    ppeItemsData = JSON.parse(checkbox.dataset.ppeItems || '{}');
+                                } catch (error) {
+                                    ppeItemsData = {};
+                                }
+
                                 const values = existing.get(barangayId) || {
                                     total: checkbox.dataset.total ?? '',
                                     female: checkbox.dataset.female ?? '',
+                                    hazardous_workers: checkbox.dataset.hazardous ?? '',
+                                    complete_set_workers: checkbox.dataset.completeSet ?? '',
+                                    ppe_items: ppeItemsData,
                                 };
+
+                                // Single-barangay convenience: every distributable item's
+                                // recipients can only be its full beneficiary_count, so
+                                // pre-fill it instead of making the coordinator retype it.
+                                if (checked.length === 1 && ppeDistributable.length > 0) {
+                                    ppeDistributable.forEach(item => {
+                                        if (values.ppe_items[item.id] === undefined || values.ppe_items[item.id] === '') {
+                                            values.ppe_items[item.id] = item.beneficiary_count;
+                                        }
+                                    });
+                                }
+
                                 const row = document.createElement('div');
                                 row.className =
-                                    'beneficiary-address-row grid gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_110px_110px]';
+                                    'beneficiary-address-row rounded-lg border border-slate-200 bg-white p-3';
                                 row.dataset.barangayId = barangayId;
                                 row.innerHTML = `
-                            <div class="min-w-0">
-                                <div class="text-xs font-semibold text-slate-800">${escapeHtml(checkbox.dataset.name)}</div>
-                                <div class="mt-1 text-[10px] text-slate-400">Beneficiary home address allocation</div>
-                                <input type="hidden" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][barangay_id]" value="${escapeHtml(barangayId)}">
+                            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_110px_110px]">
+                                <div class="min-w-0">
+                                    <div class="text-xs font-semibold text-slate-800">${escapeHtml(checkbox.dataset.name)}</div>
+                                    <div class="mt-1 text-[10px] text-slate-400">Beneficiary home address allocation</div>
+                                    <input type="hidden" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][barangay_id]" value="${escapeHtml(barangayId)}">
+                                </div>
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Total</span>
+                                    <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_total]" value="${escapeHtml(values.total)}" class="beneficiary-address-total h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Female</span>
+                                    <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_female]" value="${escapeHtml(values.female)}" class="beneficiary-address-female h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>
                             </div>
-                            <label>
-                                <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Total</span>
-                                <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_total]" value="${escapeHtml(values.total)}" class="beneficiary-address-total h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
-                            </label>
-                            <label>
-                                <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Female</span>
-                                <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_female]" value="${escapeHtml(values.female)}" class="beneficiary-address-female h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
-                            </label>
+                            ${ppeRowMarkup(groupIndex, barangayIndex, values)}
                         `;
 
                                 row.querySelectorAll('input[type="number"]').forEach(input => {
-                                    input.addEventListener('input', updateStatus);
+                                    input.addEventListener('input', () => {
+                                        maybeDefaultHazardousWorkers(row);
+                                        updateStatus();
+                                    });
                                 });
                                 selectedBox.appendChild(row);
                             });
@@ -2002,7 +2310,7 @@
                                     label.className =
                                         'flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-700 hover:bg-slate-50';
                                     label.innerHTML = `
-                                <input type="checkbox" value="${barangay.id}" data-name="${escapeHtml(barangay.name)}" data-total="${escapeHtml(existing?.beneficiaries_total ?? '')}" data-female="${escapeHtml(existing?.beneficiaries_female ?? '')}" class="beneficiary-barangay-checkbox h-4 w-4 rounded border-slate-300 text-blue-700" ${existing ? 'checked' : ''}>
+                                <input type="checkbox" value="${barangay.id}" data-name="${escapeHtml(barangay.name)}" data-total="${escapeHtml(existing?.beneficiaries_total ?? '')}" data-female="${escapeHtml(existing?.beneficiaries_female ?? '')}" data-hazardous="${escapeHtml(existing?.hazardous_workers ?? '')}" data-complete-set="${escapeHtml(existing?.complete_set_workers ?? '')}" data-ppe-items="${escapeHtml(JSON.stringify(existing?.ppe_items ?? {}))}" class="beneficiary-barangay-checkbox h-4 w-4 rounded border-slate-300 text-blue-700" ${existing ? 'checked' : ''}>
                                 <span>${escapeHtml(barangay.name)}</span>
                             `;
                                     label.querySelector('input').addEventListener('change', () =>
@@ -2103,34 +2411,150 @@
 
                         const savedList = document.getElementById('beneficiaryAddressSavedList');
 
+                        const editModal = document.getElementById('beneficiaryAddressEditModal');
+                        // Re-parent to <body> so position:fixed always covers the full
+                        // viewport — an ancestor card/tab wrapper further up this page
+                        // establishes its own containing block and otherwise clips the
+                        // backdrop to that wrapper instead of the whole screen.
+                        if (editModal) document.body.appendChild(editModal);
+                        const editModalName = document.getElementById('beneficiaryAddressEditModalName');
+                        const editModalWarning = document.getElementById('beneficiaryAddressEditModalWarning');
+                        const editModalFields = document.getElementById('beneficiaryAddressEditModalFields');
+                        const editModalTotal = document.getElementById('beneficiaryAddressEditModalTotal');
+                        const editModalFemale = document.getElementById('beneficiaryAddressEditModalFemale');
+                        const editModalPpe = document.getElementById('beneficiaryAddressEditModalPpe');
+                        const editModalSummary = document.getElementById('beneficiaryAddressEditModalSummary');
+                        const editModalOverall = document.getElementById('beneficiaryAddressEditModalOverall');
+                        const editModalSave = document.getElementById('beneficiaryAddressEditModalSave');
+                        let editModalRow = null;
+
+                        const formatModalMoney = value => '₱' + Number(value || 0).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+
+                        const recomputeModalSummary = () => {
+                            if (!editModalSummary || !editModalOverall) return;
+
+                            let overall = 0;
+                            const lines = [];
+
+                            editModalPpe.querySelectorAll('.modal-ppe-item-input').forEach(input => {
+                                const item = ppeDistributable.find(candidate => String(candidate.id) === input.dataset.modalPpeItemId);
+                                if (!item) return;
+
+                                const qty = Number(input.value) || 0;
+                                const amount = qty * Number(item.unit_amount || 0);
+                                overall += amount;
+
+                                if (qty > 0) {
+                                    lines.push(`${escapeHtml(item.product)} &times; ${qty} = ${formatModalMoney(amount)}`);
+                                }
+                            });
+
+                            editModalSummary.innerHTML = lines.length ?
+                                lines.map(line => `<div>${line}</div>`).join('') :
+                                'No PPE recipients entered yet.';
+                            editModalOverall.textContent = formatModalMoney(overall);
+                        };
+
+                        const closeEditModal = () => {
+                            editModal?.classList.add('hidden');
+                            editModal?.classList.remove('flex');
+                            editModalRow = null;
+                        };
+
+                        const openEditModal = (name, row) => {
+                            editModalRow = row;
+                            editModalName.textContent = name;
+
+                            if (!row) {
+                                editModalWarning.textContent =
+                                    'That barangay is not currently selected above. Re-select it in the form to edit its allocation.';
+                                editModalWarning.classList.remove('hidden');
+                                editModalFields.classList.add('hidden');
+                                editModalSave.classList.add('hidden');
+                            } else {
+                                editModalWarning.classList.add('hidden');
+                                editModalFields.classList.remove('hidden');
+                                editModalSave.classList.remove('hidden');
+
+                                editModalTotal.value = row.querySelector('.beneficiary-address-total')?.value ?? '';
+                                editModalFemale.value = row.querySelector('.beneficiary-address-female')?.value ?? '';
+
+                                editModalPpe.innerHTML = modalPpeMarkup({
+                                    hazardous_workers: row.querySelector('.beneficiary-hazardous-workers')?.value ?? '',
+                                    complete_set_workers: row.querySelector('.beneficiary-complete-set-workers')?.value ?? '',
+                                    ppe_items: Object.fromEntries(
+                                        Array.from(row.querySelectorAll('.beneficiary-ppe-item-input'))
+                                        .map(input => [input.dataset.ppeItemId, input.value])
+                                    ),
+                                });
+
+                                recomputeModalSummary();
+                            }
+
+                            editModal?.classList.remove('hidden');
+                            editModal?.classList.add('flex');
+                        };
+
                         savedList?.addEventListener('click', event => {
                             const trigger = event.target.closest('.beneficiary-address-jump');
                             if (!trigger) return;
 
                             const barangayId = trigger.dataset.jumpBarangayId;
                             const row = root.querySelector(`.beneficiary-address-row[data-barangay-id="${barangayId}"]`);
+                            const name = trigger.querySelector('.block.truncate')?.textContent?.trim() || 'This barangay';
 
-                            if (!row) {
-                                status.className =
-                                    'mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
-                                status.textContent =
-                                    'That barangay is not currently selected above. Re-select it to edit its allocation.';
-                                status.scrollIntoView({
-                                    behavior: 'smooth',
-                                    block: 'center'
-                                });
-                                return;
-                            }
+                            openEditModal(name, row);
+                        });
 
-                            row.scrollIntoView({
+                        document.getElementById('beneficiaryAddressEditModalClose')?.addEventListener('click', closeEditModal);
+                        document.getElementById('beneficiaryAddressEditModalCancel')?.addEventListener('click', closeEditModal);
+                        editModal?.addEventListener('click', event => {
+                            if (event.target === editModal) closeEditModal();
+                        });
+                        editModalFields?.addEventListener('input', recomputeModalSummary);
+
+                        editModalSave?.addEventListener('click', () => {
+                            if (!editModalRow) return;
+
+                            const totalInput = editModalRow.querySelector('.beneficiary-address-total');
+                            const femaleInput = editModalRow.querySelector('.beneficiary-address-female');
+                            const hazardousInput = editModalRow.querySelector('.beneficiary-hazardous-workers');
+                            const completeSetInput = editModalRow.querySelector('.beneficiary-complete-set-workers');
+                            const modalHazardous = editModalPpe.querySelector('.modal-hazardous-workers');
+                            const modalCompleteSet = editModalPpe.querySelector('.modal-complete-set-workers');
+
+                            const writeBack = (input, value) => {
+                                if (!input) return;
+                                input.value = value;
+                                input.dispatchEvent(new Event('input', {
+                                    bubbles: true
+                                }));
+                            };
+
+                            writeBack(totalInput, editModalTotal.value);
+                            writeBack(femaleInput, editModalFemale.value);
+                            writeBack(hazardousInput, modalHazardous?.value ?? '');
+                            writeBack(completeSetInput, modalCompleteSet?.value ?? '');
+
+                            editModalPpe.querySelectorAll('.modal-ppe-item-input').forEach(modalInput => {
+                                const realInput = editModalRow.querySelector(
+                                    `.beneficiary-ppe-item-input[data-ppe-item-id="${modalInput.dataset.modalPpeItemId}"]`
+                                );
+                                writeBack(realInput, modalInput.value);
+                            });
+
+                            const changedRow = editModalRow;
+                            closeEditModal();
+
+                            changedRow.scrollIntoView({
                                 behavior: 'smooth',
                                 block: 'center'
                             });
-
-                            row.classList.add('ring-2', 'ring-blue-400');
-                            setTimeout(() => row.classList.remove('ring-2', 'ring-blue-400'), 1500);
-
-                            row.querySelector('.beneficiary-address-total')?.focus();
+                            changedRow.classList.add('ring-2', 'ring-blue-400');
+                            setTimeout(() => changedRow.classList.remove('ring-2', 'ring-blue-400'), 1500);
                         });
 
                         form.addEventListener('submit', event => {

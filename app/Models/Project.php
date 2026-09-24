@@ -302,6 +302,16 @@ class Project extends Model
             ->orderBy('barangay_id');
     }
 
+    public function barangayPpeProfiles(): HasMany
+    {
+        return $this->hasMany(ProjectBarangayPpeProfile::class);
+    }
+
+    public function barangayPpeItemCounts(): HasMany
+    {
+        return $this->hasMany(ProjectBarangayPpeItemCount::class);
+    }
+
     public function laborMarketReferrals(): HasMany
     {
         return $this->hasMany(ProjectLaborMarketReferral::class)

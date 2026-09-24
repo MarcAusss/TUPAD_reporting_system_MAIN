@@ -63,7 +63,7 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
         ProjectStatus::PARTIALLY_LIQUIDATED,
         ProjectStatus::COMPLETED,
     ];
-
+ 
     /**
      * Per province, the Implementation Mode for each of the 13 statuses.
      * Deliberately uneven and distinct per province (see class docblock).
@@ -433,14 +433,24 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
             'updated_by' => $actor->id,
         ]);
 
-        $project->ppeItems()->create([
-            'ppe_type' => PpeType::NON_HAZARDOUS,
-            'product' => 'Work Gloves, Boots, and Raincoat',
-            'beneficiary_count' => $beneficiariesTotal,
-            'quantity' => 1,
-            'unit_amount' => $ppeUnitAmount,
-            'total_amount' => $ppeTotal,
-        ]);
+        // Each PPE product is its own row so the Beneficiary Mapping Source
+        // and Barangay Cost & PPE Classification card render one box per
+        // item instead of one combined box. Unit amounts sum to $ppeUnitAmount
+        // (850.00) so the seeded ppe_total stays unchanged.
+        foreach ([
+            ['product' => 'Work Gloves', 'unit_amount' => '100.00'],
+            ['product' => 'Rubber Boots', 'unit_amount' => '350.00'],
+            ['product' => 'Raincoat', 'unit_amount' => '400.00'],
+        ] as $ppeProduct) {
+            $project->ppeItems()->create([
+                'ppe_type' => PpeType::NON_HAZARDOUS,
+                'product' => $ppeProduct['product'],
+                'beneficiary_count' => $beneficiariesTotal,
+                'quantity' => 1,
+                'unit_amount' => $ppeProduct['unit_amount'],
+                'total_amount' => $this->money($ppeProduct['unit_amount'] * $beneficiariesTotal),
+            ]);
+        }
 
         $history = $project->statusHistory()->whereNull('from_status')->latest('id')->first();
         $history?->update([

@@ -14,6 +14,7 @@ use App\Models\ProjectLocation;
 use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
 use App\Services\Finance\FinancialCeilingService;
+use App\Services\Projects\BarangayCostBreakdownService;
 use App\Services\Projects\ProjectWorkspacePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -1116,7 +1117,8 @@ class ProjectController extends Controller
     public function show(
         Request $request,
         Project $project,
-        ProjectWorkspacePresenter $workspacePresenter
+        ProjectWorkspacePresenter $workspacePresenter,
+        BarangayCostBreakdownService $barangayCostBreakdownService,
     ): View {
         $user = $request->user();
 
@@ -1159,6 +1161,9 @@ class ProjectController extends Controller
             'beneficiaryAddresses.province',
             'beneficiaryAddresses.municipality',
             'beneficiaryAddresses.barangay',
+
+            'barangayPpeProfiles',
+            'barangayPpeItemCounts',
 
             'beneficiarySectors.recorder',
             'beneficiarySectors.updater',
@@ -1208,12 +1213,15 @@ class ProjectController extends Controller
             ? Province::query()->find($beneficiaryAddressProvinceId)
             : null;
 
+        $barangayCostBreakdown = $barangayCostBreakdownService->forProject($project);
+
         return view(
             'projects.show',
             compact(
                 'project',
                 'workspace',
                 'beneficiaryAddressProvince',
+                'barangayCostBreakdown',
             )
         );
     }

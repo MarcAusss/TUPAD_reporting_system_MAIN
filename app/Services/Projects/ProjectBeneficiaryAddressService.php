@@ -24,6 +24,7 @@ class ProjectBeneficiaryAddressService
 {
     public function __construct(
         private readonly ProvinceAccessService $provinceAccess,
+        private readonly ProjectBarangayPpeDistributionService $ppeDistribution,
     ) {
     }
 
@@ -55,6 +56,23 @@ class ProjectBeneficiaryAddressService
         ?int $submittedProvinceId,
         array $addresses,
     ): bool {
+        /*
+        |--------------------------------------------------------------------------
+        | Raw Input, Kept Separately From The Shape Validator
+        |--------------------------------------------------------------------------
+        |
+        | The shape validator below only declares rules for specific leaf
+        | fields (municipality_id, barangay_id, beneficiaries_total/female).
+        | Laravel's validated() output for wildcard array rules is rebuilt
+        | from only those declared leaf paths, so sibling keys with no rule
+        | of their own (the optional PPE-distribution fields) would
+        | otherwise be silently dropped. Read those from this untouched
+        | copy of the original input instead, keyed the same way the
+        | validated array is indexed below.
+        |
+        */
+        $rawAddresses = $addresses;
+
         $shape = Validator::make(
             ['beneficiary_addresses' => $addresses],
             [
@@ -126,6 +144,7 @@ class ProjectBeneficiaryAddressService
                 $barangayId = (int) $barangayInput['barangay_id'];
                 $total = (int) $barangayInput['beneficiaries_total'];
                 $female = (int) $barangayInput['beneficiaries_female'];
+                $rawBarangayInput = $rawAddresses[$locationIndex]['barangays'][$barangayIndex] ?? [];
 
                 if (isset($seenBarangays[$barangayId])) {
                     throw ValidationException::withMessages([
@@ -148,6 +167,7 @@ class ProjectBeneficiaryAddressService
                     'barangay_id' => $barangayId,
                     'beneficiaries_total' => $total,
                     'beneficiaries_female' => $female,
+                    'ppe' => $this->extractPpeDistribution($rawBarangayInput),
                 ]);
             }
         }
@@ -244,8 +264,38 @@ class ProjectBeneficiaryAddressService
                     'updated_by' => $user->id,
                 ]);
             }
+
+            $this->ppeDistribution->sync($project, $user, $rows);
         });
 
         return $changed;
+    }
+
+    /**
+     * Pull the optional PPE-distribution fields out of one barangay row's
+     * raw submitted input. Returns null when none of the PPE fields were
+     * submitted at all, which tells ProjectBarangayPpeDistributionService
+     * to leave the barangay's existing stored distribution untouched
+     * (e.g. the Beneficiary Replacement flow's address step never sends
+     * these fields).
+     *
+     * @param  array<string, mixed>  $barangayInput
+     * @return array{hazardous_workers: mixed, complete_set_workers: mixed, ppe_items: array<int|string, mixed>}|null
+     */
+    private function extractPpeDistribution(array $barangayInput): ?array
+    {
+        $hasHazardous = array_key_exists('hazardous_workers', $barangayInput);
+        $hasCompleteSet = array_key_exists('complete_set_workers', $barangayInput);
+        $hasItems = array_key_exists('ppe_items', $barangayInput) && is_array($barangayInput['ppe_items']);
+
+        if (! $hasHazardous && ! $hasCompleteSet && ! $hasItems) {
+            return null;
+        }
+
+        return [
+            'hazardous_workers' => $barangayInput['hazardous_workers'] ?? 0,
+            'complete_set_workers' => $barangayInput['complete_set_workers'] ?? null,
+            'ppe_items' => $hasItems ? $barangayInput['ppe_items'] : [],
+        ];
     }
 }
