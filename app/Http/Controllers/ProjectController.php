@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-
+  
 class ProjectController extends Controller
 {
     /*
