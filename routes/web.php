@@ -600,9 +600,6 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
             ->whereNumber('project')
             ->name('projects.labor-market-referrals.store');
 
-        Route::post('/projects/{project}/evaluation/start', [ProjectEvaluationController::class, 'start'])
-            ->name('projects.evaluation.start');
-
         Route::post('/projects/{project}/evaluation', [ProjectEvaluationController::class, 'store'])
             ->name('projects.evaluation.store');
 

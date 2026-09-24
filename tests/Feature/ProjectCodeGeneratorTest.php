@@ -195,7 +195,6 @@ class ProjectCodeGeneratorTest extends TestCase
     public function projects_have_no_project_code_before_they_are_approved(): void
     {
         foreach ([
-            ProjectStatus::ONGOING_PROFILING,
             ProjectStatus::TSSD_EVALUATION,
             ProjectStatus::FOR_COMPLIANCE,
             ProjectStatus::FOR_APPROVAL,

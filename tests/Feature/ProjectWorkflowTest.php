@@ -233,7 +233,7 @@ class ProjectWorkflowTest extends TestCase
                 $wages + $insurance,
 
             'status' =>
-                ProjectStatus::ONGOING_PROFILING,
+                ProjectStatus::TSSD_EVALUATION,
 
             'created_by' =>
                 $this->tc->id,
@@ -255,17 +255,11 @@ class ProjectWorkflowTest extends TestCase
         $this->assertDatabaseCount('project_beneficiaries', 0);
     }
 
-    public function test_project_can_enter_tssd_without_individual_beneficiary_registry(): void
+    public function test_project_starts_at_tssd_evaluation_without_individual_beneficiary_registry(): void
     {
         $project = $this->createProfilingProject(beneficiaries: 2);
 
         $this->assertSame(0, $project->beneficiaries()->count());
-
-        $response = $this
-            ->actingAs($this->tc)
-            ->post(route('projects.evaluation.start', $project));
-
-        $response->assertRedirect();
 
         $this->assertSame(
             ProjectStatus::TSSD_EVALUATION,

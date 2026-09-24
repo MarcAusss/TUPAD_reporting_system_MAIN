@@ -117,13 +117,9 @@ class Phase5GoLiveAudit extends Command
 
     private function verifyWorkflowEntry(): void
     {
-        ProjectStatus::ONGOING_PROFILING->label() === 'Ongoing Profiling'
-            ? $this->pass('Workflow', 'Initial project status', 'Ongoing Profiling.')
-            : $this->recordFailure('Workflow', 'Initial project status', 'Ongoing Profiling enum is unavailable.');
-
-        Route::has('projects.evaluation.start')
-            ? $this->pass('Workflow', 'First progression', 'Ongoing Profiling can submit to TSSD Evaluation.')
-            : $this->recordFailure('Workflow', 'First progression', 'TSSD evaluation start route is missing.');
+        ProjectStatus::TSSD_EVALUATION->label() === 'TSSD Evaluation'
+            ? $this->pass('Workflow', 'Initial project status', 'TSSD Evaluation.')
+            : $this->recordFailure('Workflow', 'Initial project status', 'TSSD Evaluation enum is unavailable.');
     }
 
     private function verifySignatories(): void

@@ -61,7 +61,6 @@ final class ProjectWorkspacePresenter
     {
         $definitions = $project->implementation_mode === ImplementationMode::THROUGH_ACP
             ? [
-                ['label' => 'Profiling', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Evaluation', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'ACP Payment', 'href' => route('acp-payments.show', $project)],
@@ -71,7 +70,6 @@ final class ProjectWorkspacePresenter
                 ['label' => 'Completed', 'tab' => 'overview'],
             ]
             : [
-                ['label' => 'Profiling', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Evaluation', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Preparation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'insurance'],
@@ -98,36 +96,34 @@ final class ProjectWorkspacePresenter
     {
         if ($project->implementation_mode === ImplementationMode::THROUGH_ACP) {
             return match ($project->status) {
-                ProjectStatus::ONGOING_PROFILING => 0,
                 ProjectStatus::TSSD_EVALUATION,
-                ProjectStatus::FOR_COMPLIANCE => 1,
-                ProjectStatus::FOR_APPROVAL => 2,
+                ProjectStatus::FOR_COMPLIANCE => 0,
+                ProjectStatus::FOR_APPROVAL => 1,
                 ProjectStatus::APPROVED,
-                ProjectStatus::FOR_PAYMENT => 3,
-                ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT => 4,
+                ProjectStatus::FOR_PAYMENT => 2,
+                ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT => 3,
                 ProjectStatus::FOR_IMPLEMENTATION,
-                ProjectStatus::ONGOING_IMPLEMENTATION => 5,
+                ProjectStatus::ONGOING_IMPLEMENTATION => 4,
                 ProjectStatus::FOR_LIQUIDATION,
-                ProjectStatus::PARTIALLY_LIQUIDATED => 6,
-                ProjectStatus::COMPLETED => 7,
-                ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 6,
+                ProjectStatus::PARTIALLY_LIQUIDATED => 5,
+                ProjectStatus::COMPLETED => 6,
+                ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 5,
             };
         }
 
         return match ($project->status) {
-            ProjectStatus::ONGOING_PROFILING => 0,
             ProjectStatus::TSSD_EVALUATION,
-            ProjectStatus::FOR_COMPLIANCE => 1,
-            ProjectStatus::FOR_APPROVAL => 2,
-            ProjectStatus::APPROVED => 3,
+            ProjectStatus::FOR_COMPLIANCE => 0,
+            ProjectStatus::FOR_APPROVAL => 1,
+            ProjectStatus::APPROVED => 2,
             ProjectStatus::FOR_IMPLEMENTATION,
-            ProjectStatus::ONGOING_IMPLEMENTATION => 4,
-            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 5,
-            ProjectStatus::FOR_PAYMENT => 6,
-            ProjectStatus::COMPLETED => 7,
+            ProjectStatus::ONGOING_IMPLEMENTATION => 3,
+            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 4,
+            ProjectStatus::FOR_PAYMENT => 5,
+            ProjectStatus::COMPLETED => 6,
             ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
             ProjectStatus::FOR_LIQUIDATION,
-            ProjectStatus::PARTIALLY_LIQUIDATED => 6,
+            ProjectStatus::PARTIALLY_LIQUIDATED => 5,
         };
     }
 
@@ -147,14 +143,6 @@ final class ProjectWorkspacePresenter
     private function sharedActionFor(Project $project): ?array
     {
         return match ($project->status) {
-            ProjectStatus::ONGOING_PROFILING => $this->internalAction(
-                'Action Required',
-                'Complete profiling and submit for TSSD evaluation',
-                'Review the encoded profile first. Submit only when the official project information is complete.',
-                'Review & Submit',
-                'workflow',
-                'evaluation',
-            ),
             ProjectStatus::TSSD_EVALUATION => $this->internalAction(
                 'Action Required',
                 'Record the TSSD evaluation result',

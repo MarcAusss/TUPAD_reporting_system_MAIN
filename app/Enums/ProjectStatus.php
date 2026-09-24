@@ -4,7 +4,6 @@ namespace App\Enums;
 
 enum ProjectStatus: string
 {
-    case ONGOING_PROFILING = 'ongoing_profiling';
     case TSSD_EVALUATION = 'tssd_evaluation';
     case FOR_COMPLIANCE = 'for_compliance';
     case FOR_APPROVAL = 'for_approval';
@@ -21,7 +20,6 @@ enum ProjectStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::ONGOING_PROFILING => 'Ongoing Profiling',
             self::TSSD_EVALUATION => 'TSSD Evaluation',
             self::FOR_COMPLIANCE => 'For Compliance',
             self::FOR_APPROVAL => 'For Approval',

@@ -41,7 +41,6 @@ class MajorRevisionPhase12DualWorkflowFoundationTest extends TestCase
         $workflow = app(ProjectWorkflowDefinition::class);
 
         $this->assertSame([
-            ProjectStatus::ONGOING_PROFILING,
             ProjectStatus::TSSD_EVALUATION,
             ProjectStatus::FOR_APPROVAL,
             ProjectStatus::APPROVED,
@@ -53,7 +52,6 @@ class MajorRevisionPhase12DualWorkflowFoundationTest extends TestCase
         ], $workflow->happyPathFor(ImplementationMode::DIRECT_ADMINISTRATION));
 
         $this->assertSame([
-            ProjectStatus::ONGOING_PROFILING,
             ProjectStatus::TSSD_EVALUATION,
             ProjectStatus::FOR_APPROVAL,
             ProjectStatus::APPROVED,

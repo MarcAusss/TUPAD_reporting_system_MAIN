@@ -539,7 +539,7 @@ class DatabaseValidationHardeningTest extends TestCase
                 1_900_000,
 
             'status' =>
-                ProjectStatus::ONGOING_PROFILING,
+                ProjectStatus::TSSD_EVALUATION,
 
             'created_by' =>
                 $this->tc->id,

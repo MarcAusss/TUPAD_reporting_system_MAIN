@@ -734,10 +734,23 @@
                                 </p>
                             </div>
 
-                            <button type="button" id="addPpeItem"
-                                class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                                Add PPE Item
-                            </button>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <select id="ppeWorkClassification"
+                                    class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
+                                    <option value="non_hazardous">Non-Hazardous Work</option>
+                                    <option value="hazardous">Hazardous Work</option>
+                                </select>
+
+                                <button type="button" id="autoFillPpeSet"
+                                    class="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                                    Auto-fill Standard Set
+                                </button>
+
+                                <button type="button" id="addPpeItem"
+                                    class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                    Add PPE Item
+                                </button>
+                            </div>
 
                         </div>
 
@@ -852,11 +865,11 @@
                         </div>
 
                         <h2 class="mt-1 text-sm font-semibold text-slate-900">
-                            Project Profiling Completion
+                            Project Creation Completion
                         </h2>
 
                         <p class="mt-1 text-xs leading-5 text-slate-600">
-                            Saving a complete project profile creates it with <strong>Ongoing Profiling</strong> status. After profiling is complete, submit the project to <strong>TSSD Evaluation</strong> from the project detail page.
+                            Saving a complete project profile moves it directly to <strong>TSSD Evaluation</strong> status — no separate submission step is needed.
                         </p>
                     </section>
 
@@ -1983,6 +1996,78 @@
                 'click',
                 addRow
             );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Standard PPE Set Auto-fill
+            |--------------------------------------------------------------------------
+            |
+            | Prefills PPE Requirements from the official TUPAD PPE price list.
+            | Only the Shirt's quantity doubles for Long-Term (31-90 day)
+            | projects; every other item stays at quantity 1. Every field this
+            | sets stays fully editable afterward — it's a starting point, not
+            | a lock, and validation/storage never changes.
+            |--------------------------------------------------------------------------
+            */
+
+            const PPE_STANDARD_SETS = {
+                non_hazardous: [
+                    { ppe_type: 'non_hazardous', product: 'TUPAD Shirt', unit_amount: 280.00, qty: 2 },
+                    { ppe_type: 'non_hazardous', product: 'Bucket Hat', unit_amount: 70.00, qty: 1 },
+                ],
+                hazardous: [
+                    { ppe_type: 'non_hazardous', product: 'TUPAD Shirt', unit_amount: 280.00, qty: 2 },
+                    { ppe_type: 'non_hazardous', product: 'Bucket Hat', unit_amount: 70.00, qty: 1 },
+                    { ppe_type: 'hazardous', product: 'Mask', unit_amount: 80.00, qty: 1 },
+                    { ppe_type: 'hazardous', product: 'Gloves', unit_amount: 70.00, qty: 1 },
+                    { ppe_type: 'hazardous', product: 'Rubber Boots', unit_amount: 350.00, qty: 1 },
+                ],
+            };
+
+            const autoFillPpeSet = document.getElementById('autoFillPpeSet');
+            const ppeWorkClassification = document.getElementById('ppeWorkClassification');
+
+            autoFillPpeSet?.addEventListener('click', function() {
+                const dayValue = Number(days.value || 0);
+                const beneficiaryValue = Number(beneficiaries.value || 0);
+
+                if (!dayValue || !beneficiaryValue) {
+                    alert('Enter Number of Days and Total Beneficiaries first.');
+                    return;
+                }
+
+                const isLongTerm = dayValue >= 31 && dayValue <= 90;
+                const set = PPE_STANDARD_SETS[ppeWorkClassification.value] || [];
+
+                ppeItems.innerHTML = '';
+                ppeIndex = 0;
+
+                set.forEach(function(item) {
+                    addRow();
+
+                    const rows = ppeItems.querySelectorAll('[data-ppe-row]');
+                    const row = rows[rows.length - 1];
+
+                    row.querySelector('select[name^="ppe_items"]').value = item.ppe_type;
+
+                    const productSelect = row.querySelector('[data-ppe-product-select]');
+                    productSelect.value = item.product;
+                    productSelect.dispatchEvent(new Event('change'));
+
+                    const countInput = row.querySelector('[data-ppe-count]');
+                    countInput.value = beneficiaryValue;
+
+                    const unitInput = row.querySelector('[data-ppe-unit]');
+                    unitInput.value = item.unit_amount.toFixed(2);
+                    unitInput.dispatchEvent(new Event('input'));
+
+                    if (isLongTerm) {
+                        row.querySelector('[data-ppe-quantity]').value = item.qty;
+                    }
+                });
+
+                calculate();
+            });
 
             allocationSelect?.addEventListener('change', calculate);
 

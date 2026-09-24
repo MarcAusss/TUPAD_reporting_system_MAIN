@@ -139,7 +139,7 @@ class MultiLocationProjectTest extends TestCase
         $this->assertDatabaseHas('projects', [
             'project_title' => 'Albay Multi-District Project',
             'province_id' => $albay->id,
-            'status' => ProjectStatus::ONGOING_PROFILING->value,
+            'status' => ProjectStatus::TSSD_EVALUATION->value,
 
             // First location is retained as compatibility snapshot.
             'municipality_id' => $tabaco->id,

@@ -12,38 +12,6 @@ use Illuminate\Validation\Rule;
 
 class ProjectEvaluationController extends Controller
 {
-    public function start(
-        Request $request,
-        Project $project
-    ): RedirectResponse {
-        if (
-            $project->status
-            !== ProjectStatus::ONGOING_PROFILING
-        ) {
-            abort(
-                403,
-                'Only projects with Ongoing Profiling status may be submitted for TSSD Evaluation.'
-            );
-        }
-
-        $project->setStatusTransitionContext(
-            actorId: (int) $request->user()->id,
-            remarks: 'Project profiling completed and submitted for TSSD Evaluation.',
-        )->update([
-            'status' => ProjectStatus::TSSD_EVALUATION,
-            'updated_by' => $request->user()->id,
-        ]);
-
-        $project->clearStatusTransitionContext();
-
-        return redirect()
-            ->route('projects.show', $project)
-            ->with(
-                'success',
-                'Project moved to TSSD Evaluation.'
-            );
-    }
-
     public function store(
         Request $request,
         Project $project

@@ -1025,7 +1025,7 @@ class ProjectController extends Controller
                 */
 
                 'status' =>
-                    ProjectStatus::ONGOING_PROFILING,
+                    ProjectStatus::TSSD_EVALUATION,
 
                 'remarks' =>
                     $validated['remarks'] ?? null,
@@ -1103,7 +1103,7 @@ class ProjectController extends Controller
                 )
                 ->with(
                     'success',
-                    'Project profile saved successfully with Ongoing Profiling status. Submit it to TSSD Evaluation when profiling is complete.'
+                    'Project profile saved successfully and moved directly to TSSD Evaluation status.'
                 );
         });
     }

@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
- * Seeds 13 projects per Bicol province (one per ProjectStatus value), split
+ * Seeds 12 projects per Bicol province (one per ProjectStatus value), split
  * unevenly and differently per province between Direct Administration and
  * Through ACP, with every downstream workflow record a real project at that
  * status would already have.
@@ -49,7 +49,6 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
 
     /** @var array<int, ProjectStatus> */
     private const STATUS_ORDER = [
-        ProjectStatus::ONGOING_PROFILING,
         ProjectStatus::TSSD_EVALUATION,
         ProjectStatus::FOR_COMPLIANCE,
         ProjectStatus::FOR_APPROVAL,
@@ -65,15 +64,14 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
     ];
  
     /**
-     * Per province, the Implementation Mode for each of the 13 statuses.
+     * Per province, the Implementation Mode for each of the 12 statuses.
      * Deliberately uneven and distinct per province (see class docblock).
      *
      * @var array<string, array<string, string>>
      */
     private const PROVINCE_MODE_PLAN = [
-        // Direct Administration 9 / Through ACP 4.
+        // Direct Administration 8 / Through ACP 4.
         'Albay' => [
-            'ongoing_profiling' => 'direct_administration',
             'tssd_evaluation' => 'direct_administration',
             'for_compliance' => 'direct_administration',
             'for_approval' => 'direct_administration',
@@ -87,9 +85,8 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
             'partially_liquidated' => 'through_acp',
             'completed' => 'through_acp',
         ],
-        // Direct Administration 3 / Through ACP 10.
+        // Direct Administration 3 / Through ACP 9.
         'Camarines Norte' => [
-            'ongoing_profiling' => 'through_acp',
             'tssd_evaluation' => 'through_acp',
             'for_compliance' => 'through_acp',
             'for_approval' => 'through_acp',
@@ -103,9 +100,8 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
             'partially_liquidated' => 'through_acp',
             'completed' => 'direct_administration',
         ],
-        // Direct Administration 8 / Through ACP 5.
+        // Direct Administration 7 / Through ACP 5.
         'Camarines Sur' => [
-            'ongoing_profiling' => 'direct_administration',
             'tssd_evaluation' => 'direct_administration',
             'for_compliance' => 'direct_administration',
             'for_approval' => 'direct_administration',
@@ -119,9 +115,8 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
             'partially_liquidated' => 'through_acp',
             'completed' => 'through_acp',
         ],
-        // Direct Administration 4 / Through ACP 9.
+        // Direct Administration 3 / Through ACP 9.
         'Catanduanes' => [
-            'ongoing_profiling' => 'direct_administration',
             'tssd_evaluation' => 'through_acp',
             'for_compliance' => 'through_acp',
             'for_approval' => 'through_acp',
@@ -135,9 +130,8 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
             'partially_liquidated' => 'through_acp',
             'completed' => 'direct_administration',
         ],
-        // Direct Administration 10 / Through ACP 3.
+        // Direct Administration 9 / Through ACP 3.
         'Masbate' => [
-            'ongoing_profiling' => 'direct_administration',
             'tssd_evaluation' => 'direct_administration',
             'for_compliance' => 'direct_administration',
             'for_approval' => 'direct_administration',
@@ -151,9 +145,8 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
             'partially_liquidated' => 'through_acp',
             'completed' => 'direct_administration',
         ],
-        // Direct Administration 2 / Through ACP 11.
+        // Direct Administration 2 / Through ACP 10.
         'Sorsogon' => [
-            'ongoing_profiling' => 'through_acp',
             'tssd_evaluation' => 'through_acp',
             'for_compliance' => 'through_acp',
             'for_approval' => 'through_acp',
@@ -469,7 +462,7 @@ final class ProvinceProjectStatusCoverageSeeder extends Seeder
         CarbonImmutable $today,
     ): void {
         match ($status) {
-            ProjectStatus::ONGOING_PROFILING, ProjectStatus::TSSD_EVALUATION => null,
+            ProjectStatus::TSSD_EVALUATION => null,
 
             ProjectStatus::FOR_COMPLIANCE => $this->addEvaluation(
                 $project,

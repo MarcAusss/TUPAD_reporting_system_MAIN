@@ -402,7 +402,7 @@ class GeographicMappingPhase4MunicipalitySelectionTest extends TestCase
             'insurance_beneficiaries' => 25,
             'insurance_total' => '2500.00',
             'total_project_cost' => '132500.00',
-            'status' => ProjectStatus::ONGOING_PROFILING,
+            'status' => ProjectStatus::TSSD_EVALUATION,
             'created_by' => $this->focal->id,
             'updated_by' => $this->focal->id,
         ], $overrides));

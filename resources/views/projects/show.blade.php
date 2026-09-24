@@ -2671,31 +2671,6 @@
 
             <div class="p-5">
 
-                {{-- Ongoing Profiling --}}
-
-                @if ($project->status === \App\Enums\ProjectStatus::ONGOING_PROFILING)
-                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                        <div class="text-sm font-semibold text-amber-900">Ongoing Profiling</div>
-
-                        <p class="mt-1 text-xs leading-5 text-amber-800">
-                            Review the project profile and supporting information. Submit to TSSD Evaluation only when
-                            profiling is complete.
-                        </p>
-
-                        @if (auth()->user()->isAdmin() || auth()->user()->isTc())
-                            <form method="POST" action="{{ route('projects.evaluation.start', $project) }}"
-                                class="mt-4">
-                                @csrf
-
-                                <button type="submit"
-                                    class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b]">
-                                    Submit to TSSD Evaluation
-                                </button>
-                            </form>
-                        @endif
-                    </div>
-                @endif
-
                 {{-- TSSD Evaluation / Compliance --}}
 
                 @if (in_array(
@@ -3543,111 +3518,38 @@
                                         </div>
                                     @endif
 
+                                    @php
+                                        $ppeDeliveryItems = $project->ppeItems->map(fn ($item) => [
+                                            'id' => $item->id,
+                                            'product' => $item->product,
+                                            'type_label' => $item->ppe_type->label(),
+                                            'planned' => $item->plannedQuantity(),
+                                            'remaining' => $item->remainingDeliverableQuantity(),
+                                        ])->values();
+                                    @endphp
+
                                     <form method="POST" action="{{ route('projects.implementation.ppe', $project) }}"
-                                        class="ppe-delivery-form mt-4 border-t border-slate-200 pt-4">
+                                        class="ppe-delivery-form mt-4 border-t border-slate-200 pt-4" data-ppe-delivery-form>
                                         @csrf
 
-                                        <div class="text-xs font-semibold text-slate-700">
-                                            Add Delivery Receipt
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="text-xs font-semibold text-slate-700">
+                                                Add Delivery Receipt(s)
+                                            </div>
+
+                                            <button type="button" data-add-delivery-receipt
+                                                class="rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
+                                                + Add Another Receipt
+                                            </button>
                                         </div>
 
-                                        <div class="mt-3">
-                                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                                Date of Delivery Receipt
-                                            </label>
+                                        <p class="mt-1 hidden text-xs font-medium text-red-600" data-error="deliveries"></p>
 
-                                            <input name="delivery_receipt_date" type="date" required
-                                                value="{{ old('delivery_receipt_date') }}"
-                                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
-
-                                            @error('delivery_receipt_date')
-                                                <p class="mt-1 text-xs font-medium text-red-600">
-                                                    {{ $message }}
-                                                </p>
-                                            @enderror
-                                        </div>
-
-                                        <div class="mt-4">
-                                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                                PPE Provided
-                                            </label>
-
-                                            @if ($project->ppeItems->isNotEmpty())
-                                                <p class="mb-2 text-[11px] leading-4 text-slate-500">
-                                                    Click every PPE item included in this receipt, then enter the quantity
-                                                    delivered for each.
-                                                </p>
-
-                                                <div class="grid gap-2 sm:grid-cols-2">
-                                                    @foreach ($project->ppeItems as $ppeItem)
-                                                        @php
-                                                            $remaining = $ppeItem->remainingDeliverableQuantity();
-                                                        @endphp
-
-                                                        <div
-                                                            class="ppe-item-toggle rounded-lg border border-slate-300 p-2.5 {{ $remaining <= 0 ? 'opacity-50' : '' }}">
-                                                            <button type="button"
-                                                                class="ppe-item-button flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700"
-                                                                data-item-id="{{ $ppeItem->id }}"
-                                                                {{ $remaining <= 0 ? 'disabled' : '' }}>
-                                                                <span class="min-w-0 truncate">
-                                                                    {{ $ppeItem->product }}
-                                                                    <span
-                                                                        class="font-normal text-slate-400">({{ $ppeItem->ppe_type->label() }})</span>
-                                                                </span>
-                                                                <span
-                                                                    class="ppe-item-check hidden text-emerald-600">&check;</span>
-                                                            </button>
-
-                                                            <div class="mt-0.5 px-2 text-[10px] text-slate-400">
-                                                                Remaining: {{ number_format($remaining) }} /
-                                                                {{ number_format($ppeItem->plannedQuantity()) }}
-                                                            </div>
-
-                                                            <div class="ppe-item-quantity mt-2 hidden px-2">
-                                                                <input type="hidden"
-                                                                    name="items[{{ $ppeItem->id }}][ppe_item_id]"
-                                                                    value="{{ $ppeItem->id }}" disabled>
-                                                                <input type="number"
-                                                                    name="items[{{ $ppeItem->id }}][quantity]"
-                                                                    min="1" max="{{ $remaining }}"
-                                                                    placeholder="Quantity" disabled
-                                                                    class="h-8 w-full rounded-md border border-slate-300 px-2 text-xs">
-                                                                @error("items.{$ppeItem->id}.quantity")
-                                                                    <p class="mt-1 text-[10px] font-medium text-red-600">
-                                                                        {{ $message }}
-                                                                    </p>
-                                                                @enderror
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-
-                                                @error('items')
-                                                    <p class="mt-2 text-xs font-medium text-red-600">
-                                                        {{ $message }}
-                                                    </p>
-                                                @enderror
-                                            @else
-                                                <div
-                                                    class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-[11px] leading-4 text-slate-500">
-                                                    No PPE items were declared for this project, so no items need to be
-                                                    selected here. Recording the receipt date is sufficient.
-                                                </div>
-                                            @endif
-                                        </div>
-
-                                        <div class="mt-4">
-                                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                                Remarks
-                                            </label>
-
-                                            <textarea name="remarks" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks') }}</textarea>
-                                        </div>
+                                        <div data-delivery-receipts class="mt-3 space-y-4"></div>
 
                                         <button type="submit"
                                             class="mt-4 h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
-                                            Add Delivery Receipt
+                                            Save Delivery Receipt(s)
                                         </button>
                                     </form>
                                 </div>
@@ -3655,36 +3557,267 @@
 
                                 <script>
                                     (() => {
-                                        document
-                                            .querySelectorAll('.ppe-delivery-form .ppe-item-toggle')
-                                            .forEach(wrapper => {
+                                        const form = document.querySelector('[data-ppe-delivery-form]');
+                                        if (!form) return;
+
+                                        const list = form.querySelector('[data-delivery-receipts]');
+                                        const addButton = form.querySelector('[data-add-delivery-receipt]');
+                                        const ppeDeliveryItems = @json($ppeDeliveryItems);
+                                        const initialDeliveries = Object.values(@json(old('deliveries')) || {});
+                                        const serverErrors = @json($errors->getMessages());
+                                        let receiptIndex = 0;
+
+                                        const escapeHtml = value => String(value ?? '')
+                                            .replaceAll('&', '&amp;')
+                                            .replaceAll('<', '&lt;')
+                                            .replaceAll('>', '&gt;')
+                                            .replaceAll('"', '&quot;')
+                                            .replaceAll("'", '&#039;');
+
+                                        const itemBoxMarkup = (index, item, selected, quantity) => `
+                                            <div class="ppe-item-toggle rounded-lg border border-slate-300 p-2.5 ${item.remaining <= 0 ? 'opacity-50' : ''} ${selected ? 'ppe-item-selected' : ''}" data-item-id="${item.id}">
+                                                <button type="button"
+                                                    class="ppe-item-button flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700 ${selected ? 'text-blue-800' : ''}"
+                                                    data-item-id="${item.id}"
+                                                    ${item.remaining <= 0 ? 'disabled' : ''}>
+                                                    <span class="min-w-0 truncate">
+                                                        ${escapeHtml(item.product)}
+                                                        <span class="font-normal text-slate-400">(${escapeHtml(item.type_label)})</span>
+                                                    </span>
+                                                    <span class="ppe-item-check ${selected ? '' : 'hidden'} text-emerald-600">&check;</span>
+                                                </button>
+
+                                                <div class="mt-0.5 px-2 text-[10px] text-slate-400" data-item-remaining-label="${item.id}">
+                                                    Remaining: ${item.remaining.toLocaleString()} / ${item.planned.toLocaleString()}
+                                                </div>
+
+                                                <div class="ppe-item-quantity mt-2 px-2 ${selected ? '' : 'hidden'}">
+                                                    <input type="hidden" name="deliveries[${index}][items][${item.id}][ppe_item_id]" value="${item.id}" ${selected ? '' : 'disabled'}>
+                                                    <input type="number" data-item-quantity-input="${item.id}"
+                                                        name="deliveries[${index}][items][${item.id}][quantity]"
+                                                        min="0" max="${item.remaining}" placeholder="0 if none in this receipt"
+                                                        value="${escapeHtml(quantity ?? '')}"
+                                                        ${selected ? '' : 'disabled'}
+                                                        class="h-8 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                                    <p class="mt-1 hidden text-[10px] font-medium text-red-600" data-error="deliveries.${index}.items.${item.id}.quantity"></p>
+                                                    <p class="mt-1 hidden text-[10px] font-semibold text-red-600" data-item-exceeds-message="${item.id}"></p>
+                                                </div>
+                                            </div>`;
+
+                                        const receiptMarkup = (index, initial = {}) => {
+                                            const selectedItems = initial.items || {};
+
+                                            const itemsHtml = ppeDeliveryItems.length === 0
+                                                ? `<div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-[11px] leading-4 text-slate-500">
+                                                        No PPE items were declared for this project, so no items need to be selected here. Recording the receipt date is sufficient.
+                                                    </div>`
+                                                : `<p class="mb-2 text-[11px] leading-4 text-slate-500">Click every PPE item included in this receipt, then enter the quantity delivered for each.</p>
+                                                    <div class="grid gap-2 sm:grid-cols-2">
+                                                        ${ppeDeliveryItems.map(item => itemBoxMarkup(
+                                                            index,
+                                                            item,
+                                                            Object.prototype.hasOwnProperty.call(selectedItems, item.id),
+                                                            selectedItems[item.id]?.quantity,
+                                                        )).join('')}
+                                                    </div>`;
+
+                                            return `
+                                                <div class="delivery-receipt-card rounded-lg border border-slate-200 bg-slate-50/60 p-4" data-delivery-receipt data-index="${index}">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Receipt ${index + 1}</div>
+                                                        <button type="button" data-remove-delivery-receipt class="text-[11px] font-semibold text-red-600 hover:underline">Remove</button>
+                                                    </div>
+
+                                                    <div class="mt-3">
+                                                        <label class="mb-2 block text-xs font-semibold text-slate-700">Date of Delivery Receipt</label>
+                                                        <input name="deliveries[${index}][delivery_receipt_date]" type="date" required
+                                                            value="${escapeHtml(initial.delivery_receipt_date ?? '')}"
+                                                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                                        <p class="mt-1 hidden text-xs font-medium text-red-600" data-error="deliveries.${index}.delivery_receipt_date"></p>
+                                                    </div>
+
+                                                    <div class="mt-4" data-items-container>
+                                                        <label class="mb-2 block text-xs font-semibold text-slate-700">PPE Provided</label>
+                                                        ${itemsHtml}
+                                                        <p class="mt-2 hidden text-xs font-medium text-red-600" data-error="deliveries.${index}.items"></p>
+                                                    </div>
+
+                                                    <div class="mt-4">
+                                                        <label class="mb-2 block text-xs font-semibold text-slate-700">Remarks</label>
+                                                        <textarea name="deliveries[${index}][remarks]" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${escapeHtml(initial.remarks ?? '')}</textarea>
+                                                    </div>
+                                                </div>`;
+                                        };
+
+                                        // Recomputes, for every item box in every card, how much of that
+                                        // item is still available to THIS box once every OTHER card's
+                                        // current entry for the same item is subtracted from the item's
+                                        // baseline remaining — so a second (or third, or Nth) receipt
+                                        // always reflects what earlier receipts already claimed, live,
+                                        // with no cap on how many receipts this applies across.
+                                        const updateRemainingDisplays = () => {
+                                            const usedByItemAndCard = {};
+
+                                            form.querySelectorAll('[data-item-quantity-input]').forEach(input => {
+                                                if (input.disabled) return;
+                                                const id = input.dataset.itemQuantityInput;
+                                                const cardIndex = input.closest('[data-delivery-receipt]')?.dataset.index;
+                                                if (cardIndex === undefined) return;
+
+                                                usedByItemAndCard[id] = usedByItemAndCard[id] || {};
+                                                usedByItemAndCard[id][cardIndex] = (usedByItemAndCard[id][cardIndex] || 0) + (Number(input.value) || 0);
+                                            });
+
+                                            form.querySelectorAll('.ppe-item-toggle[data-item-id]').forEach(wrapper => {
+                                                const id = wrapper.dataset.itemId;
+                                                const item = ppeDeliveryItems.find(candidate => String(candidate.id) === id);
+                                                if (!item) return;
+
+                                                const cardIndex = wrapper.closest('[data-delivery-receipt]')?.dataset.index;
+                                                const perCard = usedByItemAndCard[id] || {};
+                                                const ownValue = cardIndex !== undefined ? (perCard[cardIndex] || 0) : 0;
+
+                                                const usedElsewhere = Object.entries(perCard)
+                                                    .filter(([otherIndex]) => otherIndex !== cardIndex)
+                                                    .reduce((sum, [, qty]) => sum + qty, 0);
+
+                                                const liveRemaining = Math.max(0, item.remaining - usedElsewhere);
+                                                const exceeds = ownValue > liveRemaining;
+                                                const isSelected = wrapper.classList.contains('ppe-item-selected');
+
+                                                const label = wrapper.querySelector('[data-item-remaining-label]');
+                                                if (label) {
+                                                    label.textContent = `Remaining: ${liveRemaining.toLocaleString()} / ${item.planned.toLocaleString()}`;
+                                                }
+
+                                                const quantityInput = wrapper.querySelector('[data-item-quantity-input]');
+                                                if (quantityInput) {
+                                                    quantityInput.max = String(liveRemaining);
+                                                }
+
+                                                wrapper.classList.remove('border-slate-300', 'border-blue-400', 'bg-blue-50', 'border-red-400', 'bg-red-50');
+                                                if (exceeds) {
+                                                    wrapper.classList.add('border-red-400', 'bg-red-50');
+                                                } else if (isSelected) {
+                                                    wrapper.classList.add('border-blue-400', 'bg-blue-50');
+                                                } else {
+                                                    wrapper.classList.add('border-slate-300');
+                                                }
+
+                                                const exceedsMessage = wrapper.querySelector('[data-item-exceeds-message]');
+                                                if (exceedsMessage) {
+                                                    if (exceeds) {
+                                                        exceedsMessage.textContent = `Exceeds remaining stock by ${(ownValue - liveRemaining).toLocaleString()} unit(s).`;
+                                                        exceedsMessage.classList.remove('hidden');
+                                                    } else {
+                                                        exceedsMessage.textContent = '';
+                                                        exceedsMessage.classList.add('hidden');
+                                                    }
+                                                }
+
                                                 const button = wrapper.querySelector('.ppe-item-button');
+                                                if (button && !isSelected) {
+                                                    const exhausted = liveRemaining <= 0;
+                                                    button.disabled = exhausted;
+                                                    wrapper.classList.toggle('opacity-50', exhausted);
+                                                }
+                                            });
+                                        };
+
+                                        const applyServerErrors = () => {
+                                            Object.entries(serverErrors).forEach(([key, messages]) => {
+                                                const el = form.querySelector(`[data-error="${CSS.escape(key)}"]`);
+                                                if (!el) return;
+                                                el.textContent = messages[0];
+                                                el.classList.remove('hidden');
+                                            });
+                                        };
+
+                                        const serializeCard = cardEl => {
+                                            const items = {};
+
+                                            cardEl.querySelectorAll('[data-item-quantity-input]').forEach(input => {
+                                                if (input.disabled) return;
+                                                items[input.dataset.itemQuantityInput] = { quantity: input.value };
+                                            });
+
+                                            return {
+                                                delivery_receipt_date: cardEl.querySelector('input[type="date"]').value,
+                                                remarks: cardEl.querySelector('textarea').value,
+                                                items,
+                                            };
+                                        };
+
+                                        const reindexAll = () => {
+                                            const states = Array.from(list.querySelectorAll('[data-delivery-receipt]')).map(serializeCard);
+
+                                            list.innerHTML = '';
+                                            receiptIndex = 0;
+
+                                            states.forEach(state => {
+                                                list.insertAdjacentHTML('beforeend', receiptMarkup(receiptIndex++, state));
+                                            });
+
+                                            updateRemainingDisplays();
+                                        };
+
+                                        list.addEventListener('click', event => {
+                                            const button = event.target.closest('.ppe-item-button');
+                                            if (button) {
+                                                if (button.disabled) return;
+
+                                                const wrapper = button.closest('.ppe-item-toggle');
                                                 const check = wrapper.querySelector('.ppe-item-check');
                                                 const quantityBlock = wrapper.querySelector('.ppe-item-quantity');
-
-                                                if (!button || button.disabled || !quantityBlock) return;
-
                                                 const inputs = quantityBlock.querySelectorAll('input');
+                                                const selected = !wrapper.classList.contains('ppe-item-selected');
 
-                                                button.addEventListener('click', () => {
-                                                    const selected = !wrapper.classList.contains('ppe-item-selected');
+                                                wrapper.classList.toggle('ppe-item-selected', selected);
+                                                button.classList.toggle('text-blue-800', selected);
+                                                check.classList.toggle('hidden', !selected);
+                                                quantityBlock.classList.toggle('hidden', !selected);
 
-                                                    wrapper.classList.toggle('ppe-item-selected', selected);
-                                                    wrapper.classList.toggle('border-blue-400', selected);
-                                                    wrapper.classList.toggle('bg-blue-50', selected);
-                                                    button.classList.toggle('text-blue-800', selected);
-                                                    check.classList.toggle('hidden', !selected);
-                                                    quantityBlock.classList.toggle('hidden', !selected);
-
-                                                    inputs.forEach(input => {
-                                                        input.disabled = !selected;
-                                                    });
-
-                                                    if (selected) {
-                                                        quantityBlock.querySelector('input[type="number"]')?.focus();
-                                                    }
+                                                inputs.forEach(input => {
+                                                    input.disabled = !selected;
                                                 });
+
+                                                if (selected) {
+                                                    quantityBlock.querySelector('input[type="number"]')?.focus();
+                                                }
+
+                                                updateRemainingDisplays();
+                                                return;
+                                            }
+
+                                            const removeButton = event.target.closest('[data-remove-delivery-receipt]');
+                                            if (removeButton) {
+                                                if (list.querySelectorAll('[data-delivery-receipt]').length <= 1) return;
+                                                removeButton.closest('[data-delivery-receipt]').remove();
+                                                reindexAll();
+                                            }
+                                        });
+
+                                        list.addEventListener('input', event => {
+                                            if (event.target.matches('[data-item-quantity-input]')) {
+                                                updateRemainingDisplays();
+                                            }
+                                        });
+
+                                        addButton.addEventListener('click', () => {
+                                            list.insertAdjacentHTML('beforeend', receiptMarkup(receiptIndex++));
+                                            updateRemainingDisplays();
+                                        });
+
+                                        if (initialDeliveries.length > 0) {
+                                            initialDeliveries.forEach(delivery => {
+                                                list.insertAdjacentHTML('beforeend', receiptMarkup(receiptIndex++, delivery));
                                             });
+                                        } else {
+                                            list.insertAdjacentHTML('beforeend', receiptMarkup(receiptIndex++));
+                                        }
+
+                                        applyServerErrors();
+                                        updateRemainingDisplays();
                                     })();
                                 </script>
 

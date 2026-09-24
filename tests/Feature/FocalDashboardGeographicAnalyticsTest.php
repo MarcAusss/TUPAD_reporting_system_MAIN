@@ -256,7 +256,7 @@ class FocalDashboardGeographicAnalyticsTest extends TestCase
             'insurance_beneficiaries' => 20,
             'insurance_total' => '2000.00',
             'total_project_cost' => '107000.00',
-            'status' => ProjectStatus::ONGOING_PROFILING,
+            'status' => ProjectStatus::TSSD_EVALUATION,
             'created_by' => $this->focal->id,
             'updated_by' => $this->focal->id,
         ]);

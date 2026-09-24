@@ -83,7 +83,7 @@ class PreP5GipRemovalQuickWorkflowTest extends TestCase
         $this->assertFalse(Schema::hasColumn('users', 'supervisor_tc_id'));
     }
 
-    public function test_new_project_starts_in_ongoing_profiling_and_can_advance_from_top_quick_action(): void
+    public function test_new_project_starts_in_tssd_evaluation(): void
     {
         [$tc, $allocation, $province, $municipality, $barangay] = $this->projectReferences();
 
@@ -115,26 +115,13 @@ class PreP5GipRemovalQuickWorkflowTest extends TestCase
 
         $project = Project::query()->where('project_title', 'Quick Workflow Test Project')->firstOrFail();
 
-        $this->assertSame(ProjectStatus::ONGOING_PROFILING, $project->status);
+        $this->assertSame(ProjectStatus::TSSD_EVALUATION, $project->status);
 
         $this->actingAs($tc)
             ->get(route('projects.show', $project))
             ->assertOk()
             ->assertSee('Next Workflow Action')
-            ->assertSee('Ongoing Profiling')
-            ->assertSee('TSSD Evaluation')
-            ->assertSee('Continue Workflow')
-            ->assertSee('Quick Workflow Progression')
-            ->assertSee('Submit to TSSD Evaluation')
-            ->assertSee(route('projects.evaluation.start', $project), false);
-
-        $this->actingAs($tc)
-            ->post(route('projects.evaluation.start', $project), [
-                'quick_action' => '1',
-            ])
-            ->assertRedirect(route('projects.show', $project));
-
-        $this->assertSame(ProjectStatus::TSSD_EVALUATION, $project->fresh()->status);
+            ->assertSee('TSSD Evaluation');
     }
 
     /** @return array{0:User,1:AdlAllocation,2:Province,3:Municipality,4:Barangay} */

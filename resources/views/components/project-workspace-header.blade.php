@@ -27,7 +27,6 @@
 
     $quickWorkflowHeaderAction = (auth()->user()->isAdmin() || auth()->user()->isTc())
         && in_array($project->status, [
-            \App\Enums\ProjectStatus::ONGOING_PROFILING,
             \App\Enums\ProjectStatus::TSSD_EVALUATION,
             \App\Enums\ProjectStatus::FOR_COMPLIANCE,
             \App\Enums\ProjectStatus::FOR_APPROVAL,

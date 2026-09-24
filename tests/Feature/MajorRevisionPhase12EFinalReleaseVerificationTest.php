@@ -32,7 +32,6 @@ class MajorRevisionPhase12EFinalReleaseVerificationTest extends TestCase
 
         $this->assertSame(
             [
-                ProjectStatus::ONGOING_PROFILING,
                 ProjectStatus::TSSD_EVALUATION,
                 ProjectStatus::FOR_APPROVAL,
                 ProjectStatus::APPROVED,
@@ -47,7 +46,6 @@ class MajorRevisionPhase12EFinalReleaseVerificationTest extends TestCase
 
         $this->assertSame(
             [
-                ProjectStatus::ONGOING_PROFILING,
                 ProjectStatus::TSSD_EVALUATION,
                 ProjectStatus::FOR_APPROVAL,
                 ProjectStatus::APPROVED,

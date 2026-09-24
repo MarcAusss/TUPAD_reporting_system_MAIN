@@ -33,7 +33,7 @@ class AggregateBeneficiaryWorkflowTest extends TestCase
         }
     }
 
-    public function test_tc_can_submit_project_to_tssd_using_only_aggregate_beneficiary_counts(): void
+    public function test_project_reaches_tssd_evaluation_using_only_aggregate_beneficiary_counts(): void
     {
         $tc = User::factory()->create([
             'role' => UserRole::TC,
@@ -86,17 +86,11 @@ class AggregateBeneficiaryWorkflowTest extends TestCase
             'insurance_rate' => 50,
             'insurance_total' => 2500,
             'total_project_cost' => 457500,
-            'status' => ProjectStatus::ONGOING_PROFILING,
+            'status' => ProjectStatus::TSSD_EVALUATION,
             'created_by' => $tc->id,
         ]);
 
         $this->assertSame(0, $project->beneficiaries()->count());
-
-        $response = $this
-            ->actingAs($tc)
-            ->post(route('projects.evaluation.start', $project));
-
-        $response->assertRedirect(route('projects.show', $project));
 
         $this->assertSame(
             ProjectStatus::TSSD_EVALUATION,

@@ -113,7 +113,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
         );
 
         $this->command?->warn(
-            'All seeded projects are intentionally forced to Ongoing Profiling. Source spreadsheet statuses, source implementation modes, and source project codes are retained in traceability remarks.'
+            'All seeded projects are intentionally forced to TSSD Evaluation. Source spreadsheet statuses, source implementation modes, and source project codes are retained in traceability remarks.'
         );
     }
 
@@ -674,7 +674,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
             'insurance_total' => $this->money($row['insurance_total']),
             // The application's project cost is the amount requested/charged to DOLE grants (AO + AP + AQ in the source sheet), not the external equity-inclusive AV column.
             'total_project_cost' => $amount,
-            'status' => ProjectStatus::ONGOING_PROFILING,
+            'status' => ProjectStatus::TSSD_EVALUATION,
             'remarks' => $this->projectRemarks($row),
             'created_by' => $actor->id,
             'updated_by' => $actor->id,
@@ -688,7 +688,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
 
         $history?->update([
             'changed_by' => $actor->id,
-            'remarks' => 'FY2025 spreadsheet seed record created in Ongoing Profiling.',
+            'remarks' => 'FY2025 spreadsheet seed record created in TSSD Evaluation.',
         ]);
 
         $location = ProjectLocation::query()->create([
@@ -731,7 +731,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
             'Source project code: '.($row['source_project_code'] ?: '—'),
             'Source status: '.($row['source_status'] ?: 'Blank'),
             'Source implementation mode: '.($row['implementation_mode'] ?: 'Blank'),
-            'Seeder status override: '.ProjectStatus::ONGOING_PROFILING->label(),
+            'Seeder status override: '.ProjectStatus::TSSD_EVALUATION->label(),
             'Source location text: '.$row['source_barangay'].', '.$row['source_municipality'].', '.$row['source_province'].' ('.$row['source_district'].')',
             'Source income class: '.($row['income_class'] ?: '—').'. Canonical income class is taken from the resolved PSGC municipality reference.',
             'Resolved representative PSGC location: municipality '.$row['municipality_psgc'].'; barangay '.$row['barangay_psgc'].'.',
