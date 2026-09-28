@@ -632,12 +632,14 @@ final class ReportingDataService
             }
 
             foreach ($matchingAddresses as $address) {
+                // Actual Beneficiary Mapping subtracts the TC's deductions for
+                // beneficiaries not included in the completed obligations.
                 $this->addGeographicAllocation(
                     $rows,
                     $this->beneficiaryAddressDescriptor($address, $groupBy),
                     $project->id,
-                    (int) $address->beneficiaries_total,
-                    (int) $address->beneficiaries_female,
+                    $filters->actualBeneficiaries ? $address->actualTotal() : (int) $address->beneficiaries_total,
+                    $filters->actualBeneficiaries ? $address->actualFemale() : (int) $address->beneficiaries_female,
                     $projectAllocationComplete,
                 );
             }
@@ -1021,6 +1023,7 @@ final class ReportingDataService
             'beneficiaryAddresses.province',
             'beneficiaryAddresses.municipality',
             'beneficiaryAddresses.barangay',
+            'beneficiaryAddresses.deduction',
             'beneficiarySectors',
             'laborMarketReferrals',
         ]);
@@ -1544,6 +1547,7 @@ final class ReportingDataService
             sector: $filters->sector,
             interventionFocus: $filters->interventionFocus,
             laborMarketProgram: $filters->laborMarketProgram,
+            actualBeneficiaries: $filters->actualBeneficiaries,
         );
     }
 

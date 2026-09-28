@@ -6,6 +6,7 @@ use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
 use App\Models\ProjectBeneficiaryAddress;
+use App\Models\ProjectBeneficiaryDeduction;
 use App\Models\User;
 use App\Services\Auth\ProvinceAccessService;
 use Illuminate\Support\Facades\DB;
@@ -248,12 +249,22 @@ class ProjectBeneficiaryAddressService
         $changed = $before !== $after;
 
         DB::transaction(function () use ($project, $provinceId, $rows, $user): void {
+            // Address rows are recreated, so carry any Actual Beneficiary
+            // Mapping deductions over by barangay.
+            $previousDeductions = ProjectBeneficiaryDeduction::query()
+                ->where('project_id', $project->id)
+                ->with('address:id,barangay_id')
+                ->get()
+                ->keyBy(fn (ProjectBeneficiaryDeduction $deduction): int => (int) $deduction->address?->barangay_id);
+
             ProjectBeneficiaryAddress::query()
                 ->where('project_id', $project->id)
                 ->delete();
 
+            $deductionsIntact = true;
+
             foreach ($rows as $row) {
-                ProjectBeneficiaryAddress::query()->create([
+                $address = ProjectBeneficiaryAddress::query()->create([
                     'project_id' => $project->id,
                     'province_id' => $provinceId,
                     'municipality_id' => $row['municipality_id'],
@@ -263,6 +274,38 @@ class ProjectBeneficiaryAddressService
                     'encoded_by' => $user->id,
                     'updated_by' => $user->id,
                 ]);
+
+                $deduction = $previousDeductions->pull((int) $row['barangay_id']);
+
+                if ($deduction === null) {
+                    continue;
+                }
+
+                if (
+                    $deduction->beneficiaries_deducted > (int) $row['beneficiaries_total']
+                    || $deduction->female_deducted > (int) $row['beneficiaries_female']
+                ) {
+                    $deductionsIntact = false;
+
+                    continue;
+                }
+
+                ProjectBeneficiaryDeduction::query()->create([
+                    'project_id' => $project->id,
+                    'project_beneficiary_address_id' => $address->id,
+                    'beneficiaries_deducted' => $deduction->beneficiaries_deducted,
+                    'female_deducted' => $deduction->female_deducted,
+                    'recorded_by' => $deduction->recorded_by,
+                ]);
+            }
+
+            // A deduction whose barangay was removed (or no longer fits) no
+            // longer adds up to the shortfall, so the TC must record it again.
+            if ((! $deductionsIntact || $previousDeductions->isNotEmpty()) && $project->beneficiary_deductions_recorded_at !== null) {
+                $project->forceFill([
+                    'beneficiary_deductions_recorded_at' => null,
+                    'beneficiary_deductions_recorded_by' => null,
+                ])->save();
             }
 
             $this->ppeDistribution->sync($project, $user, $rows);

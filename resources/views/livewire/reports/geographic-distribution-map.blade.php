@@ -360,10 +360,16 @@
                 $allocationHint = $allocationAvailable
                     ? 'Existing province-level fund-status semantics'
                     : 'No authoritative municipality/barangay financial split';
-                $beneficiaryCardLabel = $familyKey === 'beneficiaries' ? 'Mapped Beneficiaries' : 'Project Beneficiaries';
-                $beneficiaryCardHint = $familyKey === 'beneficiaries'
-                    ? 'Exact geographic allocation'
-                    : 'Beneficiaries attached to the filtered project cohort';
+                $beneficiaryCardLabel = match ($familyKey) {
+                    'beneficiaries' => 'Mapped Beneficiaries',
+                    'actual_beneficiaries' => 'Actual Beneficiaries',
+                    default => 'Project Beneficiaries',
+                };
+                $beneficiaryCardHint = match ($familyKey) {
+                    'beneficiaries' => 'Exact geographic allocation',
+                    'actual_beneficiaries' => 'Beneficiary Mapping minus TC deductions',
+                    default => 'Beneficiaries attached to the filtered project cohort',
+                };
                 $cards = [
                     ['label' => $beneficiaryCardLabel, 'value' => number_format((int) $mapPayload['summary']['beneficiaries']), 'hint' => $beneficiaryCardHint],
                     ['label' => 'Total Projects', 'value' => number_format((int) $mapPayload['summary']['projects']), 'hint' => $projectHint],

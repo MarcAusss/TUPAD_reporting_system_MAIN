@@ -567,6 +567,7 @@ final class BicolMapDataService
             sector: $filters->sector,
             interventionFocus: $filters->interventionFocus,
             laborMarketProgram: $filters->laborMarketProgram,
+            actualBeneficiaries: $filters->actualBeneficiaries,
         );
 
         return $this->reporting

@@ -82,6 +82,13 @@ class ProjectReleaseOfAssistanceController extends Controller
             );
         }
 
+        if ($obligation->isReleased()) {
+            abort(
+                403,
+                'This tranche already has a Release of Assistance. Corrections are made from its section in the project overview.'
+            );
+        }
+
         if (! $paymentService->trancheFullyDisbursed($obligation)) {
             abort(
                 403,

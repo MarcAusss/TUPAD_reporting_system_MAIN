@@ -46,8 +46,20 @@ class DashboardActionQueueService
 
         $projects = $this->provinceAccess
             ->scopeProjects(Project::query(), $user)
-            ->where('status', '!=', ProjectStatus::COMPLETED->value)
+            // Completed projects are only kept when their beneficiary
+            // deductions are still outstanding (completion does not wait).
+            ->where(fn ($query) => $query
+                ->where('status', '!=', ProjectStatus::COMPLETED->value)
+                ->orWhere(fn ($pending) => $pending
+                    ->whereNotNull('obligations_completed_at')
+                    ->whereNull('beneficiary_deductions_recorded_at')))
             ->addSelect([
+                'obligated_beneficiaries' => ProjectObligation::query()
+                    ->selectRaw('coalesce(sum(beneficiaries_total), 0)')
+                    ->whereColumn('project_obligations.project_id', 'projects.id'),
+                'obligated_female' => ProjectObligation::query()
+                    ->selectRaw('coalesce(sum(beneficiaries_female), 0)')
+                    ->whereColumn('project_obligations.project_id', 'projects.id'),
                 'current_status_changed_at' => ProjectStatusHistory::query()
                     ->select('changed_at')
                     ->whereColumn('project_status_histories.project_id', 'projects.id')
@@ -178,6 +190,26 @@ class DashboardActionQueueService
                 'item_route_params' => ['workspace' => 'workflow'],
                 'item_anchor' => 'release-of-assistance',
             ],
+            'beneficiary_deduction' => [
+                'label' => 'Beneficiary Deduction',
+                'description' => 'Obligations completed with fewer beneficiaries than declared; the TC indicates the addresses of the beneficiaries not included.',
+                'route' => 'project-workflow.index',
+                'route_params' => ['queue' => 'beneficiary-deduction'],
+                'implementation_mode' => ImplementationMode::DIRECT_ADMINISTRATION,
+                'statuses' => [ProjectStatus::FOR_PAYMENT, ProjectStatus::COMPLETED],
+                'filter' => fn (Project $project): bool =>
+                    $project->obligations_completed_at !== null
+                    && $project->beneficiary_deductions_recorded_at === null
+                    && (
+                        (int) $project->beneficiaries_total > (int) $project->obligated_beneficiaries
+                        || (int) $project->beneficiaries_female > (int) $project->obligated_female
+                    ),
+                'started_at_attribute' => 'obligations_completed_at',
+                'action_label' => 'Beneficiary Deduction',
+                'item_route' => 'projects.show',
+                'item_route_params' => ['workspace' => 'overview'],
+                'item_anchor' => 'section-beneficiary-deduction-{id}',
+            ],
             'acp_implementation' => [
                 'label' => 'ACP Implementation',
                 'description' => 'Through ACP projects in implementation.',
@@ -284,7 +316,7 @@ class DashboardActionQueueService
             'action_label' => $definition['action_label'] ?? null,
             'item_url' => isset($definition['item_route'])
                 ? route($definition['item_route'], ['project' => $project->id] + ($definition['item_route_params'] ?? []))
-                    .(isset($definition['item_anchor']) ? '#'.$definition['item_anchor'] : '')
+                    .(isset($definition['item_anchor']) ? '#'.str_replace('{id}', (string) $project->id, $definition['item_anchor']) : '')
                 : null,
             'status_started_at' => $startedAt,
             'age_days' => $ageDays,

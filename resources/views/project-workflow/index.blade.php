@@ -699,7 +699,12 @@
 
                                 <td class="px-5 py-4 text-right">
 
-                                    @if ($queue === 'release-of-assistance')
+                                    @if ($queue === 'beneficiary-deduction')
+                                        <a href="{{ route('projects.show', ['project' => $project, 'workspace' => 'overview']) }}#section-beneficiary-deduction-{{ $project->id }}"
+                                            class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800">
+                                            Record Deduction
+                                        </a>
+                                    @elseif ($queue === 'release-of-assistance')
                                         <a href="{{ route('projects.show', ['project' => $project, 'workspace' => 'workflow']) }}#release-of-assistance"
                                             class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800">
                                             Record Release

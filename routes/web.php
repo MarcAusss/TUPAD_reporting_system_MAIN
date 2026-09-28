@@ -35,6 +35,8 @@ use App\Http\Controllers\ProjectImplementationController;
 use App\Http\Controllers\ProjectInsuranceClaimController;
 use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\ProjectReleaseOfAssistanceController;
+use App\Http\Controllers\ProjectSectionEditController;
+use App\Http\Controllers\ProjectBeneficiaryDeductionController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ProjectWorkflowQueueController;
 use App\Http\Controllers\PhysicalFinancialAccomplishmentController;
@@ -539,6 +541,7 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
                 'implementation',
                 'post-documents',
                 'release-of-assistance',
+                'beneficiary-deduction',
             ])
             ->name('project-workflow.index');
 
@@ -682,4 +685,42 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
     Route::get('/projects/{project}', [ProjectController::class, 'show'])
         ->whereNumber('project')
         ->name('projects.show');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Overview Section Edits
+    |--------------------------------------------------------------------------
+    |
+    | Focal/Admin edit directly. A TUPAD Coordinator requests an edit, and a
+    | Focal/Admin approval (from the notification bell) unlocks one save.
+    |
+    */
+
+    Route::middleware('role:admin,focal,tc')->group(function () {
+        Route::put('/projects/{project}/sections/{section}/{record}', [ProjectSectionEditController::class, 'update'])
+            ->whereNumber('project')
+            ->whereNumber('record')
+            ->name('projects.sections.update');
+
+        Route::put('/projects/{project}/beneficiary-deductions', [ProjectBeneficiaryDeductionController::class, 'update'])
+            ->whereNumber('project')
+            ->name('projects.beneficiary-deductions.update');
+    });
+
+    Route::middleware('role:tc')->group(function () {
+        Route::post('/projects/{project}/sections/{section}/{record}/edit-requests', [ProjectSectionEditController::class, 'requestEdit'])
+            ->whereNumber('project')
+            ->whereNumber('record')
+            ->name('projects.sections.edit-requests.store');
+    });
+
+    Route::middleware('role:admin,focal')->group(function () {
+        Route::post('/edit-requests/{editRequest}/approve', [ProjectSectionEditController::class, 'approve'])
+            ->whereNumber('editRequest')
+            ->name('edit-requests.approve');
+
+        Route::post('/edit-requests/{editRequest}/decline', [ProjectSectionEditController::class, 'decline'])
+            ->whereNumber('editRequest')
+            ->name('edit-requests.decline');
+    });
 });

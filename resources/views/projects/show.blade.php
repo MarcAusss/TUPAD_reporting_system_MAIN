@@ -683,6 +683,9 @@
 
         </div>
 
+        {{-- Project & Workflow Records (one editable section per workflow step) --}}
+        @include('projects.partials.workflow-records')
+
         {{-- Beneficiaries & Wage --}}
 
         <section data-workspace-panel="beneficiaries"
@@ -4637,6 +4640,10 @@
                                 @if ($obligation->release_remarks)
                                     <p class="mt-2 text-xs text-slate-600">{{ $obligation->release_remarks }}</p>
                                 @endif
+                                <a href="{{ route('projects.show', ['project' => $project, 'workspace' => 'overview']) }}#section-release-{{ $obligation->id }}"
+                                    class="mt-2 inline-flex text-[11px] font-semibold text-[#063b86] hover:underline">
+                                    Correct this release in the Overview →
+                                </a>
                             @elseif (! $trancheFullyDisbursed)
                                 <p class="mt-3 text-xs text-slate-500">
                                     Waiting for the Focal to fully disburse this tranche before the Release of Assistance can be recorded.
@@ -4647,7 +4654,7 @@
                                 </p>
                             @endif
 
-                            @if ($canRecordRelease && $trancheFullyDisbursed)
+                            @if ($canRecordRelease && $trancheFullyDisbursed && ! $trancheReleased)
                                 <details class="mt-3 rounded-lg border border-slate-200 bg-slate-50" @if (! $trancheReleased || $errorBag->any()) open @endif>
                                     <summary class="cursor-pointer px-4 py-2 text-xs font-semibold text-[#063b86]">
                                         {{ $trancheReleased ? 'Edit Release of Assistance' : 'Record Release of Assistance' }}

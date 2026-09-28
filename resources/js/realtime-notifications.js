@@ -363,6 +363,12 @@ export function initializeRealtimeNotifications() {
         }
     });
 
+    // Fired after an in-dropdown action (e.g. approving an edit request).
+    window.addEventListener('tupad:notifications-refresh', () => {
+        window.clearTimeout(timer);
+        poll();
+    });
+
     window.addEventListener('focus', () => {
         if (Date.now() - lastPollAt > 1500) {
             window.clearTimeout(timer);

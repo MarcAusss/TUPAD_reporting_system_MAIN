@@ -160,7 +160,8 @@ class ReleaseOfAssistanceTest extends TestCase
 
         $this->actingAs($this->tc)
             ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
-            ->assertSee('value="Payout through cooperative"', false);
+            ->assertSee('Others: Payout through cooperative')
+            ->assertSee('Correct this release in the Overview');
     }
 
     public function test_release_requires_mode_date_and_venue(): void

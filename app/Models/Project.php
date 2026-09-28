@@ -68,6 +68,8 @@ class Project extends Model
 
         'obligations_completed_at',
         'obligations_completed_by',
+        'beneficiary_deductions_recorded_at',
+        'beneficiary_deductions_recorded_by',
 
         'province_id',
         'municipality_id',
@@ -99,6 +101,7 @@ class Project extends Model
             'total_project_cost' => 'decimal:2',
 
             'obligations_completed_at' => 'datetime',
+            'beneficiary_deductions_recorded_at' => 'datetime',
         ];
     }
 
@@ -213,6 +216,26 @@ class Project extends Model
     {
         return $this->hasMany(ProjectObligation::class)
             ->orderBy('tranche_number');
+    }
+
+    public function beneficiaryDeductions(): HasMany
+    {
+        return $this->hasMany(ProjectBeneficiaryDeduction::class);
+    }
+
+    public function beneficiaryDeductionsRecorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'beneficiary_deductions_recorded_by');
+    }
+
+    public function editRequests(): HasMany
+    {
+        return $this->hasMany(ProjectEditRequest::class)->latest();
+    }
+
+    public function editLogs(): HasMany
+    {
+        return $this->hasMany(ProjectEditLog::class)->latest();
     }
 
     public function obligationsCompleter(): BelongsTo

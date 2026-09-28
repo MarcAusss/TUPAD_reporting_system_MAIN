@@ -66,11 +66,21 @@ function createItem(item, unread) {
     const body = element('div', 'min-w-0 flex-1');
 
     const headline = element('p', 'text-sm leading-5 text-slate-700');
-    headline.append(
-        element('strong', 'font-semibold text-slate-900', item.project_title),
-        document.createTextNode(item.action_label ? ' needs ' : ' is now '),
-        element('strong', 'font-semibold text-slate-900', item.action_label || item.status_label),
-    );
+
+    if (item.message) {
+        // Edit request / decision: the message is the headline, the project follows.
+        headline.append(
+            element('strong', 'font-semibold text-slate-900', item.message),
+            document.createTextNode(' '),
+            element('span', 'text-slate-600', item.project_title),
+        );
+    } else {
+        headline.append(
+            element('strong', 'font-semibold text-slate-900', item.project_title),
+            document.createTextNode(item.action_label ? ' needs ' : ' is now '),
+            element('strong', 'font-semibold text-slate-900', item.action_label || item.status_label),
+        );
+    }
 
     const meta = element(
         'p',
@@ -104,7 +114,13 @@ function createItem(item, unread) {
         timeAgo(item),
     );
 
-    body.append(headline, meta, figures, progress, time);
+    body.append(headline);
+
+    if (item.reason) {
+        body.append(element('p', 'mt-1 rounded-md bg-slate-100 px-2 py-1 text-xs italic text-slate-600', `“${item.reason}”`));
+    }
+
+    body.append(meta, figures, progress, time);
     link.append(icon, body);
 
     if (unread) {
@@ -113,7 +129,67 @@ function createItem(item, unread) {
         link.append(dot);
     }
 
-    return link;
+    if (!Array.isArray(item.actions) || item.actions.length === 0) {
+        return link;
+    }
+
+    // Buttons cannot live inside the link, so wrap both in a container.
+    const container = element('div', `rounded-lg ${unread ? 'bg-[#f2f7ff]' : ''}`);
+    link.classList.remove('bg-[#f2f7ff]');
+    container.append(link, createActions(item));
+
+    return container;
+}
+
+function createActions(item) {
+    const row = element('div', 'flex flex-wrap items-center gap-2 px-3 pb-3 pl-17');
+
+    item.actions.forEach((action) => {
+        const button = element(
+            'button',
+            action.style === 'primary'
+                ? 'inline-flex h-8 items-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6b] disabled:opacity-60'
+                : 'inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60',
+            action.label,
+        );
+        button.type = 'button';
+
+        button.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            row.querySelectorAll('button').forEach((other) => { other.disabled = true; });
+
+            try {
+                const response = await fetch(action.url, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                    },
+                    credentials: 'same-origin',
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'The request could not be completed.');
+                }
+
+                row.replaceChildren(element('span', 'text-xs font-semibold text-emerald-700', data.message || 'Done.'));
+                window.dispatchEvent(new CustomEvent('tupad:notifications-refresh'));
+            } catch (error) {
+                row.querySelectorAll('button').forEach((other) => { other.disabled = false; });
+                row.querySelector('[data-action-error]')?.remove();
+                const message = element('span', 'text-xs font-semibold text-rose-600', error.message);
+                message.dataset.actionError = '';
+                row.append(message);
+            }
+        });
+
+        row.append(button);
+    });
+
+    return row;
 }
 
 function createEmptyState() {

@@ -24,6 +24,7 @@ class GeographicDistributionMap extends Component
     private const FAMILIES = [
         'projects',
         'beneficiaries',
+        'actual_beneficiaries',
         'sectors',
         'interventions',
     ];
@@ -400,6 +401,7 @@ class GeographicDistributionMap extends Component
             'sector_group' => $this->mapFamily === 'sectors' ? $this->sectorGroup : null,
             'sector' => $this->mapFamily === 'sectors' ? $this->sector : null,
             'intervention_focus' => $this->mapFamily === 'interventions' ? $this->interventionFocus : null,
+            'actual_beneficiaries' => $this->mapFamily === 'actual_beneficiaries' ? true : null,
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
@@ -514,6 +516,11 @@ class GeographicDistributionMap extends Component
                 'label' => 'Intervention-Focus Mapping',
                 'description' => 'Geographic concentration of projects under the selected primary intervention focus.',
                 'note' => 'Intervention-Focus Mapping counts projects by official geography after applying the selected primary intervention classification.',
+            ],
+            'actual_beneficiaries' => [
+                'label' => 'Actual Beneficiary Mapping',
+                'description' => 'Beneficiary Mapping minus the beneficiaries not included in the completed obligations, as indicated by the TUPAD Coordinator per address.',
+                'note' => 'Actual Beneficiary Mapping = Beneficiary Mapping − TC deductions per address. Projects without deductions show their Beneficiary Mapping unchanged.',
             ],
             default => [
                 'label' => 'Beneficiary Mapping',
