@@ -23,7 +23,7 @@ return new class extends Migration
             $table->unique(
                 ['project_id', 'barangay_id', 'project_ppe_item_id'],
                 'project_brgy_ppe_item_count_scope_unique'
-            );
+            );  
         });
     }
 
