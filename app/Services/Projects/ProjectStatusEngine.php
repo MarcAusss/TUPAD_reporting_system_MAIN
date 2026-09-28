@@ -371,7 +371,7 @@ class ProjectStatusEngine
             ProjectStatus::FOR_PAYMENT =>
                 $this->isThroughAcp($project)
                     ? ['acpPayment']
-                    : ['obligations.disbursements', 'payout'],
+                    : ['obligations.disbursements'],
 
             ProjectStatus::FOR_LIQUIDATION,
             ProjectStatus::PARTIALLY_LIQUIDATED => [

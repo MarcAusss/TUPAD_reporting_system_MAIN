@@ -262,11 +262,12 @@ class MajorRevisionPhase6StatusEngineTest extends TestCase
         );
 
         $project->update(['obligations_completed_at' => now()]);
-        $project->payout()->create([
-            'payout_date' => now('Asia/Manila')->toDateString(),
-            'payout_mode' => 'Cash',
-            'venue' => 'Municipal Hall',
-            'recorded_by' => $this->tc->id,
+        $obligation->update([
+            'release_date' => now('Asia/Manila')->toDateString(),
+            'release_mode' => '(Actual) Cash Payout',
+            'release_venue' => 'Municipal Hall',
+            'released_by' => $this->tc->id,
+            'released_at' => now(),
         ]);
 
         Artisan::call('projects:sync-statuses');

@@ -94,8 +94,8 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
         );
 
         $this->actingAs($admin)
-            ->post(route('projects.release-of-assistance.store', $project), [
-                'payout_mode' => 'Cash',
+            ->post(route('projects.release-of-assistance.store', [$project, $obligation]), [
+                'payout_mode' => '(Actual) Cash Payout',
                 'payout_date' => now('Asia/Manila')->toDateString(),
                 'venue' => 'Legazpi City Hall',
             ])

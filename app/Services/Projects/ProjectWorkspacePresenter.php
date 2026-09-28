@@ -95,6 +95,7 @@ final class ProjectWorkspacePresenter
                 ['label' => 'Implementation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'orientation'],
                 ['label' => 'Post Documents', 'tab' => 'workflow', 'anchor' => 'post-documents'],
                 ['label' => 'Payment', 'tab' => 'financial', 'anchor' => 'payment'],
+                ['label' => 'Release of Assistance', 'tab' => 'workflow', 'anchor' => 'release-of-assistance'],
                 ['label' => 'Completed', 'tab' => 'overview'],
             ];
 
@@ -138,12 +139,20 @@ final class ProjectWorkspacePresenter
             ProjectStatus::FOR_IMPLEMENTATION,
             ProjectStatus::ONGOING_IMPLEMENTATION => 3,
             ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 4,
-            ProjectStatus::FOR_PAYMENT => 5,
-            ProjectStatus::COMPLETED => 6,
+            // Release of Assistance becomes the current stage once the Focal
+            // has completed and fully disbursed the obligation tranches.
+            ProjectStatus::FOR_PAYMENT => $this->focalPaymentFinished($project) ? 6 : 5,
+            ProjectStatus::COMPLETED => 7,
             ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
             ProjectStatus::FOR_LIQUIDATION,
             ProjectStatus::PARTIALLY_LIQUIDATED => 5,
         };
+    }
+
+    private function focalPaymentFinished(Project $project): bool
+    {
+        return $project->obligations_completed_at !== null
+            && app(ProjectPaymentService::class)->summary($project)['is_fully_paid'];
     }
 
     private function actionFor(Project $project, User $user): array
@@ -246,43 +255,53 @@ final class ProjectWorkspacePresenter
     }
 
     /**
-     * For Payment has three sub-steps: Focal/Admin obligation tranches
-     * (ending with Complete), the TUPAD Coordinator's Release of Assistance,
-     * then waiting for full disbursement and the payout date.
+     * For Payment runs per tranche: the Focal obligates, then disburses the
+     * tranche; once it is fully disbursed the TUPAD Coordinator records its
+     * Release of Assistance. The project completes when the Focal completed
+     * the tranches, every tranche is disbursed and released, and every
+     * release date has been reached.
      */
     private function directPaymentActionFor(Project $project, User $user): array
     {
+        $paymentService = app(ProjectPaymentService::class);
         $canManagePayment = $user->isAdmin() || $user->isFocal();
-        $canRecordRelease = $user->isAdmin() || $user->isTc();
+        $obligationsCompleted = $project->obligations_completed_at !== null;
 
-        if ($project->obligations_completed_at === null) {
-            return $canManagePayment
-                ? $this->externalAction(
-                    'Action Required',
-                    'Process payment of wages',
-                    'Encode the obligation tranches, then click Complete once they equal the Total Project Cost.',
-                    'Manage Payment of Wages',
-                    route('payments.show', $project),
-                    'financial',
-                )
-                : $this->internalAction(
-                    'Pending Focal/Admin Action',
-                    'Obligation tranches are being processed',
-                    'The project is waiting for a Focal or Administrator account to complete the obligation tranches.',
-                    'View Payment Status',
-                    'financial',
-                    'payment',
-                );
+        if ($canManagePayment && ! $obligationsCompleted) {
+            return $this->externalAction(
+                'Action Required',
+                'Process payment of wages',
+                'Encode and disburse the obligation tranches, then click Complete once all tranches are saved.',
+                'Manage Payment of Wages',
+                route('payments.show', $project),
+                'financial',
+            );
         }
 
-        $project->loadMissing('payout');
+        $fullyPaid = $paymentService->summary($project)['is_fully_paid'];
 
-        if ($project->payout === null) {
-            return $canRecordRelease
+        if ($canManagePayment && ! $fullyPaid) {
+            return $this->externalAction(
+                'Action Required',
+                'Record the remaining disbursements',
+                'Each fully disbursed tranche goes to the TUPAD Coordinator for its Release of Assistance.',
+                'Manage Payment of Wages',
+                route('payments.show', $project),
+                'financial',
+            );
+        }
+
+        $release = $paymentService->releaseSummary($project);
+
+        if ($release['ready_for_release'] > 0) {
+            return ($user->isAdmin() || $user->isTc())
                 ? $this->internalAction(
                     'Action Required',
                     'Record the Release of Assistance',
-                    'Obligation tranches are complete. Record the mode of payment, date of payout, and venue.',
+                    sprintf(
+                        '%d disbursed tranche(s) need the mode of payment, date of payout, and venue.',
+                        $release['ready_for_release'],
+                    ),
                     'Record Release of Assistance',
                     'workflow',
                     'release-of-assistance',
@@ -290,42 +309,35 @@ final class ProjectWorkspacePresenter
                 : $this->internalAction(
                     'Pending TUPAD Coordinator Action',
                     'Waiting for the Release of Assistance',
-                    'Obligation tranches are complete. The TUPAD Coordinator records the mode of payment, date of payout, and venue.',
+                    'The TUPAD Coordinator records the Release of Assistance for each disbursed tranche.',
                     'View Release of Assistance',
                     'workflow',
                     'release-of-assistance',
                 );
         }
 
-        $paymentService = app(ProjectPaymentService::class);
-
-        if (! $paymentService->summary($project)['is_fully_paid']) {
-            return $canManagePayment
-                ? $this->externalAction(
-                    'Action Required',
-                    'Record the remaining disbursements',
-                    'The project completes once the full project cost is disbursed and the payout date is reached.',
-                    'Manage Payment of Wages',
-                    route('payments.show', $project),
-                    'financial',
-                )
-                : $this->internalAction(
-                    'Pending Focal/Admin Action',
-                    'Waiting for full disbursement',
-                    'The Release of Assistance is recorded. The project completes once the full project cost is disbursed and the payout date is reached.',
-                    'View Payment Status',
-                    'financial',
-                    'payment',
-                );
+        if (! $obligationsCompleted || ! $fullyPaid) {
+            return $this->internalAction(
+                'Pending Focal/Admin Action',
+                $obligationsCompleted ? 'Waiting for the Focal to disburse' : 'Waiting for the Focal to obligate and disburse',
+                'The next Release of Assistance opens once the Focal fully disburses a tranche.',
+                'View Release of Assistance',
+                'workflow',
+                'release-of-assistance',
+            );
         }
+
+        $latestReleaseDate = $project->obligations->max('release_date');
 
         return $this->internalAction(
             'Current Stage',
             'Waiting for the payout date',
-            sprintf(
-                'All requirements are recorded. The project completes automatically on the payout date (%s).',
-                $project->payout->payout_date->format('F d, Y'),
-            ),
+            $latestReleaseDate
+                ? sprintf(
+                    'Every tranche is released. The project completes automatically on the last payout date (%s).',
+                    $latestReleaseDate->format('F d, Y'),
+                )
+                : 'Every tranche is released. The project completes automatically on the last payout date.',
             'View Release of Assistance',
             'workflow',
             'release-of-assistance',

@@ -76,7 +76,7 @@ class NotificationCenterService
             ->sortByDesc(fn (array $item): int => $item['status_started_at']->getTimestamp())
             ->take(self::PROJECT_ITEM_LIMIT)
             ->map(fn (array $item): array => [
-                'key' => 'project:'.$item['project_id'].':'.$item['status']->value,
+                'key' => 'project:'.$item['project_id'].':'.$item['status']->value.':'.$item['queue_key'],
                 'project_id' => (int) $item['project_id'],
                 'project_title' => (string) $item['project_title'],
                 'location' => (string) $item['location'],
@@ -85,6 +85,7 @@ class NotificationCenterService
                 'total_project_cost' => (float) $item['total_project_cost'],
                 'status_label' => (string) $item['status_label'],
                 'queue_label' => (string) $item['queue_label'],
+                'action_label' => $item['action_label'] ?? null,
                 'progress_percent' => (int) $item['progress']['percent'],
                 'stage_label' => (string) $item['progress']['stage_label'],
                 'stage_number' => (int) $item['progress']['stage_number'],
@@ -92,7 +93,7 @@ class NotificationCenterService
                 'severity' => $item['critical'] ? 'critical' : ($item['needs_attention'] ? 'attention' : 'normal'),
                 'occurred_at' => $item['status_started_at']->toIso8601String(),
                 'occurred_human' => $item['status_started_at']->diffForHumans(),
-                'url' => route('projects.show', [
+                'url' => $item['item_url'] ?? route('projects.show', [
                     'project' => $item['project_id'],
                     'workspace' => 'overview',
                 ]).'#project-progress',

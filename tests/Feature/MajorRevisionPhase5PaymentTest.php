@@ -217,16 +217,141 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->assertDatabaseCount('project_obligations', 0);
     }
 
-    public function test_complete_is_rejected_until_totals_equal_total_project_cost(): void
+    public function test_complete_is_allowed_when_tranches_are_below_project_data(): void
     {
         $project = $this->createForPaymentProject();
 
         $this->recordTranches($project, [$this->trancheRow('600.00')]);
 
         $this->completeTranches($project)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('projects.show', $project));
+
+        $this->assertNotNull($project->fresh()->obligations_completed_at);
+    }
+
+    public function test_complete_requires_at_least_one_tranche(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->completeTranches($project, [$this->blankRow()])
             ->assertSessionHasErrors('tranches');
 
         $this->assertNull($project->fresh()->obligations_completed_at);
+    }
+
+    public function test_each_project_figure_cannot_be_exceeded_across_tranches(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        // Project: 10 beneficiaries (6 female), ₱800 wages, ₱50 insurance, ₱150 PPE.
+        $this->recordTranches($project, [$this->trancheRow('100.00', beneficiaries: 11, female: 0)])
+            ->assertSessionHasErrors('tranches.0.beneficiaries_total');
+
+        $this->recordTranches($project, [$this->trancheRow('100.00', beneficiaries: 7, female: 7)])
+            ->assertSessionHasErrors('tranches.0.beneficiaries_female');
+
+        $this->recordTranches($project, [$this->trancheRow('100.00', insurance: '50.01')])
+            ->assertSessionHasErrors('tranches.0.insurance_amount');
+
+        $this->recordTranches($project, [$this->trancheRow('100.00', ppe: '150.01')])
+            ->assertSessionHasErrors('tranches.0.ppe_amount');
+
+        $this->recordTranches($project, [
+            $this->trancheRow('100.00', beneficiaries: 6, female: 3),
+            $this->trancheRow('100.00', beneficiaries: 5, female: 3),
+        ])->assertSessionHasErrors('tranches.1.beneficiaries_total');
+
+        $this->assertDatabaseCount('project_obligations', 0);
+
+        // Below the project data is fine.
+        $this->recordTranches($project, [$this->trancheRow('455.00', '25.00', '75.00', beneficiaries: 5, female: 3)])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('project_obligations', 1);
+    }
+
+    public function test_tranche_saves_with_only_one_amount_beneficiaries_date_and_payee(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->recordTranches($project, [[
+            'beneficiaries_total' => 3,
+            'beneficiaries_female' => '',
+            'wages_amount' => '',
+            'insurance_amount' => '',
+            'ppe_amount' => '120.00',
+            'obligation_date' => now()->toDateString(),
+            'payee' => 'PPE Supplier',
+        ]])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('project_obligations', [
+            'project_id' => $project->id,
+            'beneficiaries_total' => 3,
+            'beneficiaries_female' => 0,
+            'wages_amount' => 0,
+            'insurance_amount' => 0,
+            'ppe_amount' => 120,
+            'amount' => 120,
+            'payee' => 'PPE Supplier',
+        ]);
+    }
+
+    public function test_formatted_amounts_with_commas_are_accepted(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $project->update(['wages_total' => '8000.00', 'total_project_cost' => '8200.00']);
+
+        $this->recordTranches($project, [
+            ['wages_amount' => '1,500.50'] + $this->trancheRow('0'),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('project_obligations', [
+            'project_id' => $project->id,
+            'wages_amount' => 1500.50,
+        ]);
+    }
+
+    public function test_tranche_without_any_amount_or_required_fields_is_rejected(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->recordTranches($project, [[
+            'beneficiaries_total' => 3,
+            'wages_amount' => '',
+            'insurance_amount' => '',
+            'ppe_amount' => '',
+            'obligation_date' => '',
+            'payee' => '',
+        ]])->assertSessionHasErrors([
+            'tranches.0.wages_amount',
+            'tranches.0.obligation_date',
+            'tranches.0.payee',
+        ]);
+
+        $this->recordTranches($project, [[
+            'beneficiaries_total' => '',
+            'wages_amount' => '100.00',
+            'obligation_date' => now()->toDateString(),
+            'payee' => 'TUPAD Beneficiaries',
+        ]])->assertSessionHasErrors('tranches.0.beneficiaries_total');
+
+        $this->assertDatabaseCount('project_obligations', 0);
+    }
+
+    public function test_payment_page_shows_wage_formula_and_project_limits(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->actingAs($this->focal)
+            ->get(route('payments.show', $project))
+            ->assertOk()
+            ->assertSee('Project Data vs Obligated')
+            ->assertSee('beneficiaries × ₱9,100.00', false)
+            ->assertSee('Insurance as beneficiaries × ₱50.00 insurance rate', false)
+            ->assertSee('data-insurance-per-beneficiary-cents="5000"', false)
+            ->assertSee('obligationTrancheLimits', false);
     }
 
     public function test_complete_saves_entered_rows_locks_tranches_and_redirects_to_project(): void
@@ -259,7 +384,7 @@ class MajorRevisionPhase5PaymentTest extends TestCase
 
         $this->recordTranches($project, [
             $this->trancheRow('400.00'),
-            $this->trancheRow('600.00'),
+            $this->trancheRow('400.00'),
         ]);
 
         $first = $project->obligations()
@@ -377,8 +502,8 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         string $wages,
         string $insurance = '0.00',
         string $ppe = '0.00',
-        int $beneficiaries = 10,
-        int $female = 6,
+        int $beneficiaries = 1,
+        int $female = 0,
     ): array {
         return [
             'beneficiaries_total' => $beneficiaries,

@@ -4,12 +4,15 @@ namespace Tests\Feature;
 
 use App\Enums\ProjectStatus;
 use App\Enums\UserRole;
+use App\Http\Controllers\ProjectReleaseOfAssistanceController;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
 use App\Models\Project;
+use App\Models\ProjectObligation;
 use App\Models\Province;
 use App\Models\User;
 use App\Services\Projects\ProjectStatusEngine;
+use App\Services\Projects\ProjectWorkspacePresenter;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -40,195 +43,323 @@ class ReleaseOfAssistanceTest extends TestCase
         ]);
     }
 
-    public function test_tc_records_release_of_assistance_after_tranches_are_completed(): void
+    public function test_release_is_blocked_until_the_tranche_is_fully_disbursed(): void
     {
         $project = $this->createProject();
-        $this->completeTranches($project);
+        $tranche = $this->saveTranche($project, '800.00', '50.00', '150.00');
+
+        $this->release($project, $tranche, now())->assertForbidden();
+
+        $this->disburse($project, $tranche, '400.00');
+        $this->release($project, $tranche, now())->assertForbidden();
+
+        $this->disburse($project, $tranche, '600.00');
+        $this->release($project, $tranche, now()->addDays(3))->assertSessionHasNoErrors();
+
+        $tranche->refresh();
+        $this->assertSame('(Actual) Cash Payout', $tranche->release_mode);
+        $this->assertSame('Barangay Rawis Covered Court', $tranche->release_venue);
+        $this->assertSame($this->tc->id, $tranche->released_by);
+        $this->assertNotNull($tranche->released_at);
+    }
+
+    public function test_tc_is_notified_only_after_a_tranche_is_fully_disbursed(): void
+    {
+        $project = $this->createProject('Newly Obligated Project');
+        $tranche = $this->saveTranche($project, '800.00');
+
+        $this->assertNotInTcFeed('Newly Obligated Project');
+
+        $this->disburse($project, $tranche, '300.00');
+        $this->assertNotInTcFeed('Newly Obligated Project');
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertOk()
+            ->assertSee('Waiting for the Focal to obligate and disburse')
+            ->assertSee('Waiting for the Focal to fully disburse this tranche')
+            ->assertDontSee('Save Release of Assistance');
+
+        $this->disburse($project, $tranche, '500.00')
+            ->assertSessionHas('success', fn (string $message): bool =>
+                str_contains($message, 'the TUPAD Coordinator has been notified to record its Release of Assistance'));
+
+        $this->actingAs($this->tc)
+            ->getJson(route('notifications.feed'))
+            ->assertOk()
+            ->assertJsonFragment([
+                'project_title' => 'Newly Obligated Project',
+                'action_label' => 'Release of Assistance',
+                'url' => route('projects.show', ['project' => $project, 'workspace' => 'workflow']).'#release-of-assistance',
+            ])
+            ->assertJsonFragment(['title' => 'Release of Assistance']);
 
         $this->actingAs($this->tc)
             ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
             ->assertOk()
             ->assertSee('Record the Release of Assistance')
-            ->assertSee('Mode of Payment')
-            ->assertSee('Date of Payout')
+            ->assertSee('Ready for Release of Assistance')
             ->assertSee('Save Release of Assistance');
 
-        $this->actingAs($this->focal)
-            ->get(route('payments.show', $project))
-            ->assertOk()
-            ->assertSee('Obligation tranches completed')
-            ->assertDontSee('Save Tranches');
+        $this->release($project, $tranche, now()->addDays(2))->assertSessionHasNoErrors();
 
-        $this->actingAs($this->focal)
-            ->get(route('projects.show', $project))
-            ->assertOk()
-            ->assertSee('Waiting for the Release of Assistance');
+        $this->assertNotInTcFeed('Newly Obligated Project');
 
+        // After the release, the TC waits for the Focal again.
         $this->actingAs($this->tc)
-            ->post(route('projects.release-of-assistance.store', $project), $this->releasePayload(now()->addDays(5)))
-            ->assertRedirect()
-            ->assertSessionHasNoErrors();
-
-        $this->assertDatabaseHas('project_payouts', [
-            'project_id' => $project->id,
-            'payout_mode' => 'Cash',
-            'venue' => 'Barangay Rawis Covered Court',
-            'recorded_by' => $this->tc->id,
-        ]);
-    }
-
-    public function test_release_is_blocked_before_tranches_are_completed(): void
-    {
-        $project = $this->createProject();
-
-        $this->actingAs($this->tc)
-            ->post(route('projects.release-of-assistance.store', $project), $this->releasePayload(now()))
-            ->assertForbidden();
-
-        $this->assertDatabaseCount('project_payouts', 0);
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertSee('Waiting for the Focal to obligate and disburse')
+            ->assertSee('Released · payout date pending')
+            ->assertSee('Barangay Rawis Covered Court');
     }
 
     public function test_focal_cannot_record_release_of_assistance(): void
     {
         $project = $this->createProject();
-        $this->completeTranches($project);
+        $tranche = $this->completeAndDisburseSingleTranche($project);
 
         $this->actingAs($this->focal)
-            ->post(route('projects.release-of-assistance.store', $project), $this->releasePayload(now()))
+            ->post(route('projects.release-of-assistance.store', [$project, $tranche]), $this->releasePayload(now()))
             ->assertForbidden();
 
-        $this->assertDatabaseCount('project_payouts', 0);
+        $this->assertNull($tranche->fresh()->release_date);
+    }
+
+    public function test_release_offers_the_official_modes_of_payment(): void
+    {
+        $project = $this->createProject();
+        $this->completeAndDisburseSingleTranche($project);
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertOk()
+            ->assertSeeInOrder([
+                '(Actual) Cash Payout',
+                'Release of Reference Number',
+                'Through MRSP (Money Remittance Service Providers)',
+                'Awarding of Check',
+                'Others, specify',
+            ]);
+    }
+
+    public function test_others_mode_of_payment_requires_and_stores_the_specified_mode(): void
+    {
+        $project = $this->createProject();
+        $tranche = $this->completeAndDisburseSingleTranche($project);
+        $bag = ProjectReleaseOfAssistanceController::errorBag($tranche);
+
+        $this->release($project, $tranche, now()->addDay(), ['payout_mode' => 'Others'])
+            ->assertSessionHasErrors('payout_mode_other', null, $bag);
+
+        $this->release($project, $tranche, now()->addDay(), [
+            'payout_mode' => 'Others',
+            'payout_mode_other' => 'Payout through cooperative',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('Others: Payout through cooperative', $tranche->fresh()->release_mode);
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertSee('value="Payout through cooperative"', false);
     }
 
     public function test_release_requires_mode_date_and_venue(): void
     {
         $project = $this->createProject();
-        $this->completeTranches($project);
+        $tranche = $this->completeAndDisburseSingleTranche($project);
 
         $this->actingAs($this->tc)
-            ->post(route('projects.release-of-assistance.store', $project), [
+            ->post(route('projects.release-of-assistance.store', [$project, $tranche]), [
                 'payout_mode' => 'Carrier Pigeon',
             ])
-            ->assertSessionHasErrors(['payout_mode', 'payout_date', 'venue']);
+            ->assertSessionHasErrors(
+                ['payout_mode', 'payout_date', 'venue'],
+                null,
+                ProjectReleaseOfAssistanceController::errorBag($tranche),
+            );
     }
 
-    public function test_future_payout_date_keeps_project_for_payment_until_date_is_reached(): void
+    public function test_every_tranche_needs_a_release_and_reached_payout_date_before_completion(): void
     {
         $project = $this->createProject();
-        $this->completeTranches($project);
-        $this->fullyDisburse($project);
+        $this->saveTranche($project, '400.00', '25.00', '75.00', beneficiaries: 5, female: 3);
+        $this->saveTranche($project, '400.00', '25.00', '75.00', beneficiaries: 5, female: 3, intent: 'complete');
 
-        $payoutDate = CarbonImmutable::now('Asia/Manila')->addDays(3)->startOfDay();
+        [$first, $second] = $project->obligations()->orderBy('tranche_number')->get()->all();
 
-        $this->actingAs($this->tc)
-            ->post(route('projects.release-of-assistance.store', $project), $this->releasePayload($payoutDate));
+        $this->disburse($project, $first, '500.00');
+        $this->release($project, $first, now()->subDay());
+
+        $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
+
+        $this->disburse($project, $second, '500.00');
+        $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
+
+        $lastPayout = CarbonImmutable::now('Asia/Manila')->addDays(4)->startOfDay();
+        $this->release($project, $second, $lastPayout);
 
         $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
 
         $engine = app(ProjectStatusEngine::class);
 
-        $this->assertSame(
-            ProjectStatus::FOR_PAYMENT,
-            $engine->synchronize($project->fresh(), today: $payoutDate->subDay())
-        );
-
-        $this->assertSame(
-            ProjectStatus::COMPLETED,
-            $engine->synchronize($project->fresh(), today: $payoutDate)
-        );
+        $this->assertSame(ProjectStatus::FOR_PAYMENT, $engine->synchronize($project->fresh(), today: $lastPayout->subDay()));
+        $this->assertSame(ProjectStatus::COMPLETED, $engine->synchronize($project->fresh(), today: $lastPayout));
     }
 
-    public function test_project_completes_immediately_when_payout_date_has_arrived_and_fully_disbursed(): void
+    public function test_project_completes_when_the_last_release_date_has_already_arrived(): void
     {
         $project = $this->createProject();
-        $this->completeTranches($project);
-        $this->fullyDisburse($project);
+        $tranche = $this->completeAndDisburseSingleTranche($project);
 
-        $this->actingAs($this->tc)
-            ->post(route('projects.release-of-assistance.store', $project), $this->releasePayload(now()->subDay()));
+        $this->release($project, $tranche, now()->subDay())
+            ->assertSessionHas('success', fn (string $message): bool => str_contains($message, 'now Completed'));
 
         $this->assertSame(ProjectStatus::COMPLETED, $project->fresh()->status);
     }
 
-    public function test_project_stays_incomplete_while_not_fully_disbursed(): void
+    public function test_project_does_not_complete_before_the_focal_completes_the_tranches(): void
     {
         $project = $this->createProject();
-        $this->completeTranches($project);
+        $tranche = $this->saveTranche($project, '800.00', '50.00', '150.00');
 
-        $obligation = $project->obligations()->firstOrFail();
-
-        $this->actingAs($this->focal)
-            ->post(route('projects.payment.disbursements.store', [$project, $obligation]), [
-                'amount' => '500.00',
-                'date_disbursed' => now()->toDateString(),
-                'ldap_check_number' => 'LDAP-PARTIAL',
-            ]);
-
-        $this->actingAs($this->tc)
-            ->post(route('projects.release-of-assistance.store', $project), $this->releasePayload(now()->subDay()));
+        $this->disburse($project, $tranche, '1000.00');
+        $this->release($project, $tranche, now()->subDay())->assertSessionHasNoErrors();
 
         $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
     }
 
-    public function test_release_of_assistance_queue_lists_projects_waiting_for_the_tc(): void
+    public function test_tranches_completed_below_project_cost_complete_once_released(): void
+    {
+        $project = $this->createProject();
+        $tranche = $this->saveTranche($project, '640.00', '40.00', '120.00', beneficiaries: 8, female: 5, intent: 'complete');
+
+        $this->disburse($project, $tranche, '800.00');
+        $this->release($project, $tranche, now()->subDay());
+
+        $this->assertSame(ProjectStatus::COMPLETED, $project->fresh()->status);
+    }
+
+    public function test_release_of_assistance_queue_lists_only_fully_disbursed_unreleased_tranches(): void
     {
         $waiting = $this->createProject('Waiting Release Project');
-        $this->completeTranches($waiting);
+        $this->completeAndDisburseSingleTranche($waiting);
 
-        $notYetCompleted = $this->createProject('Tranches Still Open Project');
+        $notDisbursed = $this->createProject('Not Yet Disbursed Project');
+        $this->saveTranche($notDisbursed, '800.00');
 
         $this->actingAs($this->tc)
             ->get(route('project-workflow.index', ['queue' => 'release-of-assistance']))
             ->assertOk()
             ->assertSee('Waiting Release Project')
-            ->assertDontSee('Tranches Still Open Project');
+            ->assertDontSee('Not Yet Disbursed Project');
 
         $this->actingAs($this->tc)
             ->getJson(route('notifications.feed'))
             ->assertOk()
             ->assertJsonFragment(['project_title' => 'Waiting Release Project'])
-            ->assertJsonMissing(['project_title' => $notYetCompleted->project_title]);
+            ->assertJsonMissing(['project_title' => $notDisbursed->project_title]);
+    }
+
+    public function test_project_progress_shows_release_of_assistance_stage_and_details(): void
+    {
+        $project = $this->createProject();
+        $tranche = $this->completeAndDisburseSingleTranche($project);
+
+        $workspace = app(ProjectWorkspacePresenter::class)->present($project->fresh(), $this->tc);
+
+        $this->assertSame('Release of Assistance', $workspace['stages'][6]['label']);
+        $this->assertSame(6, $workspace['current_stage_index']);
+
+        $this->release($project, $tranche, now()->addDays(5), ['remarks' => 'Bring valid ID']);
+
+        $this->actingAs($this->focal)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertOk()
+            ->assertSee('Release of Assistance Progress')
+            ->assertSee('1 of 1 tranche(s) released')
+            ->assertSee('(Actual) Cash Payout')
+            ->assertSee(now()->addDays(5)->format('F d, Y'))
+            ->assertSee('Barangay Rawis Covered Court')
+            ->assertSee('Bring valid ID')
+            ->assertSee($this->tc->name);
+
+        $this->actingAs($this->focal)
+            ->get(route('payments.show', $project))
+            ->assertOk()
+            ->assertSee('Release of Assistance:')
+            ->assertSee('Barangay Rawis Covered Court');
+    }
+
+    private function assertNotInTcFeed(string $title): void
+    {
+        $this->actingAs($this->tc)
+            ->getJson(route('notifications.feed'))
+            ->assertOk()
+            ->assertJsonMissing(['project_title' => $title]);
     }
 
     private function releasePayload($payoutDate): array
     {
         return [
-            'payout_mode' => 'Cash',
+            'payout_mode' => '(Actual) Cash Payout',
             'payout_date' => $payoutDate->format('Y-m-d'),
             'venue' => 'Barangay Rawis Covered Court',
             'remarks' => 'Payout schedule',
         ];
     }
 
-    private function completeTranches(Project $project): void
+    private function release(Project $project, ProjectObligation $tranche, $payoutDate, array $overrides = [])
     {
+        return $this->actingAs($this->tc)
+            ->post(
+                route('projects.release-of-assistance.store', [$project, $tranche]),
+                $overrides + $this->releasePayload($payoutDate)
+            );
+    }
+
+    private function saveTranche(
+        Project $project,
+        string $wages,
+        string $insurance = '0.00',
+        string $ppe = '0.00',
+        int $beneficiaries = 10,
+        int $female = 6,
+        string $intent = 'save',
+    ): ProjectObligation {
         $this->actingAs($this->focal)
             ->post(route('projects.payment.store', $project), [
-                'intent' => 'complete',
+                'intent' => $intent,
                 'tranches' => [[
-                    'beneficiaries_total' => 10,
-                    'beneficiaries_female' => 6,
-                    'wages_amount' => '800.00',
-                    'insurance_amount' => '50.00',
-                    'ppe_amount' => '150.00',
+                    'beneficiaries_total' => $beneficiaries,
+                    'beneficiaries_female' => $female,
+                    'wages_amount' => $wages,
+                    'insurance_amount' => $insurance,
+                    'ppe_amount' => $ppe,
                     'obligation_date' => now()->toDateString(),
                     'payee' => 'TUPAD Beneficiaries',
                 ]],
             ])
             ->assertSessionHasNoErrors();
+
+        return $project->obligations()->orderByDesc('tranche_number')->firstOrFail();
     }
 
-    private function fullyDisburse(Project $project): void
+    private function disburse(Project $project, ProjectObligation $tranche, string $amount)
     {
-        $obligation = $project->obligations()->firstOrFail();
-
-        $this->actingAs($this->focal)
-            ->post(route('projects.payment.disbursements.store', [$project, $obligation]), [
-                'amount' => '1000.00',
+        return $this->actingAs($this->focal)
+            ->post(route('projects.payment.disbursements.store', [$project, $tranche]), [
+                'amount' => $amount,
                 'date_disbursed' => now()->toDateString(),
-                'ldap_check_number' => 'LDAP-FULL-'.$project->id,
-            ])
-            ->assertSessionHasNoErrors();
+                'ldap_check_number' => 'LDAP-'.uniqid(),
+            ]);
+    }
+
+    private function completeAndDisburseSingleTranche(Project $project): ProjectObligation
+    {
+        $tranche = $this->saveTranche($project, '800.00', '50.00', '150.00', intent: 'complete');
+        $this->disburse($project, $tranche, '1000.00')->assertSessionHasNoErrors();
+
+        return $tranche->fresh();
     }
 
     /**

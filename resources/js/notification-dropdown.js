@@ -68,8 +68,8 @@ function createItem(item, unread) {
     const headline = element('p', 'text-sm leading-5 text-slate-700');
     headline.append(
         element('strong', 'font-semibold text-slate-900', item.project_title),
-        document.createTextNode(' is now '),
-        element('strong', 'font-semibold text-slate-900', item.status_label),
+        document.createTextNode(item.action_label ? ' needs ' : ' is now '),
+        element('strong', 'font-semibold text-slate-900', item.action_label || item.status_label),
     );
 
     const meta = element(

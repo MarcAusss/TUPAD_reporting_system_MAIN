@@ -647,10 +647,11 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
             ->name('projects.post-documents.store');
 
         Route::post(
-            '/projects/{project}/release-of-assistance',
+            '/projects/{project}/tranches/{obligation}/release-of-assistance',
             [ProjectReleaseOfAssistanceController::class, 'store']
         )
             ->whereNumber('project')
+            ->whereNumber('obligation')
             ->name('projects.release-of-assistance.store');
 
     });

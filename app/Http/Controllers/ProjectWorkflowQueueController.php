@@ -419,15 +419,14 @@ class ProjectWorkflowQueueController extends Controller
             'release-of-assistance' => [
                 'title' => 'Release of Assistance',
                 'description' =>
-                    'Direct Administration projects with completed obligation tranches waiting for the mode of payment, payout date, and venue.',
+                    'Direct Administration projects with fully disbursed tranches waiting for the mode of payment, payout date, and venue.',
                 'owner' => 'TUPAD Coordinator / Administrator',
                 'statuses' => [
                     ProjectStatus::FOR_PAYMENT->value,
                 ],
                 'scope' => fn (Builder $query): Builder => $query
                     ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
-                    ->whereNotNull('obligations_completed_at')
-                    ->whereDoesntHave('payout'),
+                    ->whereHas('obligations', fn (Builder $obligations): Builder => $obligations->awaitingRelease()),
                 'empty' =>
                     'No projects are currently waiting for a Release of Assistance.',
             ],

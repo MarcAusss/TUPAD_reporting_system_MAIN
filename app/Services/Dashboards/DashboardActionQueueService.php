@@ -5,6 +5,8 @@ namespace App\Services\Dashboards;
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Models\ProjectDisbursement;
+use App\Models\ProjectObligation;
 use App\Models\ProjectStatusHistory;
 use App\Models\User;
 use App\Services\Auth\ProvinceAccessService;
@@ -52,8 +54,15 @@ class DashboardActionQueueService
                     ->whereColumn('project_status_histories.to_status', 'projects.status')
                     ->latest('changed_at')
                     ->limit(1),
+                // When the latest fully disbursed, not-yet-released tranche was
+                // disbursed: the moment the TC's Release of Assistance is due.
+                'release_pending_since' => ProjectDisbursement::query()
+                    ->selectRaw('max(project_disbursements.created_at)')
+                    ->join('project_obligations', 'project_obligations.id', '=', 'project_disbursements.project_obligation_id')
+                    ->whereColumn('project_obligations.project_id', 'projects.id')
+                    ->whereNull('project_obligations.release_date')
+                    ->whereRaw(ProjectObligation::FULLY_DISBURSED_SQL),
             ])
-            ->withExists('payout')
             ->get();
 
         $queues = [];
@@ -82,7 +91,7 @@ class DashboardActionQueueService
                 'critical_count' => $matching->where('critical', true)->count(),
                 'oldest_days' => (int) ($matching->max('age_days') ?? 0),
                 'state_token' => sha1($matching
-                    ->map(fn (array $item): string => $item['project_id'].':'.$item['status_label'])
+                    ->map(fn (array $item): string => $item['project_id'].':'.$item['status_label'].':'.$item['status_started_at']->getTimestamp())
                     ->sort()
                     ->implode('|')),
                 'items' => $matching,
@@ -155,14 +164,19 @@ class DashboardActionQueueService
             ],
             'release' => [
                 'label' => 'Release of Assistance',
-                'description' => 'Direct Administration projects with completed obligation tranches awaiting the Release of Assistance.',
+                'description' => 'Direct Administration projects with fully disbursed tranches awaiting the Release of Assistance.',
                 'route' => 'project-workflow.index',
                 'route_params' => ['queue' => 'release-of-assistance'],
                 'implementation_mode' => ImplementationMode::DIRECT_ADMINISTRATION,
                 'statuses' => [ProjectStatus::FOR_PAYMENT],
                 'filter' => fn (Project $project): bool =>
-                    $project->obligations_completed_at !== null
-                    && ! $project->payout_exists,
+                    $project->release_pending_since !== null,
+                // The TC's action starts when the Focal fully disburses a tranche.
+                'started_at_attribute' => 'release_pending_since',
+                'action_label' => 'Release of Assistance',
+                'item_route' => 'projects.show',
+                'item_route_params' => ['workspace' => 'workflow'],
+                'item_anchor' => 'release-of-assistance',
             ],
             'acp_implementation' => [
                 'label' => 'ACP Implementation',
@@ -248,7 +262,10 @@ class DashboardActionQueueService
         int $attentionDays,
         int $criticalDays,
     ): array {
-        $startedAt = $this->statusStartedAt($project);
+        $startedAt = isset($definition['started_at_attribute'])
+            && $project->getAttribute($definition['started_at_attribute'])
+                ? Carbon::parse($project->getAttribute($definition['started_at_attribute']))
+                : $this->statusStartedAt($project);
         $ageDays = $this->ageDays($startedAt);
 
         return [
@@ -264,6 +281,11 @@ class DashboardActionQueueService
             'queue_key' => $queueKey,
             'queue_label' => $definition['label'],
             'queue_url' => route($definition['route'], $definition['route_params'] ?? []),
+            'action_label' => $definition['action_label'] ?? null,
+            'item_url' => isset($definition['item_route'])
+                ? route($definition['item_route'], ['project' => $project->id] + ($definition['item_route_params'] ?? []))
+                    .(isset($definition['item_anchor']) ? '#'.$definition['item_anchor'] : '')
+                : null,
             'status_started_at' => $startedAt,
             'age_days' => $ageDays,
             'needs_attention' => $ageDays >= $attentionDays,

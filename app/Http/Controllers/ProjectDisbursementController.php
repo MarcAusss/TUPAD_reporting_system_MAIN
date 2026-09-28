@@ -53,13 +53,13 @@ class ProjectDisbursementController extends Controller
                 'The disbursement amount must be a valid positive amount with no more than two decimal places.',
         ]);
 
-        $completed = DB::transaction(function () use (
+        $outcome = DB::transaction(function () use (
             $request,
             $project,
             $obligation,
             $validated,
             $paymentService
-        ): bool {
+        ): string {
             $lockedProject = Project::query()
                 ->lockForUpdate()
                 ->findOrFail($project->id);
@@ -138,19 +138,30 @@ class ProjectDisbursementController extends Controller
                 'recorded_by' => $request->user()->id,
             ]);
 
-            return $paymentService->synchronizeCompletion(
+            $lockedObligation->unsetRelation('disbursements');
+
+            if ($paymentService->synchronizeCompletion(
                 $lockedProject,
                 (int) $request->user()->id
-            );
+            )) {
+                return 'completed';
+            }
+
+            return $paymentService->trancheFullyDisbursed($lockedObligation)
+                && ! $lockedObligation->isReleased()
+                    ? 'ready_for_release'
+                    : 'recorded';
         });
 
         return redirect()
             ->route('payments.show', $project)
-            ->with(
-                'success',
-                $completed
-                    ? 'Disbursement recorded. All completion requirements are met and the project is now Completed.'
-                    : 'Disbursement recorded for the selected tranche.'
-            );
+            ->with('success', match ($outcome) {
+                'completed' => 'Disbursement recorded. All completion requirements are met and the project is now Completed.',
+                'ready_for_release' => sprintf(
+                    'Disbursement recorded. Tranche %d is fully disbursed and the TUPAD Coordinator has been notified to record its Release of Assistance.',
+                    $obligation->tranche_number
+                ),
+                default => 'Disbursement recorded for the selected tranche.',
+            });
     }
 }

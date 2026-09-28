@@ -60,17 +60,18 @@ class ProjectPaymentController extends Controller
                 $query->orderBy('date_disbursed')->orderBy('id'),
             'obligations.disbursements.recorder',
             'obligationsCompleter',
-            'payout.recorder',
+            'obligations.releaser',
         ]);
 
         $summary = $paymentService->summary($project);
         $nextTranche = ((int) $project->obligations
             ->max('tranche_number')) + 1;
 
-        $obligatedSum = fn (string $field): int => $project->obligations->sum(
-            fn (ProjectObligation $obligation): int =>
-                $paymentService->amountToCents($obligation->{$field})
-        );
+        $limits = $paymentService->obligationLimits($project);
+        $obligatedTotals = $paymentService->obligatedTotals($project->obligations);
+        $remaining = fn (string $key): int => max(0, $limits[$key] - $obligatedTotals[$key]);
+        $wagePerBeneficiary = $paymentService->wagePerBeneficiaryCents($project);
+        $insurancePerBeneficiary = $paymentService->insurancePerBeneficiaryCents($project);
 
         return view('payments.show', [
             'project' => $project,
@@ -79,29 +80,22 @@ class ProjectPaymentController extends Controller
             'canEditTranches' =>
                 $project->status === ProjectStatus::FOR_PAYMENT
                 && ! $summary['obligations_completed'],
+            'obligationLimits' => $limits,
+            'obligatedTotals' => $obligatedTotals,
+            'wagePerBeneficiaryCents' => $wagePerBeneficiary,
+            'insurancePerBeneficiaryCents' => $insurancePerBeneficiary,
             'remainingDefaults' => [
-                'beneficiaries_total' => max(
-                    0,
-                    (int) $project->beneficiaries_total
-                        - (int) $project->obligations->sum('beneficiaries_total')
-                ),
-                'beneficiaries_female' => max(
-                    0,
-                    (int) $project->beneficiaries_female
-                        - (int) $project->obligations->sum('beneficiaries_female')
-                ),
-                'wages_amount' => $paymentService->centsToDecimal(max(
-                    0,
-                    $paymentService->amountToCents($project->wages_total) - $obligatedSum('wages_amount')
+                'beneficiaries_total' => $remaining('beneficiaries_total'),
+                'beneficiaries_female' => $remaining('beneficiaries_female'),
+                'wages_amount' => $paymentService->centsToDecimal(min(
+                    $remaining('wages'),
+                    $remaining('beneficiaries_total') * $wagePerBeneficiary
                 )),
-                'insurance_amount' => $paymentService->centsToDecimal(max(
-                    0,
-                    $paymentService->amountToCents($project->insurance_total) - $obligatedSum('insurance_amount')
+                'insurance_amount' => $paymentService->centsToDecimal(min(
+                    $remaining('insurance'),
+                    $remaining('beneficiaries_total') * $insurancePerBeneficiary
                 )),
-                'ppe_amount' => $paymentService->centsToDecimal(max(
-                    0,
-                    $paymentService->amountToCents($project->ppe_total) - $obligatedSum('ppe_amount')
-                )),
+                'ppe_amount' => $paymentService->centsToDecimal($remaining('ppe')),
             ],
             'paymentService' => $paymentService,
         ]);
@@ -130,23 +124,41 @@ class ProjectPaymentController extends Controller
 
         $rows = collect($request->input('tranches', []))
             ->filter(fn ($row): bool => is_array($row) && collect(self::ROW_CONTENT_FIELDS)
-                ->contains(fn (string $field): bool => trim((string) ($row[$field] ?? '')) !== ''));
+                ->contains(fn (string $field): bool => trim((string) ($row[$field] ?? '')) !== ''))
+            // Accept formatted amounts such as "9,100.00".
+            ->map(function (array $row): array {
+                foreach (['wages_amount', 'insurance_amount', 'ppe_amount'] as $field) {
+                    if (isset($row[$field])) {
+                        $row[$field] = str_replace([',', ' '], '', trim((string) $row[$field]));
+                    }
+                }
+
+                return $row;
+            });
 
         $request->merge(['tranches' => $rows->all()]);
 
         $validated = $request->validate([
-            'intent' => ['required', 'in:save,complete'],
+            // Missing intent (e.g. submitted without a button) means Save.
+            'intent' => ['nullable', 'in:save,complete'],
             'tranches' => [$completing ? 'nullable' : 'required', 'array'],
             'tranches.*.beneficiaries_total' => ['required', 'integer', 'min:1'],
-            'tranches.*.beneficiaries_female' => ['required', 'integer', 'min:0', 'lte:tranches.*.beneficiaries_total'],
-            'tranches.*.wages_amount' => ['required', self::MONEY_RULE],
-            'tranches.*.insurance_amount' => ['required', self::MONEY_RULE],
-            'tranches.*.ppe_amount' => ['required', self::MONEY_RULE],
+            'tranches.*.beneficiaries_female' => ['nullable', 'integer', 'min:0', 'lte:tranches.*.beneficiaries_total'],
+            // Only one of wages, insurance, or PPE is needed; blanks count as zero.
+            'tranches.*.wages_amount' => [
+                'nullable',
+                'required_without_all:tranches.*.insurance_amount,tranches.*.ppe_amount',
+                self::MONEY_RULE,
+            ],
+            'tranches.*.insurance_amount' => ['nullable', self::MONEY_RULE],
+            'tranches.*.ppe_amount' => ['nullable', self::MONEY_RULE],
             'tranches.*.obligation_date' => ['required', 'date'],
             'tranches.*.payee' => ['required', 'string', 'max:255'],
             'tranches.*.remarks' => ['nullable', 'string', 'max:3000'],
         ], [
             'tranches.required' => 'Enter at least one tranche before saving.',
+            'tranches.*.wages_amount.required_without_all' =>
+                'Enter at least one amount (wages, insurance, or PPE) for each tranche.',
             'tranches.*.beneficiaries_female.lte' =>
                 'Female beneficiaries cannot exceed the tranche\'s total beneficiaries.',
             'tranches.*.*.regex' =>
@@ -197,19 +209,17 @@ class ProjectPaymentController extends Controller
                 ->lockForUpdate()
                 ->get();
 
-            $obligatedCents = $obligations->sum(
-                fn (ProjectObligation $obligation): int =>
-                    $paymentService->obligationCents($obligation)
-            );
-
-            $payableCents = $paymentService->payableCents($lockedProject);
+            // Tranches may add up to less than the project's own figures,
+            // but never more.
+            $limits = $paymentService->obligationLimits($lockedProject);
+            $running = $paymentService->obligatedTotals($obligations);
             $nextTranche = ((int) $obligations->max('tranche_number')) + 1;
             $rows = $validated['tranches'] ?? [];
 
             foreach ($rows as $key => $row) {
-                $wagesCents = $paymentService->amountToCents($row['wages_amount']);
-                $insuranceCents = $paymentService->amountToCents($row['insurance_amount']);
-                $ppeCents = $paymentService->amountToCents($row['ppe_amount']);
+                $wagesCents = $paymentService->amountToCents($row['wages_amount'] ?? null);
+                $insuranceCents = $paymentService->amountToCents($row['insurance_amount'] ?? null);
+                $ppeCents = $paymentService->amountToCents($row['ppe_amount'] ?? null);
                 $totalCents = $wagesCents + $insuranceCents + $ppeCents;
 
                 if ($totalCents <= 0) {
@@ -219,19 +229,20 @@ class ProjectPaymentController extends Controller
                     ]);
                 }
 
-                if ($obligatedCents + $totalCents > $payableCents) {
-                    throw ValidationException::withMessages([
-                        "tranches.{$key}.wages_amount" => sprintf(
-                            'Tranche totals cannot exceed the Total Project Cost. Remaining amount to obligate: ₱%s.',
-                            number_format(
-                                max(0, $payableCents - $obligatedCents) / 100,
-                                2
-                            )
-                        ),
-                    ]);
-                }
+                $rowValues = [
+                    'beneficiaries_total' => (int) $row['beneficiaries_total'],
+                    'beneficiaries_female' => (int) ($row['beneficiaries_female'] ?? 0),
+                    'wages' => $wagesCents,
+                    'insurance' => $insuranceCents,
+                    'ppe' => $ppeCents,
+                    'total' => $totalCents,
+                ];
 
-                $obligatedCents += $totalCents;
+                $this->ensureWithinProjectLimits($key, $rowValues, $running, $limits);
+
+                foreach ($rowValues as $limitKey => $value) {
+                    $running[$limitKey] += $value;
+                }
 
                 $lockedProject->obligations()->create([
                     'tranche_number' => $nextTranche++,
@@ -254,7 +265,7 @@ class ProjectPaymentController extends Controller
                         ),
                     'term' => $lockedProject->term->label(),
                     'beneficiaries_total' => (int) $row['beneficiaries_total'],
-                    'beneficiaries_female' => (int) $row['beneficiaries_female'],
+                    'beneficiaries_female' => (int) ($row['beneficiaries_female'] ?? 0),
                     'wages_amount' => $paymentService->centsToDecimal($wagesCents),
                     'insurance_amount' => $paymentService->centsToDecimal($insuranceCents),
                     'ppe_amount' => $paymentService->centsToDecimal($ppeCents),
@@ -274,17 +285,6 @@ class ProjectPaymentController extends Controller
                 if ($nextTranche === 1) {
                     throw ValidationException::withMessages([
                         'tranches' => 'Record at least one tranche before completing the obligations.',
-                    ]);
-                }
-
-                if ($obligatedCents !== $payableCents) {
-                    throw ValidationException::withMessages([
-                        'tranches' => sprintf(
-                            'The tranche totals (₱%s) must equal the Total Project Cost (₱%s) before completing. Remaining: ₱%s.',
-                            number_format($obligatedCents / 100, 2),
-                            number_format($payableCents / 100, 2),
-                            number_format(($payableCents - $obligatedCents) / 100, 2)
-                        ),
                     ]);
                 }
 
@@ -311,8 +311,52 @@ class ProjectPaymentController extends Controller
             ->route('payments.show', $project)
             ->with(
                 'success',
-                sprintf('%d tranche(s) saved successfully.', $savedCount)
+                sprintf(
+                    '%d tranche(s) saved successfully. Record the disbursements next; the TUPAD Coordinator is notified once a tranche is fully disbursed.',
+                    $savedCount
+                )
             );
+    }
+
+    /**
+     * @param  array<string,int>  $rowValues
+     * @param  array<string,int>  $running  already obligated (saved + earlier rows)
+     * @param  array<string,int>  $limits  the project's own figures
+     */
+    private function ensureWithinProjectLimits(
+        int|string $key,
+        array $rowValues,
+        array $running,
+        array $limits,
+    ): void {
+        $checks = [
+            'beneficiaries_total' => ['beneficiaries_total', 'number of beneficiaries', false],
+            'beneficiaries_female' => ['beneficiaries_female', 'female beneficiaries', false],
+            'wages' => ['wages_amount', 'wages', true],
+            'insurance' => ['insurance_amount', 'insurance', true],
+            'ppe' => ['ppe_amount', 'PPE amount', true],
+            'total' => ['wages_amount', 'Total Project Cost', true],
+        ];
+
+        foreach ($checks as $limitKey => [$field, $label, $isMoney]) {
+            if ($running[$limitKey] + $rowValues[$limitKey] <= $limits[$limitKey]) {
+                continue;
+            }
+
+            $format = fn (int $value): string => $isMoney
+                ? '₱'.number_format($value / 100, 2)
+                : number_format($value);
+
+            throw ValidationException::withMessages([
+                "tranches.{$key}.{$field}" => sprintf(
+                    'This exceeds the project\'s %s. Project: %s · already obligated: %s · remaining: %s.',
+                    $label,
+                    $format($limits[$limitKey]),
+                    $format($running[$limitKey]),
+                    $format(max(0, $limits[$limitKey] - $running[$limitKey])),
+                ),
+            ]);
+        }
     }
 
     private function ensureDirectAdministration(Project $project): void

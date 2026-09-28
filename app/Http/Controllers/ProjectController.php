@@ -1189,6 +1189,7 @@ class ProjectController extends Controller
             'obligation.recorder',
             'obligations.recorder',
             'obligations.disbursements.recorder',
+            'obligations.releaser',
             'payout.recorder',
             'acpPayment.recorder',
             'acpCheckRelease.recorder',
