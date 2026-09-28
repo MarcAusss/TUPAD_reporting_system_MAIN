@@ -107,6 +107,22 @@ class P2AuditNotificationsTest extends TestCase
             ->assertSee('System Attention Center')
             ->assertSee('TSSD Evaluation')
             ->assertSee('Open Queue');
+
+        $project = Project::where('project_title', 'TSSD Queue Notification Project')->firstOrFail();
+
+        $this->actingAs($tc)
+            ->getJson(route('notifications.feed'))
+            ->assertOk()
+            ->assertJsonCount(1, 'project_items')
+            ->assertJsonPath('project_items.0.project_id', $project->id)
+            ->assertJsonPath('project_items.0.project_title', 'TSSD Queue Notification Project')
+            ->assertJsonPath('project_items.0.location', 'Legazpi City, Albay')
+            ->assertJsonPath('project_items.0.status_label', ProjectStatus::TSSD_EVALUATION->label())
+            ->assertJsonPath('project_items.0.stage_label', 'Evaluation')
+            ->assertJsonPath(
+                'project_items.0.url',
+                route('projects.show', ['project' => $project->id, 'workspace' => 'overview']).'#project-progress',
+            );
     }
 
     public function test_admin_navigation_exposes_audit_trail_while_focal_navigation_does_not(): void

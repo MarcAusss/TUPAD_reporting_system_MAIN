@@ -6,12 +6,14 @@ use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectObligation;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 
 class ProjectPaymentService
 {
-    public function amountToCents(string|int|float $amount): int
+    public function amountToCents(string|int|float|null $amount): int
     {
-        $normalized = trim((string) $amount);
+        $normalized = trim((string) ($amount ?? '0'));
         [$whole, $fraction] = array_pad(
             explode('.', $normalized, 2),
             2,
@@ -31,9 +33,13 @@ class ProjectPaymentService
         );
     }
 
+    /**
+     * Obligation tranches cover the whole project cost
+     * (wages + insurance + PPE), not wages alone.
+     */
     public function payableCents(Project $project): int
     {
-        return $this->amountToCents($project->wages_total);
+        return $this->amountToCents($project->total_project_cost);
     }
 
     public function obligationCents(ProjectObligation $obligation): int
@@ -90,6 +96,11 @@ class ProjectPaymentService
             'progress_percent' => $payable > 0
                 ? min(100, (int) floor(($disbursed * 100) / $payable))
                 : 0,
+            'is_fully_obligated' =>
+                $payable > 0
+                && $obligated === $payable,
+            'obligations_completed' =>
+                $project->obligations_completed_at !== null,
             'is_fully_paid' =>
                 $payable > 0
                 && $obligated === $payable
@@ -97,21 +108,67 @@ class ProjectPaymentService
         ];
     }
 
+    /**
+     * A Direct Administration project completes only when:
+     * - the obligation tranches were marked complete,
+     * - the full project cost is obligated and disbursed,
+     * - the TUPAD Coordinator recorded the Release of Assistance, and
+     * - the payout date has been reached (Asia/Manila calendar date).
+     */
+    public function completionReady(
+        Project $project,
+        ?CarbonInterface $today = null
+    ): bool {
+        $project->loadMissing(['obligations.disbursements', 'payout']);
+
+        if (
+            $project->obligations_completed_at === null
+            || ! $this->summary($project)['is_fully_paid']
+            || $project->payout === null
+        ) {
+            return false;
+        }
+
+        return ! $this->payoutDatePending($project, $today);
+    }
+
+    public function payoutDatePending(
+        Project $project,
+        ?CarbonInterface $today = null
+    ): bool {
+        $project->loadMissing('payout');
+
+        if ($project->payout === null) {
+            return false;
+        }
+
+        $effectiveDate = $today
+            ? CarbonImmutable::instance($today)->setTimezone('Asia/Manila')->startOfDay()
+            : CarbonImmutable::now('Asia/Manila')->startOfDay();
+
+        $payoutDate = CarbonImmutable::parse(
+            $project->payout->payout_date->format('Y-m-d'),
+            'Asia/Manila',
+        )->startOfDay();
+
+        return $payoutDate->gt($effectiveDate);
+    }
+
     public function synchronizeCompletion(
         Project $project,
         int $userId
     ): bool {
-        $project->load('obligations.disbursements');
+        $project->load(['obligations.disbursements', 'payout']);
 
         if (
             $project->implementation_mode
                 === ImplementationMode::DIRECT_ADMINISTRATION
             && $project->status === ProjectStatus::FOR_PAYMENT
-            && $this->summary($project)['is_fully_paid']
+            && $this->completionReady($project)
         ) {
             $project->setStatusTransitionContext(
                 actorId: $userId,
-                remarks: 'Automatic workflow: The full payable wage amount is obligated and disbursed.',
+                remarks: 'Automatic workflow: Obligations are complete, the full project cost is disbursed, and the Release of Assistance payout date has been reached.',
             );
 
             $project->update([

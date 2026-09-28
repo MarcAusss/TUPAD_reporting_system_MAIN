@@ -6,6 +6,7 @@ use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\Payments\ProjectPaymentService;
 
 final class ProjectWorkspacePresenter
 {
@@ -54,6 +55,24 @@ final class ProjectWorkspacePresenter
             'stages' => $stages,
             'action' => $action,
             'tabs' => $tabs,
+        ];
+    }
+
+    /**
+     * Compact progress snapshot used outside the project page (e.g. notifications).
+     *
+     * @return array{percent:int,stage_label:string,stage_number:int,stage_count:int}
+     */
+    public function progressSummary(Project $project): array
+    {
+        $stages = $this->stagesFor($project);
+        $currentStageIndex = $this->currentStageIndex($project);
+
+        return [
+            'percent' => (int) round(($currentStageIndex / max(count($stages) - 1, 1)) * 100),
+            'stage_label' => (string) ($stages[$currentStageIndex]['label'] ?? ''),
+            'stage_number' => $currentStageIndex + 1,
+            'stage_count' => count($stages),
         ];
     }
 
@@ -214,23 +233,7 @@ final class ProjectWorkspacePresenter
                 'workflow',
                 'post-documents',
             ),
-            ProjectStatus::FOR_PAYMENT => ($user->isAdmin() || $user->isFocal())
-                ? $this->externalAction(
-                    'Action Required',
-                    'Process payment of wages',
-                    'Create or complete wage obligations and their corresponding disbursements.',
-                    'Manage Payment of Wages',
-                    route('payments.show', $project),
-                    'financial',
-                )
-                : $this->internalAction(
-                    'Pending Focal/Admin Action',
-                    'Payment of wages is ready for processing',
-                    'The project is waiting for a Focal or Administrator account to complete wage obligations and disbursements.',
-                    'View Payment Status',
-                    'financial',
-                    'payment',
-                ),
+            ProjectStatus::FOR_PAYMENT => $this->directPaymentActionFor($project, $user),
             default => $this->internalAction(
                 'Workflow Status',
                 $project->status->label(),
@@ -240,6 +243,93 @@ final class ProjectWorkspacePresenter
                 'final-workflow',
             ),
         };
+    }
+
+    /**
+     * For Payment has three sub-steps: Focal/Admin obligation tranches
+     * (ending with Complete), the TUPAD Coordinator's Release of Assistance,
+     * then waiting for full disbursement and the payout date.
+     */
+    private function directPaymentActionFor(Project $project, User $user): array
+    {
+        $canManagePayment = $user->isAdmin() || $user->isFocal();
+        $canRecordRelease = $user->isAdmin() || $user->isTc();
+
+        if ($project->obligations_completed_at === null) {
+            return $canManagePayment
+                ? $this->externalAction(
+                    'Action Required',
+                    'Process payment of wages',
+                    'Encode the obligation tranches, then click Complete once they equal the Total Project Cost.',
+                    'Manage Payment of Wages',
+                    route('payments.show', $project),
+                    'financial',
+                )
+                : $this->internalAction(
+                    'Pending Focal/Admin Action',
+                    'Obligation tranches are being processed',
+                    'The project is waiting for a Focal or Administrator account to complete the obligation tranches.',
+                    'View Payment Status',
+                    'financial',
+                    'payment',
+                );
+        }
+
+        $project->loadMissing('payout');
+
+        if ($project->payout === null) {
+            return $canRecordRelease
+                ? $this->internalAction(
+                    'Action Required',
+                    'Record the Release of Assistance',
+                    'Obligation tranches are complete. Record the mode of payment, date of payout, and venue.',
+                    'Record Release of Assistance',
+                    'workflow',
+                    'release-of-assistance',
+                )
+                : $this->internalAction(
+                    'Pending TUPAD Coordinator Action',
+                    'Waiting for the Release of Assistance',
+                    'Obligation tranches are complete. The TUPAD Coordinator records the mode of payment, date of payout, and venue.',
+                    'View Release of Assistance',
+                    'workflow',
+                    'release-of-assistance',
+                );
+        }
+
+        $paymentService = app(ProjectPaymentService::class);
+
+        if (! $paymentService->summary($project)['is_fully_paid']) {
+            return $canManagePayment
+                ? $this->externalAction(
+                    'Action Required',
+                    'Record the remaining disbursements',
+                    'The project completes once the full project cost is disbursed and the payout date is reached.',
+                    'Manage Payment of Wages',
+                    route('payments.show', $project),
+                    'financial',
+                )
+                : $this->internalAction(
+                    'Pending Focal/Admin Action',
+                    'Waiting for full disbursement',
+                    'The Release of Assistance is recorded. The project completes once the full project cost is disbursed and the payout date is reached.',
+                    'View Payment Status',
+                    'financial',
+                    'payment',
+                );
+        }
+
+        return $this->internalAction(
+            'Current Stage',
+            'Waiting for the payout date',
+            sprintf(
+                'All requirements are recorded. The project completes automatically on the payout date (%s).',
+                $project->payout->payout_date->format('F d, Y'),
+            ),
+            'View Release of Assistance',
+            'workflow',
+            'release-of-assistance',
+        );
     }
 
     private function acpActionFor(Project $project, User $user): array

@@ -193,7 +193,7 @@ class ProjectStatusEngine
 
             ProjectStatus::FOR_PAYMENT =>
                 $this->isDirectAdministration($project)
-                && $this->paymentService->summary($project)['is_fully_paid']
+                && $this->paymentService->completionReady($project, $today)
                     ? ProjectStatus::COMPLETED
                     : null,
 
@@ -371,7 +371,7 @@ class ProjectStatusEngine
             ProjectStatus::FOR_PAYMENT =>
                 $this->isThroughAcp($project)
                     ? ['acpPayment']
-                    : ['obligations.disbursements'],
+                    : ['obligations.disbursements', 'payout'],
 
             ProjectStatus::FOR_LIQUIDATION,
             ProjectStatus::PARTIALLY_LIQUIDATED => [
@@ -420,7 +420,7 @@ class ProjectStatusEngine
                 'Automatic status engine: Complete post-documentary requirements were forwarded to IMSD.',
 
             [ProjectStatus::FOR_PAYMENT, ProjectStatus::COMPLETED] =>
-                'Automatic status engine: The full payable wage amount is obligated and disbursed.',
+                'Automatic status engine: Obligations are complete, the full project cost is disbursed, and the Release of Assistance payout date has been reached.',
 
             default => 'Automatic status engine transition.',
         };

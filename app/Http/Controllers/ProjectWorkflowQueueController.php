@@ -43,6 +43,10 @@ class ProjectWorkflowQueueController extends Controller
             ])
             ->whereIn('status', $config['statuses'])
             ->when(
+                isset($config['scope']),
+                fn (Builder $query): Builder => $config['scope']($query),
+            )
+            ->when(
                 $request->filled('q'),
                 function ($query) use ($request) {
                     $search = trim(
@@ -410,6 +414,22 @@ class ProjectWorkflowQueueController extends Controller
                 ],
                 'empty' =>
                     'No projects are currently waiting for post-documentary requirements.',
+            ],
+
+            'release-of-assistance' => [
+                'title' => 'Release of Assistance',
+                'description' =>
+                    'Direct Administration projects with completed obligation tranches waiting for the mode of payment, payout date, and venue.',
+                'owner' => 'TUPAD Coordinator / Administrator',
+                'statuses' => [
+                    ProjectStatus::FOR_PAYMENT->value,
+                ],
+                'scope' => fn (Builder $query): Builder => $query
+                    ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
+                    ->whereNotNull('obligations_completed_at')
+                    ->whereDoesntHave('payout'),
+                'empty' =>
+                    'No projects are currently waiting for a Release of Assistance.',
             ],
 
             default => abort(404),

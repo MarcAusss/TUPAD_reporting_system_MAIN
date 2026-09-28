@@ -16,6 +16,21 @@ use Illuminate\View\View;
 
 class ProjectPaymentController extends Controller
 {
+    private const MONEY_RULE = 'regex:/^\d{1,13}(?:\.\d{1,2})?$/';
+
+    /**
+     * Fields that make a tranche row "filled". Obligation date and remarks
+     * are excluded because the date is prefilled for every new row.
+     */
+    private const ROW_CONTENT_FIELDS = [
+        'beneficiaries_total',
+        'beneficiaries_female',
+        'wages_amount',
+        'insurance_amount',
+        'ppe_amount',
+        'payee',
+    ];
+
     public function show(
         Project $project,
         ProjectPaymentService $paymentService
@@ -44,6 +59,7 @@ class ProjectPaymentController extends Controller
             'obligations.disbursements' => fn ($query) =>
                 $query->orderBy('date_disbursed')->orderBy('id'),
             'obligations.disbursements.recorder',
+            'obligationsCompleter',
             'payout.recorder',
         ]);
 
@@ -51,19 +67,51 @@ class ProjectPaymentController extends Controller
         $nextTranche = ((int) $project->obligations
             ->max('tranche_number')) + 1;
 
+        $obligatedSum = fn (string $field): int => $project->obligations->sum(
+            fn (ProjectObligation $obligation): int =>
+                $paymentService->amountToCents($obligation->{$field})
+        );
+
         return view('payments.show', [
             'project' => $project,
             'summary' => $summary,
             'nextTranche' => $nextTranche,
-            'canAddTranche' =>
+            'canEditTranches' =>
                 $project->status === ProjectStatus::FOR_PAYMENT
-                && $project->obligations->count() < 5
-                && $summary['obligated_cents']
-                    < $summary['payable_cents'],
+                && ! $summary['obligations_completed'],
+            'remainingDefaults' => [
+                'beneficiaries_total' => max(
+                    0,
+                    (int) $project->beneficiaries_total
+                        - (int) $project->obligations->sum('beneficiaries_total')
+                ),
+                'beneficiaries_female' => max(
+                    0,
+                    (int) $project->beneficiaries_female
+                        - (int) $project->obligations->sum('beneficiaries_female')
+                ),
+                'wages_amount' => $paymentService->centsToDecimal(max(
+                    0,
+                    $paymentService->amountToCents($project->wages_total) - $obligatedSum('wages_amount')
+                )),
+                'insurance_amount' => $paymentService->centsToDecimal(max(
+                    0,
+                    $paymentService->amountToCents($project->insurance_total) - $obligatedSum('insurance_amount')
+                )),
+                'ppe_amount' => $paymentService->centsToDecimal(max(
+                    0,
+                    $paymentService->amountToCents($project->ppe_total) - $obligatedSum('ppe_amount')
+                )),
+            ],
             'paymentService' => $paymentService,
         ]);
     }
 
+    /**
+     * Save any number of obligation tranches in one submit. With
+     * intent=complete, the tranches are also locked as complete, which
+     * requires their totals to equal the full project cost.
+     */
     public function store(
         Request $request,
         Project $project,
@@ -78,32 +126,48 @@ class ProjectPaymentController extends Controller
             );
         }
 
+        $completing = $request->input('intent') === 'complete';
+
+        $rows = collect($request->input('tranches', []))
+            ->filter(fn ($row): bool => is_array($row) && collect(self::ROW_CONTENT_FIELDS)
+                ->contains(fn (string $field): bool => trim((string) ($row[$field] ?? '')) !== ''));
+
+        $request->merge(['tranches' => $rows->all()]);
+
         $validated = $request->validate([
-            'tranche_number' => [
-                'required',
-                'integer',
-                'between:1,5',
-            ],
-            'amount' => [
-                'required',
-                'regex:/^\d{1,13}(?:\.\d{1,2})?$/',
-            ],
-            'obligation_date' => ['required', 'date'],
-            'payee' => ['required', 'string', 'max:255'],
-            'remarks' => ['nullable', 'string', 'max:3000'],
+            'intent' => ['required', 'in:save,complete'],
+            'tranches' => [$completing ? 'nullable' : 'required', 'array'],
+            'tranches.*.beneficiaries_total' => ['required', 'integer', 'min:1'],
+            'tranches.*.beneficiaries_female' => ['required', 'integer', 'min:0', 'lte:tranches.*.beneficiaries_total'],
+            'tranches.*.wages_amount' => ['required', self::MONEY_RULE],
+            'tranches.*.insurance_amount' => ['required', self::MONEY_RULE],
+            'tranches.*.ppe_amount' => ['required', self::MONEY_RULE],
+            'tranches.*.obligation_date' => ['required', 'date'],
+            'tranches.*.payee' => ['required', 'string', 'max:255'],
+            'tranches.*.remarks' => ['nullable', 'string', 'max:3000'],
         ], [
-            'amount.regex' =>
-                'The obligation amount must be a valid positive amount with no more than two decimal places.',
-            'tranche_number.between' =>
-                'A project may only have Tranches 1 through 5.',
+            'tranches.required' => 'Enter at least one tranche before saving.',
+            'tranches.*.beneficiaries_female.lte' =>
+                'Female beneficiaries cannot exceed the tranche\'s total beneficiaries.',
+            'tranches.*.*.regex' =>
+                'Amounts must be valid positive values with no more than two decimal places.',
+        ], [
+            'tranches.*.beneficiaries_total' => 'number of beneficiaries',
+            'tranches.*.beneficiaries_female' => 'female beneficiaries',
+            'tranches.*.wages_amount' => 'wages',
+            'tranches.*.insurance_amount' => 'insurance',
+            'tranches.*.ppe_amount' => 'PPE',
+            'tranches.*.obligation_date' => 'obligation date',
+            'tranches.*.payee' => 'payee',
         ]);
 
-        DB::transaction(function () use (
+        $savedCount = DB::transaction(function () use (
             $request,
             $project,
             $validated,
+            $completing,
             $paymentService
-        ): void {
+        ): int {
             $lockedProject = Project::query()
                 ->with(['allocation.adl'])
                 ->lockForUpdate()
@@ -115,8 +179,15 @@ class ProjectPaymentController extends Controller
                 || $lockedProject->status !== ProjectStatus::FOR_PAYMENT
             ) {
                 throw ValidationException::withMessages([
-                    'amount' =>
+                    'tranches' =>
                         'This project is no longer available for payment processing.',
+                ]);
+            }
+
+            if ($lockedProject->obligations_completed_at !== null) {
+                throw ValidationException::withMessages([
+                    'tranches' =>
+                        'The obligation tranches for this project are already completed and locked.',
                 ]);
             }
 
@@ -126,129 +197,121 @@ class ProjectPaymentController extends Controller
                 ->lockForUpdate()
                 ->get();
 
-            if ($obligations->count() >= 5) {
-                throw ValidationException::withMessages([
-                    'tranche_number' =>
-                        'The maximum of five payment tranches has already been reached.',
-                ]);
-            }
-
-            $trancheNumber = (int) $validated['tranche_number'];
-
-            if (
-                $obligations->contains(
-                    fn (ProjectObligation $obligation): bool =>
-                        (int) $obligation->tranche_number === $trancheNumber
-                )
-            ) {
-                throw ValidationException::withMessages([
-                    'tranche_number' =>
-                        'This tranche number already exists for the project.',
-                ]);
-            }
-
-            $expectedTranche = ((int) $obligations
-                ->max('tranche_number')) + 1;
-
-            if ($trancheNumber !== $expectedTranche) {
-                throw ValidationException::withMessages([
-                    'tranche_number' => sprintf(
-                        'The next allowed payment tranche is Tranche %d.',
-                        $expectedTranche
-                    ),
-                ]);
-            }
-
-            $amountCents = $paymentService->amountToCents(
-                $validated['amount']
-            );
-
-            if ($amountCents <= 0) {
-                throw ValidationException::withMessages([
-                    'amount' =>
-                        'The obligation amount must be greater than zero.',
-                ]);
-            }
-
             $obligatedCents = $obligations->sum(
                 fn (ProjectObligation $obligation): int =>
                     $paymentService->obligationCents($obligation)
             );
 
-            $payableCents = $paymentService
-                ->payableCents($lockedProject);
+            $payableCents = $paymentService->payableCents($lockedProject);
+            $nextTranche = ((int) $obligations->max('tranche_number')) + 1;
+            $rows = $validated['tranches'] ?? [];
 
-            if ($obligatedCents + $amountCents > $payableCents) {
-                throw ValidationException::withMessages([
-                    'amount' => sprintf(
-                        'Total obligations cannot exceed the remaining payable wage amount of ₱%s.',
-                        number_format(
-                            ($payableCents - $obligatedCents) / 100,
-                            2
-                        )
+            foreach ($rows as $key => $row) {
+                $wagesCents = $paymentService->amountToCents($row['wages_amount']);
+                $insuranceCents = $paymentService->amountToCents($row['insurance_amount']);
+                $ppeCents = $paymentService->amountToCents($row['ppe_amount']);
+                $totalCents = $wagesCents + $insuranceCents + $ppeCents;
+
+                if ($totalCents <= 0) {
+                    throw ValidationException::withMessages([
+                        "tranches.{$key}.wages_amount" =>
+                            'A tranche\'s total overall amount must be greater than zero.',
+                    ]);
+                }
+
+                if ($obligatedCents + $totalCents > $payableCents) {
+                    throw ValidationException::withMessages([
+                        "tranches.{$key}.wages_amount" => sprintf(
+                            'Tranche totals cannot exceed the Total Project Cost. Remaining amount to obligate: ₱%s.',
+                            number_format(
+                                max(0, $payableCents - $obligatedCents) / 100,
+                                2
+                            )
+                        ),
+                    ]);
+                }
+
+                $obligatedCents += $totalCents;
+
+                $lockedProject->obligations()->create([
+                    'tranche_number' => $nextTranche++,
+                    'adl_number' =>
+                        $lockedProject->allocation->adl->adl_number,
+                    'fund_sponsor' =>
+                        $lockedProject->fund_sponsor
+                        ?: $lockedProject->allocation->fund_sponsor
+                        ?: 'Not specified',
+                    'partner' =>
+                        $lockedProject->partner
+                        ?: $lockedProject->allocation->partner
+                        ?: 'Not specified',
+                    'project_location' =>
+                        Str::limit(
+                            $lockedProject->payment_location_summary
+                                ?: 'Not specified',
+                            500,
+                            ''
+                        ),
+                    'term' => $lockedProject->term->label(),
+                    'beneficiaries_total' => (int) $row['beneficiaries_total'],
+                    'beneficiaries_female' => (int) $row['beneficiaries_female'],
+                    'wages_amount' => $paymentService->centsToDecimal($wagesCents),
+                    'insurance_amount' => $paymentService->centsToDecimal($insuranceCents),
+                    'ppe_amount' => $paymentService->centsToDecimal($ppeCents),
+                    'amount' => $paymentService->centsToDecimal($totalCents),
+                    'obligation_date' => $row['obligation_date'],
+                    'month' => date(
+                        'F Y',
+                        strtotime($row['obligation_date'])
                     ),
+                    'payee' => trim($row['payee']),
+                    'remarks' => $row['remarks'] ?? null,
+                    'recorded_by' => $request->user()->id,
                 ]);
             }
 
-            if (
-                $trancheNumber === 5
-                && $obligatedCents + $amountCents !== $payableCents
-            ) {
-                throw ValidationException::withMessages([
-                    'amount' => sprintf(
-                        'The fifth and final tranche must obligate the full remaining payable wage amount of ₱%s.',
-                        number_format(
-                            ($payableCents - $obligatedCents) / 100,
-                            2
-                        )
-                    ),
+            if ($completing) {
+                if ($nextTranche === 1) {
+                    throw ValidationException::withMessages([
+                        'tranches' => 'Record at least one tranche before completing the obligations.',
+                    ]);
+                }
+
+                if ($obligatedCents !== $payableCents) {
+                    throw ValidationException::withMessages([
+                        'tranches' => sprintf(
+                            'The tranche totals (₱%s) must equal the Total Project Cost (₱%s) before completing. Remaining: ₱%s.',
+                            number_format($obligatedCents / 100, 2),
+                            number_format($payableCents / 100, 2),
+                            number_format(($payableCents - $obligatedCents) / 100, 2)
+                        ),
+                    ]);
+                }
+
+                $lockedProject->update([
+                    'obligations_completed_at' => now(),
+                    'obligations_completed_by' => $request->user()->id,
+                    'updated_by' => $request->user()->id,
                 ]);
             }
 
-            $lockedProject->obligations()->create([
-                'tranche_number' => $trancheNumber,
-                'adl_number' =>
-                    $lockedProject->allocation->adl->adl_number,
-                'fund_sponsor' =>
-                    $lockedProject->fund_sponsor
-                    ?: $lockedProject->allocation->fund_sponsor
-                    ?: 'Not specified',
-                'partner' =>
-                    $lockedProject->partner
-                    ?: $lockedProject->allocation->partner
-                    ?: 'Not specified',
-                'project_location' =>
-                    Str::limit(
-                        $lockedProject->payment_location_summary
-                            ?: 'Not specified',
-                        500,
-                        ''
-                    ),
-                'term' => $lockedProject->term->label(),
-                'beneficiaries_total' =>
-                    $lockedProject->beneficiaries_total,
-                'beneficiaries_female' =>
-                    $lockedProject->beneficiaries_female,
-                'amount' => $paymentService->centsToDecimal($amountCents),
-                'obligation_date' => $validated['obligation_date'],
-                'month' => date(
-                    'F Y',
-                    strtotime($validated['obligation_date'])
-                ),
-                'payee' => trim($validated['payee']),
-                'remarks' => $validated['remarks'] ?? null,
-                'recorded_by' => $request->user()->id,
-            ]);
+            return count($rows);
         });
+
+        if ($completing) {
+            return redirect()
+                ->route('projects.show', $project)
+                ->with(
+                    'success',
+                    'Obligation tranches completed. The TUPAD Coordinator can now record the Release of Assistance.'
+                );
+        }
 
         return redirect()
             ->route('payments.show', $project)
             ->with(
                 'success',
-                sprintf(
-                    'Tranche %d obligation recorded successfully.',
-                    (int) $validated['tranche_number']
-                )
+                sprintf('%d tranche(s) saved successfully.', $savedCount)
             );
     }
 

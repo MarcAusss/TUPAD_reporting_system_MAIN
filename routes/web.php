@@ -34,6 +34,7 @@ use App\Http\Controllers\ProjectEvaluationController;
 use App\Http\Controllers\ProjectImplementationController;
 use App\Http\Controllers\ProjectInsuranceClaimController;
 use App\Http\Controllers\ProjectPaymentController;
+use App\Http\Controllers\ProjectReleaseOfAssistanceController;
 use App\Http\Controllers\ProjectPostDocumentController;
 use App\Http\Controllers\ProjectWorkflowQueueController;
 use App\Http\Controllers\PhysicalFinancialAccomplishmentController;
@@ -537,6 +538,7 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
                 'for-approval',
                 'implementation',
                 'post-documents',
+                'release-of-assistance',
             ])
             ->name('project-workflow.index');
 
@@ -643,6 +645,13 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
         Route::post('/projects/{project}/post-documents', [ProjectPostDocumentController::class, 'store'])
             ->name('projects.post-documents.store');
+
+        Route::post(
+            '/projects/{project}/release-of-assistance',
+            [ProjectReleaseOfAssistanceController::class, 'store']
+        )
+            ->whereNumber('project')
+            ->name('projects.release-of-assistance.store');
 
     });
 

@@ -43,6 +43,7 @@
             'for-approval' => 'For Approval',
             'implementation' => 'Implementation',
             'post-documents' => 'Post-Documents',
+            'release-of-assistance' => 'Release of Assistance',
         ] as $queueKey => $queueLabel)
             <a href="{{ route('project-workflow.index', ['queue' => $queueKey]) }}" class="{{ request()->routeIs('project-workflow.index') && $workflowQueue === $queueKey ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} flex min-h-9 items-center rounded-lg border px-3 py-2 text-[12px] font-semibold">{{ $queueLabel }}</a>
         @endforeach

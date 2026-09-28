@@ -40,6 +40,7 @@ class RealtimeCrossAccountNotificationsTest extends TestCase
                 'critical_count',
                 'attention_count',
                 'items',
+                'project_items',
                 'generated_at',
                 'poll_after_ms',
             ])

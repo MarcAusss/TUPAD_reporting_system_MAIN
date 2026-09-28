@@ -24,6 +24,9 @@ class ProjectObligation extends Model
         'beneficiaries_total',
         'beneficiaries_female',
 
+        'wages_amount',
+        'insurance_amount',
+        'ppe_amount',
         'amount',
 
         'obligation_date',
@@ -39,6 +42,11 @@ class ProjectObligation extends Model
     {
         return [
             'tranche_number' => 'integer',
+            'beneficiaries_total' => 'integer',
+            'beneficiaries_female' => 'integer',
+            'wages_amount' => 'decimal:2',
+            'insurance_amount' => 'decimal:2',
+            'ppe_amount' => 'decimal:2',
             'amount' => 'decimal:2',
             'obligation_date' => 'date',
         ];

@@ -177,9 +177,25 @@
                                 'tab' => 'workflow',
                             ],
                             [
+                                'label' => 'Obligation Tranches Completed',
+                                'complete' => (bool) ($completionPaymentSummary['obligations_completed'] ?? false),
+                                'tab' => 'financial',
+                            ],
+                            [
                                 'label' => 'Payment of Wages (Fully Disbursed)',
                                 'complete' => (bool) ($completionPaymentSummary['is_fully_paid'] ?? false),
                                 'tab' => 'financial',
+                            ],
+                            [
+                                'label' => 'Release of Assistance',
+                                'complete' => (bool) $project->payout,
+                                'tab' => 'workflow',
+                            ],
+                            [
+                                'label' => 'Date of Payout Reached',
+                                'complete' => $project->payout
+                                    && ! app(\App\Services\Payments\ProjectPaymentService::class)->payoutDatePending($project),
+                                'tab' => 'workflow',
                             ],
                         ];
                     }
@@ -4468,6 +4484,141 @@
 
             </section>
 
+        @endif
+
+        {{-- Release of Assistance --}}
+
+        @if (
+            $project->implementation_mode === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION &&
+                (($project->status === \App\Enums\ProjectStatus::FOR_PAYMENT && $project->obligations_completed_at) ||
+                    $project->payout))
+            @php
+                $releasePayout = $project->payout;
+                $canRecordRelease =
+                    $project->status === \App\Enums\ProjectStatus::FOR_PAYMENT &&
+                    (auth()->user()->isTc() || auth()->user()->isAdmin());
+                $releasePaymentService = app(\App\Services\Payments\ProjectPaymentService::class);
+                $releaseSummary = $releasePaymentService->summary($project);
+                $releaseDatePending = $releasePaymentService->payoutDatePending($project);
+            @endphp
+
+            <section id="release-of-assistance" data-workspace-panel="workflow"
+                class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
+
+                <div class="border-b border-slate-200 px-5 py-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-900">Release of Assistance</h2>
+                            <p class="mt-1 text-xs text-slate-500">
+                                TC/Admin records the mode of payment, date of payout, and venue after the obligation
+                                tranches are completed. The project completes once the payout date is reached and the
+                                full project cost is disbursed.
+                            </p>
+                        </div>
+
+                        @if ($project->status === \App\Enums\ProjectStatus::COMPLETED)
+                            <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                                Released
+                            </span>
+                        @elseif (! $releasePayout)
+                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                                Awaiting Release of Assistance
+                            </span>
+                        @elseif ($releaseDatePending)
+                            <span class="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700">
+                                Waiting for payout date ({{ $releasePayout->payout_date->format('M d, Y') }})
+                            </span>
+                        @elseif (! $releaseSummary['is_fully_paid'])
+                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                                Waiting for full disbursement
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                @if ($canRecordRelease)
+                    <form method="POST" action="{{ route('projects.release-of-assistance.store', $project) }}" class="p-5">
+                        @csrf
+
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div>
+                                <label for="payout_mode" class="mb-2 block text-xs font-semibold text-slate-700">
+                                    Mode of Payment
+                                </label>
+                                <select id="payout_mode" name="payout_mode" required
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                    <option value="">Select mode of payment</option>
+                                    @foreach (\App\Http\Controllers\ProjectReleaseOfAssistanceController::PAYOUT_MODES as $payoutMode)
+                                        <option value="{{ $payoutMode }}" @selected(old('payout_mode', $releasePayout?->payout_mode) === $payoutMode)>
+                                            {{ $payoutMode }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('payout_mode')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label for="payout_date" class="mb-2 block text-xs font-semibold text-slate-700">
+                                    Date of Payout
+                                </label>
+                                <input id="payout_date" name="payout_date" type="date" required
+                                    value="{{ old('payout_date', $releasePayout?->payout_date?->toDateString()) }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                @error('payout_date')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label for="payout_venue" class="mb-2 block text-xs font-semibold text-slate-700">
+                                    Venue
+                                </label>
+                                <input id="payout_venue" name="venue" required maxlength="255"
+                                    value="{{ old('venue', $releasePayout?->venue) }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                @error('venue')
+                                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div class="md:col-span-3">
+                                <label for="payout_remarks" class="mb-2 block text-xs font-semibold text-slate-700">
+                                    Remarks <span class="font-normal text-slate-400">(optional)</span>
+                                </label>
+                                <input id="payout_remarks" name="remarks" maxlength="3000"
+                                    value="{{ old('remarks', $releasePayout?->remarks) }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex justify-end">
+                            <button type="submit"
+                                class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
+                                {{ $releasePayout ? 'Update Release of Assistance' : 'Save Release of Assistance' }}
+                            </button>
+                        </div>
+                    </form>
+                @elseif ($releasePayout)
+                    <dl class="grid gap-px bg-slate-200 sm:grid-cols-3">
+                        @foreach ([
+                            'Mode of Payment' => $releasePayout->payout_mode,
+                            'Date of Payout' => $releasePayout->payout_date->format('F d, Y'),
+                            'Venue' => $releasePayout->venue,
+                        ] as $releaseLabel => $releaseValue)
+                            <div class="bg-white px-5 py-4">
+                                <dt class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $releaseLabel }}</dt>
+                                <dd class="mt-1 text-sm font-semibold text-slate-900">{{ $releaseValue }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                @else
+                    <p class="px-5 py-6 text-center text-xs text-slate-500">
+                        Waiting for the TUPAD Coordinator to record the Release of Assistance.
+                    </p>
+                @endif
+            </section>
         @endif
 
         {{-- Payment of Wages --}}

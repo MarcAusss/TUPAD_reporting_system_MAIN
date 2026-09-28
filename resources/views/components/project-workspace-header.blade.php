@@ -131,7 +131,7 @@
         </div>
     </div>
 
-    <div class="border-b border-slate-200 bg-slate-50/70 px-5 py-5 sm:px-6">
+    <div id="project-progress" class="scroll-mt-32 border-b border-slate-200 bg-slate-50/70 px-5 py-5 sm:px-6">
         <div class="flex items-center justify-between gap-4">
             <div>
                 <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">

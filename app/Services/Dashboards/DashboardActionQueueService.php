@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\ProjectStatusHistory;
 use App\Models\User;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Projects\ProjectWorkspacePresenter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -15,6 +16,7 @@ class DashboardActionQueueService
 {
     public function __construct(
         private readonly ProvinceAccessService $provinceAccess,
+        private readonly ProjectWorkspacePresenter $workspacePresenter,
     ) {
     }
 
@@ -51,6 +53,7 @@ class DashboardActionQueueService
                     ->latest('changed_at')
                     ->limit(1),
             ])
+            ->withExists('payout')
             ->get();
 
         $queues = [];
@@ -82,6 +85,7 @@ class DashboardActionQueueService
                     ->map(fn (array $item): string => $item['project_id'].':'.$item['status_label'])
                     ->sort()
                     ->implode('|')),
+                'items' => $matching,
             ];
 
             $allItems = $allItems->concat($matching);
@@ -148,6 +152,17 @@ class DashboardActionQueueService
                 'route_params' => ['queue' => 'post-documents'],
                 'implementation_mode' => ImplementationMode::DIRECT_ADMINISTRATION,
                 'statuses' => [ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS],
+            ],
+            'release' => [
+                'label' => 'Release of Assistance',
+                'description' => 'Direct Administration projects with completed obligation tranches awaiting the Release of Assistance.',
+                'route' => 'project-workflow.index',
+                'route_params' => ['queue' => 'release-of-assistance'],
+                'implementation_mode' => ImplementationMode::DIRECT_ADMINISTRATION,
+                'statuses' => [ProjectStatus::FOR_PAYMENT],
+                'filter' => fn (Project $project): bool =>
+                    $project->obligations_completed_at !== null
+                    && ! $project->payout_exists,
             ],
             'acp_implementation' => [
                 'label' => 'ACP Implementation',
@@ -218,7 +233,11 @@ class DashboardActionQueueService
             return false;
         }
 
-        return in_array($project->status, $definition['statuses'], true);
+        if (! in_array($project->status, $definition['statuses'], true)) {
+            return false;
+        }
+
+        return ! isset($definition['filter']) || $definition['filter']($project);
     }
 
     /** @param array<string,mixed> $definition */
@@ -236,6 +255,10 @@ class DashboardActionQueueService
             'project_id' => $project->id,
             'project_title' => $project->project_title,
             'location' => collect([$project->municipality, $project->province])->filter()->implode(', '),
+            'implementation_mode_label' => $project->implementation_mode?->label() ?? '',
+            'beneficiaries_total' => (int) $project->beneficiaries_total,
+            'total_project_cost' => (float) $project->total_project_cost,
+            'progress' => $this->workspacePresenter->progressSummary($project),
             'status' => $project->status,
             'status_label' => $project->status->label(),
             'queue_key' => $queueKey,

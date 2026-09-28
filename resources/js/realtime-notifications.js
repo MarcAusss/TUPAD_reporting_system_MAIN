@@ -247,7 +247,7 @@ function showChangedToasts(items) {
             title: `${items.length - MAX_TOASTS_PER_POLL} more workflow update(s)`,
             message: 'Open Notifications to review all current actions.',
             severity: 'normal',
-            url: document.querySelector('[data-notification-bell]')?.href ?? '',
+            url: document.querySelector('[data-notification-see-all]')?.href ?? '',
         });
     }
 }

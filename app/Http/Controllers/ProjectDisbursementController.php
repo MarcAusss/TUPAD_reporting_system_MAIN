@@ -149,7 +149,7 @@ class ProjectDisbursementController extends Controller
             ->with(
                 'success',
                 $completed
-                    ? 'Disbursement recorded. The payable amount is fully disbursed and the project is now Completed.'
+                    ? 'Disbursement recorded. All completion requirements are met and the project is now Completed.'
                     : 'Disbursement recorded for the selected tranche.'
             );
     }

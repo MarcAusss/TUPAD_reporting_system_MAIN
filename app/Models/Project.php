@@ -66,6 +66,9 @@ class Project extends Model
         'status',
         'remarks',
 
+        'obligations_completed_at',
+        'obligations_completed_by',
+
         'province_id',
         'municipality_id',
         'barangay_id',
@@ -94,6 +97,8 @@ class Project extends Model
             'insurance_total' => 'decimal:2',
 
             'total_project_cost' => 'decimal:2',
+
+            'obligations_completed_at' => 'datetime',
         ];
     }
 
@@ -208,6 +213,11 @@ class Project extends Model
     {
         return $this->hasMany(ProjectObligation::class)
             ->orderBy('tranche_number');
+    }
+
+    public function obligationsCompleter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'obligations_completed_by');
     }
 
     public function payout(): HasOne

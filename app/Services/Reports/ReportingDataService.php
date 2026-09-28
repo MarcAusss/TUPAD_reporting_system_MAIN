@@ -126,9 +126,11 @@ final class ReportingDataService
                         $project->implementation_mode === ImplementationMode::DIRECT_ADMINISTRATION
                     )
                     ->values();
+                // DA obligation tranches cover wages + insurance + PPE, so the
+                // payable basis is the full project cost.
                 $payableCents = $this->sumProjectMoney(
                     $directAdminProjects,
-                    'wages_total',
+                    'total_project_cost',
                 );
                 $directAdminObligatedCents = $this->directAdminObligatedCents($groupProjects);
                 $directAdminDisbursedCents = $this->directAdminDisbursedCents($groupProjects);
