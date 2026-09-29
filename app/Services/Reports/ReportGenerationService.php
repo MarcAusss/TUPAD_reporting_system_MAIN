@@ -230,7 +230,7 @@ final class ReportGenerationService
             $this->column('label', $dimension->label()),
             $this->column('project_count', 'Projects', 'integer'),
             $this->column('allocation_cents', 'TUPAD Allocation', 'money'),
-            $this->column('payable_wages_cents', 'DA Payable Wages', 'money'),
+            $this->column('payable_wages_cents', 'DA Payable Amount', 'money'),
             $this->column('direct_admin_obligated_cents', 'DA Obligated', 'money'),
             $this->column('direct_admin_disbursed_cents', 'DA Disbursed', 'money'),
             $this->column('acp_payment_cents', 'ACP Payment Recorded', 'money'),
@@ -419,7 +419,7 @@ final class ReportGenerationService
 
         return [
             $this->card('TUPAD Allocation', $row['allocation_cents'] ?? 0, 'money'),
-            $this->card('DA Payable Wages', $row['payable_wages_cents'] ?? 0, 'money'),
+            $this->card('DA Payable Amount', $row['payable_wages_cents'] ?? 0, 'money'),
             $this->card('ACP Payment Recorded', $row['acp_payment_cents'] ?? 0, 'money'),
             $this->card('ACP Check Released', $row['acp_check_released_cents'] ?? 0, 'money'),
             $this->card('ACP Liquidated', $row['acp_liquidated_cents'] ?? 0, 'money'),

@@ -397,7 +397,7 @@ class MajorRevisionPhase14DMonthlyQuarterlyReportsTest extends TestCase
             'insurance_beneficiaries' => 10,
             'insurance_total' => '1000.00',
             'total_project_cost' => '56000.00',
-            'status' => ProjectStatus::ONGOING_PROFILING,
+            'status' => ProjectStatus::TSSD_EVALUATION,
             'created_by' => $this->admin->id,
             'updated_by' => $this->admin->id,
         ], $overrides));

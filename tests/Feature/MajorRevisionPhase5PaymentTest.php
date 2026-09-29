@@ -48,7 +48,10 @@ class MajorRevisionPhase5PaymentTest extends TestCase
             ->get(route('payments.show', $project))
             ->assertOk()
             ->assertSee('Project Payment Summary')
-            ->assertSee('Add First Obligation');
+            ->assertSee('Obligation Tranches')
+            ->assertSee('Add Tranche')
+            ->assertSee('Save Tranches')
+            ->assertSee('Complete');
     }
 
     public function test_tc_cannot_perform_focal_payment_actions(): void
@@ -61,16 +64,14 @@ class MajorRevisionPhase5PaymentTest extends TestCase
 
         $this->actingAs($this->tc)
             ->post(route('projects.payment.store', $project), [
-                'tranche_number' => 1,
-                'amount' => '100.00',
-                'obligation_date' => now()->toDateString(),
-                'payee' => 'Unauthorized Payee',
+                'intent' => 'save',
+                'tranches' => [$this->trancheRow('100.00')],
             ])
             ->assertForbidden();
 
         $this->assertDatabaseCount('project_obligations', 0);
 
-        $this->recordObligation($project, 1, '100.00');
+        $this->recordTranches($project, [$this->trancheRow('100.00')]);
         $obligation = $project->obligations()->firstOrFail();
 
         $this->actingAs($this->tc)
@@ -90,17 +91,23 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->assertDatabaseCount('project_disbursements', 0);
     }
 
-    public function test_first_obligation_tranche_saves_with_audit_ownership(): void
+    public function test_tranche_saves_encoded_breakdown_and_calculated_total(): void
     {
         $project = $this->createForPaymentProject();
 
-        $this->recordObligation($project, 1, '400.00')
-            ->assertRedirect(route('payments.show', $project));
+        $this->recordTranches($project, [
+            $this->trancheRow('400.00', '20.00', '80.00', beneficiaries: 4, female: 3),
+        ])->assertRedirect(route('payments.show', $project));
 
         $this->assertDatabaseHas('project_obligations', [
             'project_id' => $project->id,
             'tranche_number' => 1,
-            'amount' => 400,
+            'beneficiaries_total' => 4,
+            'beneficiaries_female' => 3,
+            'wages_amount' => 400,
+            'insurance_amount' => 20,
+            'ppe_amount' => 80,
+            'amount' => 500,
             'payee' => 'TUPAD Beneficiaries',
             'recorded_by' => $this->focal->id,
         ]);
@@ -117,28 +124,27 @@ class MajorRevisionPhase5PaymentTest extends TestCase
 
         $this->actingAs($this->focal)
             ->post(route('projects.payment.store', $project), [
-                'tranche_number' => 1,
-                'amount' => '250.00',
-                'obligation_date' => now()->toDateString(),
-                'payee' => 'TUPAD Beneficiaries',
-                'adl_number' => 'FORGED-ADL',
-                'fund_sponsor' => 'FORGED SPONSOR',
-                'partner' => 'FORGED PARTNER',
-                'project_location' => 'FORGED LOCATION',
-                'term' => 'FORGED TERM',
-                'beneficiaries_total' => 999999,
-                'beneficiaries_female' => 999999,
+                'intent' => 'save',
+                'tranches' => [
+                    $this->trancheRow('250.00') + [
+                        'adl_number' => 'FORGED-ADL',
+                        'fund_sponsor' => 'FORGED SPONSOR',
+                        'partner' => 'FORGED PARTNER',
+                        'project_location' => 'FORGED LOCATION',
+                        'term' => 'FORGED TERM',
+                        'tranche_number' => 99,
+                    ],
+                ],
             ])
             ->assertRedirect(route('payments.show', $project));
 
         $this->assertDatabaseHas('project_obligations', [
             'project_id' => $project->id,
+            'tranche_number' => 1,
             'adl_number' => $project->allocation->adl->adl_number,
             'fund_sponsor' => $project->fund_sponsor,
             'partner' => $project->partner,
             'term' => $project->term->label(),
-            'beneficiaries_total' => $project->beneficiaries_total,
-            'beneficiaries_female' => $project->beneficiaries_female,
         ]);
 
         $this->assertDatabaseMissing('project_obligations', [
@@ -147,74 +153,239 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         ]);
     }
 
-    public function test_multiple_obligation_tranches_can_be_created(): void
+    public function test_more_than_five_tranches_can_be_saved_in_one_submit(): void
     {
         $project = $this->createForPaymentProject();
 
-        $this->recordObligation($project, 1, '400.00');
-        $this->recordObligation($project, 2, '600.00');
+        $this->recordTranches(
+            $project,
+            array_fill(0, 7, $this->trancheRow('100.00'))
+        )->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('project_obligations', [
-            'project_id' => $project->id,
-            'tranche_number' => 1,
-            'amount' => 400,
-        ]);
-        $this->assertDatabaseHas('project_obligations', [
-            'project_id' => $project->id,
-            'tranche_number' => 2,
-            'amount' => 600,
-        ]);
-        $this->assertSame(2, $project->obligations()->count());
+        $this->assertSame(
+            [1, 2, 3, 4, 5, 6, 7],
+            $project->obligations()->pluck('tranche_number')->all()
+        );
+
+        $this->recordTranches($project, [$this->trancheRow('100.00')])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(8, $project->obligations()->max('tranche_number'));
     }
 
-    public function test_maximum_five_tranches_is_enforced(): void
-    {
-        $project = $this->createForPaymentProject('600.00');
-
-        foreach (range(1, 4) as $tranche) {
-            $this->recordObligation(
-                $project,
-                $tranche,
-                '100.00'
-            );
-        }
-
-        $this->recordObligation($project, 5, '200.00');
-
-        $this->recordObligation($project, 6, '100.00')
-            ->assertSessionHasErrors('tranche_number');
-
-        $this->assertSame(5, $project->obligations()->count());
-    }
-
-    public function test_duplicate_tranche_number_is_rejected(): void
+    public function test_blank_tranche_rows_are_ignored_on_complete_but_required_on_save(): void
     {
         $project = $this->createForPaymentProject();
 
-        $this->recordObligation($project, 1, '400.00');
-        $this->recordObligation($project, 1, '100.00')
-            ->assertSessionHasErrors('tranche_number');
+        $this->recordTranches($project, [$this->blankRow()])
+            ->assertSessionHasErrors('tranches');
 
-        $this->assertSame(1, $project->obligations()->count());
+        $this->assertDatabaseCount('project_obligations', 0);
     }
 
-    public function test_obligation_total_cannot_exceed_project_payable_wages(): void
+    public function test_female_beneficiaries_cannot_exceed_tranche_total(): void
     {
         $project = $this->createForPaymentProject();
 
-        $this->recordObligation($project, 1, '700.00');
-        $this->recordObligation($project, 2, '300.01')
-            ->assertSessionHasErrors('amount');
+        $this->recordTranches($project, [
+            $this->trancheRow('100.00', beneficiaries: 2, female: 3),
+        ])->assertSessionHasErrors('tranches.0.beneficiaries_female');
+
+        $this->assertDatabaseCount('project_obligations', 0);
+    }
+
+    public function test_tranche_totals_cannot_exceed_total_project_cost(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->recordTranches($project, [$this->trancheRow('700.00')]);
+        $this->recordTranches($project, [$this->trancheRow('250.00', '50.00', '0.01')])
+            ->assertSessionHasErrors('tranches.0.wages_amount');
 
         $this->assertEquals(700.0, $project->obligations()->sum('amount'));
+    }
+
+    public function test_a_failed_row_rolls_back_the_whole_batch(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->recordTranches($project, [
+            $this->trancheRow('600.00'),
+            $this->trancheRow('600.00'),
+        ])->assertSessionHasErrors('tranches.1.wages_amount');
+
+        $this->assertDatabaseCount('project_obligations', 0);
+    }
+
+    public function test_complete_is_allowed_when_tranches_are_below_project_data(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->recordTranches($project, [$this->trancheRow('600.00')]);
+
+        $this->completeTranches($project)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('projects.show', $project));
+
+        $this->assertNotNull($project->fresh()->obligations_completed_at);
+    }
+
+    public function test_complete_requires_at_least_one_tranche(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->completeTranches($project, [$this->blankRow()])
+            ->assertSessionHasErrors('tranches');
+
+        $this->assertNull($project->fresh()->obligations_completed_at);
+    }
+
+    public function test_each_project_figure_cannot_be_exceeded_across_tranches(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        // Project: 10 beneficiaries (6 female), ₱800 wages, ₱50 insurance, ₱150 PPE.
+        $this->recordTranches($project, [$this->trancheRow('100.00', beneficiaries: 11, female: 0)])
+            ->assertSessionHasErrors('tranches.0.beneficiaries_total');
+
+        $this->recordTranches($project, [$this->trancheRow('100.00', beneficiaries: 7, female: 7)])
+            ->assertSessionHasErrors('tranches.0.beneficiaries_female');
+
+        $this->recordTranches($project, [$this->trancheRow('100.00', insurance: '50.01')])
+            ->assertSessionHasErrors('tranches.0.insurance_amount');
+
+        $this->recordTranches($project, [$this->trancheRow('100.00', ppe: '150.01')])
+            ->assertSessionHasErrors('tranches.0.ppe_amount');
+
+        $this->recordTranches($project, [
+            $this->trancheRow('100.00', beneficiaries: 6, female: 3),
+            $this->trancheRow('100.00', beneficiaries: 5, female: 3),
+        ])->assertSessionHasErrors('tranches.1.beneficiaries_total');
+
+        $this->assertDatabaseCount('project_obligations', 0);
+
+        // Below the project data is fine.
+        $this->recordTranches($project, [$this->trancheRow('455.00', '25.00', '75.00', beneficiaries: 5, female: 3)])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('project_obligations', 1);
+    }
+
+    public function test_tranche_saves_with_only_one_amount_beneficiaries_date_and_payee(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->recordTranches($project, [[
+            'beneficiaries_total' => 3,
+            'beneficiaries_female' => '',
+            'wages_amount' => '',
+            'insurance_amount' => '',
+            'ppe_amount' => '120.00',
+            'obligation_date' => now()->toDateString(),
+            'payee' => 'PPE Supplier',
+        ]])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('project_obligations', [
+            'project_id' => $project->id,
+            'beneficiaries_total' => 3,
+            'beneficiaries_female' => 0,
+            'wages_amount' => 0,
+            'insurance_amount' => 0,
+            'ppe_amount' => 120,
+            'amount' => 120,
+            'payee' => 'PPE Supplier',
+        ]);
+    }
+
+    public function test_formatted_amounts_with_commas_are_accepted(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $project->update(['wages_total' => '8000.00', 'total_project_cost' => '8200.00']);
+
+        $this->recordTranches($project, [
+            ['wages_amount' => '1,500.50'] + $this->trancheRow('0'),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('project_obligations', [
+            'project_id' => $project->id,
+            'wages_amount' => 1500.50,
+        ]);
+    }
+
+    public function test_tranche_without_any_amount_or_required_fields_is_rejected(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->recordTranches($project, [[
+            'beneficiaries_total' => 3,
+            'wages_amount' => '',
+            'insurance_amount' => '',
+            'ppe_amount' => '',
+            'obligation_date' => '',
+            'payee' => '',
+        ]])->assertSessionHasErrors([
+            'tranches.0.wages_amount',
+            'tranches.0.obligation_date',
+            'tranches.0.payee',
+        ]);
+
+        $this->recordTranches($project, [[
+            'beneficiaries_total' => '',
+            'wages_amount' => '100.00',
+            'obligation_date' => now()->toDateString(),
+            'payee' => 'TUPAD Beneficiaries',
+        ]])->assertSessionHasErrors('tranches.0.beneficiaries_total');
+
+        $this->assertDatabaseCount('project_obligations', 0);
+    }
+
+    public function test_payment_page_shows_wage_formula_and_project_limits(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->actingAs($this->focal)
+            ->get(route('payments.show', $project))
+            ->assertOk()
+            ->assertSee('Project Data vs Obligated')
+            ->assertSee('beneficiaries × ₱9,100.00', false)
+            ->assertSee('Insurance as beneficiaries × ₱50.00 insurance rate', false)
+            ->assertSee('data-insurance-per-beneficiary-cents="5000"', false)
+            ->assertSee('obligationTrancheLimits', false);
+    }
+
+    public function test_complete_saves_entered_rows_locks_tranches_and_redirects_to_project(): void
+    {
+        $project = $this->createForPaymentProject();
+
+        $this->recordTranches($project, [$this->trancheRow('500.00')]);
+
+        $this->completeTranches($project, [
+            $this->trancheRow('300.00', '50.00', '150.00'),
+            $this->blankRow(),
+        ])->assertRedirect(route('projects.show', $project));
+
+        $project->refresh();
+
+        $this->assertNotNull($project->obligations_completed_at);
+        $this->assertSame($this->focal->id, $project->obligations_completed_by);
+        $this->assertSame(2, $project->obligations()->count());
+        $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->status);
+
+        $this->recordTranches($project, [$this->trancheRow('1.00')])
+            ->assertSessionHasErrors('tranches');
+
+        $this->assertSame(2, $project->obligations()->count());
     }
 
     public function test_disbursement_belongs_to_the_selected_obligation_tranche(): void
     {
         $project = $this->createForPaymentProject();
 
-        $this->recordObligation($project, 1, '400.00');
-        $this->recordObligation($project, 2, '600.00');
+        $this->recordTranches($project, [
+            $this->trancheRow('400.00'),
+            $this->trancheRow('400.00'),
+        ]);
 
         $first = $project->obligations()
             ->where('tranche_number', 1)
@@ -239,7 +410,7 @@ class MajorRevisionPhase5PaymentTest extends TestCase
     {
         $project = $this->createForPaymentProject();
 
-        $this->recordObligation($project, 1, '400.00');
+        $this->recordTranches($project, [$this->trancheRow('400.00')]);
         $obligation = $project->obligations()->firstOrFail();
 
         $this->recordDisbursement(
@@ -252,23 +423,22 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->assertDatabaseCount('project_disbursements', 0);
     }
 
-    public function test_partial_disbursement_does_not_prematurely_complete_project(): void
+    public function test_full_disbursement_alone_does_not_complete_project(): void
     {
         $project = $this->createForPaymentProject();
 
-        $this->recordObligation($project, 1, '500.00');
-        $this->recordObligation($project, 2, '500.00');
+        $this->completeTranches($project, [
+            $this->trancheRow('800.00', '50.00', '150.00'),
+        ]);
 
-        $first = $project->obligations()
-            ->where('tranche_number', 1)
-            ->firstOrFail();
+        $obligation = $project->obligations()->firstOrFail();
 
         $this->recordDisbursement(
             $project,
-            $first,
-            '500.00',
-            'LDAP-PARTIAL'
-        );
+            $obligation,
+            '1000.00',
+            'LDAP-FULL'
+        )->assertSessionHasNoErrors();
 
         $this->assertSame(
             ProjectStatus::FOR_PAYMENT,
@@ -276,42 +446,11 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         );
     }
 
-    public function test_full_disbursement_automatically_completes_project(): void
-    {
-        $project = $this->createForPaymentProject();
-
-        $this->recordObligation($project, 1, '400.00');
-        $this->recordObligation($project, 2, '600.00');
-
-        $obligations = $project->obligations()
-            ->orderBy('tranche_number')
-            ->get();
-
-        $this->recordDisbursement(
-            $project,
-            $obligations[0],
-            '400.00',
-            'LDAP-FULL-1'
-        );
-
-        $this->recordDisbursement(
-            $project,
-            $obligations[1],
-            '600.00',
-            'CHECK-FULL-2'
-        );
-
-        $project->refresh();
-
-        $this->assertSame(ProjectStatus::COMPLETED, $project->status);
-        $this->assertSame($this->focal->id, $project->updated_by);
-    }
-
     public function test_payment_summary_totals_and_balance_are_calculated_correctly(): void
     {
         $project = $this->createForPaymentProject();
 
-        $this->recordObligation($project, 1, '600.00');
+        $this->recordTranches($project, [$this->trancheRow('600.00')]);
         $obligation = $project->obligations()->firstOrFail();
         $this->recordDisbursement(
             $project,
@@ -323,7 +462,7 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->actingAs($this->focal)
             ->get(route('payments.show', $project))
             ->assertOk()
-            ->assertSee('Project Payable Amount')
+            ->assertSee('Total Project Cost')
             ->assertSee('₱1,000.00')
             ->assertSee('Total Obligated')
             ->assertSee('₱600.00')
@@ -339,7 +478,7 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $projectOne = $this->createForPaymentProject();
         $projectTwo = $this->createForPaymentProject();
 
-        $this->recordObligation($projectOne, 1, '100.00');
+        $this->recordTranches($projectOne, [$this->trancheRow('100.00')]);
         $foreignObligation = $projectOne->obligations()->firstOrFail();
 
         $this->actingAs($this->focal)
@@ -359,18 +498,54 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->assertDatabaseCount('project_disbursements', 0);
     }
 
-    private function recordObligation(
-        Project $project,
-        int $tranche,
-        string $amount
-    ) {
+    private function trancheRow(
+        string $wages,
+        string $insurance = '0.00',
+        string $ppe = '0.00',
+        int $beneficiaries = 1,
+        int $female = 0,
+    ): array {
+        return [
+            'beneficiaries_total' => $beneficiaries,
+            'beneficiaries_female' => $female,
+            'wages_amount' => $wages,
+            'insurance_amount' => $insurance,
+            'ppe_amount' => $ppe,
+            'obligation_date' => now()->toDateString(),
+            'payee' => 'TUPAD Beneficiaries',
+            'remarks' => 'Phase 5 tranche',
+        ];
+    }
+
+    private function blankRow(): array
+    {
+        return [
+            'beneficiaries_total' => '',
+            'beneficiaries_female' => '',
+            'wages_amount' => '',
+            'insurance_amount' => '',
+            'ppe_amount' => '',
+            'obligation_date' => now()->toDateString(),
+            'payee' => '',
+            'remarks' => '',
+        ];
+    }
+
+    private function recordTranches(Project $project, array $rows)
+    {
         return $this->actingAs($this->focal)
             ->post(route('projects.payment.store', $project), [
-                'tranche_number' => $tranche,
-                'amount' => $amount,
-                'obligation_date' => now()->toDateString(),
-                'payee' => 'TUPAD Beneficiaries',
-                'remarks' => "Phase 5 Tranche {$tranche}",
+                'intent' => 'save',
+                'tranches' => $rows,
+            ]);
+    }
+
+    private function completeTranches(Project $project, array $rows = [])
+    {
+        return $this->actingAs($this->focal)
+            ->post(route('projects.payment.store', $project), [
+                'intent' => 'complete',
+                'tranches' => $rows,
             ]);
     }
 
@@ -394,9 +569,11 @@ class MajorRevisionPhase5PaymentTest extends TestCase
             );
     }
 
-    private function createForPaymentProject(
-        string $wagesTotal = '1000.00'
-    ): Project {
+    /**
+     * Total Project Cost = ₱800 wages + ₱50 insurance + ₱150 PPE = ₱1,000.
+     */
+    private function createForPaymentProject(): Project
+    {
         $this->sequence++;
 
         $adl = Adl::create([
@@ -440,11 +617,11 @@ class MajorRevisionPhase5PaymentTest extends TestCase
             'beneficiaries_total' => 10,
             'beneficiaries_female' => 6,
             'wage_rate' => 455,
-            'wages_total' => $wagesTotal,
-            'ppe_total' => 0,
+            'wages_total' => '800.00',
+            'ppe_total' => '150.00',
             'insurance_rate' => 50,
-            'insurance_total' => 0,
-            'total_project_cost' => $wagesTotal,
+            'insurance_total' => '50.00',
+            'total_project_cost' => '1000.00',
             'status' => ProjectStatus::FOR_PAYMENT,
             'created_by' => $this->tc->id,
         ]);

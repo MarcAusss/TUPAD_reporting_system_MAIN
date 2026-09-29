@@ -21,7 +21,7 @@
 
     {{-- The four mapping families are the primary selector for one authoritative interactive map. --}}
     <section class="mb-5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm" aria-label="Geographic mapping families">
-        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             @foreach ($families as $key => $tab)
                 <a href="{{ route('reports.workspace.geographic-mapping', array_merge($commonQuery, ['view' => $key])) }}"
                     aria-current="{{ $familyKey === $key ? 'page' : 'false' }}"

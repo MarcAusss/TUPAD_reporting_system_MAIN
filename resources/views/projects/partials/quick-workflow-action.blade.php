@@ -3,7 +3,6 @@
     $canAdvanceEarlyWorkflow = $user->isAdmin() || $user->isTc();
 
     $quickModalStatus = in_array($project->status, [
-        \App\Enums\ProjectStatus::ONGOING_PROFILING,
         \App\Enums\ProjectStatus::TSSD_EVALUATION,
         \App\Enums\ProjectStatus::FOR_COMPLIANCE,
         \App\Enums\ProjectStatus::FOR_APPROVAL,
@@ -12,7 +11,6 @@
     $quickModalAvailable = $canAdvanceEarlyWorkflow && $quickModalStatus;
 
     $nextStatusLabel = match ($project->status) {
-        \App\Enums\ProjectStatus::ONGOING_PROFILING => 'TSSD Evaluation',
         \App\Enums\ProjectStatus::TSSD_EVALUATION => 'For Compliance / For Approval',
         \App\Enums\ProjectStatus::FOR_COMPLIANCE => 'For Approval',
         \App\Enums\ProjectStatus::FOR_APPROVAL => 'Approved',
@@ -90,19 +88,7 @@
                         </div>
                     @endif
 
-                    @if($project->status === \App\Enums\ProjectStatus::ONGOING_PROFILING)
-                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                            Confirm that the project profile, aggregate beneficiary information, location, implementation mode, and cost details are complete. This action moves the project to <strong>TSSD Evaluation</strong>.
-                        </div>
-                        <form method="POST" action="{{ route('projects.evaluation.start', $project) }}" class="mt-5">
-                            @csrf
-                            <input type="hidden" name="quick_action" value="1">
-                            <div class="flex justify-end gap-2">
-                                <button type="button" data-quick-workflow-close class="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
-                                <button type="submit" class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">Submit to TSSD Evaluation</button>
-                            </div>
-                        </form>
-                    @elseif($project->status === \App\Enums\ProjectStatus::TSSD_EVALUATION)
+                    @if($project->status === \App\Enums\ProjectStatus::TSSD_EVALUATION)
                         <form method="POST" action="{{ route('projects.evaluation.store', $project) }}" class="space-y-4">
                             @csrf
                             <input type="hidden" name="quick_action" value="1">

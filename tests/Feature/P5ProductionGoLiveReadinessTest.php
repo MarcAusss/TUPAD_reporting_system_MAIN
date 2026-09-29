@@ -27,8 +27,8 @@ class P5ProductionGoLiveReadinessTest extends TestCase
             ['admin', 'focal', 'tc'],
             array_map(static fn (UserRole $role): string => $role->value, UserRole::assignable()),
         );
-        $this->assertSame('Ongoing Profiling', ProjectStatus::ONGOING_PROFILING->label());
-        $this->assertTrue(Route::has('projects.evaluation.start'));
+        $this->assertSame('TSSD Evaluation', ProjectStatus::TSSD_EVALUATION->label());
+        $this->assertFalse(Route::has('projects.evaluation.start'));
         $this->assertFalse(Route::has('project-drafts.index'));
         $this->assertFalse(Route::has('project-draft-reviews.index'));
     }

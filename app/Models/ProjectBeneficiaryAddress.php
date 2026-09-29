@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use LogicException;
 
 class ProjectBeneficiaryAddress extends Model
@@ -72,6 +73,22 @@ class ProjectBeneficiaryAddress extends Model
     public function barangay(): BelongsTo
     {
         return $this->belongsTo(Barangay::class);
+    }
+
+    /** Beneficiaries excluded from this address after the obligations were completed. */
+    public function deduction(): HasOne
+    {
+        return $this->hasOne(ProjectBeneficiaryDeduction::class, 'project_beneficiary_address_id');
+    }
+
+    public function actualTotal(): int
+    {
+        return max(0, (int) $this->beneficiaries_total - (int) ($this->deduction?->beneficiaries_deducted ?? 0));
+    }
+
+    public function actualFemale(): int
+    {
+        return max(0, (int) $this->beneficiaries_female - (int) ($this->deduction?->female_deducted ?? 0));
     }
 
     public function encoder(): BelongsTo

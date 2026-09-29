@@ -15,6 +15,22 @@ export function initializeTupadUi() {
             }
 
             form.setAttribute('aria-busy', 'true');
+
+            // Disabled buttons are left out of the submitted data, so keep the
+            // clicked button's name/value (e.g. intent=save|complete) as a
+            // hidden field before disabling it.
+            const submitter = event.submitter;
+            if (submitter?.name && submitter.dataset.allowRepeatSubmit !== 'true') {
+                form.querySelector('input[data-submitter-value]')?.remove();
+
+                const carrier = document.createElement('input');
+                carrier.type = 'hidden';
+                carrier.name = submitter.name;
+                carrier.value = submitter.value;
+                carrier.dataset.submitterValue = '';
+                form.appendChild(carrier);
+            }
+
             form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((button) => {
                 if (button.dataset.allowRepeatSubmit === 'true') return;
                 button.disabled = true;

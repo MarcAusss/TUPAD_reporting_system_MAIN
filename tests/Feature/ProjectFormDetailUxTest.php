@@ -95,7 +95,7 @@ class ProjectFormDetailUxTest extends TestCase
             'insurance_rate' => 50,
             'insurance_total' => 2500,
             'total_project_cost' => 457500,
-            'status' => ProjectStatus::ONGOING_PROFILING,
+            'status' => ProjectStatus::TSSD_EVALUATION,
             'created_by' => $tc->id,
         ]);
 
@@ -105,10 +105,9 @@ class ProjectFormDetailUxTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Action Required');
-        $response->assertSee('Complete profiling and submit for TSSD evaluation');
+        $response->assertSee('Record the TSSD evaluation result');
         $response->assertSee('Continue Workflow');
-        $response->assertSee('Ongoing Profiling');
-        $response->assertSee('Submit to TSSD Evaluation');
+        $response->assertSee('TSSD Evaluation');
         $response->assertSee('Project Progress');
         $response->assertSee('data-workspace-tab-target="overview"', false);
         $response->assertSee('data-workspace-tab-target="workflow"', false);

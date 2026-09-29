@@ -66,6 +66,11 @@ class Project extends Model
         'status',
         'remarks',
 
+        'obligations_completed_at',
+        'obligations_completed_by',
+        'beneficiary_deductions_recorded_at',
+        'beneficiary_deductions_recorded_by',
+
         'province_id',
         'municipality_id',
         'barangay_id',
@@ -94,6 +99,9 @@ class Project extends Model
             'insurance_total' => 'decimal:2',
 
             'total_project_cost' => 'decimal:2',
+
+            'obligations_completed_at' => 'datetime',
+            'beneficiary_deductions_recorded_at' => 'datetime',
         ];
     }
 
@@ -210,6 +218,37 @@ class Project extends Model
             ->orderBy('tranche_number');
     }
 
+    /** Through ACP: Notice of Availability of Fund. */
+    public function nafa(): HasOne
+    {
+        return $this->hasOne(ProjectNafa::class);
+    }
+
+    public function beneficiaryDeductions(): HasMany
+    {
+        return $this->hasMany(ProjectBeneficiaryDeduction::class);
+    }
+
+    public function beneficiaryDeductionsRecorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'beneficiary_deductions_recorded_by');
+    }
+
+    public function editRequests(): HasMany
+    {
+        return $this->hasMany(ProjectEditRequest::class)->latest();
+    }
+
+    public function editLogs(): HasMany
+    {
+        return $this->hasMany(ProjectEditLog::class)->latest();
+    }
+
+    public function obligationsCompleter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'obligations_completed_by');
+    }
+
     public function payout(): HasOne
     {
         return $this->hasOne(
@@ -300,6 +339,16 @@ class Project extends Model
         return $this->hasMany(ProjectBeneficiaryAddress::class)
             ->orderBy('municipality_id')
             ->orderBy('barangay_id');
+    }
+
+    public function barangayPpeProfiles(): HasMany
+    {
+        return $this->hasMany(ProjectBarangayPpeProfile::class);
+    }
+
+    public function barangayPpeItemCounts(): HasMany
+    {
+        return $this->hasMany(ProjectBarangayPpeItemCount::class);
     }
 
     public function laborMarketReferrals(): HasMany

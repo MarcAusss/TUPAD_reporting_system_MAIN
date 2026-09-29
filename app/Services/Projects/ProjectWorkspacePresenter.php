@@ -6,6 +6,7 @@ use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\Payments\ProjectPaymentService;
 
 final class ProjectWorkspacePresenter
 {
@@ -57,27 +58,46 @@ final class ProjectWorkspacePresenter
         ];
     }
 
+    /**
+     * Compact progress snapshot used outside the project page (e.g. notifications).
+     *
+     * @return array{percent:int,stage_label:string,stage_number:int,stage_count:int}
+     */
+    public function progressSummary(Project $project): array
+    {
+        $stages = $this->stagesFor($project);
+        $currentStageIndex = $this->currentStageIndex($project);
+
+        return [
+            'percent' => (int) round(($currentStageIndex / max(count($stages) - 1, 1)) * 100),
+            'stage_label' => (string) ($stages[$currentStageIndex]['label'] ?? ''),
+            'stage_number' => $currentStageIndex + 1,
+            'stage_count' => count($stages),
+        ];
+    }
+
     private function stagesFor(Project $project): array
     {
         $definitions = $project->implementation_mode === ImplementationMode::THROUGH_ACP
             ? [
-                ['label' => 'Profiling', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Evaluation', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'ACP Payment', 'href' => route('acp-payments.show', $project)],
                 ['label' => 'Check Release', 'href' => route('acp-payments.show', $project)],
-                ['label' => 'Implementation', 'href' => route('acp-implementation.show', $project)],
+                ['label' => 'Preparation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'insurance'],
+                ['label' => 'Implementation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'orientation'],
+                ['label' => 'Release of Assistance', 'tab' => 'workflow', 'anchor' => 'acp-release-of-assistance'],
                 ['label' => 'Liquidation', 'href' => route('acp-liquidations.show', $project)],
                 ['label' => 'Completed', 'tab' => 'overview'],
             ]
             : [
-                ['label' => 'Profiling', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Evaluation', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'Preparation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'insurance'],
                 ['label' => 'Implementation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'orientation'],
                 ['label' => 'Post Documents', 'tab' => 'workflow', 'anchor' => 'post-documents'],
                 ['label' => 'Payment', 'tab' => 'financial', 'anchor' => 'payment'],
+                ['label' => 'Release of Assistance', 'tab' => 'workflow', 'anchor' => 'release-of-assistance'],
                 ['label' => 'Completed', 'tab' => 'overview'],
             ];
 
@@ -98,37 +118,63 @@ final class ProjectWorkspacePresenter
     {
         if ($project->implementation_mode === ImplementationMode::THROUGH_ACP) {
             return match ($project->status) {
-                ProjectStatus::ONGOING_PROFILING => 0,
                 ProjectStatus::TSSD_EVALUATION,
-                ProjectStatus::FOR_COMPLIANCE => 1,
-                ProjectStatus::FOR_APPROVAL => 2,
+                ProjectStatus::FOR_COMPLIANCE => 0,
+                ProjectStatus::FOR_APPROVAL => 1,
                 ProjectStatus::APPROVED,
-                ProjectStatus::FOR_PAYMENT => 3,
-                ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT => 4,
-                ProjectStatus::FOR_IMPLEMENTATION,
-                ProjectStatus::ONGOING_IMPLEMENTATION => 5,
+                ProjectStatus::FOR_PAYMENT => 2,
+                ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT => 3,
+                ProjectStatus::FOR_IMPLEMENTATION => $this->acpPreparationStage($project),
+                ProjectStatus::ONGOING_IMPLEMENTATION => $this->acpOngoingStage($project),
                 ProjectStatus::FOR_LIQUIDATION,
-                ProjectStatus::PARTIALLY_LIQUIDATED => 6,
-                ProjectStatus::COMPLETED => 7,
-                ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 6,
+                ProjectStatus::PARTIALLY_LIQUIDATED => 7,
+                ProjectStatus::COMPLETED => 8,
+                ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 7,
             };
         }
 
         return match ($project->status) {
-            ProjectStatus::ONGOING_PROFILING => 0,
             ProjectStatus::TSSD_EVALUATION,
-            ProjectStatus::FOR_COMPLIANCE => 1,
-            ProjectStatus::FOR_APPROVAL => 2,
-            ProjectStatus::APPROVED => 3,
+            ProjectStatus::FOR_COMPLIANCE => 0,
+            ProjectStatus::FOR_APPROVAL => 1,
+            ProjectStatus::APPROVED => 2,
             ProjectStatus::FOR_IMPLEMENTATION,
-            ProjectStatus::ONGOING_IMPLEMENTATION => 4,
-            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 5,
-            ProjectStatus::FOR_PAYMENT => 6,
+            ProjectStatus::ONGOING_IMPLEMENTATION => 3,
+            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 4,
+            // Release of Assistance becomes the current stage once the Focal
+            // has completed and fully disbursed the obligation tranches.
+            ProjectStatus::FOR_PAYMENT => $this->focalPaymentFinished($project) ? 6 : 5,
             ProjectStatus::COMPLETED => 7,
             ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
             ProjectStatus::FOR_LIQUIDATION,
-            ProjectStatus::PARTIALLY_LIQUIDATED => 6,
+            ProjectStatus::PARTIALLY_LIQUIDATED => 5,
         };
+    }
+
+    /** Through ACP For Implementation: Preparation (4) until Insurance/PPE/NAFA/NTP are recorded, then Implementation (5). */
+    private function acpPreparationStage(Project $project): int
+    {
+        return app(AcpWorkflowService::class)->preparationComplete($project) ? 5 : 4;
+    }
+
+    /** Through ACP Ongoing: Implementation (5) until the Release of Assistance opens (6). */
+    private function acpOngoingStage(Project $project): int
+    {
+        $acp = app(AcpWorkflowService::class);
+
+        if ($acp->isLegacy($project)) {
+            return 5;
+        }
+
+        $project->loadMissing('payout');
+
+        return $project->payout || $acp->releaseOpen($project) ? 6 : 5;
+    }
+
+    private function focalPaymentFinished(Project $project): bool
+    {
+        return $project->obligations_completed_at !== null
+            && app(ProjectPaymentService::class)->summary($project)['is_fully_paid'];
     }
 
     private function actionFor(Project $project, User $user): array
@@ -147,14 +193,6 @@ final class ProjectWorkspacePresenter
     private function sharedActionFor(Project $project): ?array
     {
         return match ($project->status) {
-            ProjectStatus::ONGOING_PROFILING => $this->internalAction(
-                'Action Required',
-                'Complete profiling and submit for TSSD evaluation',
-                'Review the encoded profile first. Submit only when the official project information is complete.',
-                'Review & Submit',
-                'workflow',
-                'evaluation',
-            ),
             ProjectStatus::TSSD_EVALUATION => $this->internalAction(
                 'Action Required',
                 'Record the TSSD evaluation result',
@@ -226,23 +264,7 @@ final class ProjectWorkspacePresenter
                 'workflow',
                 'post-documents',
             ),
-            ProjectStatus::FOR_PAYMENT => ($user->isAdmin() || $user->isFocal())
-                ? $this->externalAction(
-                    'Action Required',
-                    'Process payment of wages',
-                    'Create or complete wage obligations and their corresponding disbursements.',
-                    'Manage Payment of Wages',
-                    route('payments.show', $project),
-                    'financial',
-                )
-                : $this->internalAction(
-                    'Pending Focal/Admin Action',
-                    'Payment of wages is ready for processing',
-                    'The project is waiting for a Focal or Administrator account to complete wage obligations and disbursements.',
-                    'View Payment Status',
-                    'financial',
-                    'payment',
-                ),
+            ProjectStatus::FOR_PAYMENT => $this->directPaymentActionFor($project, $user),
             default => $this->internalAction(
                 'Workflow Status',
                 $project->status->label(),
@@ -252,6 +274,96 @@ final class ProjectWorkspacePresenter
                 'final-workflow',
             ),
         };
+    }
+
+    /**
+     * For Payment runs per tranche: the Focal obligates, then disburses the
+     * tranche; once it is fully disbursed the TUPAD Coordinator records its
+     * Release of Assistance. The project completes when the Focal completed
+     * the tranches, every tranche is disbursed and released, and every
+     * release date has been reached.
+     */
+    private function directPaymentActionFor(Project $project, User $user): array
+    {
+        $paymentService = app(ProjectPaymentService::class);
+        $canManagePayment = $user->isAdmin() || $user->isFocal();
+        $obligationsCompleted = $project->obligations_completed_at !== null;
+
+        if ($canManagePayment && ! $obligationsCompleted) {
+            return $this->externalAction(
+                'Action Required',
+                'Process payment of wages',
+                'Encode and disburse the obligation tranches, then click Complete once all tranches are saved.',
+                'Manage Payment of Wages',
+                route('payments.show', $project),
+                'financial',
+            );
+        }
+
+        $fullyPaid = $paymentService->summary($project)['is_fully_paid'];
+
+        if ($canManagePayment && ! $fullyPaid) {
+            return $this->externalAction(
+                'Action Required',
+                'Record the remaining disbursements',
+                'Each fully disbursed tranche goes to the TUPAD Coordinator for its Release of Assistance.',
+                'Manage Payment of Wages',
+                route('payments.show', $project),
+                'financial',
+            );
+        }
+
+        $release = $paymentService->releaseSummary($project);
+
+        if ($release['ready_for_release'] > 0) {
+            return ($user->isAdmin() || $user->isTc())
+                ? $this->internalAction(
+                    'Action Required',
+                    'Record the Release of Assistance',
+                    sprintf(
+                        '%d disbursed tranche(s) need the mode of payment, date of payout, and venue.',
+                        $release['ready_for_release'],
+                    ),
+                    'Record Release of Assistance',
+                    'workflow',
+                    'release-of-assistance',
+                )
+                : $this->internalAction(
+                    'Pending TUPAD Coordinator Action',
+                    'Waiting for the Release of Assistance',
+                    'The TUPAD Coordinator records the Release of Assistance for each disbursed tranche.',
+                    'View Release of Assistance',
+                    'workflow',
+                    'release-of-assistance',
+                );
+        }
+
+        if (! $obligationsCompleted || ! $fullyPaid) {
+            return $this->internalAction(
+                'Pending Focal/Admin Action',
+                $obligationsCompleted ? 'Waiting for the Focal to disburse' : 'Waiting for the Focal to obligate and disburse',
+                'The next Release of Assistance opens once the Focal fully disburses a tranche.',
+                'View Release of Assistance',
+                'workflow',
+                'release-of-assistance',
+            );
+        }
+
+        $latestReleaseDate = $project->obligations->max('release_date');
+
+        return $this->internalAction(
+            'Current Stage',
+            'Waiting for the payout date',
+            $latestReleaseDate
+                ? sprintf(
+                    'Every tranche is released. The project completes automatically on the last payout date (%s).',
+                    $latestReleaseDate->format('F d, Y'),
+                )
+                : 'Every tranche is released. The project completes automatically on the last payout date.',
+            'View Release of Assistance',
+            'workflow',
+            'release-of-assistance',
+        );
     }
 
     private function acpActionFor(Project $project, User $user): array
@@ -276,28 +388,10 @@ final class ProjectWorkspacePresenter
                     'A Focal or Administrator account must complete the ACP payment and check-release stage.',
                     'View ACP Workflow',
                     'workflow',
-                    'implementation',
+                    'acp-workflow',
                 ),
             ProjectStatus::FOR_IMPLEMENTATION,
-            ProjectStatus::ONGOING_IMPLEMENTATION => ($user->isAdmin() || $user->isTc())
-                ? $this->externalAction(
-                    $project->status === ProjectStatus::FOR_IMPLEMENTATION ? 'Action Required' : 'Current Stage',
-                    $project->status === ProjectStatus::FOR_IMPLEMENTATION
-                        ? 'Record ACP implementation'
-                        : 'ACP implementation is in progress',
-                    'Open the ACP implementation workspace to record or review the official work period.',
-                    'Open ACP Implementation',
-                    route('acp-implementation.show', $project),
-                    'workflow',
-                )
-                : $this->internalAction(
-                    'Pending Admin/Coordinator Action',
-                    'ACP implementation is awaiting processing',
-                    'An Administrator or TUPAD Coordinator account must record the implementation details.',
-                    'View ACP Workflow',
-                    'workflow',
-                    'implementation',
-                ),
+            ProjectStatus::ONGOING_IMPLEMENTATION => $this->acpImplementationActionFor($project, $user),
             ProjectStatus::FOR_LIQUIDATION,
             ProjectStatus::PARTIALLY_LIQUIDATED => ($user->isAdmin() || $user->isFocal() || $user->isTc())
                 ? $this->externalAction(
@@ -316,7 +410,7 @@ final class ProjectWorkspacePresenter
                     'A TUPAD Coordinator, Focal, or Administrator account must complete the liquidation stage.',
                     'View ACP Workflow',
                     'workflow',
-                    'implementation',
+                    'acp-workflow',
                 ),
             default => $this->internalAction(
                 'Workflow Status',
@@ -327,6 +421,100 @@ final class ProjectWorkspacePresenter
                 'final-workflow',
             ),
         };
+    }
+
+    /**
+     * Through ACP after the check release: GSIS Enrollment, PPE, NAFA, and
+     * NTP, then Orientation and the Work Period, then the Release of
+     * Assistance once the work period ends (same gates as DA).
+     */
+    private function acpImplementationActionFor(Project $project, User $user): array
+    {
+        $acp = app(AcpWorkflowService::class);
+        $canAct = $user->isAdmin() || $user->isTc();
+
+        if ($acp->isLegacy($project)) {
+            return $canAct
+                ? $this->externalAction(
+                    'Current Stage',
+                    'ACP implementation is in progress',
+                    'Open the ACP implementation workspace to review the official work period.',
+                    'Open ACP Implementation',
+                    route('acp-implementation.show', $project),
+                    'workflow',
+                )
+                : $this->internalAction('Current Stage', 'ACP implementation is in progress', 'The project is under implementation.', 'View ACP Workflow', 'workflow', 'acp-workflow');
+        }
+
+        $pending = fn (string $title, string $description, string $anchor, string $label): array => $canAct
+            ? $this->internalAction('Action Required', $title, $description, $label, 'workflow', $anchor)
+            : $this->internalAction('Pending Admin/Coordinator Action', $title, $description, 'View ACP Workflow', 'workflow', $anchor);
+
+        if ($project->status === ProjectStatus::FOR_IMPLEMENTATION) {
+            $missing = $acp->missingPreparation($project);
+
+            if ($missing !== []) {
+                return $pending(
+                    'Complete the implementation requirements',
+                    'Still needed: '.implode(', ', $missing).'.',
+                    'implementation',
+                    'Complete Requirements',
+                );
+            }
+
+            $project->loadMissing(['orientation', 'implementation']);
+
+            if (! $project->orientation || ! $project->implementation) {
+                return $pending(
+                    'Schedule and start implementation',
+                    'Record the orientation and the official work period so implementation can proceed.',
+                    'implementation',
+                    'Open Implementation',
+                );
+            }
+
+            return $this->internalAction(
+                'Current Stage',
+                'Waiting for the implementation start date',
+                sprintf('Implementation starts on %s.', $project->implementation->start_date->format('F d, Y')),
+                'View Implementation',
+                'workflow',
+                'implementation',
+            );
+        }
+
+        $project->loadMissing(['implementation', 'payout']);
+
+        if ($project->payout) {
+            return $this->internalAction(
+                'Current Stage',
+                'Waiting for the payout date',
+                sprintf('Liquidation opens on the payout date (%s).', $project->payout->payout_date->format('F d, Y')),
+                'View Release of Assistance',
+                'workflow',
+                'acp-release-of-assistance',
+            );
+        }
+
+        if ($acp->releaseOpen($project)) {
+            return $pending(
+                'Record the Release of Assistance',
+                'The work period has ended. Record the mode of payment, date of payout, and venue.',
+                'acp-release-of-assistance',
+                'Record Release of Assistance',
+            );
+        }
+
+        return $this->internalAction(
+            'Current Stage',
+            'Implementation is in progress',
+            $project->implementation
+                ? sprintf('The Release of Assistance opens when the work period ends (%s).', $project->implementation->end_date->format('F d, Y'))
+                : 'Review the recorded implementation period.',
+            'View Implementation',
+            'workflow',
+            'implementation',
+        );
     }
 
     private function internalAction(

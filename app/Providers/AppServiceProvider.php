@@ -11,6 +11,8 @@ use App\Models\ProjectApproval;
 use App\Models\ProjectAcpLiquidation;
 use App\Models\ProjectAcpCheckRelease;
 use App\Models\ProjectAcpPayment;
+use App\Models\ProjectBarangayPpeItemCount;
+use App\Models\ProjectBarangayPpeProfile;
 use App\Models\ProjectBeneficiaryAddress;
 use App\Models\ProjectBeneficiaryReplacement;
 use App\Models\ProjectBeneficiarySector;
@@ -84,6 +86,8 @@ class AppServiceProvider extends ServiceProvider
             ProjectLaborMarketReferral::class,
             ProjectBeneficiaryAddress::class,
             ProjectBeneficiaryReplacement::class,
+            ProjectBarangayPpeProfile::class,
+            ProjectBarangayPpeItemCount::class,
 
             User::class,
             ProjectBeneficiary::class,

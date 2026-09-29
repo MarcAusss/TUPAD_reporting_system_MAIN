@@ -69,7 +69,7 @@ class FreshDatabaseBaselineTest extends TestCase
 
         $this->assertSame(
             60,
-            Project::query()->where('status', ProjectStatus::ONGOING_PROFILING->value)->count(),
+            Project::query()->where('status', ProjectStatus::TSSD_EVALUATION->value)->count(),
         );
 
         $tc = User::query()->where('username', 'Orlan')->firstOrFail();

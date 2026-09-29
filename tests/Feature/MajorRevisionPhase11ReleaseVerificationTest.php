@@ -107,7 +107,7 @@ class MajorRevisionPhase11ReleaseVerificationTest extends TestCase
         $this->assertDatabaseCount('adls', 0);
     }
 
-    public function test_fy2025_seeder_creates_only_ongoing_profiling_projects_with_exact_geography(): void
+    public function test_fy2025_seeder_creates_only_tssd_evaluation_projects_with_exact_geography(): void
     {
         $this->seed(Fy2025TupadProjectSeeder::class);
 
@@ -122,7 +122,7 @@ class MajorRevisionPhase11ReleaseVerificationTest extends TestCase
             $this->assertSame(10, Project::query()->where('province', $province)->count());
         }
 
-        $this->assertSame(60, Project::query()->where('status', ProjectStatus::ONGOING_PROFILING->value)->count());
+        $this->assertSame(60, Project::query()->where('status', ProjectStatus::TSSD_EVALUATION->value)->count());
         $this->assertDatabaseCount('project_approvals', 0);
 
         Project::query()->with('projectLocations.barangays')->each(function (Project $project): void {
@@ -232,7 +232,7 @@ class MajorRevisionPhase11ReleaseVerificationTest extends TestCase
             'insurance_beneficiaries' => 10,
             'insurance_total' => '50.00',
             'total_project_cost' => '1150.00',
-            'status' => ProjectStatus::ONGOING_PROFILING,
+            'status' => ProjectStatus::TSSD_EVALUATION,
             'created_by' => $user->id,
         ]);
 

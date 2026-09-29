@@ -9,9 +9,12 @@ use App\Models\AdlAllocation;
 use App\Models\Barangay;
 use App\Models\Municipality;
 use App\Models\Project;
+use App\Models\ProjectEvaluationAttachment;
 use App\Models\Province;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
@@ -162,8 +165,11 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
                 [
                     'compliance_date' =>
                         now()->toDateString(),
+                    'compliance_remarks' =>
+                        'Signed certification submitted.',
                 ]
             )
+            ->assertSessionHasNoErrors()
             ->assertRedirect();
 
         $this->assertSame(
@@ -374,6 +380,172 @@ class MajorRevisionPhase2ComplianceApprovalTest extends TestCase
             sprintf('TUPAD-RO5-APO-LEGC-%s-%s-02', now()->format('y'), now()->format('m')),
             $secondCode,
         );
+    }
+
+    public function test_compliance_attachments_are_stored_listed_and_downloadable(): void
+    {
+        Storage::fake('local');
+
+        $project = $this->projectUnderCompliance('MR2 Attachment Project');
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.compliance.store', $project), [
+                'compliance_date' => now()->toDateString(),
+                'compliance_remarks' => 'Signed certification submitted.',
+                'attachments' => [
+                    UploadedFile::fake()->create('signed-certification.pdf', 120, 'application/pdf'),
+                    UploadedFile::fake()->image('barangay-photo.jpg'),
+                ],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame(ProjectStatus::FOR_APPROVAL, $project->fresh()->status);
+
+        $attachments = ProjectEvaluationAttachment::query()->orderBy('id')->get();
+        $this->assertCount(2, $attachments);
+        $this->assertSame('signed-certification.pdf', $attachments[0]->original_name);
+        $this->assertSame($this->tc->id, $attachments[0]->uploaded_by);
+        Storage::disk('local')->assertExists($attachments[0]->attachment_path);
+
+        $downloadUrl = route('projects.compliance.attachments.download', [$project, $attachments[0]]);
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertOk()
+            ->assertSee('signed-certification.pdf')
+            ->assertSee($downloadUrl, false);
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'overview']))
+            ->assertOk()
+            ->assertSee('barangay-photo.jpg');
+
+        $this->actingAs($this->tc)
+            ->get(route('project-workflow.compliance-history'))
+            ->assertOk()
+            ->assertSee('signed-certification.pdf');
+
+        $this->actingAs($this->tc)
+            ->get($downloadUrl)
+            ->assertOk()
+            ->assertDownload('signed-certification.pdf');
+
+        // An attachment cannot be downloaded through another project's URL.
+        $otherProject = $this->createProject('MR2 Other Project', ProjectStatus::FOR_APPROVAL);
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.compliance.attachments.download', [$otherProject, $attachments[0]]))
+            ->assertNotFound();
+    }
+
+    public function test_for_compliance_evaluation_attachments_are_kept_separate_from_compliance_attachments(): void
+    {
+        Storage::fake('local');
+
+        $project = $this->createProject('MR2 Evaluation Attachment Project', ProjectStatus::TSSD_EVALUATION);
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.evaluation.store', $project), [
+                'result' => 'for_compliance',
+                'findings' => 'Missing signed certification.',
+                'required_documents' => 'Signed certification',
+                'remarks' => 'See attached checklist.',
+                'attachments' => [
+                    UploadedFile::fake()->create('tssd-checklist.pdf', 80, 'application/pdf'),
+                ],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame(ProjectStatus::FOR_COMPLIANCE, $project->fresh()->status);
+
+        $evaluationFile = ProjectEvaluationAttachment::query()->sole();
+        $this->assertSame(ProjectEvaluationAttachment::KIND_EVALUATION, $evaluationFile->kind);
+        Storage::disk('local')->assertExists($evaluationFile->attachment_path);
+
+        // The TC sees the TSSD attachment next to the Required Documents while complying.
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertOk()
+            ->assertSee('Save Compliance')
+            ->assertSee(route('projects.compliance.attachments.download', [$project, $evaluationFile]), false)
+            ->assertSee('tssd-checklist.pdf');
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.compliance.store', $project), [
+                'compliance_date' => now()->toDateString(),
+                'compliance_remarks' => 'Signed certification submitted.',
+                'attachments' => [
+                    UploadedFile::fake()->create('signed-certification.pdf', 80, 'application/pdf'),
+                ],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $evaluation = $project->evaluations()->with('attachments')->sole();
+
+        $this->assertSame(['tssd-checklist.pdf'], $evaluation->evaluationAttachments()->pluck('original_name')->all());
+        $this->assertSame(['signed-certification.pdf'], $evaluation->complianceAttachments()->pluck('original_name')->all());
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.compliance.attachments.download', [$project, $evaluationFile]))
+            ->assertOk()
+            ->assertDownload('tssd-checklist.pdf');
+    }
+
+    public function test_for_approval_evaluation_ignores_attachments(): void
+    {
+        Storage::fake('local');
+
+        $project = $this->createProject('MR2 For Approval Project', ProjectStatus::TSSD_EVALUATION);
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.evaluation.store', $project), [
+                'result' => 'for_approval',
+                'attachments' => [
+                    UploadedFile::fake()->create('not-needed.pdf', 10, 'application/pdf'),
+                ],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(ProjectStatus::FOR_APPROVAL, $project->fresh()->status);
+        $this->assertDatabaseCount('project_evaluation_attachments', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
+    public function test_compliance_attachments_must_be_supported_documents(): void
+    {
+        Storage::fake('local');
+
+        $project = $this->projectUnderCompliance('MR2 Invalid Attachment Project');
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.compliance.store', $project), [
+                'compliance_date' => now()->toDateString(),
+                'compliance_remarks' => 'Submitted.',
+                'attachments' => [
+                    UploadedFile::fake()->create('script.exe', 10, 'application/octet-stream'),
+                ],
+            ])
+            ->assertSessionHasErrors('attachments.0');
+
+        $this->assertSame(ProjectStatus::FOR_COMPLIANCE, $project->fresh()->status);
+        $this->assertDatabaseCount('project_evaluation_attachments', 0);
+    }
+
+    private function projectUnderCompliance(string $title): Project
+    {
+        $project = $this->createProject($title, ProjectStatus::TSSD_EVALUATION);
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.evaluation.store', $project), [
+                'result' => 'for_compliance',
+                'findings' => 'Missing signed certification.',
+                'required_documents' => 'Signed certification',
+            ])
+            ->assertRedirect();
+
+        return $project->fresh();
     }
 
     private function createProject(

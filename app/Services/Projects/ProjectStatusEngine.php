@@ -27,6 +27,7 @@ class ProjectStatusEngine
         private readonly ImplementationStageService $implementationStageService,
         private readonly ProjectPaymentService $paymentService,
         private readonly ProjectAcpLiquidationService $acpLiquidationService,
+        private readonly AcpWorkflowService $acpWorkflow,
     ) {
     }
 
@@ -193,7 +194,7 @@ class ProjectStatusEngine
 
             ProjectStatus::FOR_PAYMENT =>
                 $this->isDirectAdministration($project)
-                && $this->paymentService->summary($project)['is_fully_paid']
+                && $this->paymentService->completionReady($project, $today)
                     ? ProjectStatus::COMPLETED
                     : null,
 
@@ -243,6 +244,16 @@ class ProjectStatusEngine
             return null;
         }
 
+        // Same gate as Direct Administration: GSIS enrollment, PPE delivery,
+        // NAFA, NTP, orientation, and the work period must all be recorded
+        // before implementation starts. Legacy projects already Ongoing
+        // without a NAFA keep the earlier rules.
+        $isLegacy = $this->acpWorkflow->isLegacy($project);
+
+        if (! $isLegacy && ! $this->acpWorkflow->readyToImplement($project)) {
+            return null;
+        }
+
         /*
         |--------------------------------------------------------------------------
         | Date-Only Workflow in Asia/Manila
@@ -269,7 +280,9 @@ class ProjectStatusEngine
             'Asia/Manila',
         )->startOfDay();
 
-        $stage = $today->gte($endDate)
+        // Liquidation opens only after the Release of Assistance is recorded
+        // and its payout date is reached (legacy: when the work period ends).
+        $stage = $today->gte($endDate) && $this->acpWorkflow->readyForLiquidation($project, $today)
             ? ProjectStatus::FOR_LIQUIDATION
             : ($today->gte($startDate)
                 ? ProjectStatus::ONGOING_IMPLEMENTATION
@@ -354,7 +367,13 @@ class ProjectStatusEngine
                 $this->isThroughAcp($project)
                     ? [
                         'acpCheckRelease',
+                        'insuranceEnrollment',
+                        'ppeDeliveries',
+                        'nafa',
+                        'noticeToProceed',
+                        'orientation',
                         'implementation',
+                        'payout',
                     ]
                     : [
                         'insuranceEnrollment',
@@ -407,7 +426,7 @@ class ProjectStatusEngine
 
             [ProjectStatus::FOR_IMPLEMENTATION, ProjectStatus::FOR_LIQUIDATION],
             [ProjectStatus::ONGOING_IMPLEMENTATION, ProjectStatus::FOR_LIQUIDATION] =>
-                'Automatic status engine: The Through ACP implementation end date has been reached and liquidation is now required.',
+                'Automatic status engine: The Through ACP work period has ended and the Release of Assistance payout date has been reached; liquidation is now required.',
 
             [ProjectStatus::FOR_LIQUIDATION, ProjectStatus::PARTIALLY_LIQUIDATED] =>
                 'Automatic status engine: A partial Through ACP liquidation was recorded.',
@@ -420,7 +439,7 @@ class ProjectStatusEngine
                 'Automatic status engine: Complete post-documentary requirements were forwarded to IMSD.',
 
             [ProjectStatus::FOR_PAYMENT, ProjectStatus::COMPLETED] =>
-                'Automatic status engine: The full payable wage amount is obligated and disbursed.',
+                'Automatic status engine: Obligations are complete, the full project cost is disbursed, and the Release of Assistance payout date has been reached.',
 
             default => 'Automatic status engine transition.',
         };

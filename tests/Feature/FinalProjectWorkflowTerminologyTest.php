@@ -16,9 +16,10 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_old_release_of_assistance_action_is_deprecated(): void
+    public function test_old_release_of_assistance_action_stays_retired_while_tc_release_step_is_available(): void
     {
         $this->assertFalse(Route::has('projects.payout.store'));
+        $this->assertTrue(Route::has('projects.release-of-assistance.store'));
 
         $tc = User::factory()->create([
             'role' => UserRole::TC,
@@ -28,10 +29,10 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
         $this->actingAs($tc)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertDontSee('Release of Assistance');
+            ->assertSee('Release of Assistance');
     }
 
-    public function test_focal_obligation_and_full_disbursement_complete_project(): void
+    public function test_completed_tranches_full_disbursement_and_release_complete_project(): void
     {
         $tc = User::factory()->create([
             'role' => UserRole::TC,
@@ -43,16 +44,27 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
             'is_active' => true,
         ]);
 
+        $admin = User::factory()->create([
+            'role' => UserRole::ADMIN,
+            'is_active' => true,
+        ]);
+
         $project = $this->createForPaymentProject($tc, $focal);
 
         $this->actingAs($focal)
             ->post(route('projects.payment.store', $project), [
-                'tranche_number' => 1,
-                'amount' => '455000.00',
-                'obligation_date' => now()->toDateString(),
-                'payee' => 'TUPAD Beneficiaries',
+                'intent' => 'complete',
+                'tranches' => [[
+                    'beneficiaries_total' => 50,
+                    'beneficiaries_female' => 25,
+                    'wages_amount' => '455000.00',
+                    'insurance_amount' => '2500.00',
+                    'ppe_amount' => '0.00',
+                    'obligation_date' => now()->toDateString(),
+                    'payee' => 'TUPAD Beneficiaries',
+                ]],
             ])
-            ->assertRedirect(route('payments.show', $project));
+            ->assertRedirect(route('projects.show', $project));
 
         $obligation = $project->obligations()->firstOrFail();
 
@@ -63,7 +75,7 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
                     [$project, $obligation]
                 ),
                 [
-                    'amount' => '455000.00',
+                    'amount' => '457500.00',
                     'date_disbursed' => now()->toDateString(),
                     'ldap_check_number' => 'LDAP-FINAL-WORKFLOW',
                 ]
@@ -72,9 +84,22 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
 
         $this->assertDatabaseHas('project_disbursements', [
             'project_obligation_id' => $obligation->id,
-            'amount' => 455000,
+            'amount' => 457500,
             'ldap_check_number' => 'LDAP-FINAL-WORKFLOW',
         ]);
+
+        $this->assertSame(
+            ProjectStatus::FOR_PAYMENT,
+            $project->fresh()->status
+        );
+
+        $this->actingAs($admin)
+            ->post(route('projects.release-of-assistance.store', [$project, $obligation]), [
+                'payout_mode' => '(Actual) Cash Payout',
+                'payout_date' => now('Asia/Manila')->toDateString(),
+                'venue' => 'Legazpi City Hall',
+            ])
+            ->assertSessionHasNoErrors();
 
         $this->assertSame(
             ProjectStatus::COMPLETED,

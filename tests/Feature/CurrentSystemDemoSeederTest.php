@@ -13,7 +13,7 @@ class CurrentSystemDemoSeederTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_current_seed_creates_sixty_ongoing_profiling_projects_without_approval_codes(): void
+    public function test_current_seed_creates_sixty_tssd_evaluation_projects_without_approval_codes(): void
     {
         $this->seed(Fy2025TupadProjectSeeder::class);
 
@@ -21,7 +21,7 @@ class CurrentSystemDemoSeederTest extends TestCase
         $this->assertDatabaseCount('project_approvals', 0);
         $this->assertSame(
             60,
-            Project::query()->where('status', ProjectStatus::ONGOING_PROFILING->value)->count(),
+            Project::query()->where('status', ProjectStatus::TSSD_EVALUATION->value)->count(),
         );
         $this->assertSame(0, ProjectApproval::query()->whereNotNull('project_code')->count());
     }

@@ -34,6 +34,52 @@
         </article>
     </section>
 
+    @php
+        $editRequestItems = collect($notificationData['project_items'] ?? [])
+            ->filter(fn (array $item): bool => in_array($item['kind'] ?? null, ['edit_request', 'edit_decision'], true));
+    @endphp
+
+    @if ($editRequestItems->isNotEmpty())
+        <section class="mb-5 overflow-hidden rounded-xl border border-amber-200 bg-white shadow-sm">
+            <div class="border-b border-amber-100 bg-amber-50 px-5 py-4">
+                <h2 class="text-sm font-semibold text-amber-950">Edit Requests</h2>
+                <p class="mt-1 text-xs text-amber-800">
+                    TUPAD Coordinator edits to project sections need Focal approval. An approval unlocks one save.
+                </p>
+            </div>
+
+            <div class="divide-y divide-slate-100">
+                @foreach ($editRequestItems as $item)
+                    <div class="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0">
+                            <div class="text-sm font-semibold text-slate-900">{{ $item['message'] }}</div>
+                            <div class="mt-0.5 text-xs text-slate-500">{{ $item['project_title'] }} · {{ $item['occurred_human'] }}</div>
+                            @if (! empty($item['reason']))
+                                <p class="mt-1 text-xs italic text-slate-600">“{{ $item['reason'] }}”</p>
+                            @endif
+                        </div>
+
+                        <div class="flex shrink-0 flex-wrap gap-2">
+                            <a href="{{ $item['url'] }}"
+                                class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                View Section
+                            </a>
+                            @foreach ($item['actions'] ?? [] as $action)
+                                <form method="POST" action="{{ $action['url'] }}">
+                                    @csrf
+                                    <button type="submit"
+                                        class="inline-flex h-9 items-center rounded-lg px-4 text-xs font-semibold {{ $action['style'] === 'primary' ? 'bg-[#063b86] text-white hover:bg-[#052f6b]' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' }}">
+                                        {{ $action['label'] }}
+                                    </button>
+                                </form>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     <section class="tupad-table-shell overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="text-sm font-semibold text-slate-900">Current Notifications</h2>

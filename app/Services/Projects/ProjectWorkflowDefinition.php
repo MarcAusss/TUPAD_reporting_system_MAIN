@@ -18,7 +18,6 @@ final class ProjectWorkflowDefinition
     public function happyPathFor(ImplementationMode $mode): array
     {
         $shared = [
-            ProjectStatus::ONGOING_PROFILING,
             ProjectStatus::TSSD_EVALUATION,
             ProjectStatus::FOR_APPROVAL,
             ProjectStatus::APPROVED,

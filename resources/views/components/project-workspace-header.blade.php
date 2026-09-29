@@ -27,7 +27,6 @@
 
     $quickWorkflowHeaderAction = (auth()->user()->isAdmin() || auth()->user()->isTc())
         && in_array($project->status, [
-            \App\Enums\ProjectStatus::ONGOING_PROFILING,
             \App\Enums\ProjectStatus::TSSD_EVALUATION,
             \App\Enums\ProjectStatus::FOR_COMPLIANCE,
             \App\Enums\ProjectStatus::FOR_APPROVAL,
@@ -132,7 +131,7 @@
         </div>
     </div>
 
-    <div class="border-b border-slate-200 bg-slate-50/70 px-5 py-5 sm:px-6">
+    <div id="project-progress" class="scroll-mt-32 border-b border-slate-200 bg-slate-50/70 px-5 py-5 sm:px-6">
         <div class="flex items-center justify-between gap-4">
             <div>
                 <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -155,7 +154,7 @@
             ></div>
         </div>
 
-        <ol class="mt-4 grid min-w-190 grid-cols-8 gap-2 overflow-x-auto pb-1" aria-label="Project workflow progress">
+        <ol class="mt-4 grid {{ count($workspace['stages']) > 8 ? 'min-w-215 grid-cols-9' : 'min-w-190 grid-cols-8' }} gap-2 overflow-x-auto pb-1" aria-label="Project workflow progress">
             @foreach($workspace['stages'] as $index => $stage)
                 @php
                     $stageReachable = in_array($stage['state'], ['complete', 'current'], true);

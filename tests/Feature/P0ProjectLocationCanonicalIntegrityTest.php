@@ -222,7 +222,7 @@ class P0ProjectLocationCanonicalIntegrityTest extends TestCase
             'insurance_rate' => 50,
             'insurance_total' => 500,
             'total_project_cost' => 40500,
-            'status' => ProjectStatus::ONGOING_PROFILING,
+            'status' => ProjectStatus::TSSD_EVALUATION,
             'province_id' => $masbate->id,
             'created_by' => $actor->id,
         ]);

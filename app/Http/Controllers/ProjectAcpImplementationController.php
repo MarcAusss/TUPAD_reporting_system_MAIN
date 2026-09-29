@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Services\Projects\AcpWorkflowService;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class ProjectAcpImplementationController extends Controller
 {
     public function __construct(
         private readonly ProjectStatusEngine $statusEngine,
+        private readonly AcpWorkflowService $acpWorkflow,
     ) {
     }
 
@@ -70,6 +72,13 @@ class ProjectAcpImplementationController extends Controller
             if (! $locked->acpCheckRelease) {
                 throw ValidationException::withMessages([
                     'start_date' => 'A recorded check release is required before Through ACP implementation can be scheduled.',
+                ]);
+            }
+
+            if (! $this->acpWorkflow->preparationComplete($locked)) {
+                throw ValidationException::withMessages([
+                    'start_date' => 'Complete the preparation requirements first: '
+                        .implode(', ', $this->acpWorkflow->missingPreparation($locked)).'.',
                 ]);
             }
 

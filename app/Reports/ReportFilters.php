@@ -34,6 +34,9 @@ final readonly class ReportFilters
         public ?BeneficiarySectorCategory $sector = null,
         public ?ProjectInterventionFocus $interventionFocus = null,
         public ?LaborMarketProgram $laborMarketProgram = null,
+        // Actual Beneficiary Mapping: beneficiary addresses minus the TC's
+        // deductions for beneficiaries not included in the obligations.
+        public bool $actualBeneficiaries = false,
     ) {
         if ($this->dateFrom && $this->dateTo && $this->dateTo->lt($this->dateFrom)) {
             throw new InvalidArgumentException(
@@ -133,6 +136,7 @@ final readonly class ReportFilters
                 LaborMarketProgram::class,
                 $filters['labor_market_program'] ?? null,
             ),
+            actualBeneficiaries: filter_var($filters['actual_beneficiaries'] ?? false, FILTER_VALIDATE_BOOLEAN),
         );
     }
 

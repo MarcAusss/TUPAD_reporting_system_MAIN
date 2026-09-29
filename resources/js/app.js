@@ -5,6 +5,7 @@ import { initializeDashboardGeographicAnalytics } from './dashboard-geographic-a
 import { initializeGeographicMapping } from './geographic-mapping';
 import { initializeProjectWorkspace } from './project-workspace';
 import { initializeRealtimeNotifications } from './realtime-notifications';
+import { initializeNotificationDropdown } from './notification-dropdown';
 import { initializeMoneyInputs } from './money-input';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeDashboardGeographicAnalytics();
     initializeGeographicMapping();
     initializeProjectWorkspace();
+    initializeNotificationDropdown();
     initializeRealtimeNotifications();
     initializeMoneyInputs();
 });

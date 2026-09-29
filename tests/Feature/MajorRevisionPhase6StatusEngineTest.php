@@ -249,8 +249,26 @@ class MajorRevisionPhase6StatusEngineTest extends TestCase
     public function test_fully_disbursed_project_is_completed_by_status_engine(): void
     {
         $project = $this->createProject(ProjectStatus::FOR_PAYMENT);
-        $obligation = $this->addObligation($project, '1000.00');
-        $this->addDisbursement($obligation, '1000.00', 'CHK-FULL');
+        $obligation = $this->addObligation($project, '1100.00');
+        $this->addDisbursement($obligation, '1100.00', 'CHK-FULL');
+
+        // Full disbursement alone is not enough: the tranches must be
+        // completed and the Release of Assistance payout date reached.
+        Artisan::call('projects:sync-statuses');
+
+        $this->assertSame(
+            ProjectStatus::FOR_PAYMENT,
+            $project->fresh()->status,
+        );
+
+        $project->update(['obligations_completed_at' => now()]);
+        $obligation->update([
+            'release_date' => now('Asia/Manila')->toDateString(),
+            'release_mode' => '(Actual) Cash Payout',
+            'release_venue' => 'Municipal Hall',
+            'released_by' => $this->tc->id,
+            'released_at' => now(),
+        ]);
 
         Artisan::call('projects:sync-statuses');
 

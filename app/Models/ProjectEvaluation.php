@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class ProjectEvaluation extends Model
 {
@@ -31,6 +33,24 @@ class ProjectEvaluation extends Model
             'compliance_date' => 'date',
             'complied_at' => 'datetime',
         ];
+    }
+
+    /** All files on this evaluation (TSSD evaluation and TC compliance uploads). */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ProjectEvaluationAttachment::class)->orderBy('id');
+    }
+
+    /** Files TSSD attached to the For Compliance findings / required documents. */
+    public function evaluationAttachments(): Collection
+    {
+        return $this->attachments->where('kind', ProjectEvaluationAttachment::KIND_EVALUATION)->values();
+    }
+
+    /** Files the TUPAD Coordinator attached to the compliance submission. */
+    public function complianceAttachments(): Collection
+    {
+        return $this->attachments->where('kind', ProjectEvaluationAttachment::KIND_COMPLIANCE)->values();
     }
 
     public function project(): BelongsTo

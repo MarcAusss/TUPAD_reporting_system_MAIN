@@ -142,7 +142,7 @@ class SecurityAuthorizationTest extends TestCase
     */
 
     private function createProject(
-        ProjectStatus $status = ProjectStatus::ONGOING_PROFILING
+        ProjectStatus $status = ProjectStatus::TSSD_EVALUATION
     ): Project {
         $beneficiaries = 2;
         $days = 20;

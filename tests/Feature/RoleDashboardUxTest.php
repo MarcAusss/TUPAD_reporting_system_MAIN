@@ -66,6 +66,6 @@ class RoleDashboardUxTest extends TestCase
             'TSSD Evaluation'
         );
 
-        $response->assertDontSee('Release of Assistance');
+        $response->assertSee('Release of Assistance');
     }
 }

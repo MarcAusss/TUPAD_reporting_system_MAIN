@@ -36,6 +36,13 @@ class GeographicMappingReportController extends Controller
             'default_level' => 'province',
             'report_type' => ReportType::GEOGRAPHIC_BENEFICIARIES,
         ],
+        'actual_beneficiaries' => [
+            'label' => 'Actual Beneficiary Mapping',
+            'description' => 'Beneficiary Mapping minus the beneficiaries not included in the completed obligations, as indicated by the TUPAD Coordinator per address.',
+            'levels' => ['province', 'district', 'municipality', 'barangay'],
+            'default_level' => 'province',
+            'report_type' => ReportType::GEOGRAPHIC_BENEFICIARIES,
+        ],
         'sectors' => [
             'label' => 'Sector Mapping',
             'description' => 'Priority/vulnerable and occupational/livelihood sector concentration from the encoded project classifications.',
@@ -192,6 +199,7 @@ class GeographicMappingReportController extends Controller
             'intervention_focus' => $familyKey === 'interventions'
                 ? ($validated['intervention_focus'] ?? null)
                 : null,
+            'actual_beneficiaries' => $familyKey === 'actual_beneficiaries' ? true : null,
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
         $filters = ReportFilters::fromArray($filterInput);
@@ -281,7 +289,7 @@ class GeographicMappingReportController extends Controller
                 ReportType::PHYSICAL_FINANCIAL,
                 ReportDimension::from((string) $validated['level']),
             ],
-            'beneficiaries' => [
+            'beneficiaries', 'actual_beneficiaries' => [
                 ReportType::GEOGRAPHIC_BENEFICIARIES,
                 ReportDimension::from((string) $validated['level']),
             ],
@@ -304,7 +312,7 @@ class GeographicMappingReportController extends Controller
     {
         $metricKey = match ($familyKey) {
             'projects', 'interventions' => 'project_count',
-            'beneficiaries', 'sectors' => 'beneficiaries_total',
+            'beneficiaries', 'actual_beneficiaries', 'sectors' => 'beneficiaries_total',
         };
         $max = max(0, (int) $rows->max($metricKey));
 
@@ -317,7 +325,7 @@ class GeographicMappingReportController extends Controller
                 'map_metric_key' => $metricKey,
                 'map_metric_label' => match ($familyKey) {
                     'projects', 'interventions' => 'project(s)',
-                    'beneficiaries', 'sectors' => 'beneficiary count',
+                    'beneficiaries', 'actual_beneficiaries', 'sectors' => 'beneficiary count',
                 },
                 'map_intensity' => $intensity,
             ];
@@ -357,7 +365,7 @@ class GeographicMappingReportController extends Controller
                     'hint' => 'Project-level female beneficiary total.',
                 ],
             ],
-            'beneficiaries' => [
+            'beneficiaries', 'actual_beneficiaries' => [
                 [
                     'label' => 'Mapped Areas',
                     'value' => $rows->count(),

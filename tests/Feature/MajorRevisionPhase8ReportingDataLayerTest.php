@@ -113,7 +113,7 @@ class MajorRevisionPhase8ReportingDataLayerTest extends TestCase
 
         $this->assertSame('ADL-PHASE8-001', $row['label']);
         $this->assertSame(1000000, $row['allocation_cents']);
-        $this->assertSame(350000, $row['payable_wages_cents']);
+        $this->assertSame(402500, $row['payable_wages_cents']);
         $this->assertSame(300000, $row['obligated_cents']);
         $this->assertSame(260000, $row['disbursed_cents']);
         $this->assertSame(700000, $row['unobligated_balance_cents']);

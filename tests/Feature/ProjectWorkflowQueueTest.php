@@ -134,7 +134,7 @@ class ProjectWorkflowQueueTest extends TestCase
         $response->assertSee('Aging');
     }
 
-    public function test_release_of_assistance_queue_is_deprecated(): void
+    public function test_release_of_assistance_queue_is_available_to_tc(): void
     {
         $tc = User::factory()->create([
             'role' => UserRole::TC,
@@ -143,7 +143,8 @@ class ProjectWorkflowQueueTest extends TestCase
 
         $this->actingAs($tc)
             ->get('/project-workflow/release-of-assistance')
-            ->assertNotFound();
+            ->assertOk()
+            ->assertSee('Release of Assistance');
     }
     private function createProject(
         User $tc,

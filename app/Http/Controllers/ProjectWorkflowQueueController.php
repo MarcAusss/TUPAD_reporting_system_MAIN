@@ -43,6 +43,10 @@ class ProjectWorkflowQueueController extends Controller
             ])
             ->whereIn('status', $config['statuses'])
             ->when(
+                isset($config['scope']),
+                fn (Builder $query): Builder => $config['scope']($query),
+            )
+            ->when(
                 $request->filled('q'),
                 function ($query) use ($request) {
                     $search = trim(
@@ -133,6 +137,7 @@ class ProjectWorkflowQueueController extends Controller
                 'project.approval',
                 'evaluator',
                 'complier',
+                'attachments',
             ])
             ->when(
                 $request->filled('q'),
@@ -410,6 +415,41 @@ class ProjectWorkflowQueueController extends Controller
                 ],
                 'empty' =>
                     'No projects are currently waiting for post-documentary requirements.',
+            ],
+
+            'release-of-assistance' => [
+                'title' => 'Release of Assistance',
+                'description' =>
+                    'Direct Administration projects with fully disbursed tranches waiting for the mode of payment, payout date, and venue.',
+                'owner' => 'TUPAD Coordinator / Administrator',
+                'statuses' => [
+                    ProjectStatus::FOR_PAYMENT->value,
+                ],
+                'scope' => fn (Builder $query): Builder => $query
+                    ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
+                    ->whereHas('obligations', fn (Builder $obligations): Builder => $obligations->awaitingRelease()),
+                'empty' =>
+                    'No projects are currently waiting for a Release of Assistance.',
+            ],
+
+            'beneficiary-deduction' => [
+                'title' => 'Beneficiary Deduction',
+                'description' =>
+                    'Obligations completed with fewer beneficiaries than the project declared. Indicate the addresses of the beneficiaries not included to produce the Actual Beneficiary Mapping.',
+                'owner' => 'TUPAD Coordinator / Administrator',
+                'statuses' => [
+                    ProjectStatus::FOR_PAYMENT->value,
+                    ProjectStatus::COMPLETED->value,
+                ],
+                'scope' => fn (Builder $query): Builder => $query
+                    ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
+                    ->whereNotNull('obligations_completed_at')
+                    ->whereNull('beneficiary_deductions_recorded_at')
+                    ->where(fn (Builder $shortfall): Builder => $shortfall
+                        ->whereRaw('projects.beneficiaries_total > (select coalesce(sum(project_obligations.beneficiaries_total), 0) from project_obligations where project_obligations.project_id = projects.id)')
+                        ->orWhereRaw('projects.beneficiaries_female > (select coalesce(sum(project_obligations.beneficiaries_female), 0) from project_obligations where project_obligations.project_id = projects.id)')),
+                'empty' =>
+                    'No projects are currently waiting for beneficiary deductions.',
             ],
 
             default => abort(404),

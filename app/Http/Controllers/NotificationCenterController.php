@@ -30,6 +30,7 @@ class NotificationCenterController extends Controller
             'critical_count' => (int) $data['critical_count'],
             'attention_count' => (int) $data['attention_count'],
             'items' => $data['items']->values()->all(),
+            'project_items' => $data['project_items']->values()->all(),
             'generated_at' => now()->toIso8601String(),
             'poll_after_ms' => 10000,
         ])->withHeaders([

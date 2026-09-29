@@ -14,6 +14,7 @@ use App\Models\ProjectLocation;
 use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
 use App\Services\Finance\FinancialCeilingService;
+use App\Services\Projects\BarangayCostBreakdownService;
 use App\Services\Projects\ProjectWorkspacePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-
+  
 class ProjectController extends Controller
 {
     /*
@@ -1024,7 +1025,7 @@ class ProjectController extends Controller
                 */
 
                 'status' =>
-                    ProjectStatus::ONGOING_PROFILING,
+                    ProjectStatus::TSSD_EVALUATION,
 
                 'remarks' =>
                     $validated['remarks'] ?? null,
@@ -1102,7 +1103,7 @@ class ProjectController extends Controller
                 )
                 ->with(
                     'success',
-                    'Project profile saved successfully with Ongoing Profiling status. Submit it to TSSD Evaluation when profiling is complete.'
+                    'Project profile saved successfully and moved directly to TSSD Evaluation status.'
                 );
         });
     }
@@ -1116,7 +1117,8 @@ class ProjectController extends Controller
     public function show(
         Request $request,
         Project $project,
-        ProjectWorkspacePresenter $workspacePresenter
+        ProjectWorkspacePresenter $workspacePresenter,
+        BarangayCostBreakdownService $barangayCostBreakdownService,
     ): View {
         $user = $request->user();
 
@@ -1160,6 +1162,9 @@ class ProjectController extends Controller
             'beneficiaryAddresses.municipality',
             'beneficiaryAddresses.barangay',
 
+            'barangayPpeProfiles',
+            'barangayPpeItemCounts',
+
             'beneficiarySectors.recorder',
             'beneficiarySectors.updater',
             'laborMarketReferrals.recorder',
@@ -1171,12 +1176,14 @@ class ProjectController extends Controller
             'updater',
 
             'evaluations.evaluator',
+            'evaluations.attachments',
             'approval.approver',
 
             'insuranceEnrollment.recorder',
             'ppeDeliveries.recorder',
             'ppeDeliveries.items.ppeItem',
             'noticeToProceed.recorder',
+            'nafa.attachments',
             'orientation.recorder',
             'implementation.recorder',
 
@@ -1184,6 +1191,12 @@ class ProjectController extends Controller
             'obligation.recorder',
             'obligations.recorder',
             'obligations.disbursements.recorder',
+            'obligations.releaser',
+            'beneficiaryAddresses.deduction',
+            'beneficiaryDeductionsRecorder',
+            'editRequests.decider',
+            'editLogs.editor',
+            'editLogs.approver',
             'payout.recorder',
             'acpPayment.recorder',
             'acpCheckRelease.recorder',
@@ -1208,12 +1221,15 @@ class ProjectController extends Controller
             ? Province::query()->find($beneficiaryAddressProvinceId)
             : null;
 
+        $barangayCostBreakdown = $barangayCostBreakdownService->forProject($project);
+
         return view(
             'projects.show',
             compact(
                 'project',
                 'workspace',
                 'beneficiaryAddressProvince',
+                'barangayCostBreakdown',
             )
         );
     }

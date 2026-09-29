@@ -719,14 +719,15 @@
                     {{-- PPE --}}
                     <section id="ppe" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
 
-                        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                        <div
+                            class="flex flex-col gap-4 border-b border-slate-200 px-6 py-4 lg:flex-row lg:items-start lg:justify-between">
 
-                            <div>
+                            <div class="min-w-0 max-w-3xl">
                                 <h2 class="text-sm font-semibold text-slate-900">
                                     PPE Requirements
                                 </h2>
 
-                                <p class="mt-1 text-xs text-slate-500 w-216.5">
+                                <p class="mt-1 text-xs leading-5 text-slate-500">
                                     Encode Non-Hazardous or Hazardous PPE, product, covered beneficiaries, and amount per
                                     beneficiary. PPE totals are included automatically in the project amount. Long-Term
                                     projects (31–90 days) also ask for the Quantity issued per beneficiary; Short-Term
@@ -734,10 +735,23 @@
                                 </p>
                             </div>
 
-                            <button type="button" id="addPpeItem"
-                                class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                                Add PPE Item
-                            </button>
+                            <div class="flex shrink-0 flex-wrap items-center gap-2">
+                                <select id="ppeWorkClassification"
+                                    class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
+                                    <option value="non_hazardous">Non-Hazardous Work</option>
+                                    <option value="hazardous">Hazardous Work</option>
+                                </select>
+
+                                <button type="button" id="autoFillPpeSet"
+                                    class="h-10 whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                                    Auto-fill Standard Set
+                                </button>
+
+                                <button type="button" id="addPpeItem"
+                                    class="h-10 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                    Add PPE Item
+                                </button>
+                            </div>
 
                         </div>
 
@@ -852,11 +866,11 @@
                         </div>
 
                         <h2 class="mt-1 text-sm font-semibold text-slate-900">
-                            Project Profiling Completion
+                            Project Creation Completion
                         </h2>
 
                         <p class="mt-1 text-xs leading-5 text-slate-600">
-                            Saving a complete project profile creates it with <strong>Ongoing Profiling</strong> status. After profiling is complete, submit the project to <strong>TSSD Evaluation</strong> from the project detail page.
+                            Saving a complete project profile moves it directly to <strong>TSSD Evaluation</strong> status — no separate submission step is needed.
                         </p>
                     </section>
 
@@ -1776,7 +1790,7 @@
                         const quantityInput = row.querySelector('[data-ppe-quantity]');
                         let quantity = 1;
 
-                        quantityInput.classList.toggle('hidden', !isLongTerm);
+                        row.querySelector('[data-ppe-quantity-field]').classList.toggle('hidden', !isLongTerm);
                         quantityInput.disabled = !isLongTerm;
                         quantityInput.required = isLongTerm;
 
@@ -1820,88 +1834,104 @@
                 row.dataset.ppeRow = 'true';
 
                 row.className =
-                    'grid min-w-0 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 xl:grid-cols-12';
+                    'flex min-w-0 flex-wrap items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4';
+
+                const labelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500';
+                const inputClass = 'h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm';
 
                 row.innerHTML = `
-            <select
-                name="ppe_items[${index}][ppe_type]"
-                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-2"
-            >
-                <option value="non_hazardous">Non-Hazardous</option>
-                <option value="hazardous">Hazardous</option>
-            </select>
-
-            <div class="flex min-w-0 flex-col gap-2 xl:col-span-3">
-                <select
-                    data-ppe-product-select
-                    class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm"
-                >
-                    <option value="">PPE Product</option>
-                    <option value="TUPAD Shirt">TUPAD Shirt</option>
-                    <option value="Gloves">Gloves</option>
-                    <option value="Rubber Boots">Rubber Boots</option>
-                    <option value="Mask">Mask</option>
-                    <option value="Bucket Hat">Bucket Hat</option>
-                    <option value="__other__">Others</option>
+            <label class="min-w-36 flex-1">
+                <span class="${labelClass}">Type</span>
+                <select name="ppe_items[${index}][ppe_type]" class="${inputClass}">
+                    <option value="non_hazardous">Non-Hazardous</option>
+                    <option value="hazardous">Hazardous</option>
                 </select>
+            </label>
 
-                <input
-                    data-ppe-product-other
-                    type="text"
-                    maxlength="100"
-                    placeholder="Specify other PPE product"
-                    class="hidden h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm"
-                >
+            <div class="min-w-44 flex-[1.5]">
+                <span class="${labelClass}">PPE Product</span>
+                <div class="flex flex-col gap-2">
+                    <select data-ppe-product-select aria-label="PPE Product" class="${inputClass}">
+                        <option value="">Select product</option>
+                        <option value="TUPAD Shirt">TUPAD Shirt</option>
+                        <option value="Gloves">Gloves</option>
+                        <option value="Rubber Boots">Rubber Boots</option>
+                        <option value="Mask">Mask</option>
+                        <option value="Bucket Hat">Bucket Hat</option>
+                        <option value="__other__">Others</option>
+                    </select>
 
-                <input
-                    data-ppe-product-value
-                    name="ppe_items[${index}][product]"
-                    type="hidden"
-                    value=""
-                >
+                    <input
+                        data-ppe-product-other
+                        type="text"
+                        maxlength="100"
+                        placeholder="Specify other PPE product"
+                        class="hidden ${inputClass}"
+                    >
+
+                    <input
+                        data-ppe-product-value
+                        name="ppe_items[${index}][product]"
+                        type="hidden"
+                        value=""
+                    >
+                </div>
             </div>
 
-            <input
-                data-ppe-count
-                name="ppe_items[${index}][beneficiary_count]"
-                type="number"
-                min="1"
-                placeholder="Beneficiaries"
-                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-2"
-            >
+            <label class="min-w-28 flex-1">
+                <span class="${labelClass}">Beneficiaries</span>
+                <input
+                    data-ppe-count
+                    name="ppe_items[${index}][beneficiary_count]"
+                    type="number"
+                    min="1"
+                    placeholder="0"
+                    class="${inputClass}"
+                >
+            </label>
 
-            <input
-                data-ppe-unit
-                data-money-input
-                name="ppe_items[${index}][unit_amount]"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Unit Amount"
-                class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-2"
-            >
+            <label class="min-w-28 flex-1">
+                <span class="${labelClass}">Unit Amount</span>
+                <input
+                    data-ppe-unit
+                    data-money-input
+                    name="ppe_items[${index}][unit_amount]"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    class="${inputClass}"
+                >
+            </label>
 
-            <input
-                data-ppe-quantity
-                name="ppe_items[${index}][quantity]"
-                type="number"
-                min="1"
-                step="1"
-                placeholder="Qty / Beneficiary"
-                class="hidden h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm xl:col-span-2"
-            >
+            <label data-ppe-quantity-field class="hidden min-w-28 flex-1">
+                <span class="${labelClass}">Qty / Beneficiary</span>
+                <input
+                    data-ppe-quantity
+                    name="ppe_items[${index}][quantity]"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="0"
+                    class="${inputClass}"
+                >
+            </label>
 
-            <input
-                data-ppe-total
-                readonly
-                value="₱0.00"
-                class="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold xl:col-span-2"
-            >
+            <label class="min-w-32 flex-1">
+                <span class="${labelClass}">Total</span>
+                <input
+                    data-ppe-total
+                    readonly
+                    tabindex="-1"
+                    value="₱0.00"
+                    class="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-semibold text-slate-900"
+                >
+            </label>
 
             <button
                 type="button"
                 data-remove-ppe
-                class="inline-flex h-10 w-full min-w-0 items-center justify-center whitespace-nowrap rounded-lg border border-red-200 bg-white px-2 text-xs font-semibold text-red-600 hover:bg-red-50 xl:col-span-1"
+                class="mt-5 inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-red-200 bg-white px-4 text-xs font-semibold text-red-600 hover:bg-red-50"
             >
                 Remove
             </button>
@@ -1983,6 +2013,78 @@
                 'click',
                 addRow
             );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Standard PPE Set Auto-fill
+            |--------------------------------------------------------------------------
+            |
+            | Prefills PPE Requirements from the official TUPAD PPE price list.
+            | Only the Shirt's quantity doubles for Long-Term (31-90 day)
+            | projects; every other item stays at quantity 1. Every field this
+            | sets stays fully editable afterward — it's a starting point, not
+            | a lock, and validation/storage never changes.
+            |--------------------------------------------------------------------------
+            */
+
+            const PPE_STANDARD_SETS = {
+                non_hazardous: [
+                    { ppe_type: 'non_hazardous', product: 'TUPAD Shirt', unit_amount: 280.00, qty: 2 },
+                    { ppe_type: 'non_hazardous', product: 'Bucket Hat', unit_amount: 70.00, qty: 1 },
+                ],
+                hazardous: [
+                    { ppe_type: 'non_hazardous', product: 'TUPAD Shirt', unit_amount: 280.00, qty: 2 },
+                    { ppe_type: 'non_hazardous', product: 'Bucket Hat', unit_amount: 70.00, qty: 1 },
+                    { ppe_type: 'hazardous', product: 'Mask', unit_amount: 80.00, qty: 1 },
+                    { ppe_type: 'hazardous', product: 'Gloves', unit_amount: 70.00, qty: 1 },
+                    { ppe_type: 'hazardous', product: 'Rubber Boots', unit_amount: 350.00, qty: 1 },
+                ],
+            };
+
+            const autoFillPpeSet = document.getElementById('autoFillPpeSet');
+            const ppeWorkClassification = document.getElementById('ppeWorkClassification');
+
+            autoFillPpeSet?.addEventListener('click', function() {
+                const dayValue = Number(days.value || 0);
+                const beneficiaryValue = Number(beneficiaries.value || 0);
+
+                if (!dayValue || !beneficiaryValue) {
+                    alert('Enter Number of Days and Total Beneficiaries first.');
+                    return;
+                }
+
+                const isLongTerm = dayValue >= 31 && dayValue <= 90;
+                const set = PPE_STANDARD_SETS[ppeWorkClassification.value] || [];
+
+                ppeItems.innerHTML = '';
+                ppeIndex = 0;
+
+                set.forEach(function(item) {
+                    addRow();
+
+                    const rows = ppeItems.querySelectorAll('[data-ppe-row]');
+                    const row = rows[rows.length - 1];
+
+                    row.querySelector('select[name^="ppe_items"]').value = item.ppe_type;
+
+                    const productSelect = row.querySelector('[data-ppe-product-select]');
+                    productSelect.value = item.product;
+                    productSelect.dispatchEvent(new Event('change'));
+
+                    const countInput = row.querySelector('[data-ppe-count]');
+                    countInput.value = beneficiaryValue;
+
+                    const unitInput = row.querySelector('[data-ppe-unit]');
+                    unitInput.value = item.unit_amount.toFixed(2);
+                    unitInput.dispatchEvent(new Event('input'));
+
+                    if (isLongTerm) {
+                        row.querySelector('[data-ppe-quantity]').value = item.qty;
+                    }
+                });
+
+                calculate();
+            });
 
             allocationSelect?.addEventListener('change', calculate);
 

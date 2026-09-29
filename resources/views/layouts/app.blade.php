@@ -166,9 +166,13 @@
                         </div>
                     </div>
 
-                    <a href="{{ route('notifications.index') }}"
+                    <div class="relative" data-notification-menu>
+                    <button type="button"
                         data-notification-bell
-                        class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#dfe6f0] bg-white text-[#355378] transition hover:bg-slate-50 {{ request()->routeIs('notifications.*') ? 'ring-2 ring-blue-100' : '' }}"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        aria-controls="notificationPanel"
+                        class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#dfe6f0] bg-white text-[#355378] transition hover:bg-slate-50 aria-expanded:bg-[#eaf2ff] aria-expanded:text-[#063b86] {{ request()->routeIs('notifications.*') ? 'ring-2 ring-blue-100' : '' }}"
                         aria-label="Notifications{{ $notificationCount > 0 ? ': '.$notificationCount.' active item(s)' : '' }}">
                         <svg class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
@@ -181,7 +185,21 @@
                         <span data-notification-live-label class="sr-only">
                             {{ $notificationCount > 0 ? $notificationCount.' active notification item(s)' : 'No active notifications' }}
                         </span>
-                    </a>
+                    </button>
+
+                    <div id="notificationPanel" data-notification-panel role="region" aria-label="Notifications"
+                        class="absolute right-0 top-full z-60 mt-2 hidden w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-900/5">
+                        <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                            <h2 class="text-base font-extrabold text-slate-900">Notifications</h2>
+                            <a href="{{ route('notifications.index') }}" data-notification-see-all
+                                class="text-xs font-semibold text-[#063b86] hover:underline">See all</a>
+                        </div>
+
+                        <div data-notification-dropdown-list class="max-h-[min(70vh,560px)] overflow-y-auto p-2">
+                            <div class="px-4 py-10 text-center text-xs text-slate-500">Loading notifications…</div>
+                        </div>
+                    </div>
+                    </div>
 
                     <div class="hidden h-9 w-px bg-[#e0e7f0] sm:block"></div>
 

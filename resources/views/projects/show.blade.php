@@ -126,26 +126,38 @@
                             \App\Services\Projects\ProjectAcpLiquidationService::class,
                         )->summary($project);
 
-                        $completionChecklist = [
+                        $completionAcp = app(\App\Services\Projects\AcpWorkflowService::class);
+                        $completionAcpLegacy = $completionAcp->isLegacy($project);
+
+                        $completionChecklist = array_values(array_filter([
                             ['label' => 'ACP Payment', 'complete' => (bool) $project->acpPayment, 'tab' => 'workflow'],
                             [
                                 'label' => 'ACP Check Release',
                                 'complete' => (bool) $project->acpCheckRelease,
                                 'tab' => 'workflow',
                             ],
+                            $completionAcpLegacy ? null : ['label' => 'GSIS Enrollment (Insurance)', 'complete' => (bool) $project->insuranceEnrollment, 'tab' => 'workflow'],
+                            $completionAcpLegacy ? null : ['label' => 'PPE Delivery', 'complete' => $project->ppeDeliveries->isNotEmpty(), 'tab' => 'workflow'],
+                            $completionAcpLegacy ? null : ['label' => 'NAFA (Notice of Availability of Fund)', 'complete' => (bool) $project->nafa, 'tab' => 'workflow'],
+                            $completionAcpLegacy ? null : ['label' => 'Notice to Proceed', 'complete' => (bool) $project->noticeToProceed, 'tab' => 'workflow'],
+                            $completionAcpLegacy ? null : ['label' => 'Orientation', 'complete' => (bool) $project->orientation, 'tab' => 'workflow'],
                             [
-                                'label' => 'ACP Implementation (Work Period)',
+                                'label' => 'Implementation Period (Work Period)',
                                 'complete' => (bool) $project->implementation,
                                 'tab' => 'workflow',
                             ],
+                            $completionAcpLegacy ? null : ['label' => 'Release of Assistance (Payout Date Reached)', 'complete' => $completionAcp->releaseDone($project), 'tab' => 'workflow'],
                             [
                                 'label' => 'ACP Liquidation (Fully Liquidated)',
                                 'complete' => (bool) ($completionLiquidationSummary['is_fully_liquidated'] ?? false),
                                 'tab' => 'financial',
                             ],
-                        ];
+                        ]));
                     } else {
                         $completionPaymentSummary = app(\App\Services\Payments\ProjectPaymentService::class)->summary(
+                            $project,
+                        );
+                        $completionReleaseSummary = app(\App\Services\Payments\ProjectPaymentService::class)->releaseSummary(
                             $project,
                         );
 
@@ -177,9 +189,24 @@
                                 'tab' => 'workflow',
                             ],
                             [
+                                'label' => 'Obligation Tranches Completed',
+                                'complete' => (bool) ($completionPaymentSummary['obligations_completed'] ?? false),
+                                'tab' => 'financial',
+                            ],
+                            [
                                 'label' => 'Payment of Wages (Fully Disbursed)',
                                 'complete' => (bool) ($completionPaymentSummary['is_fully_paid'] ?? false),
                                 'tab' => 'financial',
+                            ],
+                            [
+                                'label' => 'Release of Assistance (Every Tranche)',
+                                'complete' => (bool) ($completionReleaseSummary['all_released'] ?? false),
+                                'tab' => 'workflow',
+                            ],
+                            [
+                                'label' => 'All Payout Dates Reached',
+                                'complete' => (bool) ($completionReleaseSummary['all_release_dates_reached'] ?? false),
+                                'tab' => 'workflow',
                             ],
                         ];
                     }
@@ -664,6 +691,9 @@
             </section>
 
         </div>
+
+        {{-- Project & Workflow Records (one editable section per workflow step) --}}
+        @include('projects.partials.workflow-records')
 
         {{-- Beneficiaries & Wage --}}
 
@@ -1544,19 +1574,28 @@
             </div>
 
             @php
+                $ppeProfilesByBarangay = $project->barangayPpeProfiles->keyBy('barangay_id');
+                $ppeItemCountsByBarangay = $project->barangayPpeItemCounts->groupBy('barangay_id');
+
                 $beneficiaryAddressGroups = $project->beneficiaryAddresses
                     ->groupBy('municipality_id')
-                    ->map(function ($addresses, $municipalityId) {
+                    ->map(function ($addresses, $municipalityId) use ($ppeProfilesByBarangay, $ppeItemCountsByBarangay) {
                         return [
                             'municipality_id' => (int) $municipalityId,
                             'barangays' => $addresses
-                                ->map(
-                                    fn($address) => [
+                                ->map(function ($address) use ($ppeProfilesByBarangay, $ppeItemCountsByBarangay) {
+                                    $profile = $ppeProfilesByBarangay->get($address->barangay_id);
+                                    $counts = $ppeItemCountsByBarangay->get($address->barangay_id, collect());
+
+                                    return [
                                         'barangay_id' => (int) $address->barangay_id,
                                         'beneficiaries_total' => (int) $address->beneficiaries_total,
                                         'beneficiaries_female' => (int) $address->beneficiaries_female,
-                                    ],
-                                )
+                                        'hazardous_workers' => $profile?->hazardous_workers,
+                                        'complete_set_workers' => $profile?->complete_set_workers,
+                                        'ppe_items' => $counts->pluck('recipients', 'project_ppe_item_id')->all(),
+                                    ];
+                                })
                                 ->values()
                                 ->all(),
                         ];
@@ -1569,6 +1608,23 @@
                     ->all();
                 $beneficiaryAddressAllocatedTotal = (int) $project->beneficiaryAddresses->sum('beneficiaries_total');
                 $beneficiaryAddressAllocatedFemale = (int) $project->beneficiaryAddresses->sum('beneficiaries_female');
+
+                $ppeDistributionItems = $project->ppeItems->map(fn ($item) => [
+                    'id' => $item->id,
+                    'product' => $item->product,
+                    'type' => $item->ppe_type->value,
+                    'type_label' => $item->ppe_type->label(),
+                    'beneficiary_count' => (int) $item->beneficiary_count,
+                    'given_to_everyone' => (int) $item->beneficiary_count === (int) $project->beneficiaries_total,
+                    'unit_amount' => (float) $item->unit_amount,
+                ])->values()->all();
+
+                $ppeDistributionHasHazardous = $project->ppeItems->contains(
+                    fn ($item) => $item->ppe_type === \App\Enums\PpeType::HAZARDOUS
+                );
+                $ppeDistributionHazardousCount = $project->ppeItems
+                    ->where('ppe_type', \App\Enums\PpeType::HAZARDOUS)
+                    ->count();
             @endphp
 
             <div class="border-b border-slate-200 bg-slate-50/70 p-5">
@@ -1678,6 +1734,10 @@
                                                 Complete the beneficiary address allocation.
                                             </div>
 
+                                            @if (!empty($ppeDistributionItems))
+                                                <div id="beneficiaryAddressPpeProgress" class="mt-3 space-y-1.5"></div>
+                                            @endif
+
                                             <button type="submit"
                                                 class="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6b]">
                                                 Save Beneficiary Addresses
@@ -1694,6 +1754,9 @@
 
                                             <div id="beneficiaryAddressSavedList" class="max-h-80 space-y-1.5 overflow-y-auto p-2">
                                                 @forelse ($project->beneficiaryAddresses as $address)
+                                                    @php
+                                                        $bcbProfile = $ppeProfilesByBarangay->get($address->barangay_id);
+                                                    @endphp
                                                     <button
                                                         type="button"
                                                         data-jump-barangay-id="{{ $address->barangay_id }}"
@@ -1706,6 +1769,11 @@
                                                             <span class="block truncate text-[10px] text-slate-400">
                                                                 {{ $address->municipality?->name ?? '—' }}
                                                             </span>
+                                                            @if ($bcbProfile)
+                                                                <span class="mt-0.5 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+                                                                    {{ number_format($bcbProfile->hazardous_workers) }} hazardous
+                                                                </span>
+                                                            @endif
                                                         </span>
                                                         <span class="shrink-0 text-right text-[10px] font-semibold text-slate-500">
                                                             {{ number_format($address->beneficiaries_total) }} total
@@ -1718,6 +1786,59 @@
                                                         No beneficiary address allocation has been saved yet.
                                                     </div>
                                                 @endforelse
+                                            </div>
+                                        </div>
+
+                                        <div id="beneficiaryAddressEditModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+                                            <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl">
+                                                <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                                                    <div>
+                                                        <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Same Barangay</div>
+                                                        <div id="beneficiaryAddressEditModalName" class="mt-0.5 text-sm font-semibold text-slate-900">&mdash;</div>
+                                                    </div>
+                                                    <button type="button" id="beneficiaryAddressEditModalClose" class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">&times;</button>
+                                                </div>
+
+                                                <div class="overflow-y-auto px-5 py-4">
+                                                    <div id="beneficiaryAddressEditModalWarning" class="hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] leading-5 text-amber-800"></div>
+
+                                                    <div id="beneficiaryAddressEditModalFields">
+                                                        <div class="grid grid-cols-2 gap-3">
+                                                            <label>
+                                                                <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Total</span>
+                                                                <input type="number" min="0" step="1" id="beneficiaryAddressEditModalTotal" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-xs">
+                                                            </label>
+                                                            <label>
+                                                                <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Female</span>
+                                                                <input type="number" min="0" step="1" id="beneficiaryAddressEditModalFemale" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-xs">
+                                                            </label>
+                                                        </div>
+
+                                                        <div id="beneficiaryAddressEditModalPpe" class="mt-4"></div>
+
+                                                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                                                <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE summary</div>
+                                                                <div id="beneficiaryAddressEditModalSummary" class="mt-2 space-y-1 text-[11px] text-slate-600">&mdash;</div>
+                                                            </div>
+                                                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                                                <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Price of overall</div>
+                                                                <div id="beneficiaryAddressEditModalOverall" class="mt-2 text-lg font-bold text-slate-900">&#8369;0.00</div>
+                                                                <div class="mt-0.5 text-[10px] text-slate-400">Total price of all PPE items for this barangay</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-4">
+                                                    <p class="text-[10px] leading-4 text-slate-400">
+                                                        Saving here updates the fields above. Click "Save Beneficiary Addresses" to persist the change.
+                                                    </p>
+                                                    <div class="flex shrink-0 items-center gap-2">
+                                                        <button type="button" id="beneficiaryAddressEditModalCancel" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 px-4 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                                                        <button type="button" id="beneficiaryAddressEditModalSave" class="inline-flex h-9 items-center justify-center rounded-lg bg-[#063b86] px-4 text-[11px] font-semibold text-white hover:bg-[#052f6b]">Save Changes</button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </aside>
@@ -1767,6 +1888,7 @@
                                             <th class="px-4 py-3 text-left">Barangay</th>
                                             <th class="px-4 py-3 text-right">Total</th>
                                             <th class="px-4 py-3 text-right">Female</th>
+                                            <th class="px-4 py-3 text-right">Hazardous</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 bg-white">
@@ -1784,10 +1906,12 @@
                                                     {{ number_format($address->beneficiaries_total) }}</td>
                                                 <td class="px-4 py-3 text-right text-xs text-slate-600">
                                                     {{ number_format($address->beneficiaries_female) }}</td>
+                                                <td class="px-4 py-3 text-right text-xs text-slate-600">
+                                                    {{ $ppeProfilesByBarangay->get($address->barangay_id)?->hazardous_workers !== null ? number_format($ppeProfilesByBarangay->get($address->barangay_id)->hazardous_workers) : '—' }}</td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="px-5 py-8 text-center text-xs text-slate-400">
+                                                <td colspan="7" class="px-5 py-8 text-center text-xs text-slate-400">
                                                     No beneficiary address allocation has been encoded yet.
                                                 </td>
                                             </tr>
@@ -1799,6 +1923,8 @@
                     @endunless
                 </div>
             </div>
+
+            @include('projects.partials.barangay-cost-breakdown')
 
             @if ((auth()->user()->isAdmin() || auth()->user()->isTc()) && $beneficiaryAddressProvince)
                 <script>
@@ -1816,6 +1942,12 @@
                         const municipalityUrl = @json(route('locations.municipalities', $beneficiaryAddressProvince));
                         const declaredTotal = Number(@json((int) $project->beneficiaries_total));
                         const declaredFemale = Number(@json((int) $project->beneficiaries_female));
+                        const ppeItems = @json($ppeDistributionItems);
+                        const ppeHasHazardous = @json($ppeDistributionHasHazardous);
+                        const ppeHazardousCount = Number(@json($ppeDistributionHazardousCount));
+                        // Every PPE item is explicitly declared per barangay by the
+                        // coordinator — none are auto-assumed as "given to everyone".
+                        const ppeDistributable = ppeItems;
                         let municipalityOptions = [];
                         let nextIndex = 0;
 
@@ -1858,7 +1990,92 @@
                             });
                         };
 
+                        const ppeProgressBox = document.getElementById('beneficiaryAddressPpeProgress');
+
+                        const maybeDefaultHazardousWorkers = row => {
+                            const hazardousInput = row.querySelector('.beneficiary-hazardous-workers');
+                            if (!hazardousInput || hazardousInput.value !== '') return;
+
+                            const maxRecipients = ppeItems
+                                .filter(item => item.type === 'hazardous')
+                                .reduce((max, item) => {
+                                    const recipients = Number(row.querySelector(`.beneficiary-ppe-item-input[data-ppe-item-id="${item.id}"]`)?.value || 0);
+
+                                    return Math.max(max, recipients);
+                                }, 0);
+
+                            hazardousInput.value = maxRecipients;
+                        };
+
+                        const updatePpeProgress = () => {
+                            if (ppeItems.length === 0) return true;
+
+                            const rows = Array.from(root.querySelectorAll('.beneficiary-address-row'));
+                            let valid = true;
+                            const lines = [];
+
+                            ppeDistributable.forEach(item => {
+                                const sum = rows.reduce((total, row) => {
+                                    const input = row.querySelector(`.beneficiary-ppe-item-input[data-ppe-item-id="${item.id}"]`);
+                                    return total + Number(input?.value || 0);
+                                }, 0);
+
+                                const ok = sum === item.beneficiary_count;
+                                if (!ok) valid = false;
+
+                                lines.push(`
+                                    <div class="flex items-center justify-between rounded-md px-2.5 py-1.5 text-[11px] ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}">
+                                        <span class="truncate">${escapeHtml(item.product)}</span>
+                                        <span class="shrink-0 font-semibold">${sum} of ${item.beneficiary_count} distributed</span>
+                                    </div>
+                                `);
+                            });
+
+                            rows.forEach(row => {
+                                const hazardousInput = row.querySelector('.beneficiary-hazardous-workers');
+                                const completeSetInput = row.querySelector('.beneficiary-complete-set-workers');
+
+                                hazardousInput?.classList.remove('border-red-400');
+                                completeSetInput?.classList.remove('border-red-400');
+
+                                if (!ppeHasHazardous) return;
+
+                                const barangayTotal = Number(row.querySelector('.beneficiary-address-total')?.value || 0);
+
+                                const hazardousRecipients = ppeItems
+                                    .filter(item => item.type === 'hazardous')
+                                    .map(item => Number(row.querySelector(`.beneficiary-ppe-item-input[data-ppe-item-id="${item.id}"]`)?.value || 0));
+
+                                const maxRecipients = hazardousRecipients.length ? Math.max(...hazardousRecipients) : 0;
+                                const sumRecipients = hazardousRecipients.reduce((a, b) => a + b, 0);
+                                const minRecipients = hazardousRecipients.length ? Math.min(...hazardousRecipients) : 0;
+                                const ceiling = Math.min(sumRecipients, barangayTotal);
+                                const hazardousValue = Number(hazardousInput?.value || 0);
+
+                                if (hazardousInput && hazardousInput.value !== '' && (hazardousValue < maxRecipients || hazardousValue > ceiling)) {
+                                    valid = false;
+                                    hazardousInput.classList.add('border-red-400');
+                                }
+
+                                if (completeSetInput && completeSetInput.value !== '') {
+                                    const completeSetValue = Number(completeSetInput.value);
+
+                                    if (completeSetValue > minRecipients || completeSetValue > hazardousValue) {
+                                        valid = false;
+                                        completeSetInput.classList.add('border-red-400');
+                                    }
+                                }
+                            });
+
+                            if (ppeProgressBox) {
+                                ppeProgressBox.innerHTML = lines.join('');
+                            }
+
+                            return valid;
+                        };
+
                         const updateStatus = () => {
+                            const ppeValid = updatePpeProgress();
                             const totalInputs = Array.from(root.querySelectorAll('.beneficiary-address-total'));
                             const femaleInputs = Array.from(root.querySelectorAll('.beneficiary-address-female'));
 
@@ -1911,10 +2128,97 @@
                                 return false;
                             }
 
+                            if (!ppeValid) {
+                                status.className =
+                                    'mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
+                                status.textContent =
+                                    'Complete the PPE distribution below: every item must be fully distributed, and hazardous/complete-set counts must fit within range.';
+                                return false;
+                            }
+
                             status.className =
                                 'mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-[11px] font-semibold leading-5 text-emerald-700';
                             status.textContent = 'Beneficiary address allocation is complete and ready to save.';
                             return true;
+                        };
+
+                        const ppeRowMarkup = (groupIndex, barangayIndex, values) => {
+                            if (ppeItems.length === 0) return '';
+
+                            const items = values.ppe_items || {};
+
+                            const hazardousField = ppeHasHazardous
+                                ? `
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Hazardous workers</span>
+                                    <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][hazardous_workers]" value="${escapeHtml(values.hazardous_workers ?? '')}" class="beneficiary-hazardous-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>`
+                                : `<input type="hidden" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][hazardous_workers]" value="0">`;
+
+                            const completeSetField = ppeHazardousCount >= 2
+                                ? `
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Complete set <span class="font-normal normal-case text-slate-400">(optional)</span></span>
+                                    <input type="number" min="0" step="1" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][complete_set_workers]" value="${escapeHtml(values.complete_set_workers ?? '')}" class="beneficiary-complete-set-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>`
+                                : '';
+
+                            const itemFields = ppeDistributable.map(item => `
+                                <div class="rounded-lg border border-slate-200 bg-white p-2">
+                                    <div class="mb-1.5 flex items-start justify-between gap-1">
+                                        <span class="truncate text-[9px] font-bold uppercase tracking-wide text-slate-500" title="${escapeHtml(item.product)} (${escapeHtml(item.type_label)})">${escapeHtml(item.product)}</span>
+                                        <span class="shrink-0 text-[9px] font-bold text-emerald-700">₱${Number(item.unit_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <input type="number" min="0" step="1" required data-ppe-item-id="${item.id}" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][ppe_items][${item.id}]" value="${escapeHtml(items[item.id] ?? '')}" class="beneficiary-ppe-item-input h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </div>`).join('');
+
+                            return `
+                        <div class="mt-3 border-t border-slate-100 pt-3">
+                            <div class="mb-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE distribution for this barangay</div>
+                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                ${hazardousField}
+                                ${completeSetField}
+                                ${itemFields}
+                            </div>
+                        </div>`;
+                        };
+
+                        // Unnamed mirror of ppeRowMarkup for the edit modal: same box layout,
+                        // but without `name` attributes so it never gets submitted alongside
+                        // the real row inputs it writes back into on Save.
+                        const modalPpeMarkup = (values) => {
+                            if (ppeItems.length === 0) return '';
+
+                            const items = values.ppe_items || {};
+
+                            const hazardousField = ppeHasHazardous ? `
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Hazardous workers</span>
+                                    <input type="number" min="0" step="1" value="${escapeHtml(values.hazardous_workers ?? '')}" class="modal-hazardous-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>` : '';
+
+                            const completeSetField = ppeHazardousCount >= 2 ? `
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Complete set <span class="font-normal normal-case text-slate-400">(optional)</span></span>
+                                    <input type="number" min="0" step="1" value="${escapeHtml(values.complete_set_workers ?? '')}" class="modal-complete-set-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>` : '';
+
+                            const itemBoxes = ppeDistributable.map(item => `
+                                <div class="rounded-lg border border-slate-200 bg-white p-2">
+                                    <div class="mb-1.5 flex items-start justify-between gap-1">
+                                        <span class="truncate text-[9px] font-bold uppercase tracking-wide text-slate-500" title="${escapeHtml(item.product)} (${escapeHtml(item.type_label)})">${escapeHtml(item.product)}</span>
+                                        <span class="shrink-0 text-[9px] font-bold text-emerald-700">₱${Number(item.unit_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <input type="number" min="0" step="1" data-modal-ppe-item-id="${item.id}" value="${escapeHtml(items[item.id] ?? '')}" class="modal-ppe-item-input h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </div>`).join('');
+
+                            return `
+                        <div class="mb-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE distribution for this barangay</div>
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            ${hazardousField}
+                            ${completeSetField}
+                            ${itemBoxes}
+                        </div>`;
                         };
 
                         const renderSelectedBarangays = (card, groupIndex) => {
@@ -1926,6 +2230,12 @@
                                     {
                                         total: row.querySelector('.beneficiary-address-total')?.value ?? '',
                                         female: row.querySelector('.beneficiary-address-female')?.value ?? '',
+                                        hazardous_workers: row.querySelector('.beneficiary-hazardous-workers')?.value ?? '',
+                                        complete_set_workers: row.querySelector('.beneficiary-complete-set-workers')?.value ?? '',
+                                        ppe_items: Object.fromEntries(
+                                            Array.from(row.querySelectorAll('.beneficiary-ppe-item-input'))
+                                                .map(input => [input.dataset.ppeItemId, input.value])
+                                        ),
                                     },
                                 ])
                             );
@@ -1941,32 +2251,60 @@
 
                             checked.forEach((checkbox, barangayIndex) => {
                                 const barangayId = checkbox.value;
+                                let ppeItemsData = {};
+                                try {
+                                    ppeItemsData = JSON.parse(checkbox.dataset.ppeItems || '{}');
+                                } catch (error) {
+                                    ppeItemsData = {};
+                                }
+
                                 const values = existing.get(barangayId) || {
                                     total: checkbox.dataset.total ?? '',
                                     female: checkbox.dataset.female ?? '',
+                                    hazardous_workers: checkbox.dataset.hazardous ?? '',
+                                    complete_set_workers: checkbox.dataset.completeSet ?? '',
+                                    ppe_items: ppeItemsData,
                                 };
+
+                                // Single-barangay convenience: every distributable item's
+                                // recipients can only be its full beneficiary_count, so
+                                // pre-fill it instead of making the coordinator retype it.
+                                if (checked.length === 1 && ppeDistributable.length > 0) {
+                                    ppeDistributable.forEach(item => {
+                                        if (values.ppe_items[item.id] === undefined || values.ppe_items[item.id] === '') {
+                                            values.ppe_items[item.id] = item.beneficiary_count;
+                                        }
+                                    });
+                                }
+
                                 const row = document.createElement('div');
                                 row.className =
-                                    'beneficiary-address-row grid gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_110px_110px]';
+                                    'beneficiary-address-row rounded-lg border border-slate-200 bg-white p-3';
                                 row.dataset.barangayId = barangayId;
                                 row.innerHTML = `
-                            <div class="min-w-0">
-                                <div class="text-xs font-semibold text-slate-800">${escapeHtml(checkbox.dataset.name)}</div>
-                                <div class="mt-1 text-[10px] text-slate-400">Beneficiary home address allocation</div>
-                                <input type="hidden" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][barangay_id]" value="${escapeHtml(barangayId)}">
+                            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_110px_110px]">
+                                <div class="min-w-0">
+                                    <div class="text-xs font-semibold text-slate-800">${escapeHtml(checkbox.dataset.name)}</div>
+                                    <div class="mt-1 text-[10px] text-slate-400">Beneficiary home address allocation</div>
+                                    <input type="hidden" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][barangay_id]" value="${escapeHtml(barangayId)}">
+                                </div>
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Total</span>
+                                    <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_total]" value="${escapeHtml(values.total)}" class="beneficiary-address-total h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>
+                                <label>
+                                    <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Female</span>
+                                    <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_female]" value="${escapeHtml(values.female)}" class="beneficiary-address-female h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                </label>
                             </div>
-                            <label>
-                                <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Total</span>
-                                <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_total]" value="${escapeHtml(values.total)}" class="beneficiary-address-total h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
-                            </label>
-                            <label>
-                                <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Female</span>
-                                <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_female]" value="${escapeHtml(values.female)}" class="beneficiary-address-female h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
-                            </label>
+                            ${ppeRowMarkup(groupIndex, barangayIndex, values)}
                         `;
 
                                 row.querySelectorAll('input[type="number"]').forEach(input => {
-                                    input.addEventListener('input', updateStatus);
+                                    input.addEventListener('input', () => {
+                                        maybeDefaultHazardousWorkers(row);
+                                        updateStatus();
+                                    });
                                 });
                                 selectedBox.appendChild(row);
                             });
@@ -2002,7 +2340,7 @@
                                     label.className =
                                         'flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-slate-700 hover:bg-slate-50';
                                     label.innerHTML = `
-                                <input type="checkbox" value="${barangay.id}" data-name="${escapeHtml(barangay.name)}" data-total="${escapeHtml(existing?.beneficiaries_total ?? '')}" data-female="${escapeHtml(existing?.beneficiaries_female ?? '')}" class="beneficiary-barangay-checkbox h-4 w-4 rounded border-slate-300 text-blue-700" ${existing ? 'checked' : ''}>
+                                <input type="checkbox" value="${barangay.id}" data-name="${escapeHtml(barangay.name)}" data-total="${escapeHtml(existing?.beneficiaries_total ?? '')}" data-female="${escapeHtml(existing?.beneficiaries_female ?? '')}" data-hazardous="${escapeHtml(existing?.hazardous_workers ?? '')}" data-complete-set="${escapeHtml(existing?.complete_set_workers ?? '')}" data-ppe-items="${escapeHtml(JSON.stringify(existing?.ppe_items ?? {}))}" class="beneficiary-barangay-checkbox h-4 w-4 rounded border-slate-300 text-blue-700" ${existing ? 'checked' : ''}>
                                 <span>${escapeHtml(barangay.name)}</span>
                             `;
                                     label.querySelector('input').addEventListener('change', () =>
@@ -2103,34 +2441,150 @@
 
                         const savedList = document.getElementById('beneficiaryAddressSavedList');
 
+                        const editModal = document.getElementById('beneficiaryAddressEditModal');
+                        // Re-parent to <body> so position:fixed always covers the full
+                        // viewport — an ancestor card/tab wrapper further up this page
+                        // establishes its own containing block and otherwise clips the
+                        // backdrop to that wrapper instead of the whole screen.
+                        if (editModal) document.body.appendChild(editModal);
+                        const editModalName = document.getElementById('beneficiaryAddressEditModalName');
+                        const editModalWarning = document.getElementById('beneficiaryAddressEditModalWarning');
+                        const editModalFields = document.getElementById('beneficiaryAddressEditModalFields');
+                        const editModalTotal = document.getElementById('beneficiaryAddressEditModalTotal');
+                        const editModalFemale = document.getElementById('beneficiaryAddressEditModalFemale');
+                        const editModalPpe = document.getElementById('beneficiaryAddressEditModalPpe');
+                        const editModalSummary = document.getElementById('beneficiaryAddressEditModalSummary');
+                        const editModalOverall = document.getElementById('beneficiaryAddressEditModalOverall');
+                        const editModalSave = document.getElementById('beneficiaryAddressEditModalSave');
+                        let editModalRow = null;
+
+                        const formatModalMoney = value => '₱' + Number(value || 0).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+
+                        const recomputeModalSummary = () => {
+                            if (!editModalSummary || !editModalOverall) return;
+
+                            let overall = 0;
+                            const lines = [];
+
+                            editModalPpe.querySelectorAll('.modal-ppe-item-input').forEach(input => {
+                                const item = ppeDistributable.find(candidate => String(candidate.id) === input.dataset.modalPpeItemId);
+                                if (!item) return;
+
+                                const qty = Number(input.value) || 0;
+                                const amount = qty * Number(item.unit_amount || 0);
+                                overall += amount;
+
+                                if (qty > 0) {
+                                    lines.push(`${escapeHtml(item.product)} &times; ${qty} = ${formatModalMoney(amount)}`);
+                                }
+                            });
+
+                            editModalSummary.innerHTML = lines.length ?
+                                lines.map(line => `<div>${line}</div>`).join('') :
+                                'No PPE recipients entered yet.';
+                            editModalOverall.textContent = formatModalMoney(overall);
+                        };
+
+                        const closeEditModal = () => {
+                            editModal?.classList.add('hidden');
+                            editModal?.classList.remove('flex');
+                            editModalRow = null;
+                        };
+
+                        const openEditModal = (name, row) => {
+                            editModalRow = row;
+                            editModalName.textContent = name;
+
+                            if (!row) {
+                                editModalWarning.textContent =
+                                    'That barangay is not currently selected above. Re-select it in the form to edit its allocation.';
+                                editModalWarning.classList.remove('hidden');
+                                editModalFields.classList.add('hidden');
+                                editModalSave.classList.add('hidden');
+                            } else {
+                                editModalWarning.classList.add('hidden');
+                                editModalFields.classList.remove('hidden');
+                                editModalSave.classList.remove('hidden');
+
+                                editModalTotal.value = row.querySelector('.beneficiary-address-total')?.value ?? '';
+                                editModalFemale.value = row.querySelector('.beneficiary-address-female')?.value ?? '';
+
+                                editModalPpe.innerHTML = modalPpeMarkup({
+                                    hazardous_workers: row.querySelector('.beneficiary-hazardous-workers')?.value ?? '',
+                                    complete_set_workers: row.querySelector('.beneficiary-complete-set-workers')?.value ?? '',
+                                    ppe_items: Object.fromEntries(
+                                        Array.from(row.querySelectorAll('.beneficiary-ppe-item-input'))
+                                        .map(input => [input.dataset.ppeItemId, input.value])
+                                    ),
+                                });
+
+                                recomputeModalSummary();
+                            }
+
+                            editModal?.classList.remove('hidden');
+                            editModal?.classList.add('flex');
+                        };
+
                         savedList?.addEventListener('click', event => {
                             const trigger = event.target.closest('.beneficiary-address-jump');
                             if (!trigger) return;
 
                             const barangayId = trigger.dataset.jumpBarangayId;
                             const row = root.querySelector(`.beneficiary-address-row[data-barangay-id="${barangayId}"]`);
+                            const name = trigger.querySelector('.block.truncate')?.textContent?.trim() || 'This barangay';
 
-                            if (!row) {
-                                status.className =
-                                    'mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
-                                status.textContent =
-                                    'That barangay is not currently selected above. Re-select it to edit its allocation.';
-                                status.scrollIntoView({
-                                    behavior: 'smooth',
-                                    block: 'center'
-                                });
-                                return;
-                            }
+                            openEditModal(name, row);
+                        });
 
-                            row.scrollIntoView({
+                        document.getElementById('beneficiaryAddressEditModalClose')?.addEventListener('click', closeEditModal);
+                        document.getElementById('beneficiaryAddressEditModalCancel')?.addEventListener('click', closeEditModal);
+                        editModal?.addEventListener('click', event => {
+                            if (event.target === editModal) closeEditModal();
+                        });
+                        editModalFields?.addEventListener('input', recomputeModalSummary);
+
+                        editModalSave?.addEventListener('click', () => {
+                            if (!editModalRow) return;
+
+                            const totalInput = editModalRow.querySelector('.beneficiary-address-total');
+                            const femaleInput = editModalRow.querySelector('.beneficiary-address-female');
+                            const hazardousInput = editModalRow.querySelector('.beneficiary-hazardous-workers');
+                            const completeSetInput = editModalRow.querySelector('.beneficiary-complete-set-workers');
+                            const modalHazardous = editModalPpe.querySelector('.modal-hazardous-workers');
+                            const modalCompleteSet = editModalPpe.querySelector('.modal-complete-set-workers');
+
+                            const writeBack = (input, value) => {
+                                if (!input) return;
+                                input.value = value;
+                                input.dispatchEvent(new Event('input', {
+                                    bubbles: true
+                                }));
+                            };
+
+                            writeBack(totalInput, editModalTotal.value);
+                            writeBack(femaleInput, editModalFemale.value);
+                            writeBack(hazardousInput, modalHazardous?.value ?? '');
+                            writeBack(completeSetInput, modalCompleteSet?.value ?? '');
+
+                            editModalPpe.querySelectorAll('.modal-ppe-item-input').forEach(modalInput => {
+                                const realInput = editModalRow.querySelector(
+                                    `.beneficiary-ppe-item-input[data-ppe-item-id="${modalInput.dataset.modalPpeItemId}"]`
+                                );
+                                writeBack(realInput, modalInput.value);
+                            });
+
+                            const changedRow = editModalRow;
+                            closeEditModal();
+
+                            changedRow.scrollIntoView({
                                 behavior: 'smooth',
                                 block: 'center'
                             });
-
-                            row.classList.add('ring-2', 'ring-blue-400');
-                            setTimeout(() => row.classList.remove('ring-2', 'ring-blue-400'), 1500);
-
-                            row.querySelector('.beneficiary-address-total')?.focus();
+                            changedRow.classList.add('ring-2', 'ring-blue-400');
+                            setTimeout(() => changedRow.classList.remove('ring-2', 'ring-blue-400'), 1500);
                         });
 
                         form.addEventListener('submit', event => {
@@ -2247,31 +2701,6 @@
 
             <div class="p-5">
 
-                {{-- Ongoing Profiling --}}
-
-                @if ($project->status === \App\Enums\ProjectStatus::ONGOING_PROFILING)
-                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                        <div class="text-sm font-semibold text-amber-900">Ongoing Profiling</div>
-
-                        <p class="mt-1 text-xs leading-5 text-amber-800">
-                            Review the project profile and supporting information. Submit to TSSD Evaluation only when
-                            profiling is complete.
-                        </p>
-
-                        @if (auth()->user()->isAdmin() || auth()->user()->isTc())
-                            <form method="POST" action="{{ route('projects.evaluation.start', $project) }}"
-                                class="mt-4">
-                                @csrf
-
-                                <button type="submit"
-                                    class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b]">
-                                    Submit to TSSD Evaluation
-                                </button>
-                            </form>
-                        @endif
-                    </div>
-                @endif
-
                 {{-- TSSD Evaluation / Compliance --}}
 
                 @if (in_array(
@@ -2350,6 +2779,11 @@
                                             <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-700">
                                                 {{ $latestEvaluation->required_documents ?: '—' }}
                                             </p>
+
+                                            @include('projects.partials.evaluation-attachment-links', [
+                                                'attachments' => $latestEvaluation->evaluationAttachments(),
+                                                'projectId' => $project->id,
+                                            ])
                                         </div>
 
                                     </div>
@@ -2363,7 +2797,7 @@
                                 @endif
 
                                 <form method="POST" action="{{ route('projects.compliance.store', $project) }}"
-                                    class="mt-5">
+                                    enctype="multipart/form-data" class="mt-5">
 
                                     @csrf
 
@@ -2414,6 +2848,31 @@
                                         @enderror
                                     </div>
 
+                                    <div class="mt-4">
+                                        <label for="compliance-attachments"
+                                            class="mb-2 block text-xs font-semibold text-slate-700">
+                                            Compliance Attachments
+                                            <span class="font-normal text-slate-400">(optional, up to 10 files)</span>
+                                        </label>
+
+                                        <input id="compliance-attachments" name="attachments[]" type="file" multiple
+                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                                            class="block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:h-10 file:border-0 file:bg-amber-50 file:px-4 file:text-sm file:font-semibold file:text-amber-800 hover:file:bg-amber-100">
+
+                                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                            Upload the complied documents (PDF, JPG, PNG, Word, or Excel; 10 MB max each).
+                                        </p>
+
+                                        @error('attachments')
+                                            <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $message }}</p>
+                                        @enderror
+                                        @foreach ($errors->get('attachments.*') as $attachmentMessages)
+                                            @foreach ($attachmentMessages as $attachmentMessage)
+                                                <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $attachmentMessage }}</p>
+                                            @endforeach
+                                        @endforeach
+                                    </div>
+
                                     <div class="mt-4 flex md:justify-end">
                                         <button type="submit"
                                             class="h-10 rounded-lg bg-amber-700 px-5 text-sm font-semibold text-white hover:bg-amber-800">
@@ -2431,7 +2890,7 @@
 
                     @if ($project->status === \App\Enums\ProjectStatus::TSSD_EVALUATION)
                         <form method="POST" action="{{ route('projects.evaluation.store', $project) }}"
-                            class="space-y-4">
+                            enctype="multipart/form-data" class="space-y-4">
 
                             @csrf
 
@@ -2513,6 +2972,31 @@
                                         class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                                         placeholder="List the documentary requirements to be complied with...">{{ old('required_documents') }}</textarea>
 
+                                </div>
+
+                                <div>
+                                    <label for="evaluation-attachments" class="mb-2 block text-xs font-semibold text-slate-700">
+                                        Evaluation Attachments
+                                        <span class="font-normal text-slate-400">(optional, up to 10 files)</span>
+                                    </label>
+
+                                    <input id="evaluation-attachments" name="attachments[]" type="file" multiple
+                                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                                        class="block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:h-10 file:border-0 file:bg-slate-100 file:px-4 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200">
+
+                                    <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                        Attach the evaluation checklist, findings memo, or sample documents the TC must comply with
+                                        (PDF, JPG, PNG, Word, or Excel; 10 MB max each).
+                                    </p>
+
+                                    @error('attachments')
+                                        <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                    @foreach ($errors->get('attachments.*') as $attachmentMessages)
+                                        @foreach ($attachmentMessages as $attachmentMessage)
+                                            <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $attachmentMessage }}</p>
+                                        @endforeach
+                                    @endforeach
                                 </div>
                             </div>
 
@@ -2752,12 +3236,22 @@
                                         {{ $evaluation->findings ?: '—' }}
                                     </td>
 
-                                    <td class="max-w-xs whitespace-pre-line px-5 py-4 text-sm text-slate-600">
-                                        {{ $evaluation->required_documents ?: '—' }}
+                                    <td class="max-w-xs px-5 py-4 text-sm text-slate-600">
+                                        <div class="whitespace-pre-line">{{ $evaluation->required_documents ?: '—' }}</div>
+
+                                        @include('projects.partials.evaluation-attachment-links', [
+                                            'attachments' => $evaluation->evaluationAttachments(),
+                                            'projectId' => $project->id,
+                                        ])
                                     </td>
 
-                                    <td class="max-w-xs whitespace-pre-line px-5 py-4 text-sm text-slate-600">
-                                        {{ $evaluation->compliance_remarks ?: '—' }}
+                                    <td class="max-w-xs px-5 py-4 text-sm text-slate-600">
+                                        <div class="whitespace-pre-line">{{ $evaluation->compliance_remarks ?: '—' }}</div>
+
+                                        @include('projects.partials.evaluation-attachment-links', [
+                                            'attachments' => $evaluation->complianceAttachments(),
+                                            'projectId' => $project->id,
+                                        ])
                                     </td>
 
                                 </tr>
@@ -2773,9 +3267,15 @@
 
         @endif
 
-        {{-- Implementation Preparation --}}
+        {{-- Implementation Preparation (Direct Administration, and Through ACP after the check release) --}}
 
-        @if (in_array(
+        @php
+            $implementationIsAcp = $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP;
+            $acpWorkflowService = app(\App\Services\Projects\AcpWorkflowService::class);
+            $acpPreparationComplete = $implementationIsAcp && $acpWorkflowService->preparationComplete($project);
+        @endphp
+
+        @if ((in_array(
                 $project->status,
                 [
                     \App\Enums\ProjectStatus::APPROVED,
@@ -2784,6 +3284,13 @@
                     \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
                 ],
                 true) && $project->implementation_mode === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION)
+            || ($implementationIsAcp && ! $acpWorkflowService->isLegacy($project) && in_array(
+                $project->status,
+                [
+                    \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
+                    \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
+                ],
+                true)))
 
             <section id="implementation" data-workspace-panel="workflow"
                 class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
@@ -2799,8 +3306,13 @@
                             </h2>
 
                             <p class="mt-1 text-xs text-slate-500">
-                                Direct Administration workflow: Insurance, PPE, Notice to Proceed, Orientation, and Work
-                                Period.
+                                @if ($implementationIsAcp)
+                                    Through ACP workflow (after the check release): GSIS Enrollment, PPE, NAFA, Notice to
+                                    Proceed, Orientation, and Work Period.
+                                @else
+                                    Direct Administration workflow: Insurance, PPE, Notice to Proceed, Orientation, and Work
+                                    Period.
+                                @endif
                             </p>
 
                         </div>
@@ -2817,16 +3329,22 @@
                 </div>
 
                 @php
-                    $stepOrder = ['insurance', 'ppe', 'ntp'];
+                    // Through ACP adds the NAFA before the Notice to Proceed and, like
+                    // Direct Administration, unlocks Orientation and the Work Period
+                    // only once every preparation requirement is recorded.
+                    $stepOrder = $implementationIsAcp ? ['insurance', 'ppe', 'nafa', 'ntp'] : ['insurance', 'ppe', 'ntp'];
+                    $schedulingUnlocked = $project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION
+                        && (! $implementationIsAcp || $acpPreparationComplete);
 
-                    if ($project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION) {
+                    if ($schedulingUnlocked) {
                         $stepOrder[] = 'orientation';
                         $stepOrder[] = 'implementation-period';
                     }
 
                     $stepLabels = [
-                        'insurance' => 'Insurance',
+                        'insurance' => $implementationIsAcp ? 'GSIS Enrollment' : 'Insurance',
                         'ppe' => 'PPE Delivery',
+                    ] + ($implementationIsAcp ? ['nafa' => 'NAFA'] : []) + [
                         'ntp' => 'Notice to Proceed',
                         'orientation' => 'Orientation',
                         'implementation-period' => 'Implementation Period',
@@ -2835,6 +3353,7 @@
                     $stepComplete = [
                         'insurance' => (bool) $project->insuranceEnrollment,
                         'ppe' => $project->ppeDeliveries->isNotEmpty(),
+                    ] + ($implementationIsAcp ? ['nafa' => (bool) $project->nafa] : []) + [
                         'ntp' => (bool) $project->noticeToProceed,
                         'orientation' => (bool) $project->orientation,
                         'implementation-period' => (bool) $project->implementation,
@@ -3119,111 +3638,38 @@
                                         </div>
                                     @endif
 
+                                    @php
+                                        $ppeDeliveryItems = $project->ppeItems->map(fn ($item) => [
+                                            'id' => $item->id,
+                                            'product' => $item->product,
+                                            'type_label' => $item->ppe_type->label(),
+                                            'planned' => $item->plannedQuantity(),
+                                            'remaining' => $item->remainingDeliverableQuantity(),
+                                        ])->values();
+                                    @endphp
+
                                     <form method="POST" action="{{ route('projects.implementation.ppe', $project) }}"
-                                        class="ppe-delivery-form mt-4 border-t border-slate-200 pt-4">
+                                        class="ppe-delivery-form mt-4 border-t border-slate-200 pt-4" data-ppe-delivery-form>
                                         @csrf
 
-                                        <div class="text-xs font-semibold text-slate-700">
-                                            Add Delivery Receipt
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="text-xs font-semibold text-slate-700">
+                                                Add Delivery Receipt(s)
+                                            </div>
+
+                                            <button type="button" data-add-delivery-receipt
+                                                class="rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
+                                                + Add Another Receipt
+                                            </button>
                                         </div>
 
-                                        <div class="mt-3">
-                                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                                Date of Delivery Receipt
-                                            </label>
+                                        <p class="mt-1 hidden text-xs font-medium text-red-600" data-error="deliveries"></p>
 
-                                            <input name="delivery_receipt_date" type="date" required
-                                                value="{{ old('delivery_receipt_date') }}"
-                                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
-
-                                            @error('delivery_receipt_date')
-                                                <p class="mt-1 text-xs font-medium text-red-600">
-                                                    {{ $message }}
-                                                </p>
-                                            @enderror
-                                        </div>
-
-                                        <div class="mt-4">
-                                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                                PPE Provided
-                                            </label>
-
-                                            @if ($project->ppeItems->isNotEmpty())
-                                                <p class="mb-2 text-[11px] leading-4 text-slate-500">
-                                                    Click every PPE item included in this receipt, then enter the quantity
-                                                    delivered for each.
-                                                </p>
-
-                                                <div class="grid gap-2 sm:grid-cols-2">
-                                                    @foreach ($project->ppeItems as $ppeItem)
-                                                        @php
-                                                            $remaining = $ppeItem->remainingDeliverableQuantity();
-                                                        @endphp
-
-                                                        <div
-                                                            class="ppe-item-toggle rounded-lg border border-slate-300 p-2.5 {{ $remaining <= 0 ? 'opacity-50' : '' }}">
-                                                            <button type="button"
-                                                                class="ppe-item-button flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700"
-                                                                data-item-id="{{ $ppeItem->id }}"
-                                                                {{ $remaining <= 0 ? 'disabled' : '' }}>
-                                                                <span class="min-w-0 truncate">
-                                                                    {{ $ppeItem->product }}
-                                                                    <span
-                                                                        class="font-normal text-slate-400">({{ $ppeItem->ppe_type->label() }})</span>
-                                                                </span>
-                                                                <span
-                                                                    class="ppe-item-check hidden text-emerald-600">&check;</span>
-                                                            </button>
-
-                                                            <div class="mt-0.5 px-2 text-[10px] text-slate-400">
-                                                                Remaining: {{ number_format($remaining) }} /
-                                                                {{ number_format($ppeItem->plannedQuantity()) }}
-                                                            </div>
-
-                                                            <div class="ppe-item-quantity mt-2 hidden px-2">
-                                                                <input type="hidden"
-                                                                    name="items[{{ $ppeItem->id }}][ppe_item_id]"
-                                                                    value="{{ $ppeItem->id }}" disabled>
-                                                                <input type="number"
-                                                                    name="items[{{ $ppeItem->id }}][quantity]"
-                                                                    min="1" max="{{ $remaining }}"
-                                                                    placeholder="Quantity" disabled
-                                                                    class="h-8 w-full rounded-md border border-slate-300 px-2 text-xs">
-                                                                @error("items.{$ppeItem->id}.quantity")
-                                                                    <p class="mt-1 text-[10px] font-medium text-red-600">
-                                                                        {{ $message }}
-                                                                    </p>
-                                                                @enderror
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-
-                                                @error('items')
-                                                    <p class="mt-2 text-xs font-medium text-red-600">
-                                                        {{ $message }}
-                                                    </p>
-                                                @enderror
-                                            @else
-                                                <div
-                                                    class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-[11px] leading-4 text-slate-500">
-                                                    No PPE items were declared for this project, so no items need to be
-                                                    selected here. Recording the receipt date is sufficient.
-                                                </div>
-                                            @endif
-                                        </div>
-
-                                        <div class="mt-4">
-                                            <label class="mb-2 block text-xs font-semibold text-slate-700">
-                                                Remarks
-                                            </label>
-
-                                            <textarea name="remarks" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks') }}</textarea>
-                                        </div>
+                                        <div data-delivery-receipts class="mt-3 space-y-4"></div>
 
                                         <button type="submit"
                                             class="mt-4 h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
-                                            Add Delivery Receipt
+                                            Save Delivery Receipt(s)
                                         </button>
                                     </form>
                                 </div>
@@ -3231,38 +3677,369 @@
 
                                 <script>
                                     (() => {
-                                        document
-                                            .querySelectorAll('.ppe-delivery-form .ppe-item-toggle')
-                                            .forEach(wrapper => {
+                                        const form = document.querySelector('[data-ppe-delivery-form]');
+                                        if (!form) return;
+
+                                        const list = form.querySelector('[data-delivery-receipts]');
+                                        const addButton = form.querySelector('[data-add-delivery-receipt]');
+                                        const ppeDeliveryItems = @json($ppeDeliveryItems);
+                                        const initialDeliveries = Object.values(@json(old('deliveries')) || {});
+                                        const serverErrors = @json($errors->getMessages());
+                                        let receiptIndex = 0;
+
+                                        const escapeHtml = value => String(value ?? '')
+                                            .replaceAll('&', '&amp;')
+                                            .replaceAll('<', '&lt;')
+                                            .replaceAll('>', '&gt;')
+                                            .replaceAll('"', '&quot;')
+                                            .replaceAll("'", '&#039;');
+
+                                        const itemBoxMarkup = (index, item, selected, quantity) => `
+                                            <div class="ppe-item-toggle rounded-lg border border-slate-300 p-2.5 ${item.remaining <= 0 ? 'opacity-50' : ''} ${selected ? 'ppe-item-selected' : ''}" data-item-id="${item.id}">
+                                                <button type="button"
+                                                    class="ppe-item-button flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700 ${selected ? 'text-blue-800' : ''}"
+                                                    data-item-id="${item.id}"
+                                                    ${item.remaining <= 0 ? 'disabled' : ''}>
+                                                    <span class="min-w-0 truncate">
+                                                        ${escapeHtml(item.product)}
+                                                        <span class="font-normal text-slate-400">(${escapeHtml(item.type_label)})</span>
+                                                    </span>
+                                                    <span class="ppe-item-check ${selected ? '' : 'hidden'} text-emerald-600">&check;</span>
+                                                </button>
+
+                                                <div class="mt-0.5 px-2 text-[10px] text-slate-400" data-item-remaining-label="${item.id}">
+                                                    Remaining: ${item.remaining.toLocaleString()} / ${item.planned.toLocaleString()}
+                                                </div>
+
+                                                <div class="ppe-item-quantity mt-2 px-2 ${selected ? '' : 'hidden'}">
+                                                    <input type="hidden" name="deliveries[${index}][items][${item.id}][ppe_item_id]" value="${item.id}" ${selected ? '' : 'disabled'}>
+                                                    <input type="number" data-item-quantity-input="${item.id}"
+                                                        name="deliveries[${index}][items][${item.id}][quantity]"
+                                                        min="0" max="${item.remaining}" placeholder="0 if none in this receipt"
+                                                        value="${escapeHtml(quantity ?? '')}"
+                                                        ${selected ? '' : 'disabled'}
+                                                        class="h-8 w-full rounded-md border border-slate-300 px-2 text-xs">
+                                                    <p class="mt-1 hidden text-[10px] font-medium text-red-600" data-error="deliveries.${index}.items.${item.id}.quantity"></p>
+                                                    <p class="mt-1 hidden text-[10px] font-semibold text-red-600" data-item-exceeds-message="${item.id}"></p>
+                                                </div>
+                                            </div>`;
+
+                                        const receiptMarkup = (index, initial = {}) => {
+                                            const selectedItems = initial.items || {};
+
+                                            const itemsHtml = ppeDeliveryItems.length === 0
+                                                ? `<div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-[11px] leading-4 text-slate-500">
+                                                        No PPE items were declared for this project, so no items need to be selected here. Recording the receipt date is sufficient.
+                                                    </div>`
+                                                : `<p class="mb-2 text-[11px] leading-4 text-slate-500">Click every PPE item included in this receipt, then enter the quantity delivered for each.</p>
+                                                    <div class="grid gap-2 sm:grid-cols-2">
+                                                        ${ppeDeliveryItems.map(item => itemBoxMarkup(
+                                                            index,
+                                                            item,
+                                                            Object.prototype.hasOwnProperty.call(selectedItems, item.id),
+                                                            selectedItems[item.id]?.quantity,
+                                                        )).join('')}
+                                                    </div>`;
+
+                                            return `
+                                                <div class="delivery-receipt-card rounded-lg border border-slate-200 bg-slate-50/60 p-4" data-delivery-receipt data-index="${index}">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Receipt ${index + 1}</div>
+                                                        <button type="button" data-remove-delivery-receipt class="text-[11px] font-semibold text-red-600 hover:underline">Remove</button>
+                                                    </div>
+
+                                                    <div class="mt-3">
+                                                        <label class="mb-2 block text-xs font-semibold text-slate-700">Date of Delivery Receipt</label>
+                                                        <input name="deliveries[${index}][delivery_receipt_date]" type="date" required
+                                                            value="${escapeHtml(initial.delivery_receipt_date ?? '')}"
+                                                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                                        <p class="mt-1 hidden text-xs font-medium text-red-600" data-error="deliveries.${index}.delivery_receipt_date"></p>
+                                                    </div>
+
+                                                    <div class="mt-4" data-items-container>
+                                                        <label class="mb-2 block text-xs font-semibold text-slate-700">PPE Provided</label>
+                                                        ${itemsHtml}
+                                                        <p class="mt-2 hidden text-xs font-medium text-red-600" data-error="deliveries.${index}.items"></p>
+                                                    </div>
+
+                                                    <div class="mt-4">
+                                                        <label class="mb-2 block text-xs font-semibold text-slate-700">Remarks</label>
+                                                        <textarea name="deliveries[${index}][remarks]" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">${escapeHtml(initial.remarks ?? '')}</textarea>
+                                                    </div>
+                                                </div>`;
+                                        };
+
+                                        // Recomputes, for every item box in every card, how much of that
+                                        // item is still available to THIS box once every OTHER card's
+                                        // current entry for the same item is subtracted from the item's
+                                        // baseline remaining — so a second (or third, or Nth) receipt
+                                        // always reflects what earlier receipts already claimed, live,
+                                        // with no cap on how many receipts this applies across.
+                                        const updateRemainingDisplays = () => {
+                                            const usedByItemAndCard = {};
+
+                                            form.querySelectorAll('[data-item-quantity-input]').forEach(input => {
+                                                if (input.disabled) return;
+                                                const id = input.dataset.itemQuantityInput;
+                                                const cardIndex = input.closest('[data-delivery-receipt]')?.dataset.index;
+                                                if (cardIndex === undefined) return;
+
+                                                usedByItemAndCard[id] = usedByItemAndCard[id] || {};
+                                                usedByItemAndCard[id][cardIndex] = (usedByItemAndCard[id][cardIndex] || 0) + (Number(input.value) || 0);
+                                            });
+
+                                            form.querySelectorAll('.ppe-item-toggle[data-item-id]').forEach(wrapper => {
+                                                const id = wrapper.dataset.itemId;
+                                                const item = ppeDeliveryItems.find(candidate => String(candidate.id) === id);
+                                                if (!item) return;
+
+                                                const cardIndex = wrapper.closest('[data-delivery-receipt]')?.dataset.index;
+                                                const perCard = usedByItemAndCard[id] || {};
+                                                const ownValue = cardIndex !== undefined ? (perCard[cardIndex] || 0) : 0;
+
+                                                const usedElsewhere = Object.entries(perCard)
+                                                    .filter(([otherIndex]) => otherIndex !== cardIndex)
+                                                    .reduce((sum, [, qty]) => sum + qty, 0);
+
+                                                const liveRemaining = Math.max(0, item.remaining - usedElsewhere);
+                                                const exceeds = ownValue > liveRemaining;
+                                                const isSelected = wrapper.classList.contains('ppe-item-selected');
+
+                                                const label = wrapper.querySelector('[data-item-remaining-label]');
+                                                if (label) {
+                                                    label.textContent = `Remaining: ${liveRemaining.toLocaleString()} / ${item.planned.toLocaleString()}`;
+                                                }
+
+                                                const quantityInput = wrapper.querySelector('[data-item-quantity-input]');
+                                                if (quantityInput) {
+                                                    quantityInput.max = String(liveRemaining);
+                                                }
+
+                                                wrapper.classList.remove('border-slate-300', 'border-blue-400', 'bg-blue-50', 'border-red-400', 'bg-red-50');
+                                                if (exceeds) {
+                                                    wrapper.classList.add('border-red-400', 'bg-red-50');
+                                                } else if (isSelected) {
+                                                    wrapper.classList.add('border-blue-400', 'bg-blue-50');
+                                                } else {
+                                                    wrapper.classList.add('border-slate-300');
+                                                }
+
+                                                const exceedsMessage = wrapper.querySelector('[data-item-exceeds-message]');
+                                                if (exceedsMessage) {
+                                                    if (exceeds) {
+                                                        exceedsMessage.textContent = `Exceeds remaining stock by ${(ownValue - liveRemaining).toLocaleString()} unit(s).`;
+                                                        exceedsMessage.classList.remove('hidden');
+                                                    } else {
+                                                        exceedsMessage.textContent = '';
+                                                        exceedsMessage.classList.add('hidden');
+                                                    }
+                                                }
+
                                                 const button = wrapper.querySelector('.ppe-item-button');
+                                                if (button && !isSelected) {
+                                                    const exhausted = liveRemaining <= 0;
+                                                    button.disabled = exhausted;
+                                                    wrapper.classList.toggle('opacity-50', exhausted);
+                                                }
+                                            });
+                                        };
+
+                                        const applyServerErrors = () => {
+                                            Object.entries(serverErrors).forEach(([key, messages]) => {
+                                                const el = form.querySelector(`[data-error="${CSS.escape(key)}"]`);
+                                                if (!el) return;
+                                                el.textContent = messages[0];
+                                                el.classList.remove('hidden');
+                                            });
+                                        };
+
+                                        const serializeCard = cardEl => {
+                                            const items = {};
+
+                                            cardEl.querySelectorAll('[data-item-quantity-input]').forEach(input => {
+                                                if (input.disabled) return;
+                                                items[input.dataset.itemQuantityInput] = { quantity: input.value };
+                                            });
+
+                                            return {
+                                                delivery_receipt_date: cardEl.querySelector('input[type="date"]').value,
+                                                remarks: cardEl.querySelector('textarea').value,
+                                                items,
+                                            };
+                                        };
+
+                                        const reindexAll = () => {
+                                            const states = Array.from(list.querySelectorAll('[data-delivery-receipt]')).map(serializeCard);
+
+                                            list.innerHTML = '';
+                                            receiptIndex = 0;
+
+                                            states.forEach(state => {
+                                                list.insertAdjacentHTML('beforeend', receiptMarkup(receiptIndex++, state));
+                                            });
+
+                                            updateRemainingDisplays();
+                                        };
+
+                                        list.addEventListener('click', event => {
+                                            const button = event.target.closest('.ppe-item-button');
+                                            if (button) {
+                                                if (button.disabled) return;
+
+                                                const wrapper = button.closest('.ppe-item-toggle');
                                                 const check = wrapper.querySelector('.ppe-item-check');
                                                 const quantityBlock = wrapper.querySelector('.ppe-item-quantity');
-
-                                                if (!button || button.disabled || !quantityBlock) return;
-
                                                 const inputs = quantityBlock.querySelectorAll('input');
+                                                const selected = !wrapper.classList.contains('ppe-item-selected');
 
-                                                button.addEventListener('click', () => {
-                                                    const selected = !wrapper.classList.contains('ppe-item-selected');
+                                                wrapper.classList.toggle('ppe-item-selected', selected);
+                                                button.classList.toggle('text-blue-800', selected);
+                                                check.classList.toggle('hidden', !selected);
+                                                quantityBlock.classList.toggle('hidden', !selected);
 
-                                                    wrapper.classList.toggle('ppe-item-selected', selected);
-                                                    wrapper.classList.toggle('border-blue-400', selected);
-                                                    wrapper.classList.toggle('bg-blue-50', selected);
-                                                    button.classList.toggle('text-blue-800', selected);
-                                                    check.classList.toggle('hidden', !selected);
-                                                    quantityBlock.classList.toggle('hidden', !selected);
-
-                                                    inputs.forEach(input => {
-                                                        input.disabled = !selected;
-                                                    });
-
-                                                    if (selected) {
-                                                        quantityBlock.querySelector('input[type="number"]')?.focus();
-                                                    }
+                                                inputs.forEach(input => {
+                                                    input.disabled = !selected;
                                                 });
+
+                                                if (selected) {
+                                                    quantityBlock.querySelector('input[type="number"]')?.focus();
+                                                }
+
+                                                updateRemainingDisplays();
+                                                return;
+                                            }
+
+                                            const removeButton = event.target.closest('[data-remove-delivery-receipt]');
+                                            if (removeButton) {
+                                                if (list.querySelectorAll('[data-delivery-receipt]').length <= 1) return;
+                                                removeButton.closest('[data-delivery-receipt]').remove();
+                                                reindexAll();
+                                            }
+                                        });
+
+                                        list.addEventListener('input', event => {
+                                            if (event.target.matches('[data-item-quantity-input]')) {
+                                                updateRemainingDisplays();
+                                            }
+                                        });
+
+                                        addButton.addEventListener('click', () => {
+                                            list.insertAdjacentHTML('beforeend', receiptMarkup(receiptIndex++));
+                                            updateRemainingDisplays();
+                                        });
+
+                                        if (initialDeliveries.length > 0) {
+                                            initialDeliveries.forEach(delivery => {
+                                                list.insertAdjacentHTML('beforeend', receiptMarkup(receiptIndex++, delivery));
                                             });
+                                        } else {
+                                            list.insertAdjacentHTML('beforeend', receiptMarkup(receiptIndex++));
+                                        }
+
+                                        applyServerErrors();
+                                        updateRemainingDisplays();
                                     })();
                                 </script>
+
+                        {{-- NAFA (Notice of Availability of Fund) — Through ACP only --}}
+
+                        @if ($implementationIsAcp)
+                            <div data-step-panel="nafa" class="hidden">
+                                <form method="POST" action="{{ route('projects.implementation.nafa', $project) }}"
+                                    enctype="multipart/form-data" class="rounded-xl border border-slate-200 p-5">
+                                    @csrf
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                                                Requirement 3
+                                            </div>
+                                            <h4 class="mt-1 text-sm font-semibold text-slate-900">
+                                                NAFA (Notice of Availability of Fund)
+                                            </h4>
+                                        </div>
+
+                                        @if ($project->nafa)
+                                            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                                Saved
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label for="nafa-date" class="mb-2 block text-xs font-semibold text-slate-700">
+                                                Date of NAFA <span class="text-red-500">*</span>
+                                            </label>
+                                            <input id="nafa-date" name="nafa_date" type="date" required
+                                                value="{{ old('nafa_date', $project->nafa?->nafa_date?->toDateString()) }}"
+                                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                            @error('nafa_date')
+                                                <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label for="nafa-release-date" class="mb-2 block text-xs font-semibold text-slate-700">
+                                                Release Date <span class="text-red-500">*</span>
+                                            </label>
+                                            <input id="nafa-release-date" name="release_date" type="date" required
+                                                value="{{ old('release_date', $project->nafa?->release_date?->toDateString()) }}"
+                                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                            @error('release_date')
+                                                <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <label for="nafa-attachments" class="mb-2 block text-xs font-semibold text-slate-700">
+                                            NAFA File
+                                            @if ($project->nafa?->attachments->isNotEmpty())
+                                                <span class="font-normal text-slate-400">(optional — adds to the files below)</span>
+                                            @else
+                                                <span class="text-red-500">*</span>
+                                            @endif
+                                        </label>
+                                        <input id="nafa-attachments" name="attachments[]" type="file" multiple
+                                            @if (! $project->nafa?->attachments->isNotEmpty()) required @endif
+                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                                            class="block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:h-10 file:border-0 file:bg-slate-100 file:px-4 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200">
+                                        <p class="mt-1 text-[11px] text-slate-500">PDF, JPG, PNG, Word, or Excel; up to 10 files, 10 MB each.</p>
+                                        @error('attachments')
+                                            <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+                                        @enderror
+                                        @foreach ($errors->get('attachments.*') as $nafaFileMessages)
+                                            @foreach ($nafaFileMessages as $nafaFileMessage)
+                                                <p class="mt-1 text-xs font-medium text-red-600">{{ $nafaFileMessage }}</p>
+                                            @endforeach
+                                        @endforeach
+
+                                        @if ($project->nafa?->attachments->isNotEmpty())
+                                            <ul class="mt-2 space-y-1">
+                                                @foreach ($project->nafa->attachments as $nafaAttachment)
+                                                    <li>
+                                                        <a href="{{ route('projects.nafa.attachments.download', [$project, $nafaAttachment]) }}"
+                                                            class="inline-flex items-center gap-1 text-xs font-semibold text-[#063b86] hover:underline">
+                                                            <span aria-hidden="true">📎</span> {{ $nafaAttachment->original_name }}
+                                                        </a>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <label class="mb-2 block text-xs font-semibold text-slate-700">Remarks</label>
+                                        <textarea name="remarks" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks', $project->nafa?->remarks) }}</textarea>
+                                    </div>
+
+                                    <button type="submit"
+                                        class="mt-4 h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
+                                        Save NAFA
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
 
                         {{-- Notice to Proceed --}}
 
@@ -3273,7 +4050,7 @@
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
                                             <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                                                Requirement 3
+                                                Requirement {{ $implementationIsAcp ? 4 : 3 }}
                                             </div>
 
                                             <h4 class="mt-1 text-sm font-semibold text-slate-900">
@@ -3338,7 +4115,7 @@
                                 </form>
                         </div>
 
-                        @if ($project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION)
+                        @if ($schedulingUnlocked)
 
                             {{-- Orientation --}}
 
@@ -3618,7 +4395,9 @@
                 @endif
 
             </section>
-        @elseif(in_array(
+        @endif
+
+        @if (in_array(
                 $project->status,
                 [
                     \App\Enums\ProjectStatus::APPROVED,
@@ -3631,15 +4410,15 @@
                     \App\Enums\ProjectStatus::COMPLETED,
                 ],
                 true) && $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP)
-            <section id="implementation" data-workspace-panel="workflow"
+            <section id="acp-workflow" data-workspace-panel="workflow"
                 class="scroll-mt-32 mt-5 rounded-xl border border-violet-200 bg-violet-50 p-5 {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
                 <div class="text-sm font-semibold text-violet-950">
                     Through ACP Workflow
                 </div>
                 <p class="mt-1 text-xs leading-5 text-violet-800">
-                    Through ACP uses its own payment, check-release, implementation, and liquidation workflow. Direct
-                    Administration Insurance, PPE, Notice to Proceed, Post-Documentary Requirements, and Payment of Wages
-                    forms apply only to Direct Administration projects.
+                    Evaluation → Approval → ACP Payment → Check Release → GSIS Enrollment, PPE, NAFA, Notice to Proceed →
+                    Orientation &amp; Work Period → Release of Assistance → Liquidation. Post-Documentary Requirements and
+                    Payment of Wages apply only to Direct Administration projects.
                 </p>
 
                 @if (
@@ -3697,6 +4476,166 @@
                 </div>
             </section>
 
+        @endif
+
+        {{-- Through ACP Release of Assistance (after the work period ends, before liquidation) --}}
+
+        @if (
+            $implementationIsAcp &&
+                ! $acpWorkflowService->isLegacy($project) &&
+                in_array(
+                    $project->status,
+                    [
+                        \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
+                        \App\Enums\ProjectStatus::FOR_LIQUIDATION,
+                        \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED,
+                        \App\Enums\ProjectStatus::COMPLETED,
+                    ],
+                    true))
+            @php
+                $acpPayout = $project->payout;
+                $acpReleaseOpen = $acpWorkflowService->releaseOpen($project);
+                $canRecordAcpRelease = $acpReleaseOpen && ! $acpPayout && (auth()->user()->isTc() || auth()->user()->isAdmin());
+                $acpReleaseBag = $errors->getBag(\App\Http\Controllers\ProjectReleaseOfAssistanceController::ACP_ERROR_BAG);
+                $releaseController = \App\Http\Controllers\ProjectReleaseOfAssistanceController::class;
+                $acpSelectedMode = old('payout_mode');
+            @endphp
+
+            <section id="acp-release-of-assistance" data-workspace-panel="workflow"
+                class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
+                <div class="border-b border-slate-200 px-5 py-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-900">Release of Assistance</h2>
+                            <p class="mt-1 text-xs text-slate-500">
+                                TC/Admin records the mode of payment, date of payout, and venue once the work period has
+                                ended. Liquidation opens when the payout date is reached.
+                            </p>
+                        </div>
+
+                        @if ($acpPayout)
+                            <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold {{ $acpWorkflowService->releaseDone($project) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-700' }}">
+                                {{ $acpWorkflowService->releaseDone($project) ? 'Released' : 'Waiting for payout date ('.$acpPayout->payout_date->format('M d, Y').')' }}
+                            </span>
+                        @elseif ($acpReleaseOpen)
+                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                                Awaiting Release of Assistance
+                            </span>
+                        @else
+                            <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                                Opens after the work period ends{{ $project->implementation ? ' ('.$project->implementation->end_date->format('M d, Y').')' : '' }}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                @if ($acpPayout)
+                    <dl class="grid gap-px bg-slate-200 sm:grid-cols-3">
+                        @foreach ([
+                            'Mode of Payment' => $acpPayout->payout_mode,
+                            'Date of Payout' => $acpPayout->payout_date->format('F d, Y'),
+                            'Venue' => $acpPayout->venue,
+                        ] as $acpReleaseLabel => $acpReleaseValue)
+                            <div class="bg-white px-5 py-4">
+                                <dt class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $acpReleaseLabel }}</dt>
+                                <dd class="mt-1 text-sm font-semibold text-slate-900">{{ $acpReleaseValue }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                    <div class="px-5 py-3 text-[11px] text-slate-500">
+                        @if ($acpPayout->remarks)
+                            <p class="mb-1 text-xs text-slate-600">{{ $acpPayout->remarks }}</p>
+                        @endif
+                        Recorded{{ $acpPayout->recorder ? ' by '.$acpPayout->recorder->name : '' }}.
+                        <a href="{{ route('projects.show', ['project' => $project, 'workspace' => 'overview']) }}#section-acp-release-{{ $acpPayout->id }}"
+                            class="font-semibold text-[#063b86] hover:underline">Correct this release in the Overview →</a>
+                    </div>
+                @elseif ($canRecordAcpRelease)
+                    <form method="POST" action="{{ route('projects.acp-release-of-assistance.store', $project) }}" class="p-5" data-release-form>
+                        @csrf
+
+                        @if ($acpReleaseBag->any())
+                            <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                                <ul class="list-disc pl-4">
+                                    @foreach ($acpReleaseBag->all() as $message)
+                                        <li>{{ $message }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div>
+                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="acp-payout-mode">Mode of Payment</label>
+                                <select id="acp-payout-mode" name="payout_mode" required data-payout-mode
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                    <option value="">Select mode of payment</option>
+                                    @foreach ($releaseController::PAYOUT_MODES as $payoutMode)
+                                        <option value="{{ $payoutMode }}" @selected($acpSelectedMode === $payoutMode)>
+                                            {{ $payoutMode === $releaseController::OTHER_MODE ? 'Others, specify' : $payoutMode }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div data-payout-mode-other class="mt-2 {{ $acpSelectedMode === $releaseController::OTHER_MODE ? '' : 'hidden' }}">
+                                    <input name="payout_mode_other" maxlength="92" placeholder="Specify mode of payment"
+                                        value="{{ old('payout_mode_other') }}"
+                                        class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="acp-payout-date">Date of Payout</label>
+                                <input id="acp-payout-date" name="payout_date" type="date" required value="{{ old('payout_date') }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="acp-payout-venue">Venue</label>
+                                <input id="acp-payout-venue" name="venue" required maxlength="255" value="{{ old('venue') }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            </div>
+
+                            <div class="md:col-span-3">
+                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="acp-payout-remarks">
+                                    Remarks <span class="font-normal text-slate-400">(optional)</span>
+                                </label>
+                                <input id="acp-payout-remarks" name="remarks" maxlength="3000" value="{{ old('remarks') }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex justify-end">
+                            <button type="submit"
+                                class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
+                                Save Release of Assistance
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        (() => {
+                            const form = document.querySelector('#acp-release-of-assistance [data-release-form]');
+                            const select = form?.querySelector('[data-payout-mode]');
+                            const other = form?.querySelector('[data-payout-mode-other]');
+                            const input = other?.querySelector('input');
+
+                            select?.addEventListener('change', () => {
+                                const isOther = select.value === @js($releaseController::OTHER_MODE);
+                                other.classList.toggle('hidden', !isOther);
+                                input.required = isOther;
+                            });
+                        })();
+                    </script>
+                @else
+                    <p class="px-5 py-6 text-center text-xs text-slate-500">
+                        @if ($acpReleaseOpen)
+                            Waiting for the TUPAD Coordinator to record the Release of Assistance.
+                        @else
+                            The Release of Assistance opens after the work period ends.
+                        @endif
+                    </p>
+                @endif
+            </section>
         @endif
 
         {{-- Authoritative Project Workflow Guide --}}
@@ -3911,6 +4850,268 @@
 
             </section>
 
+        @endif
+
+        {{-- Release of Assistance (per tranche) --}}
+
+        @if (
+            $project->implementation_mode === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION &&
+                in_array($project->status, [\App\Enums\ProjectStatus::FOR_PAYMENT, \App\Enums\ProjectStatus::COMPLETED], true) &&
+                ($project->obligations->isNotEmpty() || $project->payout))
+            @php
+                $releaseController = \App\Http\Controllers\ProjectReleaseOfAssistanceController::class;
+                $releasePaymentService = app(\App\Services\Payments\ProjectPaymentService::class);
+                $releaseSummary = $releasePaymentService->releaseSummary($project);
+                $releasePaymentSummary = $releasePaymentService->summary($project);
+                $canRecordRelease =
+                    $project->status === \App\Enums\ProjectStatus::FOR_PAYMENT &&
+                    (auth()->user()->isTc() || auth()->user()->isAdmin());
+                $releasedCount = $releaseSummary['released'] + $releaseSummary['release_scheduled'];
+                $releaseProgress = $releaseSummary['tranche_count'] > 0
+                    ? (int) floor(($releasedCount * 100) / $releaseSummary['tranche_count'])
+                    : 0;
+                $releaseStateMeta = [
+                    'awaiting_disbursement' => ['Waiting for Focal disbursement', 'border-slate-200 bg-slate-50 text-slate-600'],
+                    'ready_for_release' => ['Ready for Release of Assistance', 'border-amber-200 bg-amber-50 text-amber-800'],
+                    'release_scheduled' => ['Released · payout date pending', 'border-blue-200 bg-blue-50 text-blue-800'],
+                    'released' => ['Released', 'border-emerald-200 bg-emerald-50 text-emerald-800'],
+                ];
+                $otherPayoutMode = $releaseController::OTHER_MODE;
+            @endphp
+
+            <section id="release-of-assistance" data-workspace-panel="workflow"
+                class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
+
+                <div class="border-b border-slate-200 px-5 py-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-900">Release of Assistance Progress</h2>
+                            <p class="mt-1 text-xs leading-5 text-slate-500">
+                                Each tranche follows: Focal obligation → Focal disbursement → TC Release of Assistance.
+                                The project completes once the Focal completes the tranches, every tranche is
+                                disbursed and released, and every payout date is reached.
+                            </p>
+                        </div>
+
+                        <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold
+                            {{ $project->status === \App\Enums\ProjectStatus::COMPLETED
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-blue-200 bg-blue-50 text-blue-700' }}">
+                            {{ $releasedCount }} of {{ $releaseSummary['tranche_count'] }} tranche(s) released
+                        </span>
+                    </div>
+
+                    <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+                        <div class="h-full rounded-full bg-[#063b86] transition-all" style="width: {{ $releaseProgress }}%"></div>
+                    </div>
+
+                    <div class="mt-3 grid gap-2 text-[11px] sm:grid-cols-4">
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
+                            <span class="font-bold">{{ $releaseSummary['awaiting_disbursement'] }}</span> waiting for disbursement
+                        </div>
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                            <span class="font-bold">{{ $releaseSummary['ready_for_release'] }}</span> ready for release
+                        </div>
+                        <div class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800">
+                            <span class="font-bold">{{ $releaseSummary['release_scheduled'] }}</span> payout date pending
+                        </div>
+                        <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
+                            <span class="font-bold">{{ $releaseSummary['released'] }}</span> released
+                        </div>
+                    </div>
+
+                    @if ($project->status === \App\Enums\ProjectStatus::FOR_PAYMENT && ! $releasePaymentSummary['obligations_completed'])
+                        <p class="mt-3 text-[11px] text-slate-500">
+                            The Focal has not yet completed the obligation tranches; more tranches may still be added.
+                        </p>
+                    @endif
+                </div>
+
+                @if ($project->payout && $project->obligations->every(fn ($obligation) => ! $obligation->isReleased()))
+                    <div class="border-b border-slate-200 bg-amber-50 px-5 py-3 text-xs text-amber-900">
+                        Earlier project-level release on record: {{ $project->payout->payout_mode }},
+                        {{ $project->payout->payout_date->format('F d, Y') }}, {{ $project->payout->venue }}.
+                    </div>
+                @endif
+
+                <ol class="divide-y divide-slate-100">
+                    @foreach ($project->obligations as $obligation)
+                        @php
+                            $trancheState = $releasePaymentService->trancheReleaseState($obligation);
+                            $trancheObligated = $releasePaymentService->obligationCents($obligation);
+                            $trancheDisbursed = $releasePaymentService->disbursedForObligationCents($obligation);
+                            $trancheFullyDisbursed = $trancheState !== 'awaiting_disbursement';
+                            $trancheReleased = $obligation->isReleased();
+                            $errorBag = $errors->getBag($releaseController::errorBag($obligation));
+                            $usesOld = (int) old('release_obligation_id') === (int) $obligation->id;
+                            [$storedMode, $storedModeOther] = $releaseController::splitPayoutMode($obligation->release_mode);
+                            $selectedMode = $usesOld ? old('payout_mode') : $storedMode;
+                            $steps = [
+                                ['Obligated', true, $obligation->obligation_date->format('M d, Y')],
+                                ['Disbursed', $trancheFullyDisbursed, '₱'.number_format($trancheDisbursed / 100, 2).' of ₱'.number_format($trancheObligated / 100, 2)],
+                                ['Release of Assistance', $trancheReleased, $trancheReleased ? $obligation->release_date->format('M d, Y') : 'Pending'],
+                                ['Payout Date Reached', $trancheState === 'released', $trancheState === 'release_scheduled' ? 'On '.$obligation->release_date->format('M d, Y') : ($trancheState === 'released' ? 'Done' : 'Pending')],
+                            ];
+                        @endphp
+
+                        <li id="release-tranche-{{ $obligation->tranche_number }}" class="px-5 py-4">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-[10px] font-bold uppercase tracking-widest text-blue-700">
+                                        Tranche {{ $obligation->tranche_number }}
+                                    </div>
+                                    <div class="mt-0.5 text-sm font-bold text-slate-900">
+                                        ₱{{ number_format($trancheObligated / 100, 2) }}
+                                        <span class="font-normal text-slate-500">· {{ number_format($obligation->beneficiaries_total) }} beneficiaries · {{ $obligation->payee }}</span>
+                                    </div>
+                                </div>
+                                <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold {{ $releaseStateMeta[$trancheState][1] }}">
+                                    {{ $releaseStateMeta[$trancheState][0] }}
+                                </span>
+                            </div>
+
+                            <ol class="mt-3 grid gap-2 sm:grid-cols-4" aria-label="Tranche {{ $obligation->tranche_number }} progress">
+                                @foreach ($steps as [$stepLabel, $stepDone, $stepNote])
+                                    <li class="flex items-start gap-2 rounded-lg border px-3 py-2 {{ $stepDone ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white' }}">
+                                        <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold {{ $stepDone ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500' }}">
+                                            {{ $stepDone ? '✓' : $loop->iteration }}
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block text-[11px] font-semibold {{ $stepDone ? 'text-emerald-900' : 'text-slate-700' }}">{{ $stepLabel }}</span>
+                                            <span class="block text-[11px] text-slate-500">{{ $stepNote }}</span>
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ol>
+
+                            @if ($trancheReleased)
+                                <dl class="mt-3 grid gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 sm:grid-cols-4">
+                                    @foreach ([
+                                        'Mode of Payment' => $obligation->release_mode,
+                                        'Date of Payout' => $obligation->release_date->format('F d, Y'),
+                                        'Venue' => $obligation->release_venue,
+                                        'Recorded By' => ($obligation->releaser?->name ?? '—').($obligation->released_at ? ' · '.$obligation->released_at->format('M d, Y h:i A') : ''),
+                                    ] as $releaseLabel => $releaseValue)
+                                        <div class="bg-white px-3 py-2">
+                                            <dt class="text-[10px] font-bold uppercase tracking-wide text-slate-400">{{ $releaseLabel }}</dt>
+                                            <dd class="mt-0.5 text-xs font-semibold text-slate-800">{{ $releaseValue }}</dd>
+                                        </div>
+                                    @endforeach
+                                </dl>
+                                @if ($obligation->release_remarks)
+                                    <p class="mt-2 text-xs text-slate-600">{{ $obligation->release_remarks }}</p>
+                                @endif
+                                <a href="{{ route('projects.show', ['project' => $project, 'workspace' => 'overview']) }}#section-release-{{ $obligation->id }}"
+                                    class="mt-2 inline-flex text-[11px] font-semibold text-[#063b86] hover:underline">
+                                    Correct this release in the Overview →
+                                </a>
+                            @elseif (! $trancheFullyDisbursed)
+                                <p class="mt-3 text-xs text-slate-500">
+                                    Waiting for the Focal to fully disburse this tranche before the Release of Assistance can be recorded.
+                                </p>
+                            @elseif (! $canRecordRelease)
+                                <p class="mt-3 text-xs text-slate-500">
+                                    Waiting for the TUPAD Coordinator to record the Release of Assistance.
+                                </p>
+                            @endif
+
+                            @if ($canRecordRelease && $trancheFullyDisbursed && ! $trancheReleased)
+                                <details class="mt-3 rounded-lg border border-slate-200 bg-slate-50" @if (! $trancheReleased || $errorBag->any()) open @endif>
+                                    <summary class="cursor-pointer px-4 py-2 text-xs font-semibold text-[#063b86]">
+                                        {{ $trancheReleased ? 'Edit Release of Assistance' : 'Record Release of Assistance' }}
+                                    </summary>
+
+                                    <form method="POST"
+                                        action="{{ route('projects.release-of-assistance.store', [$project, $obligation]) }}"
+                                        class="border-t border-slate-200 p-4" data-release-form>
+                                        @csrf
+                                        <input type="hidden" name="release_obligation_id" value="{{ $obligation->id }}">
+
+                                        <div class="grid gap-4 md:grid-cols-3">
+                                            <div>
+                                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="payout_mode_{{ $obligation->id }}">Mode of Payment</label>
+                                                <select id="payout_mode_{{ $obligation->id }}" name="payout_mode" required data-payout-mode
+                                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                                    <option value="">Select mode of payment</option>
+                                                    @foreach ($releaseController::PAYOUT_MODES as $payoutMode)
+                                                        <option value="{{ $payoutMode }}" @selected($selectedMode === $payoutMode)>
+                                                            {{ $payoutMode === $otherPayoutMode ? 'Others, specify' : $payoutMode }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                @if ($errorBag->has('payout_mode'))
+                                                    <p class="mt-1 text-xs text-rose-600">{{ $errorBag->first('payout_mode') }}</p>
+                                                @endif
+
+                                                <div data-payout-mode-other class="mt-2 {{ $selectedMode === $otherPayoutMode ? '' : 'hidden' }}">
+                                                    <input name="payout_mode_other" maxlength="92" placeholder="Specify mode of payment"
+                                                        value="{{ $usesOld ? old('payout_mode_other') : $storedModeOther }}"
+                                                        @required($selectedMode === $otherPayoutMode)
+                                                        class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                                    @if ($errorBag->has('payout_mode_other'))
+                                                        <p class="mt-1 text-xs text-rose-600">{{ $errorBag->first('payout_mode_other') }}</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="payout_date_{{ $obligation->id }}">Date of Payout</label>
+                                                <input id="payout_date_{{ $obligation->id }}" name="payout_date" type="date" required
+                                                    value="{{ $usesOld ? old('payout_date') : $obligation->release_date?->toDateString() }}"
+                                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                                @if ($errorBag->has('payout_date'))
+                                                    <p class="mt-1 text-xs text-rose-600">{{ $errorBag->first('payout_date') }}</p>
+                                                @endif
+                                            </div>
+
+                                            <div>
+                                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="payout_venue_{{ $obligation->id }}">Venue</label>
+                                                <input id="payout_venue_{{ $obligation->id }}" name="venue" required maxlength="255"
+                                                    value="{{ $usesOld ? old('venue') : $obligation->release_venue }}"
+                                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                                @if ($errorBag->has('venue'))
+                                                    <p class="mt-1 text-xs text-rose-600">{{ $errorBag->first('venue') }}</p>
+                                                @endif
+                                            </div>
+
+                                            <div class="md:col-span-3">
+                                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="payout_remarks_{{ $obligation->id }}">
+                                                    Remarks <span class="font-normal text-slate-400">(optional)</span>
+                                                </label>
+                                                <input id="payout_remarks_{{ $obligation->id }}" name="remarks" maxlength="3000"
+                                                    value="{{ $usesOld ? old('remarks') : $obligation->release_remarks }}"
+                                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-4 flex justify-end">
+                                            <button type="submit"
+                                                class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
+                                                {{ $trancheReleased ? 'Update' : 'Save' }} Release of Assistance
+                                            </button>
+                                        </div>
+                                    </form>
+                                </details>
+                            @endif
+                        </li>
+                    @endforeach
+                </ol>
+
+                <script>
+                    document.querySelectorAll('[data-release-form]').forEach((form) => {
+                        const select = form.querySelector('[data-payout-mode]');
+                        const field = form.querySelector('[data-payout-mode-other]');
+                        const input = field?.querySelector('input');
+
+                        select?.addEventListener('change', () => {
+                            const isOther = select.value === @js($otherPayoutMode);
+                            field.classList.toggle('hidden', !isOther);
+                            input.required = isOther;
+                            if (isOther) input.focus();
+                        });
+                    });
+                </script>
+            </section>
         @endif
 
         {{-- Payment of Wages --}}

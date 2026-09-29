@@ -23,12 +23,12 @@ class P1ProjectWorkspaceUxTest extends TestCase
             ->present($project, $this->user(UserRole::TC));
 
         $this->assertSame('workflow', $workspace['default_tab']);
-        $this->assertSame(1, $workspace['current_stage_index']);
+        $this->assertSame(0, $workspace['current_stage_index']);
         $this->assertSame('Record Compliance', $workspace['action']['label']);
         $this->assertSame('evaluation', $workspace['action']['anchor']);
         $this->assertFalse($workspace['action']['external']);
-        $this->assertSame('current', $workspace['stages'][1]['state']);
-        $this->assertSame('upcoming', $workspace['stages'][2]['state']);
+        $this->assertSame('current', $workspace['stages'][0]['state']);
+        $this->assertSame('upcoming', $workspace['stages'][1]['state']);
     }
 
     public function test_focal_direct_payment_receives_the_authorized_payment_workspace_link(): void
@@ -43,7 +43,7 @@ class P1ProjectWorkspaceUxTest extends TestCase
             ->present($project, $this->user(UserRole::FOCAL));
 
         $this->assertSame('financial', $workspace['default_tab']);
-        $this->assertSame(6, $workspace['current_stage_index']);
+        $this->assertSame(5, $workspace['current_stage_index']);
         $this->assertTrue($workspace['action']['external']);
         $this->assertSame('Manage Payment of Wages', $workspace['action']['label']);
         $this->assertSame(route('payments.show', $project), $workspace['action']['href']);
@@ -61,7 +61,7 @@ class P1ProjectWorkspaceUxTest extends TestCase
 
         $this->assertSame('overview', $workspace['default_tab']);
         $this->assertSame(100, $workspace['progress_percent']);
-        $this->assertSame(7, $workspace['current_stage_index']);
+        $this->assertSame(8, $workspace['current_stage_index']);
         $this->assertNotEmpty($workspace['stages']);
 
         foreach ($workspace['stages'] as $stage) {
