@@ -7,6 +7,7 @@ use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectObligation;
 use App\Services\Payments\ProjectPaymentService;
+use App\Services\Projects\AcpWorkflowService;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,28 +97,7 @@ class ProjectReleaseOfAssistanceController extends Controller
             );
         }
 
-        $validated = $request->validateWithBag(self::errorBag($obligation), [
-            'payout_mode' => ['required', Rule::in(self::PAYOUT_MODES)],
-            'payout_mode_other' => [
-                'nullable',
-                'required_if:payout_mode,'.self::OTHER_MODE,
-                'string',
-                'max:'.(100 - strlen(self::OTHER_PREFIX)),
-            ],
-            'payout_date' => ['required', 'date'],
-            'venue' => ['required', 'string', 'max:255'],
-            'remarks' => ['nullable', 'string', 'max:3000'],
-        ], [
-            'payout_mode_other.required_if' => 'Please specify the other mode of payment.',
-        ], [
-            'payout_mode' => 'mode of payment',
-            'payout_mode_other' => 'other mode of payment',
-            'payout_date' => 'date of payout',
-        ]);
-
-        $payoutMode = $validated['payout_mode'] === self::OTHER_MODE
-            ? self::OTHER_PREFIX.trim($validated['payout_mode_other'])
-            : $validated['payout_mode'];
+        [$validated, $payoutMode] = $this->validateRelease($request, self::errorBag($obligation));
 
         $obligation->update([
             'release_mode' => $payoutMode,
@@ -145,5 +125,84 @@ class ProjectReleaseOfAssistanceController extends Controller
                     ? "Release of Assistance saved for Tranche {$obligation->tranche_number}. All requirements are met and the project is now Completed."
                     : "Release of Assistance saved for Tranche {$obligation->tranche_number}. The project completes once every tranche is obligated, disbursed, and released and all payout dates are reached."
             );
+    }
+
+    public const ACP_ERROR_BAG = 'acp_release';
+
+    /**
+     * Through ACP Release of Assistance (one per project), recorded by the
+     * TUPAD Coordinator once the work period has ended. Liquidation opens
+     * when its payout date is reached. Corrections go through the overview.
+     */
+    public function storeAcp(
+        Request $request,
+        Project $project,
+        ProjectStatusEngine $statusEngine,
+        AcpWorkflowService $acpWorkflow,
+    ): RedirectResponse {
+        if (! $acpWorkflow->isAcp($project)) {
+            abort(403, 'This Release of Assistance applies only to Through ACP projects.');
+        }
+
+        $project->loadMissing('payout');
+
+        if ($project->payout !== null) {
+            abort(403, 'The Release of Assistance is already recorded. Corrections are made from its section in the project overview.');
+        }
+
+        if (! $acpWorkflow->releaseOpen($project)) {
+            abort(403, 'The Through ACP Release of Assistance opens once implementation is ongoing and the work period has ended.');
+        }
+
+        [$validated, $payoutMode] = $this->validateRelease($request, self::ACP_ERROR_BAG);
+
+        $project->payout()->create([
+            'payout_mode' => $payoutMode,
+            'payout_date' => $validated['payout_date'],
+            'venue' => trim($validated['venue']),
+            'remarks' => $validated['remarks'] ?? null,
+            'recorded_by' => $request->user()->id,
+        ]);
+
+        $status = $statusEngine->synchronize($project, actorId: (int) $request->user()->id);
+
+        return redirect()
+            ->route('projects.show', ['project' => $project, 'workspace' => 'workflow'])
+            ->withFragment('acp-release-of-assistance')
+            ->with(
+                'success',
+                $status === ProjectStatus::FOR_LIQUIDATION
+                    ? 'Release of Assistance saved. The payout date is reached and the project is now For Liquidation.'
+                    : 'Release of Assistance saved. Liquidation opens once the payout date is reached.'
+            );
+    }
+
+    /** @return array{0: array<string, mixed>, 1: string} validated input and the stored payout mode */
+    private function validateRelease(Request $request, string $bag): array
+    {
+        $validated = $request->validateWithBag($bag, [
+            'payout_mode' => ['required', Rule::in(self::PAYOUT_MODES)],
+            'payout_mode_other' => [
+                'nullable',
+                'required_if:payout_mode,'.self::OTHER_MODE,
+                'string',
+                'max:'.(100 - strlen(self::OTHER_PREFIX)),
+            ],
+            'payout_date' => ['required', 'date'],
+            'venue' => ['required', 'string', 'max:255'],
+            'remarks' => ['nullable', 'string', 'max:3000'],
+        ], [
+            'payout_mode_other.required_if' => 'Please specify the other mode of payment.',
+        ], [
+            'payout_mode' => 'mode of payment',
+            'payout_mode_other' => 'other mode of payment',
+            'payout_date' => 'date of payout',
+        ]);
+
+        $payoutMode = $validated['payout_mode'] === self::OTHER_MODE
+            ? self::OTHER_PREFIX.trim($validated['payout_mode_other'])
+            : $validated['payout_mode'];
+
+        return [$validated, $payoutMode];
     }
 }

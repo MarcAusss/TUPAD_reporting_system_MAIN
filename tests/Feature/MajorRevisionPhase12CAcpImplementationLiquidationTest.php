@@ -86,6 +86,7 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
     {
         $project = $this->createAcpProject(ProjectStatus::FOR_IMPLEMENTATION, '5000.00', 10);
         $this->createCheckRelease($project, '2026-08-20');
+        $this->recordAcpPreparation($project, withOrientation: true);
 
         $this->actingAs($this->tc)
             ->post(route('projects.acp-implementation.store', $project), [
@@ -106,6 +107,7 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
     {
         $project = $this->createAcpProject(ProjectStatus::FOR_IMPLEMENTATION);
         $this->createCheckRelease($project, '2026-08-29');
+        $this->recordAcpPreparation($project);
 
         $this->actingAs($this->tc)
             ->post(route('projects.acp-implementation.store', $project), [
@@ -296,6 +298,234 @@ class MajorRevisionPhase12CAcpImplementationLiquidationTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('projects.acp-liquidations.attachments.download', [$other, $attachment]))
             ->assertNotFound();
+    }
+
+    public function test_acp_follows_the_direct_administration_preparation_steps_with_nafa(): void
+    {
+        Storage::fake('local');
+
+        $project = $this->createAcpProject(ProjectStatus::FOR_IMPLEMENTATION);
+        $this->createCheckRelease($project, '2026-08-20');
+
+        // Orientation and the work period stay locked until preparation is complete.
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.period', $project), [
+                'start_date' => '2026-08-25',
+                'end_date' => '2026-08-28',
+            ])
+            ->assertSessionHasErrors('implementation');
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertOk()
+            ->assertSee('GSIS Enrollment')
+            ->assertSee('NAFA (Notice of Availability of Fund)')
+            ->assertSee('Complete the implementation requirements');
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.insurance', $project), [
+                'date_enrolled' => '2026-08-21',
+                'payment_mode' => 'voucher',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $project->ppeDeliveries()->create([
+            'delivery_receipt_date' => '2026-08-21',
+            'ppe_provided' => 'TUPAD shirts and gloves',
+            'recorded_by' => $this->tc->id,
+        ]);
+
+        // NAFA needs a file, and its release date cannot precede the NAFA date.
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.nafa', $project), [
+                'nafa_date' => '2026-08-22',
+                'release_date' => '2026-08-23',
+            ])
+            ->assertSessionHasErrors('attachments');
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.nafa', $project), [
+                'nafa_date' => '2026-08-22',
+                'release_date' => '2026-08-21',
+                'attachments' => [UploadedFile::fake()->create('nafa.pdf', 40, 'application/pdf')],
+            ])
+            ->assertSessionHasErrors('release_date');
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.nafa', $project), [
+                'nafa_date' => '2026-08-22',
+                'release_date' => '2026-08-23',
+                'attachments' => [UploadedFile::fake()->create('nafa.pdf', 40, 'application/pdf')],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $nafaFile = $project->fresh()->nafa->attachments->sole();
+        Storage::disk('local')->assertExists($nafaFile->attachment_path);
+
+        $this->actingAs($this->focal)
+            ->get(route('projects.nafa.attachments.download', [$project, $nafaFile]))
+            ->assertOk()
+            ->assertDownload('nafa.pdf');
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.ntp', $project), [
+                'date_issued' => '2026-08-23 08:00',
+                'date_released' => '2026-08-23 09:00',
+            ])
+            ->assertSessionHasNoErrors();
+
+        // Same Direct Administration rule plus the ACP check-release date rule.
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.period', $project), [
+                'start_date' => '2026-08-19',
+                'end_date' => '2026-08-28',
+            ])
+            ->assertSessionHasErrors('start_date');
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.orientation', $project), [
+                'orientation_date' => '2026-08-24',
+                'beneficiaries_oriented' => 10,
+                'venue' => 'Barangay Hall',
+                'oriented_by' => 'TUPAD Coordinator',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.period', $project), [
+                'start_date' => '2026-08-25',
+                'end_date' => '2026-08-28',
+            ])
+            ->assertSessionHasNoErrors();
+
+        // The work period has ended, but liquidation waits for the Release of Assistance.
+        $this->assertSame(ProjectStatus::ONGOING_IMPLEMENTATION, $project->fresh()->status);
+
+        $this->actingAs($this->tc)
+            ->getJson(route('notifications.feed'))
+            ->assertJsonFragment(['action_label' => 'Release of Assistance', 'project_title' => $project->project_title]);
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'workflow']))
+            ->assertSee('Record the Release of Assistance')
+            ->assertSee('Save Release of Assistance');
+
+        $this->actingAs($this->focal)
+            ->post(route('projects.acp-release-of-assistance.store', $project), [
+                'payout_mode' => '(Actual) Cash Payout',
+                'payout_date' => '2026-09-01',
+                'venue' => 'Barangay Hall',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.acp-release-of-assistance.store', $project), [
+                'payout_mode' => '(Actual) Cash Payout',
+                'payout_date' => '2026-09-01',
+                'venue' => 'Barangay Hall',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(ProjectStatus::ONGOING_IMPLEMENTATION, $project->fresh()->status);
+
+        $this->assertSame(
+            ProjectStatus::FOR_LIQUIDATION,
+            app(ProjectStatusEngine::class)->synchronize($project->fresh(), today: CarbonImmutable::parse('2026-09-01'))
+        );
+    }
+
+    public function test_acp_release_of_assistance_waits_for_the_work_period_to_end(): void
+    {
+        $project = $this->createAcpProject(ProjectStatus::FOR_IMPLEMENTATION);
+        $this->createCheckRelease($project, '2026-08-20');
+        $this->recordAcpPreparation($project, withOrientation: true);
+        $project->implementation()->create([
+            'start_date' => '2026-08-25',
+            'end_date' => '2026-09-10',
+            'recorded_by' => $this->tc->id,
+        ]);
+
+        app(ProjectStatusEngine::class)->synchronize($project);
+        $this->assertSame(ProjectStatus::ONGOING_IMPLEMENTATION, $project->fresh()->status);
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.acp-release-of-assistance.store', $project), [
+                'payout_mode' => '(Actual) Cash Payout',
+                'payout_date' => '2026-09-12',
+                'venue' => 'Barangay Hall',
+            ])
+            ->assertForbidden();
+
+        $workspace = app(\App\Services\Projects\ProjectWorkspacePresenter::class)->present($project->fresh(), $this->tc);
+        $this->assertSame('Implementation', $workspace['stages'][$workspace['current_stage_index']]['label']);
+        $this->assertCount(9, $workspace['stages']);
+    }
+
+    public function test_legacy_ongoing_acp_project_without_nafa_keeps_the_previous_liquidation_rule(): void
+    {
+        $project = $this->createAcpProject(ProjectStatus::ONGOING_IMPLEMENTATION);
+        $this->createCheckRelease($project, '2026-08-10');
+        $project->implementation()->create([
+            'start_date' => '2026-08-15',
+            'end_date' => '2026-08-28',
+            'recorded_by' => $this->tc->id,
+        ]);
+
+        $this->assertSame(
+            ProjectStatus::FOR_LIQUIDATION,
+            app(ProjectStatusEngine::class)->synchronize($project->fresh())
+        );
+    }
+
+    public function test_nafa_is_only_for_through_acp_projects(): void
+    {
+        $project = $this->createAcpProject(
+            ProjectStatus::FOR_IMPLEMENTATION,
+            mode: ImplementationMode::DIRECT_ADMINISTRATION,
+        );
+
+        $this->actingAs($this->tc)
+            ->post(route('projects.implementation.nafa', $project), [
+                'nafa_date' => '2026-08-22',
+                'release_date' => '2026-08-23',
+            ])
+            ->assertForbidden();
+    }
+
+    private function recordAcpPreparation(Project $project, bool $withOrientation = false): void
+    {
+        $project->insuranceEnrollment()->create([
+            'date_enrolled' => '2026-08-21',
+            'beneficiary_count' => 10,
+            'amount' => 500,
+            'payment_mode' => 'voucher',
+            'recorded_by' => $this->tc->id,
+        ]);
+        $project->ppeDeliveries()->create([
+            'delivery_receipt_date' => '2026-08-21',
+            'ppe_provided' => 'TUPAD shirts',
+            'recorded_by' => $this->tc->id,
+        ]);
+        $project->nafa()->create([
+            'nafa_date' => '2026-08-22',
+            'release_date' => '2026-08-22',
+            'recorded_by' => $this->tc->id,
+        ]);
+        $project->noticeToProceed()->create([
+            'date_issued' => '2026-08-23 08:00:00',
+            'date_released' => '2026-08-23 09:00:00',
+            'recorded_by' => $this->tc->id,
+        ]);
+
+        if ($withOrientation) {
+            $project->orientation()->create([
+                'orientation_date' => '2026-08-24',
+                'beneficiaries_oriented' => 10,
+                'venue' => 'Barangay Hall',
+                'oriented_by' => 'TUPAD Coordinator',
+                'recorded_by' => $this->tc->id,
+            ]);
+        }
     }
 
     private function createAcpProject(

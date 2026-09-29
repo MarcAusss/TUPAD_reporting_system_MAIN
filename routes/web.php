@@ -629,6 +629,10 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         Route::post('/projects/{project}/implementation/notice-to-proceed', [ProjectImplementationController::class, 'noticeToProceed'])
             ->name('projects.implementation.ntp');
 
+        Route::post('/projects/{project}/implementation/nafa', [ProjectImplementationController::class, 'nafa'])
+            ->whereNumber('project')
+            ->name('projects.implementation.nafa');
+
         Route::post('/projects/{project}/implementation/orientation', [ProjectImplementationController::class, 'orientation'])
             ->name('projects.implementation.orientation');
 
@@ -657,6 +661,10 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
             ->whereNumber('obligation')
             ->name('projects.release-of-assistance.store');
 
+        Route::post('/projects/{project}/acp-release-of-assistance', [ProjectReleaseOfAssistanceController::class, 'storeAcp'])
+            ->whereNumber('project')
+            ->name('projects.acp-release-of-assistance.store');
+
     });
 
     /*
@@ -670,6 +678,22 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
             '/projects/{project}/post-documents/{projectPostDocument}/download',
             [ProjectPostDocumentController::class, 'download']
         )->name('projects.post-documents.download');
+
+        Route::get(
+            '/projects/{project}/compliance/attachments/{attachment}',
+            [ProjectEvaluationController::class, 'downloadAttachment']
+        )
+            ->whereNumber('project')
+            ->whereNumber('attachment')
+            ->name('projects.compliance.attachments.download');
+
+        Route::get(
+            '/projects/{project}/nafa/attachments/{attachment}',
+            [ProjectImplementationController::class, 'downloadNafaAttachment']
+        )
+            ->whereNumber('project')
+            ->whereNumber('attachment')
+            ->name('projects.nafa.attachments.download');
     });
 
     /*

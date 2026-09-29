@@ -126,24 +126,33 @@
                             \App\Services\Projects\ProjectAcpLiquidationService::class,
                         )->summary($project);
 
-                        $completionChecklist = [
+                        $completionAcp = app(\App\Services\Projects\AcpWorkflowService::class);
+                        $completionAcpLegacy = $completionAcp->isLegacy($project);
+
+                        $completionChecklist = array_values(array_filter([
                             ['label' => 'ACP Payment', 'complete' => (bool) $project->acpPayment, 'tab' => 'workflow'],
                             [
                                 'label' => 'ACP Check Release',
                                 'complete' => (bool) $project->acpCheckRelease,
                                 'tab' => 'workflow',
                             ],
+                            $completionAcpLegacy ? null : ['label' => 'GSIS Enrollment (Insurance)', 'complete' => (bool) $project->insuranceEnrollment, 'tab' => 'workflow'],
+                            $completionAcpLegacy ? null : ['label' => 'PPE Delivery', 'complete' => $project->ppeDeliveries->isNotEmpty(), 'tab' => 'workflow'],
+                            $completionAcpLegacy ? null : ['label' => 'NAFA (Notice of Availability of Fund)', 'complete' => (bool) $project->nafa, 'tab' => 'workflow'],
+                            $completionAcpLegacy ? null : ['label' => 'Notice to Proceed', 'complete' => (bool) $project->noticeToProceed, 'tab' => 'workflow'],
+                            $completionAcpLegacy ? null : ['label' => 'Orientation', 'complete' => (bool) $project->orientation, 'tab' => 'workflow'],
                             [
-                                'label' => 'ACP Implementation (Work Period)',
+                                'label' => 'Implementation Period (Work Period)',
                                 'complete' => (bool) $project->implementation,
                                 'tab' => 'workflow',
                             ],
+                            $completionAcpLegacy ? null : ['label' => 'Release of Assistance (Payout Date Reached)', 'complete' => $completionAcp->releaseDone($project), 'tab' => 'workflow'],
                             [
                                 'label' => 'ACP Liquidation (Fully Liquidated)',
                                 'complete' => (bool) ($completionLiquidationSummary['is_fully_liquidated'] ?? false),
                                 'tab' => 'financial',
                             ],
-                        ];
+                        ]));
                     } else {
                         $completionPaymentSummary = app(\App\Services\Payments\ProjectPaymentService::class)->summary(
                             $project,
@@ -2770,6 +2779,11 @@
                                             <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-700">
                                                 {{ $latestEvaluation->required_documents ?: '—' }}
                                             </p>
+
+                                            @include('projects.partials.evaluation-attachment-links', [
+                                                'attachments' => $latestEvaluation->evaluationAttachments(),
+                                                'projectId' => $project->id,
+                                            ])
                                         </div>
 
                                     </div>
@@ -2783,7 +2797,7 @@
                                 @endif
 
                                 <form method="POST" action="{{ route('projects.compliance.store', $project) }}"
-                                    class="mt-5">
+                                    enctype="multipart/form-data" class="mt-5">
 
                                     @csrf
 
@@ -2834,6 +2848,31 @@
                                         @enderror
                                     </div>
 
+                                    <div class="mt-4">
+                                        <label for="compliance-attachments"
+                                            class="mb-2 block text-xs font-semibold text-slate-700">
+                                            Compliance Attachments
+                                            <span class="font-normal text-slate-400">(optional, up to 10 files)</span>
+                                        </label>
+
+                                        <input id="compliance-attachments" name="attachments[]" type="file" multiple
+                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                                            class="block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:h-10 file:border-0 file:bg-amber-50 file:px-4 file:text-sm file:font-semibold file:text-amber-800 hover:file:bg-amber-100">
+
+                                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                            Upload the complied documents (PDF, JPG, PNG, Word, or Excel; 10 MB max each).
+                                        </p>
+
+                                        @error('attachments')
+                                            <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $message }}</p>
+                                        @enderror
+                                        @foreach ($errors->get('attachments.*') as $attachmentMessages)
+                                            @foreach ($attachmentMessages as $attachmentMessage)
+                                                <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $attachmentMessage }}</p>
+                                            @endforeach
+                                        @endforeach
+                                    </div>
+
                                     <div class="mt-4 flex md:justify-end">
                                         <button type="submit"
                                             class="h-10 rounded-lg bg-amber-700 px-5 text-sm font-semibold text-white hover:bg-amber-800">
@@ -2851,7 +2890,7 @@
 
                     @if ($project->status === \App\Enums\ProjectStatus::TSSD_EVALUATION)
                         <form method="POST" action="{{ route('projects.evaluation.store', $project) }}"
-                            class="space-y-4">
+                            enctype="multipart/form-data" class="space-y-4">
 
                             @csrf
 
@@ -2933,6 +2972,31 @@
                                         class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                                         placeholder="List the documentary requirements to be complied with...">{{ old('required_documents') }}</textarea>
 
+                                </div>
+
+                                <div>
+                                    <label for="evaluation-attachments" class="mb-2 block text-xs font-semibold text-slate-700">
+                                        Evaluation Attachments
+                                        <span class="font-normal text-slate-400">(optional, up to 10 files)</span>
+                                    </label>
+
+                                    <input id="evaluation-attachments" name="attachments[]" type="file" multiple
+                                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                                        class="block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:h-10 file:border-0 file:bg-slate-100 file:px-4 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200">
+
+                                    <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                        Attach the evaluation checklist, findings memo, or sample documents the TC must comply with
+                                        (PDF, JPG, PNG, Word, or Excel; 10 MB max each).
+                                    </p>
+
+                                    @error('attachments')
+                                        <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                    @foreach ($errors->get('attachments.*') as $attachmentMessages)
+                                        @foreach ($attachmentMessages as $attachmentMessage)
+                                            <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $attachmentMessage }}</p>
+                                        @endforeach
+                                    @endforeach
                                 </div>
                             </div>
 
@@ -3172,12 +3236,22 @@
                                         {{ $evaluation->findings ?: '—' }}
                                     </td>
 
-                                    <td class="max-w-xs whitespace-pre-line px-5 py-4 text-sm text-slate-600">
-                                        {{ $evaluation->required_documents ?: '—' }}
+                                    <td class="max-w-xs px-5 py-4 text-sm text-slate-600">
+                                        <div class="whitespace-pre-line">{{ $evaluation->required_documents ?: '—' }}</div>
+
+                                        @include('projects.partials.evaluation-attachment-links', [
+                                            'attachments' => $evaluation->evaluationAttachments(),
+                                            'projectId' => $project->id,
+                                        ])
                                     </td>
 
-                                    <td class="max-w-xs whitespace-pre-line px-5 py-4 text-sm text-slate-600">
-                                        {{ $evaluation->compliance_remarks ?: '—' }}
+                                    <td class="max-w-xs px-5 py-4 text-sm text-slate-600">
+                                        <div class="whitespace-pre-line">{{ $evaluation->compliance_remarks ?: '—' }}</div>
+
+                                        @include('projects.partials.evaluation-attachment-links', [
+                                            'attachments' => $evaluation->complianceAttachments(),
+                                            'projectId' => $project->id,
+                                        ])
                                     </td>
 
                                 </tr>
@@ -3193,9 +3267,15 @@
 
         @endif
 
-        {{-- Implementation Preparation --}}
+        {{-- Implementation Preparation (Direct Administration, and Through ACP after the check release) --}}
 
-        @if (in_array(
+        @php
+            $implementationIsAcp = $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP;
+            $acpWorkflowService = app(\App\Services\Projects\AcpWorkflowService::class);
+            $acpPreparationComplete = $implementationIsAcp && $acpWorkflowService->preparationComplete($project);
+        @endphp
+
+        @if ((in_array(
                 $project->status,
                 [
                     \App\Enums\ProjectStatus::APPROVED,
@@ -3204,6 +3284,13 @@
                     \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
                 ],
                 true) && $project->implementation_mode === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION)
+            || ($implementationIsAcp && ! $acpWorkflowService->isLegacy($project) && in_array(
+                $project->status,
+                [
+                    \App\Enums\ProjectStatus::FOR_IMPLEMENTATION,
+                    \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
+                ],
+                true)))
 
             <section id="implementation" data-workspace-panel="workflow"
                 class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
@@ -3219,8 +3306,13 @@
                             </h2>
 
                             <p class="mt-1 text-xs text-slate-500">
-                                Direct Administration workflow: Insurance, PPE, Notice to Proceed, Orientation, and Work
-                                Period.
+                                @if ($implementationIsAcp)
+                                    Through ACP workflow (after the check release): GSIS Enrollment, PPE, NAFA, Notice to
+                                    Proceed, Orientation, and Work Period.
+                                @else
+                                    Direct Administration workflow: Insurance, PPE, Notice to Proceed, Orientation, and Work
+                                    Period.
+                                @endif
                             </p>
 
                         </div>
@@ -3237,16 +3329,22 @@
                 </div>
 
                 @php
-                    $stepOrder = ['insurance', 'ppe', 'ntp'];
+                    // Through ACP adds the NAFA before the Notice to Proceed and, like
+                    // Direct Administration, unlocks Orientation and the Work Period
+                    // only once every preparation requirement is recorded.
+                    $stepOrder = $implementationIsAcp ? ['insurance', 'ppe', 'nafa', 'ntp'] : ['insurance', 'ppe', 'ntp'];
+                    $schedulingUnlocked = $project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION
+                        && (! $implementationIsAcp || $acpPreparationComplete);
 
-                    if ($project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION) {
+                    if ($schedulingUnlocked) {
                         $stepOrder[] = 'orientation';
                         $stepOrder[] = 'implementation-period';
                     }
 
                     $stepLabels = [
-                        'insurance' => 'Insurance',
+                        'insurance' => $implementationIsAcp ? 'GSIS Enrollment' : 'Insurance',
                         'ppe' => 'PPE Delivery',
+                    ] + ($implementationIsAcp ? ['nafa' => 'NAFA'] : []) + [
                         'ntp' => 'Notice to Proceed',
                         'orientation' => 'Orientation',
                         'implementation-period' => 'Implementation Period',
@@ -3255,6 +3353,7 @@
                     $stepComplete = [
                         'insurance' => (bool) $project->insuranceEnrollment,
                         'ppe' => $project->ppeDeliveries->isNotEmpty(),
+                    ] + ($implementationIsAcp ? ['nafa' => (bool) $project->nafa] : []) + [
                         'ntp' => (bool) $project->noticeToProceed,
                         'orientation' => (bool) $project->orientation,
                         'implementation-period' => (bool) $project->implementation,
@@ -3842,6 +3941,106 @@
                                     })();
                                 </script>
 
+                        {{-- NAFA (Notice of Availability of Fund) — Through ACP only --}}
+
+                        @if ($implementationIsAcp)
+                            <div data-step-panel="nafa" class="hidden">
+                                <form method="POST" action="{{ route('projects.implementation.nafa', $project) }}"
+                                    enctype="multipart/form-data" class="rounded-xl border border-slate-200 p-5">
+                                    @csrf
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                                                Requirement 3
+                                            </div>
+                                            <h4 class="mt-1 text-sm font-semibold text-slate-900">
+                                                NAFA (Notice of Availability of Fund)
+                                            </h4>
+                                        </div>
+
+                                        @if ($project->nafa)
+                                            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                                Saved
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label for="nafa-date" class="mb-2 block text-xs font-semibold text-slate-700">
+                                                Date of NAFA <span class="text-red-500">*</span>
+                                            </label>
+                                            <input id="nafa-date" name="nafa_date" type="date" required
+                                                value="{{ old('nafa_date', $project->nafa?->nafa_date?->toDateString()) }}"
+                                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                            @error('nafa_date')
+                                                <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label for="nafa-release-date" class="mb-2 block text-xs font-semibold text-slate-700">
+                                                Release Date <span class="text-red-500">*</span>
+                                            </label>
+                                            <input id="nafa-release-date" name="release_date" type="date" required
+                                                value="{{ old('release_date', $project->nafa?->release_date?->toDateString()) }}"
+                                                class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                            @error('release_date')
+                                                <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <label for="nafa-attachments" class="mb-2 block text-xs font-semibold text-slate-700">
+                                            NAFA File
+                                            @if ($project->nafa?->attachments->isNotEmpty())
+                                                <span class="font-normal text-slate-400">(optional — adds to the files below)</span>
+                                            @else
+                                                <span class="text-red-500">*</span>
+                                            @endif
+                                        </label>
+                                        <input id="nafa-attachments" name="attachments[]" type="file" multiple
+                                            @if (! $project->nafa?->attachments->isNotEmpty()) required @endif
+                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                                            class="block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:h-10 file:border-0 file:bg-slate-100 file:px-4 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200">
+                                        <p class="mt-1 text-[11px] text-slate-500">PDF, JPG, PNG, Word, or Excel; up to 10 files, 10 MB each.</p>
+                                        @error('attachments')
+                                            <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+                                        @enderror
+                                        @foreach ($errors->get('attachments.*') as $nafaFileMessages)
+                                            @foreach ($nafaFileMessages as $nafaFileMessage)
+                                                <p class="mt-1 text-xs font-medium text-red-600">{{ $nafaFileMessage }}</p>
+                                            @endforeach
+                                        @endforeach
+
+                                        @if ($project->nafa?->attachments->isNotEmpty())
+                                            <ul class="mt-2 space-y-1">
+                                                @foreach ($project->nafa->attachments as $nafaAttachment)
+                                                    <li>
+                                                        <a href="{{ route('projects.nafa.attachments.download', [$project, $nafaAttachment]) }}"
+                                                            class="inline-flex items-center gap-1 text-xs font-semibold text-[#063b86] hover:underline">
+                                                            <span aria-hidden="true">📎</span> {{ $nafaAttachment->original_name }}
+                                                        </a>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <label class="mb-2 block text-xs font-semibold text-slate-700">Remarks</label>
+                                        <textarea name="remarks" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks', $project->nafa?->remarks) }}</textarea>
+                                    </div>
+
+                                    <button type="submit"
+                                        class="mt-4 h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
+                                        Save NAFA
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
+
                         {{-- Notice to Proceed --}}
 
                         <div data-step-panel="ntp" class="hidden">
@@ -3851,7 +4050,7 @@
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
                                             <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                                                Requirement 3
+                                                Requirement {{ $implementationIsAcp ? 4 : 3 }}
                                             </div>
 
                                             <h4 class="mt-1 text-sm font-semibold text-slate-900">
@@ -3916,7 +4115,7 @@
                                 </form>
                         </div>
 
-                        @if ($project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION)
+                        @if ($schedulingUnlocked)
 
                             {{-- Orientation --}}
 
@@ -4196,7 +4395,9 @@
                 @endif
 
             </section>
-        @elseif(in_array(
+        @endif
+
+        @if (in_array(
                 $project->status,
                 [
                     \App\Enums\ProjectStatus::APPROVED,
@@ -4209,15 +4410,15 @@
                     \App\Enums\ProjectStatus::COMPLETED,
                 ],
                 true) && $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP)
-            <section id="implementation" data-workspace-panel="workflow"
+            <section id="acp-workflow" data-workspace-panel="workflow"
                 class="scroll-mt-32 mt-5 rounded-xl border border-violet-200 bg-violet-50 p-5 {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
                 <div class="text-sm font-semibold text-violet-950">
                     Through ACP Workflow
                 </div>
                 <p class="mt-1 text-xs leading-5 text-violet-800">
-                    Through ACP uses its own payment, check-release, implementation, and liquidation workflow. Direct
-                    Administration Insurance, PPE, Notice to Proceed, Post-Documentary Requirements, and Payment of Wages
-                    forms apply only to Direct Administration projects.
+                    Evaluation → Approval → ACP Payment → Check Release → GSIS Enrollment, PPE, NAFA, Notice to Proceed →
+                    Orientation &amp; Work Period → Release of Assistance → Liquidation. Post-Documentary Requirements and
+                    Payment of Wages apply only to Direct Administration projects.
                 </p>
 
                 @if (
@@ -4275,6 +4476,166 @@
                 </div>
             </section>
 
+        @endif
+
+        {{-- Through ACP Release of Assistance (after the work period ends, before liquidation) --}}
+
+        @if (
+            $implementationIsAcp &&
+                ! $acpWorkflowService->isLegacy($project) &&
+                in_array(
+                    $project->status,
+                    [
+                        \App\Enums\ProjectStatus::ONGOING_IMPLEMENTATION,
+                        \App\Enums\ProjectStatus::FOR_LIQUIDATION,
+                        \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED,
+                        \App\Enums\ProjectStatus::COMPLETED,
+                    ],
+                    true))
+            @php
+                $acpPayout = $project->payout;
+                $acpReleaseOpen = $acpWorkflowService->releaseOpen($project);
+                $canRecordAcpRelease = $acpReleaseOpen && ! $acpPayout && (auth()->user()->isTc() || auth()->user()->isAdmin());
+                $acpReleaseBag = $errors->getBag(\App\Http\Controllers\ProjectReleaseOfAssistanceController::ACP_ERROR_BAG);
+                $releaseController = \App\Http\Controllers\ProjectReleaseOfAssistanceController::class;
+                $acpSelectedMode = old('payout_mode');
+            @endphp
+
+            <section id="acp-release-of-assistance" data-workspace-panel="workflow"
+                class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'workflow' ? 'hidden' : '' }}">
+                <div class="border-b border-slate-200 px-5 py-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-900">Release of Assistance</h2>
+                            <p class="mt-1 text-xs text-slate-500">
+                                TC/Admin records the mode of payment, date of payout, and venue once the work period has
+                                ended. Liquidation opens when the payout date is reached.
+                            </p>
+                        </div>
+
+                        @if ($acpPayout)
+                            <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold {{ $acpWorkflowService->releaseDone($project) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-700' }}">
+                                {{ $acpWorkflowService->releaseDone($project) ? 'Released' : 'Waiting for payout date ('.$acpPayout->payout_date->format('M d, Y').')' }}
+                            </span>
+                        @elseif ($acpReleaseOpen)
+                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                                Awaiting Release of Assistance
+                            </span>
+                        @else
+                            <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                                Opens after the work period ends{{ $project->implementation ? ' ('.$project->implementation->end_date->format('M d, Y').')' : '' }}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                @if ($acpPayout)
+                    <dl class="grid gap-px bg-slate-200 sm:grid-cols-3">
+                        @foreach ([
+                            'Mode of Payment' => $acpPayout->payout_mode,
+                            'Date of Payout' => $acpPayout->payout_date->format('F d, Y'),
+                            'Venue' => $acpPayout->venue,
+                        ] as $acpReleaseLabel => $acpReleaseValue)
+                            <div class="bg-white px-5 py-4">
+                                <dt class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $acpReleaseLabel }}</dt>
+                                <dd class="mt-1 text-sm font-semibold text-slate-900">{{ $acpReleaseValue }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                    <div class="px-5 py-3 text-[11px] text-slate-500">
+                        @if ($acpPayout->remarks)
+                            <p class="mb-1 text-xs text-slate-600">{{ $acpPayout->remarks }}</p>
+                        @endif
+                        Recorded{{ $acpPayout->recorder ? ' by '.$acpPayout->recorder->name : '' }}.
+                        <a href="{{ route('projects.show', ['project' => $project, 'workspace' => 'overview']) }}#section-acp-release-{{ $acpPayout->id }}"
+                            class="font-semibold text-[#063b86] hover:underline">Correct this release in the Overview →</a>
+                    </div>
+                @elseif ($canRecordAcpRelease)
+                    <form method="POST" action="{{ route('projects.acp-release-of-assistance.store', $project) }}" class="p-5" data-release-form>
+                        @csrf
+
+                        @if ($acpReleaseBag->any())
+                            <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                                <ul class="list-disc pl-4">
+                                    @foreach ($acpReleaseBag->all() as $message)
+                                        <li>{{ $message }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div>
+                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="acp-payout-mode">Mode of Payment</label>
+                                <select id="acp-payout-mode" name="payout_mode" required data-payout-mode
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                    <option value="">Select mode of payment</option>
+                                    @foreach ($releaseController::PAYOUT_MODES as $payoutMode)
+                                        <option value="{{ $payoutMode }}" @selected($acpSelectedMode === $payoutMode)>
+                                            {{ $payoutMode === $releaseController::OTHER_MODE ? 'Others, specify' : $payoutMode }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div data-payout-mode-other class="mt-2 {{ $acpSelectedMode === $releaseController::OTHER_MODE ? '' : 'hidden' }}">
+                                    <input name="payout_mode_other" maxlength="92" placeholder="Specify mode of payment"
+                                        value="{{ old('payout_mode_other') }}"
+                                        class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="acp-payout-date">Date of Payout</label>
+                                <input id="acp-payout-date" name="payout_date" type="date" required value="{{ old('payout_date') }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="acp-payout-venue">Venue</label>
+                                <input id="acp-payout-venue" name="venue" required maxlength="255" value="{{ old('venue') }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            </div>
+
+                            <div class="md:col-span-3">
+                                <label class="mb-2 block text-xs font-semibold text-slate-700" for="acp-payout-remarks">
+                                    Remarks <span class="font-normal text-slate-400">(optional)</span>
+                                </label>
+                                <input id="acp-payout-remarks" name="remarks" maxlength="3000" value="{{ old('remarks') }}"
+                                    class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex justify-end">
+                            <button type="submit"
+                                class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
+                                Save Release of Assistance
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        (() => {
+                            const form = document.querySelector('#acp-release-of-assistance [data-release-form]');
+                            const select = form?.querySelector('[data-payout-mode]');
+                            const other = form?.querySelector('[data-payout-mode-other]');
+                            const input = other?.querySelector('input');
+
+                            select?.addEventListener('change', () => {
+                                const isOther = select.value === @js($releaseController::OTHER_MODE);
+                                other.classList.toggle('hidden', !isOther);
+                                input.required = isOther;
+                            });
+                        })();
+                    </script>
+                @else
+                    <p class="px-5 py-6 text-center text-xs text-slate-500">
+                        @if ($acpReleaseOpen)
+                            Waiting for the TUPAD Coordinator to record the Release of Assistance.
+                        @else
+                            The Release of Assistance opens after the work period ends.
+                        @endif
+                    </p>
+                @endif
+            </section>
         @endif
 
         {{-- Authoritative Project Workflow Guide --}}

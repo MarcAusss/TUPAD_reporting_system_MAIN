@@ -84,7 +84,9 @@ final class ProjectWorkspacePresenter
                 ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
                 ['label' => 'ACP Payment', 'href' => route('acp-payments.show', $project)],
                 ['label' => 'Check Release', 'href' => route('acp-payments.show', $project)],
-                ['label' => 'Implementation', 'href' => route('acp-implementation.show', $project)],
+                ['label' => 'Preparation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'insurance'],
+                ['label' => 'Implementation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'orientation'],
+                ['label' => 'Release of Assistance', 'tab' => 'workflow', 'anchor' => 'acp-release-of-assistance'],
                 ['label' => 'Liquidation', 'href' => route('acp-liquidations.show', $project)],
                 ['label' => 'Completed', 'tab' => 'overview'],
             ]
@@ -122,12 +124,12 @@ final class ProjectWorkspacePresenter
                 ProjectStatus::APPROVED,
                 ProjectStatus::FOR_PAYMENT => 2,
                 ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT => 3,
-                ProjectStatus::FOR_IMPLEMENTATION,
-                ProjectStatus::ONGOING_IMPLEMENTATION => 4,
+                ProjectStatus::FOR_IMPLEMENTATION => $this->acpPreparationStage($project),
+                ProjectStatus::ONGOING_IMPLEMENTATION => $this->acpOngoingStage($project),
                 ProjectStatus::FOR_LIQUIDATION,
-                ProjectStatus::PARTIALLY_LIQUIDATED => 5,
-                ProjectStatus::COMPLETED => 6,
-                ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 5,
+                ProjectStatus::PARTIALLY_LIQUIDATED => 7,
+                ProjectStatus::COMPLETED => 8,
+                ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS => 7,
             };
         }
 
@@ -147,6 +149,26 @@ final class ProjectWorkspacePresenter
             ProjectStatus::FOR_LIQUIDATION,
             ProjectStatus::PARTIALLY_LIQUIDATED => 5,
         };
+    }
+
+    /** Through ACP For Implementation: Preparation (4) until Insurance/PPE/NAFA/NTP are recorded, then Implementation (5). */
+    private function acpPreparationStage(Project $project): int
+    {
+        return app(AcpWorkflowService::class)->preparationComplete($project) ? 5 : 4;
+    }
+
+    /** Through ACP Ongoing: Implementation (5) until the Release of Assistance opens (6). */
+    private function acpOngoingStage(Project $project): int
+    {
+        $acp = app(AcpWorkflowService::class);
+
+        if ($acp->isLegacy($project)) {
+            return 5;
+        }
+
+        $project->loadMissing('payout');
+
+        return $project->payout || $acp->releaseOpen($project) ? 6 : 5;
     }
 
     private function focalPaymentFinished(Project $project): bool
@@ -366,28 +388,10 @@ final class ProjectWorkspacePresenter
                     'A Focal or Administrator account must complete the ACP payment and check-release stage.',
                     'View ACP Workflow',
                     'workflow',
-                    'implementation',
+                    'acp-workflow',
                 ),
             ProjectStatus::FOR_IMPLEMENTATION,
-            ProjectStatus::ONGOING_IMPLEMENTATION => ($user->isAdmin() || $user->isTc())
-                ? $this->externalAction(
-                    $project->status === ProjectStatus::FOR_IMPLEMENTATION ? 'Action Required' : 'Current Stage',
-                    $project->status === ProjectStatus::FOR_IMPLEMENTATION
-                        ? 'Record ACP implementation'
-                        : 'ACP implementation is in progress',
-                    'Open the ACP implementation workspace to record or review the official work period.',
-                    'Open ACP Implementation',
-                    route('acp-implementation.show', $project),
-                    'workflow',
-                )
-                : $this->internalAction(
-                    'Pending Admin/Coordinator Action',
-                    'ACP implementation is awaiting processing',
-                    'An Administrator or TUPAD Coordinator account must record the implementation details.',
-                    'View ACP Workflow',
-                    'workflow',
-                    'implementation',
-                ),
+            ProjectStatus::ONGOING_IMPLEMENTATION => $this->acpImplementationActionFor($project, $user),
             ProjectStatus::FOR_LIQUIDATION,
             ProjectStatus::PARTIALLY_LIQUIDATED => ($user->isAdmin() || $user->isFocal() || $user->isTc())
                 ? $this->externalAction(
@@ -406,7 +410,7 @@ final class ProjectWorkspacePresenter
                     'A TUPAD Coordinator, Focal, or Administrator account must complete the liquidation stage.',
                     'View ACP Workflow',
                     'workflow',
-                    'implementation',
+                    'acp-workflow',
                 ),
             default => $this->internalAction(
                 'Workflow Status',
@@ -417,6 +421,100 @@ final class ProjectWorkspacePresenter
                 'final-workflow',
             ),
         };
+    }
+
+    /**
+     * Through ACP after the check release: GSIS Enrollment, PPE, NAFA, and
+     * NTP, then Orientation and the Work Period, then the Release of
+     * Assistance once the work period ends (same gates as DA).
+     */
+    private function acpImplementationActionFor(Project $project, User $user): array
+    {
+        $acp = app(AcpWorkflowService::class);
+        $canAct = $user->isAdmin() || $user->isTc();
+
+        if ($acp->isLegacy($project)) {
+            return $canAct
+                ? $this->externalAction(
+                    'Current Stage',
+                    'ACP implementation is in progress',
+                    'Open the ACP implementation workspace to review the official work period.',
+                    'Open ACP Implementation',
+                    route('acp-implementation.show', $project),
+                    'workflow',
+                )
+                : $this->internalAction('Current Stage', 'ACP implementation is in progress', 'The project is under implementation.', 'View ACP Workflow', 'workflow', 'acp-workflow');
+        }
+
+        $pending = fn (string $title, string $description, string $anchor, string $label): array => $canAct
+            ? $this->internalAction('Action Required', $title, $description, $label, 'workflow', $anchor)
+            : $this->internalAction('Pending Admin/Coordinator Action', $title, $description, 'View ACP Workflow', 'workflow', $anchor);
+
+        if ($project->status === ProjectStatus::FOR_IMPLEMENTATION) {
+            $missing = $acp->missingPreparation($project);
+
+            if ($missing !== []) {
+                return $pending(
+                    'Complete the implementation requirements',
+                    'Still needed: '.implode(', ', $missing).'.',
+                    'implementation',
+                    'Complete Requirements',
+                );
+            }
+
+            $project->loadMissing(['orientation', 'implementation']);
+
+            if (! $project->orientation || ! $project->implementation) {
+                return $pending(
+                    'Schedule and start implementation',
+                    'Record the orientation and the official work period so implementation can proceed.',
+                    'implementation',
+                    'Open Implementation',
+                );
+            }
+
+            return $this->internalAction(
+                'Current Stage',
+                'Waiting for the implementation start date',
+                sprintf('Implementation starts on %s.', $project->implementation->start_date->format('F d, Y')),
+                'View Implementation',
+                'workflow',
+                'implementation',
+            );
+        }
+
+        $project->loadMissing(['implementation', 'payout']);
+
+        if ($project->payout) {
+            return $this->internalAction(
+                'Current Stage',
+                'Waiting for the payout date',
+                sprintf('Liquidation opens on the payout date (%s).', $project->payout->payout_date->format('F d, Y')),
+                'View Release of Assistance',
+                'workflow',
+                'acp-release-of-assistance',
+            );
+        }
+
+        if ($acp->releaseOpen($project)) {
+            return $pending(
+                'Record the Release of Assistance',
+                'The work period has ended. Record the mode of payment, date of payout, and venue.',
+                'acp-release-of-assistance',
+                'Record Release of Assistance',
+            );
+        }
+
+        return $this->internalAction(
+            'Current Stage',
+            'Implementation is in progress',
+            $project->implementation
+                ? sprintf('The Release of Assistance opens when the work period ends (%s).', $project->implementation->end_date->format('F d, Y'))
+                : 'Review the recorded implementation period.',
+            'View Implementation',
+            'workflow',
+            'implementation',
+        );
     }
 
     private function internalAction(

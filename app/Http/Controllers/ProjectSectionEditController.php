@@ -250,6 +250,8 @@ class ProjectSectionEditController extends Controller
             'implementation',
             'postDocuments',
             'obligations.disbursements',
+            'nafa.attachments',
+            'payout',
         ]);
     }
 }

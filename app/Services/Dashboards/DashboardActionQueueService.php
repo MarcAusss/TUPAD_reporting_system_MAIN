@@ -6,6 +6,7 @@ use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectDisbursement;
+use App\Models\ProjectImplementation;
 use App\Models\ProjectObligation;
 use App\Models\ProjectStatusHistory;
 use App\Models\User;
@@ -74,7 +75,12 @@ class DashboardActionQueueService
                     ->whereColumn('project_obligations.project_id', 'projects.id')
                     ->whereNull('project_obligations.release_date')
                     ->whereRaw(ProjectObligation::FULLY_DISBURSED_SQL),
+                'work_period_end_date' => ProjectImplementation::query()
+                    ->select('end_date')
+                    ->whereColumn('project_implementations.project_id', 'projects.id')
+                    ->limit(1),
             ])
+            ->withExists(['nafa', 'payout'])
             ->get();
 
         $queues = [];
@@ -219,6 +225,28 @@ class DashboardActionQueueService
                     ProjectStatus::FOR_IMPLEMENTATION,
                     ProjectStatus::ONGOING_IMPLEMENTATION,
                 ],
+                // GSIS enrollment, PPE, NAFA, NTP, orientation, and work period
+                // are recorded on the project's implementation steps.
+                'item_route' => 'projects.show',
+                'item_route_params' => ['workspace' => 'workflow'],
+                'item_anchor' => 'implementation',
+            ],
+            'acp_release' => [
+                'label' => 'ACP Release of Assistance',
+                'description' => 'Through ACP projects whose work period has ended and need the Release of Assistance.',
+                'route' => 'acp-workflow.implementation',
+                'implementation_mode' => ImplementationMode::THROUGH_ACP,
+                'statuses' => [ProjectStatus::ONGOING_IMPLEMENTATION],
+                'filter' => fn (Project $project): bool =>
+                    $project->nafa_exists
+                    && ! $project->payout_exists
+                    && $project->work_period_end_date !== null
+                    && Carbon::parse($project->work_period_end_date)->startOfDay()->lte(now('Asia/Manila')->startOfDay()),
+                'started_at_attribute' => 'work_period_end_date',
+                'action_label' => 'Release of Assistance',
+                'item_route' => 'projects.show',
+                'item_route_params' => ['workspace' => 'workflow'],
+                'item_anchor' => 'acp-release-of-assistance',
             ],
         ];
 

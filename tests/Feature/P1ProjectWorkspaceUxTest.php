@@ -61,7 +61,7 @@ class P1ProjectWorkspaceUxTest extends TestCase
 
         $this->assertSame('overview', $workspace['default_tab']);
         $this->assertSame(100, $workspace['progress_percent']);
-        $this->assertSame(6, $workspace['current_stage_index']);
+        $this->assertSame(8, $workspace['current_stage_index']);
         $this->assertNotEmpty($workspace['stages']);
 
         foreach ($workspace['stages'] as $stage) {

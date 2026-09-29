@@ -74,6 +74,10 @@ final class ProjectSectionRegistry
                     'required_documents' => ['label' => 'Required Documents', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:5000']],
                     'remarks' => ['label' => 'Remarks', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:5000']],
                 ],
+                'attachments' => fn (ProjectEvaluation $evaluation, Project $project): array => $this->attachmentLinks(
+                    $evaluation->evaluationAttachments(),
+                    $project,
+                ),
                 'extra' => fn (ProjectEvaluation $evaluation): array => [
                     'Result' => match ($evaluation->result) {
                         'for_compliance' => 'For Compliance',
@@ -95,6 +99,10 @@ final class ProjectSectionRegistry
                     'compliance_date' => ['label' => 'Compliance Date', 'type' => 'date', 'rules' => ['required', 'date']],
                     'compliance_remarks' => ['label' => 'Compliance Remarks', 'type' => 'textarea', 'rules' => ['required', 'string', 'max:5000']],
                 ],
+                'attachments' => fn (ProjectEvaluation $evaluation, Project $project): array => $this->attachmentLinks(
+                    $evaluation->complianceAttachments(),
+                    $project,
+                ),
             ],
 
             'approval' => [
@@ -146,6 +154,24 @@ final class ProjectSectionRegistry
                         ->map(fn ($item): string => ($item->ppeItem?->product ?? $item->ppeItem?->name ?? 'PPE').' × '.number_format((int) $item->quantity))
                         ->implode(', ') ?: ($delivery->ppe_provided ?: '—'),
                 ],
+            ],
+
+            'nafa' => [
+                'label' => 'NAFA',
+                'records' => fn (Project $project): Collection => collect([$project->nafa])->filter(),
+                'title' => fn (): string => 'NAFA (Notice of Availability of Fund)',
+                'fields' => [
+                    'nafa_date' => ['label' => 'Date of NAFA', 'type' => 'date', 'rules' => ['required', 'date']],
+                    'release_date' => ['label' => 'Release Date', 'type' => 'date', 'rules' => ['required', 'date', 'after_or_equal:nafa_date']],
+                    'remarks' => ['label' => 'Remarks', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:3000']],
+                ],
+                'attachments' => fn (Model $nafa, Project $project): array => $nafa->attachments
+                    ->map(fn ($attachment): array => [
+                        'name' => $attachment->original_name,
+                        'url' => route('projects.nafa.attachments.download', [$project, $attachment]),
+                    ])
+                    ->values()
+                    ->all(),
             ],
 
             'notice_to_proceed' => [
@@ -253,6 +279,22 @@ final class ProjectSectionRegistry
                     'remarks' => ['label' => 'Remarks', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:3000']],
                 ],
                 'validate' => fn (Project $project, ProjectDisbursement $disbursement, array $data) => $this->validateDisbursement($disbursement, $data),
+                'sync_status' => true,
+            ],
+
+            // Through ACP: one project-level Release of Assistance (project_payouts).
+            'acp_release' => [
+                'label' => 'Release of Assistance',
+                'records' => fn (Project $project): Collection => $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
+                    ? collect([$project->payout])->filter()
+                    : collect(),
+                'title' => fn (): string => 'Release of Assistance (Through ACP)',
+                'fields' => [
+                    'payout_mode' => ['label' => 'Mode of Payment', 'type' => 'payout_mode', 'rules' => ['required', 'string', 'max:100']],
+                    'payout_date' => ['label' => 'Date of Payout', 'type' => 'date', 'rules' => ['required', 'date']],
+                    'venue' => ['label' => 'Venue', 'type' => 'text', 'rules' => ['required', 'string', 'max:255']],
+                    'remarks' => ['label' => 'Remarks', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:3000']],
+                ],
                 'sync_status' => true,
             ],
 
@@ -427,6 +469,21 @@ final class ProjectSectionRegistry
             'number' => number_format((int) $value),
             default => (string) $value,
         };
+    }
+
+    /**
+     * @param  Collection<int, \App\Models\ProjectEvaluationAttachment>  $attachments
+     * @return list<array{name:string,url:string}>
+     */
+    private function attachmentLinks(Collection $attachments, Project $project): array
+    {
+        return $attachments
+            ->map(fn ($attachment): array => [
+                'name' => $attachment->original_name,
+                'url' => route('projects.compliance.attachments.download', [$project, $attachment]),
+            ])
+            ->values()
+            ->all();
     }
 
     private function peso(mixed $amount): string

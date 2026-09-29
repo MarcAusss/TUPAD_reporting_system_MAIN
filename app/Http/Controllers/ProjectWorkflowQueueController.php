@@ -137,6 +137,7 @@ class ProjectWorkflowQueueController extends Controller
                 'project.approval',
                 'evaluator',
                 'complier',
+                'attachments',
             ])
             ->when(
                 $request->filled('q'),

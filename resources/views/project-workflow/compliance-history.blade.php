@@ -193,8 +193,13 @@
                                 @endif
                             </td>
 
-                            <td class="max-w-xs whitespace-pre-line px-5 py-4 text-sm text-slate-600">
-                                {{ $evaluation->compliance_remarks ?: '—' }}
+                            <td class="max-w-xs px-5 py-4 text-sm text-slate-600">
+                                <div class="whitespace-pre-line">{{ $evaluation->compliance_remarks ?: '—' }}</div>
+
+                                @include('projects.partials.evaluation-attachment-links', [
+                                    'attachments' => $evaluation->complianceAttachments(),
+                                    'projectId' => $evaluation->project_id,
+                                ])
                             </td>
 
                             <td class="px-5 py-4 text-right">

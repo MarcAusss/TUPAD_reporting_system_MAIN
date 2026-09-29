@@ -218,6 +218,12 @@ class Project extends Model
             ->orderBy('tranche_number');
     }
 
+    /** Through ACP: Notice of Availability of Fund. */
+    public function nafa(): HasOne
+    {
+        return $this->hasOne(ProjectNafa::class);
+    }
+
     public function beneficiaryDeductions(): HasMany
     {
         return $this->hasMany(ProjectBeneficiaryDeduction::class);

@@ -1176,12 +1176,14 @@ class ProjectController extends Controller
             'updater',
 
             'evaluations.evaluator',
+            'evaluations.attachments',
             'approval.approver',
 
             'insuranceEnrollment.recorder',
             'ppeDeliveries.recorder',
             'ppeDeliveries.items.ppeItem',
             'noticeToProceed.recorder',
+            'nafa.attachments',
             'orientation.recorder',
             'implementation.recorder',
 
