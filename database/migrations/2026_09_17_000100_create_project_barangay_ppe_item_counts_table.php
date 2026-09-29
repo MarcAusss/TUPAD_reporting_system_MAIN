@@ -6,10 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * How many recipients of a given declared PPE item are in a given
-     * beneficiary barangay. One row per project + barangay + PPE item.
-     */
     public function up(): void
     {
         Schema::create('project_barangay_ppe_item_counts', function (Blueprint $table): void {
