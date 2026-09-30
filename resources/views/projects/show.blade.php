@@ -117,6 +117,9 @@
         <div id="overview" data-workspace-panel="overview"
             class="scroll-mt-32 mt-5 grid gap-5 xl:grid-cols-2 {{ $workspace['default_tab'] !== 'overview' ? 'hidden' : '' }}">
 
+            {{-- At-a-glance summary --}}
+            @include('projects.partials.overview-summary')
+
             @if ($project->status !== \App\Enums\ProjectStatus::COMPLETED)
                 @php
                     $isThroughAcp = $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP;
@@ -216,46 +219,56 @@
                         ->count();
                 @endphp
 
-                <section
-                    class="overflow-hidden rounded-xl border {{ $completionRemaining > 0 ? 'border-amber-200' : 'border-emerald-200' }} bg-white shadow-sm xl:col-span-2">
+                @php
+                    $completionTotal = count($completionChecklist);
+                    $completionDone = $completionTotal - $completionRemaining;
+                    $completionPercent = $completionTotal > 0 ? (int) round(($completionDone / $completionTotal) * 100) : 0;
+                @endphp
 
-                    <div class="border-b border-slate-200 px-5 py-4">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
+                <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:col-span-2">
+
+                    <div class="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $completionRemaining > 0 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600' }}" aria-hidden="true">
+                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                            </span>
                             <div>
-                                <h2 class="text-sm font-semibold text-slate-900">
-                                    Completion Readiness
-                                </h2>
-                                <p class="mt-1 text-xs leading-5 text-slate-500">
-                                    Every item below must be complete before this project can automatically move to
-                                    Completed status.
+                                <h2 class="text-sm font-bold text-slate-900">Completion Readiness</h2>
+                                <p class="mt-0.5 text-xs text-slate-500">
+                                    Every requirement must be complete before the project automatically moves to Completed.
                                 </p>
                             </div>
+                        </div>
 
-                            <span
-                                class="rounded-full px-3 py-1 text-xs font-bold {{ $completionRemaining > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">
-                                {{ $completionRemaining > 0 ? "{$completionRemaining} form(s) remaining" : 'All requirements complete' }}
-                            </span>
+                        <div class="min-w-48 sm:text-right">
+                            <div class="text-xs font-semibold {{ $completionRemaining > 0 ? 'text-amber-700' : 'text-emerald-700' }}">
+                                {{ $completionRemaining > 0 ? "{$completionDone} of {$completionTotal} complete · {$completionRemaining} remaining" : 'All requirements complete' }}
+                            </div>
+                            <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+                                <div class="h-full rounded-full {{ $completionRemaining > 0 ? 'bg-amber-500' : 'bg-emerald-500' }}" style="width: {{ $completionPercent }}%"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <ul class="divide-y divide-slate-100">
+                    <ul class="grid gap-px bg-slate-100 sm:grid-cols-2">
                         @foreach ($completionChecklist as $item)
-                            <li class="flex items-center justify-between gap-3 px-5 py-3">
-                                <div class="flex items-center gap-3">
+                            <li class="flex items-center justify-between gap-3 bg-white px-5 py-3">
+                                <div class="flex min-w-0 items-center gap-3">
                                     <span
-                                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold {{ $item['complete'] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
-                                        {{ $item['complete'] ? '✓' : '•' }}
+                                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold {{ $item['complete'] ? 'bg-emerald-500 text-white' : 'border-2 border-slate-200 text-transparent' }}"
+                                        aria-hidden="true">
+                                        ✓
                                     </span>
-                                    <span
-                                        class="text-sm {{ $item['complete'] ? 'text-slate-600' : 'font-semibold text-slate-900' }}">
+                                    <span class="truncate text-sm {{ $item['complete'] ? 'text-slate-500 line-through decoration-slate-300' : 'font-semibold text-slate-900' }}">
                                         {{ $item['label'] }}
                                     </span>
+                                    <span class="sr-only">{{ $item['complete'] ? '(complete)' : '(pending)' }}</span>
                                 </div>
 
                                 @unless ($item['complete'])
                                     <a href="{{ route('projects.show', ['project' => $project, 'workspace' => $item['tab']]) }}"
-                                        class="shrink-0 text-xs font-semibold text-blue-700 hover:underline">
-                                        Complete this →
+                                        class="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-blue-50 px-3 text-xs font-semibold text-[#063b86] transition hover:bg-blue-100">
+                                        Go to step <span aria-hidden="true">→</span>
                                     </a>
                                 @endunless
                             </li>
@@ -265,152 +278,52 @@
                 </section>
             @endif
 
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            @php
+                $projectInfoRows = array_filter([
+                    ['ADL Number', $project->allocation->adl->adl_number, false],
+                    ['Date Received', $project->date_received->format('F d, Y'), false],
+                    ['Fund Sponsor', $project->fund_sponsor, false],
+                    ['Partner', $project->partner, false],
+                    ['Program', $project->program ?: null, false],
+                    ['Project Series', $project->project_series ?: '—', false],
+                    ['TEVS Date Verified', $project->tevs_date_verified?->format('F d, Y') ?? '—', false],
+                    ['Nature of Work', $project->nature_of_work, true],
+                    $project->project_series_remarks ? ['Project Series Remarks', $project->project_series_remarks, true] : null,
+                    $project->tevs_remarks ? ['TEVS Remarks', $project->tevs_remarks, true] : null,
+                    $project->remarks ? ['Remarks', $project->remarks, true] : null,
+                ], fn ($row) => $row !== null && $row[1] !== null);
+            @endphp
 
-                <div class="border-b border-slate-200 px-5 py-4">
+            <section class="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-                    <h2 class="text-sm font-semibold text-slate-900">
-                        Project Information
-                    </h2>
-
+                <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                    <div class="flex items-center gap-3">
+                        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#063b86]" aria-hidden="true">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+                        </span>
+                        <h2 class="text-sm font-bold text-slate-900">Project Information</h2>
+                    </div>
                 </div>
 
-                <dl class="divide-y divide-slate-100">
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            ADL Number
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->allocation->adl->adl_number }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Fund Sponsor
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->fund_sponsor }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Partner
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->partner }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Date Received
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->date_received->format('F d, Y') }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Nature of Work
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->nature_of_work }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Project Series
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->project_series ?: '—' }}
-                        </dd>
-
-                    </div>
-
-                    @if ($project->project_series_remarks)
-                        <div class="grid grid-cols-2 gap-4 px-5 py-3">
-                            <dt class="text-xs text-slate-500">
-                                Project Series Remarks
-                            </dt>
-
-                            <dd class="text-right text-sm font-medium text-slate-800">
-                                {{ $project->project_series_remarks }}
-                            </dd>
+                <dl class="grid flex-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
+                    @foreach ($projectInfoRows as [$infoLabel, $infoValue, $infoWide])
+                        <div class="{{ $infoWide ? 'sm:col-span-2' : '' }}">
+                            <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{{ $infoLabel }}</dt>
+                            <dd class="mt-1 whitespace-pre-line break-words text-sm font-medium text-slate-800">{{ $infoValue }}</dd>
                         </div>
-                    @endif
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            TEVS Date Verified
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->tevs_date_verified?->format('F d, Y') ?? '—' }}
-                        </dd>
-
-                    </div>
-
-                    @if ($project->tevs_remarks)
-                        <div class="grid grid-cols-2 gap-4 px-5 py-3">
-                            <dt class="text-xs text-slate-500">
-                                TEVS Remarks
-                            </dt>
-
-                            <dd class="text-right text-sm font-medium text-slate-800">
-                                {{ $project->tevs_remarks }}
-                            </dd>
-                        </div>
-                    @endif
-
-                    @if ($project->remarks)
-                        <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                            <dt class="text-xs text-slate-500">
-                                Remarks
-                            </dt>
-
-                            <dd class="text-right text-sm font-medium text-slate-800">
-                                {{ $project->remarks }}
-                            </dd>
-
-                        </div>
-                    @endif
-
+                    @endforeach
                 </dl>
 
                 @if ($canManageProject && !$projectEditingLocked)
-                    <details class="border-t border-slate-200">
+                    <details class="group/edit-details border-t border-slate-100 bg-slate-50/60">
                         <summary
-                            class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
-                            <span class="text-xs font-semibold text-blue-800">
-                                Edit Project Details
+                            class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
+                            <span class="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-[#063b86] hover:text-[#063b86]">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                                <span class="group-open/edit-details:hidden">Edit Project Details</span>
+                                <span class="hidden group-open/edit-details:inline">Close Editor</span>
                             </span>
-                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                                Expand / Collapse
-                            </span>
+                            <svg class="h-4 w-4 text-slate-400 transition-transform group-open/edit-details:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                         </summary>
 
                         <form method="POST" action="{{ route('projects.details.update', $project) }}"
@@ -612,83 +525,38 @@
 
             </section>
 
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+            @php
+                $locationInfoRows = [
+                    ['Location', $project->full_location, true],
+                    ['District', $project->district ?: 'Not Assigned', false],
+                    ['Income Class', $project->income_class ?: 'Not yet assigned', false],
+                    ['Implementation Mode', $project->implementation_mode->label(), false],
+                    ['Duration', $project->number_of_days.' days — '.$project->term->label(), false],
+                ];
+            @endphp
 
-                <div class="border-b border-slate-200 px-5 py-4">
+            <section class="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-                    <h2 class="text-sm font-semibold text-slate-900">
-                        Location & Implementation
-                    </h2>
-
+                <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700" aria-hidden="true">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </span>
+                    <h2 class="text-sm font-bold text-slate-900">Location &amp; Implementation</h2>
                 </div>
 
-                <dl class="divide-y divide-slate-100">
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Location
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->full_location }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            District
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->district ?: 'Not Assigned' }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Income Class
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->income_class ?: 'Not yet assigned' }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Mode
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->implementation_mode->label() }}
-                        </dd>
-
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 px-5 py-3">
-
-                        <dt class="text-xs text-slate-500">
-                            Duration
-                        </dt>
-
-                        <dd class="text-right text-sm font-medium text-slate-800">
-                            {{ $project->number_of_days }} days
-                            —
-                            {{ $project->term->label() }}
-                        </dd>
-
-                    </div>
-
+                <dl class="grid flex-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
+                    @foreach ($locationInfoRows as [$locationLabel, $locationValue, $locationWide])
+                        <div class="{{ $locationWide ? 'sm:col-span-2' : '' }}">
+                            <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{{ $locationLabel }}</dt>
+                            <dd class="mt-1 break-words text-sm font-medium text-slate-800">{{ $locationValue }}</dd>
+                        </div>
+                    @endforeach
                 </dl>
 
             </section>
+
+            {{-- Beneficiary Mapping vs Actual Beneficiary Mapping --}}
+            @include('projects.partials.beneficiary-mapping-comparison')
 
         </div>
 
@@ -1484,51 +1352,57 @@
         @if ($project->projectLocations->isNotEmpty())
 
             <section data-workspace-panel="overview"
-                class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'overview' ? 'hidden' : '' }}">
+                class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'overview' ? 'hidden' : '' }}">
 
-                <div class="border-b border-slate-200 px-5 py-4">
-                    <h2 class="text-sm font-semibold text-slate-900">
-                        Project Location Coverage
-                    </h2>
-
-                    <p class="mt-1 text-xs text-slate-500">
-                        All selected district, municipality/city, and barangay target areas for this project.
-                    </p>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                    <div class="flex items-center gap-3">
+                        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700" aria-hidden="true">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        </span>
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-900">Project Location Coverage</h2>
+                            <p class="mt-0.5 text-xs text-slate-500">
+                                Selected district, municipality/city, and barangay target areas.
+                            </p>
+                        </div>
+                    </div>
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                        {{ $project->projectLocations->count() }} {{ \Illuminate\Support\Str::plural('location', $project->projectLocations->count()) }}
+                        · {{ $project->projectLocations->sum(fn ($location) => $location->barangays->count()) }} barangays
+                    </span>
                 </div>
 
                 <div class="grid gap-3 p-5 lg:grid-cols-2">
 
                     @foreach ($project->projectLocations as $location)
-                        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 
                             <div class="flex items-center justify-between gap-3">
-
                                 <div>
-                                    <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700">
+                                    <div class="text-[10px] font-bold uppercase tracking-widest text-teal-700">
                                         {{ $location->district }}
                                     </div>
-
-                                    <div class="mt-1 text-sm font-semibold text-slate-900">
+                                    <div class="mt-0.5 text-sm font-semibold text-slate-900">
                                         {{ $location->municipality->name }}
                                     </div>
                                 </div>
 
-                                <span
-                                    class="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500 shadow-sm">
+                                <span class="rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700">
                                     {{ $location->barangays->count() }} brgy
                                 </span>
-
                             </div>
 
                             <div class="mt-3 flex flex-wrap gap-2">
-
                                 @foreach ($location->barangays as $barangay)
-                                    <span
-                                        class="rounded-md border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-800">
+                                    <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700">
                                         {{ $barangay->name }}
+                                        @if ($barangay->pivot?->beneficiaries_total !== null)
+                                            <span class="rounded bg-white px-1.5 text-[10px] font-bold text-teal-700 ring-1 ring-teal-100">
+                                                {{ number_format((int) $barangay->pivot->beneficiaries_total) }}
+                                            </span>
+                                        @endif
                                     </span>
                                 @endforeach
-
                             </div>
 
                         </div>
@@ -5159,98 +5033,70 @@
         {{-- PPE Requirements --}}
 
         <section id="ppe-requirements" data-workspace-panel="overview"
-            class="scroll-mt-32 mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'overview' ? 'hidden' : '' }}">
+            class="scroll-mt-32 mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'overview' ? 'hidden' : '' }}">
 
-            <div class="border-b border-slate-200 px-5 py-4">
-
-                <h2 class="text-sm font-semibold text-slate-900">
-                    PPE Requirements
-                </h2>
-
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div class="flex items-center gap-3">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-600" aria-hidden="true">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </span>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900">PPE Requirements</h2>
+                        <p class="mt-0.5 text-xs text-slate-500">Protective equipment planned for the project beneficiaries.</p>
+                    </div>
+                </div>
+                <span class="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                    ₱{{ number_format((float) $project->ppeItems->sum('total_amount'), 2) }} total
+                </span>
             </div>
 
             <div class="overflow-x-auto">
-
-                <table class="tupad-system-table min-w-full">
-
-                    <thead class="bg-slate-50">
-
+                <table class="tupad-system-table min-w-full text-sm">
+                    <thead class="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                         <tr>
-
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
-                                Type
-                            </th>
-
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
-                                Product
-                            </th>
-
-                            <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
-                                Beneficiaries
-                            </th>
-
-                            <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
-                                Quantity
-                            </th>
-
-                            <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
-                                Unit Amount
-                            </th>
-
-                            <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
-                                Total
-                            </th>
-
+                            <th class="px-5 py-3 text-left font-semibold">Type</th>
+                            <th class="px-5 py-3 text-left font-semibold">Product</th>
+                            <th class="px-5 py-3 text-right font-semibold">Beneficiaries</th>
+                            <th class="px-5 py-3 text-right font-semibold">Quantity</th>
+                            <th class="px-5 py-3 text-right font-semibold">Unit Amount</th>
+                            <th class="px-5 py-3 text-right font-semibold">Total</th>
                         </tr>
-
                     </thead>
 
                     <tbody class="divide-y divide-slate-100">
-
                         @forelse($project->ppeItems as $item)
-                            <tr>
-
-                                <td class="px-5 py-4 text-sm text-slate-600">
-                                    {{ $item->ppe_type->label() }}
+                            <tr class="transition hover:bg-slate-50/70">
+                                <td class="px-5 py-3">
+                                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold {{ $item->ppe_type === \App\Enums\PpeType::HAZARDOUS ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600' }}">
+                                        {{ $item->ppe_type->label() }}
+                                    </span>
                                 </td>
-
-                                <td class="px-5 py-4 text-sm font-medium text-slate-800">
-                                    {{ $item->product }}
-                                </td>
-
-                                <td class="px-5 py-4 text-right text-sm text-slate-600">
-                                    {{ number_format($item->beneficiary_count) }}
-                                </td>
-
-                                <td class="px-5 py-4 text-right text-sm text-slate-600">
+                                <td class="px-5 py-3 font-medium text-slate-800">{{ $item->product }}</td>
+                                <td class="px-5 py-3 text-right text-slate-600">{{ number_format($item->beneficiary_count) }}</td>
+                                <td class="px-5 py-3 text-right text-slate-600">
                                     {{ $project->term === \App\Enums\ProjectTerm::LONG_TERM ? number_format($item->quantity) : '—' }}
                                 </td>
-
-                                <td class="px-5 py-4 text-right text-sm text-slate-600">
-                                    ₱{{ number_format($item->unit_amount, 2) }}
-                                </td>
-
-                                <td class="px-5 py-4 text-right text-sm font-semibold text-slate-900">
-                                    ₱{{ number_format($item->total_amount, 2) }}
-                                </td>
-
+                                <td class="px-5 py-3 text-right text-slate-600">₱{{ number_format($item->unit_amount, 2) }}</td>
+                                <td class="px-5 py-3 text-right font-semibold text-slate-900">₱{{ number_format($item->total_amount, 2) }}</td>
                             </tr>
-
                         @empty
-
                             <tr>
-
                                 <td colspan="6" class="px-5 py-10 text-center text-sm text-slate-400">
                                     No PPE requirement was recorded.
                                 </td>
-
                             </tr>
                         @endforelse
-
                     </tbody>
 
+                    @if ($project->ppeItems->isNotEmpty())
+                        <tfoot class="border-t-2 border-slate-200 bg-slate-50 text-sm font-bold text-slate-900">
+                            <tr>
+                                <td colspan="5" class="px-5 py-3 text-right">Total PPE</td>
+                                <td class="px-5 py-3 text-right">₱{{ number_format((float) $project->ppeItems->sum('total_amount'), 2) }}</td>
+                            </tr>
+                        </tfoot>
+                    @endif
                 </table>
-
             </div>
 
         </section>

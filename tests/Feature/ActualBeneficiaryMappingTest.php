@@ -244,6 +244,34 @@ class ActualBeneficiaryMappingTest extends TestCase
         $this->assertNotInTcFeed();
     }
 
+    public function test_overview_shows_beneficiary_mapping_and_actual_mapping_side_by_side_with_totals(): void
+    {
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $this->project, 'workspace' => 'overview']))
+            ->assertOk()
+            ->assertSee('Beneficiary Mapping vs Actual Beneficiary Mapping')
+            ->assertSee('Final after obligations')
+            ->assertSee('Total (2 barangays)');
+
+        $this->completeObligation(beneficiaries: 8, female: 5);
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $this->project, 'workspace' => 'overview']))
+            ->assertSee('Deductions pending');
+
+        $this->saveDeductions([
+            $this->rawis->id => ['total' => 1, 'female' => 1],
+            $this->bogtong->id => ['total' => 1, 'female' => 0],
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($this->tc)
+            ->get(route('projects.show', ['project' => $this->project, 'workspace' => 'overview']))
+            ->assertSee('Deductions recorded')
+            ->assertSee('−1 not included')
+            ->assertSeeInOrder(['Beneficiary Mapping', 'Total (2 barangays)', '10', 'Actual Beneficiary Mapping', 'Total (2 barangays)', '8'])
+            ->assertSee('actual beneficiaries');
+    }
+
     public function test_resaving_the_beneficiary_mapping_keeps_the_deductions(): void
     {
         $this->completeObligation(beneficiaries: 8, female: 5);
