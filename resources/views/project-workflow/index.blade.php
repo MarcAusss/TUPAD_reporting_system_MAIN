@@ -7,6 +7,8 @@
     <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
         <div>
+            <x-breadcrumbs :items="[['label' => 'Workflow Queues', 'url' => null], ['label' => $queueTitle]]" />
+
             <div class="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
                 Project Workflow
             </div>
@@ -53,8 +55,9 @@
 
     </section>
 
-    <form method="GET" action="{{ route('project-workflow.index', ['queue' => $queue]) }}"
+    <form data-remember-filters method="GET" action="{{ route('project-workflow.index', ['queue' => $queue]) }}"
         class="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <x-quick-filters :inputs="true" />
 
         <div class="flex flex-col gap-3 sm:flex-row">
 
@@ -76,7 +79,7 @@
             </button>
 
             @if (request()->filled('q'))
-                <a href="{{ route('project-workflow.index', ['queue' => $queue]) }}"
+                <a href="{{ route('project-workflow.index', ['queue' => $queue]) }}" data-clear-filters
                     class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     Clear
                 </a>
@@ -85,6 +88,8 @@
         </div>
 
     </form>
+
+    <x-quick-filters />
 
     @if ($queue === 'implementation')
 
@@ -422,16 +427,7 @@
 
                                 @empty
 
-                                    <div
-                                        class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
-                                        <div class="text-xs font-semibold text-slate-600">
-                                            No projects
-                                        </div>
-
-                                        <p class="mt-1 text-[10px] leading-4 text-slate-400">
-                                            Projects appear here automatically when they meet this stage.
-                                        </p>
-                                    </div>
+                                    <x-empty-state size="sm" icon="check" class="rounded-xl border border-dashed border-slate-300 bg-white" title="No projects" message="Projects appear here automatically when they meet this stage." />
                                 @endforelse
 
                             </div>
@@ -668,10 +664,7 @@
 
                                 <td class="px-5 py-4">
 
-                                    <span
-                                        class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                        {{ $project->status->label() }}
-                                    </span>
+                                    <x-project-status :project="$project" />
 
                                 </td>
 
@@ -724,16 +717,8 @@
 
                             <tr>
 
-                                <td colspan="{{ $queue === 'for-compliance' ? 7 : 6 }}" class="px-5 py-12 text-center">
-
-                                    <div class="text-sm font-semibold text-slate-700">
-                                        {{ $emptyMessage }}
-                                    </div>
-
-                                    <p class="mt-1 text-xs text-slate-400">
-                                        Projects will appear here automatically when they reach this workflow stage.
-                                    </p>
-
+                                <td colspan="{{ $queue === 'for-compliance' ? 7 : 6 }}" class="p-0">
+                                    <x-empty-state icon="check" :title="$emptyMessage" message="Projects will appear here automatically when they reach this workflow stage." />
                                 </td>
 
                             </tr>

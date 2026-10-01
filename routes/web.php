@@ -125,6 +125,10 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
     Route::get('/search', [GlobalSearchController::class, 'index'])
         ->name('search.index');
 
+    Route::get('/search/suggest', [GlobalSearchController::class, 'suggest'])
+        ->middleware('throttle:120,1')
+        ->name('search.suggest');
+
 
     /*
 |--------------------------------------------------------------------------
@@ -669,15 +673,11 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
     /*
     |--------------------------------------------------------------------------
-    | Secure Post-Document Download
+    | Secure Attachment Downloads
     |--------------------------------------------------------------------------
     */
 
     Route::middleware('role:admin,tc,focal')->group(function () {
-        Route::get(
-            '/projects/{project}/post-documents/{projectPostDocument}/download',
-            [ProjectPostDocumentController::class, 'download']
-        )->name('projects.post-documents.download');
 
         Route::get(
             '/projects/{project}/compliance/attachments/{attachment}',

@@ -9,6 +9,7 @@
 
 <x-page-header
     eyebrow="Payment of Wages"
+    :breadcrumbs="\App\Support\Breadcrumbs::forProject($project, 'Payment of Wages')"
     :title="$project->project_title"
     description="Manage obligation tranches and record the corresponding wage disbursements."
 >
@@ -167,6 +168,8 @@
         data-wage-per-beneficiary-cents="{{ $wagePerBeneficiaryCents }}"
         data-insurance-per-beneficiary-cents="{{ $insurancePerBeneficiaryCents }}"
         data-today="{{ now()->toDateString() }}"
+        data-saved-tranches="{{ $project->obligations->count() }}"
+        data-warn-unsaved
     >
         @csrf
 
@@ -420,6 +423,8 @@
             <x-empty-state
                 title="No obligation tranches recorded"
                 message="Add the first obligation to begin Payment of Wages processing."
+                action-label="Add First Tranche"
+                action-click="[data-add-tranche]"
             />
         @endforelse
     </div>
@@ -745,17 +750,25 @@
 
             if (missing.length > 0) {
                 event.preventDefault();
-                window.alert('The tranches cannot be saved yet:\n\n' + missing.join('\n'));
+                window.TupadConfirm({
+                    title: 'The tranches cannot be saved yet',
+                    message: 'Complete the following before saving:',
+                    details: missing,
+                    tone: 'danger',
+                    cancelText: null,
+                });
                 return;
             }
 
             if (exceededMessages.length > 0) {
                 event.preventDefault();
-                window.alert(
-                    'The tranches exceed the project data and cannot be saved:\n\n'
-                    + exceededMessages.join('\n')
-                    + '\n\nTotals may be below the project data, but not above it.'
-                );
+                window.TupadConfirm({
+                    title: 'The tranches exceed the project data',
+                    message: 'Totals may be below the project data, but not above it. Adjust these entries:',
+                    details: exceededMessages,
+                    tone: 'danger',
+                    cancelText: null,
+                });
                 return;
             }
 
@@ -763,19 +776,31 @@
                 return;
             }
 
-            const below = Number(limits.total || 0) - running.total;
-            const confirmed = window.confirm(
-                'Complete the obligation tranches?\n\n'
-                + (below > 0
-                    ? `The tranches total ${peso(running.total)}, which is ${peso(below)} below the Total Project Cost.\n\n`
-                    : '')
-                + 'Any tranche entered on this form will be saved first. After completion the tranches are locked '
-                + 'and the project moves on to the Release of Assistance.'
-            );
-
-            if (!confirmed) {
-                event.preventDefault();
+            if (form.dataset.completeConfirmed === 'true') {
+                delete form.dataset.completeConfirmed;
+                return;
             }
+
+            event.preventDefault();
+
+            const submitter = event.submitter;
+            const below = Number(limits.total || 0) - running.total;
+
+            window.TupadConfirm({
+                title: 'Complete the obligation tranches?',
+                message: 'Any tranche entered on this form is saved first. After completion the tranches are locked '
+                    + 'and the project moves on to the Release of Assistance.',
+                details: [
+                    `Tranches: ${filledCards.length + Number(form.dataset.savedTranches || 0)}`,
+                    `Total obligated: ${peso(running.total)}`,
+                    below > 0 ? `${peso(below)} below the Total Project Cost` : 'Equal to the Total Project Cost',
+                ],
+                confirmText: 'Complete Tranches',
+            }).then((confirmed) => {
+                if (!confirmed) return;
+                form.dataset.completeConfirmed = 'true';
+                form.requestSubmit(submitter);
+            });
         });
 
         // The submit handler above checks required fields itself (and skips

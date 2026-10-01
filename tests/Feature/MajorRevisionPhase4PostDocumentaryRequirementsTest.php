@@ -10,7 +10,6 @@ use App\Models\AdlAllocation;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -46,7 +45,9 @@ class MajorRevisionPhase4PostDocumentaryRequirementsTest extends TestCase
                 'Submission of Post-Documentary Requirements'
             )
             ->assertSee('Date Received')
-            ->assertSee('Attachments Received')
+            ->assertSee('Documents Received')
+            ->assertDontSee('Attachments Received')
+            ->assertDontSee('name="attachments[]"', false)
             ->assertSee('Date Forwarded to IMSD')
             ->assertSee(
                 'Save Post-Documentary Requirements'
@@ -54,75 +55,57 @@ class MajorRevisionPhase4PostDocumentaryRequirementsTest extends TestCase
             ->assertSee('Auto-update → For Payment');
     }
 
-    public function test_complete_post_document_submission_saves_multiple_attachments_and_auto_moves_to_for_payment(): void
+    public function test_complete_post_document_submission_saves_one_record_without_attachments_and_auto_moves_to_for_payment(): void
     {
         $project = $this->createProject(
             ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
         );
 
-        $response = $this
+        $this
             ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.post-documents.store',
-                    $project
-                ),
-                [
-                    'date_received' =>
-                        '2026-08-26',
+            ->post(route('projects.post-documents.store', $project), [
+                'date_received' => '2026-08-26',
+                'document_type' => 'Payroll, Accomplishment Report',
+                'date_forwarded_to_imsd' => '2026-08-26',
+                'remarks' => 'Complete post-document set.',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
-                    'attachments' => [
-                        UploadedFile::fake()->create(
-                            'accomplishment-report.pdf',
-                            120,
-                            'application/pdf'
-                        ),
-                        UploadedFile::fake()->create(
-                            'payroll-summary.xlsx',
-                            120,
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        ),
-                    ],
+        $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
 
-                    'date_forwarded_to_imsd' =>
-                        '2026-08-26',
+        $this->assertDatabaseCount('project_post_documents', 1);
 
-                    'remarks' =>
-                        'Complete post-document set.',
-                ]
-            );
+        $this->assertDatabaseHas('project_post_documents', [
+            'project_id' => $project->id,
+            'document_type' => 'Payroll, Accomplishment Report',
+            'attachment_path' => null,
+            'remarks' => 'Complete post-document set.',
+            'recorded_by' => $this->tc->id,
+        ]);
+    }
 
-        $response->assertRedirect();
-
-        $this->assertSame(
-            ProjectStatus::FOR_PAYMENT,
-            $project->fresh()->status
+    public function test_documents_received_description_is_optional(): void
+    {
+        $project = $this->createProject(
+            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
         );
 
-        $this->assertDatabaseCount(
-            'project_post_documents',
-            2
-        );
+        $this
+            ->actingAs($this->tc)
+            ->post(route('projects.post-documents.store', $project), [
+                'date_received' => '2026-08-26',
+                'date_forwarded_to_imsd' => '2026-08-26',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas(
-            'project_post_documents',
-            [
-                'project_id' => $project->id,
-                'document_type' =>
-                    'accomplishment-report.pdf',
-                'recorded_by' => $this->tc->id,
-            ]
-        );
+        $this->assertDatabaseHas('project_post_documents', [
+            'project_id' => $project->id,
+            'document_type' => 'Post-Documentary Requirements',
+        ]);
 
-        $this->assertDatabaseHas(
-            'project_post_documents',
-            [
-                'project_id' => $project->id,
-                'document_type' =>
-                    'payroll-summary.xlsx',
-                'recorded_by' => $this->tc->id,
-            ]
-        );
+        $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
     }
 
     public function test_date_forwarded_to_imsd_is_required_and_cannot_precede_date_received(): void
@@ -142,14 +125,6 @@ class MajorRevisionPhase4PostDocumentaryRequirementsTest extends TestCase
                     'date_received' =>
                         '2026-08-26',
 
-                    'attachments' => [
-                        UploadedFile::fake()->create(
-                            'report.pdf',
-                            120,
-                            'application/pdf'
-                        ),
-                    ],
-
                     'date_forwarded_to_imsd' =>
                         '2026-08-25',
                 ]
@@ -166,89 +141,6 @@ class MajorRevisionPhase4PostDocumentaryRequirementsTest extends TestCase
         $this->assertDatabaseCount(
             'project_post_documents',
             0
-        );
-    }
-
-    public function test_at_least_one_attachment_received_is_required(): void
-    {
-        $project = $this->createProject(
-            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
-        );
-
-        $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.post-documents.store',
-                    $project
-                ),
-                [
-                    'date_received' =>
-                        '2026-08-26',
-
-                    'date_forwarded_to_imsd' =>
-                        '2026-08-26',
-                ]
-            )
-            ->assertSessionHasErrors();
-
-        $this->assertDatabaseCount(
-            'project_post_documents',
-            0
-        );
-
-        $this->assertSame(
-            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS,
-            $project->fresh()->status
-        );
-    }
-
-    public function test_legacy_single_attachment_payload_remains_supported(): void
-    {
-        $project = $this->createProject(
-            ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS
-        );
-
-        $this
-            ->actingAs($this->tc)
-            ->post(
-                route(
-                    'projects.post-documents.store',
-                    $project
-                ),
-                [
-                    'date_received' =>
-                        '2026-08-26',
-
-                    'document_type' =>
-                        'Accomplishment Report',
-
-                    'attachment' =>
-                        UploadedFile::fake()->create(
-                            'legacy-report.pdf',
-                            120,
-                            'application/pdf'
-                        ),
-
-                    'date_forwarded_to_imsd' =>
-                        '2026-08-26',
-                ]
-            )
-            ->assertRedirect();
-
-        $this->assertDatabaseHas(
-            'project_post_documents',
-            [
-                'project_id' =>
-                    $project->id,
-                'document_type' =>
-                    'Accomplishment Report',
-            ]
-        );
-
-        $this->assertSame(
-            ProjectStatus::FOR_PAYMENT,
-            $project->fresh()->status
         );
     }
 

@@ -35,7 +35,8 @@ class ProjectWorkflowQueueController extends Controller
             );
         }
 
-        $projects = $provinceAccess->scopeProjects(Project::query(), $request->user())
+        $projects = $provinceAccess->scopeProjects(Project::query()->withStatusEnteredAt(), $request->user())
+                ->applyQuickFilters($request)
             ->with([
                 'allocation.adl',
                 'approval',
@@ -202,7 +203,8 @@ class ProjectWorkflowQueueController extends Controller
         ProvinceAccessService $provinceAccess,
     ): View {
         $projects =
-            $provinceAccess->scopeProjects(Project::query(), $request->user())
+            $provinceAccess->scopeProjects(Project::query()->withStatusEnteredAt(), $request->user())
+                ->applyQuickFilters($request)
                 ->with([
                     'allocation.adl',
                     'approval',

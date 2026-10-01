@@ -43,6 +43,8 @@ final class ReportingDataService
                     'ppe_cents' => null,
                     'insurance_cents' => null,
                     'project_cost_cents' => null,
+                    'proposed_cost_cents' => null,
+                    'actual_cost_cents' => null,
                     'obligated_cents' => null,
                     'disbursed_cents' => null,
                     'financial_allocation_available' => false,
@@ -409,7 +411,7 @@ final class ReportingDataService
                     fn ($obligation): int => $this->paymentService->amountToCents($obligation->amount)
                 ) > 0;
             })
-            ->sum('beneficiaries_total');
+            ->sum(fn (Project $project): int => $project->reportBeneficiaries());
     }
 
     /**
@@ -839,11 +841,12 @@ final class ReportingDataService
                 return $row + [
                     'project_count' => $projects->count(),
                     'beneficiaries_total' =>
-                        (int) $projects->sum('beneficiaries_total'),
+                        (int) $projects->sum(fn (Project $project): int => $project->reportBeneficiaries()),
                     'beneficiaries_female' =>
-                        (int) $projects->sum('beneficiaries_female'),
-                    'project_cost_cents' =>
-                        $this->sumProjectMoney($projects, 'total_project_cost'),
+                        (int) $projects->sum(fn (Project $project): int => $project->reportFemaleBeneficiaries()),
+                    'project_cost_cents' => $this->sumReportAmountCents($projects),
+                    'proposed_cost_cents' => $this->sumProjectMoney($projects, 'total_project_cost'),
+                    'actual_cost_cents' => $this->sumActualAmountCents($projects),
                 ];
             })
             ->sortBy([
@@ -1305,15 +1308,18 @@ final class ReportingDataService
                     $project->status === ProjectStatus::COMPLETED
             )->count(),
             'beneficiaries_total' =>
-                (int) $projects->sum('beneficiaries_total'),
+                (int) $projects->sum(fn (Project $project): int => $project->reportBeneficiaries()),
             'beneficiaries_female' =>
-                (int) $projects->sum('beneficiaries_female'),
+                (int) $projects->sum(fn (Project $project): int => $project->reportFemaleBeneficiaries()),
             'wages_cents' => $this->sumProjectMoney($projects, 'wages_total'),
             'ppe_cents' => $this->sumProjectMoney($projects, 'ppe_total'),
             'insurance_cents' =>
                 $this->sumProjectMoney($projects, 'insurance_total'),
-            'project_cost_cents' =>
-                $this->sumProjectMoney($projects, 'total_project_cost'),
+            // Reports use the actual amount (obligation tranches / ACP payment) once final,
+            // otherwise the proposed Total Project Cost. See Project::reportAmount().
+            'project_cost_cents' => $this->sumReportAmountCents($projects),
+            'proposed_cost_cents' => $this->sumProjectMoney($projects, 'total_project_cost'),
+            'actual_cost_cents' => $this->sumActualAmountCents($projects),
             'direct_admin_obligated_cents' => $this->directAdminObligatedCents($projects),
             'direct_admin_disbursed_cents' => $this->directAdminDisbursedCents($projects),
             'acp_payment_cents' => $this->acpPaymentCents($projects),
@@ -1324,6 +1330,29 @@ final class ReportingDataService
         ];
     }
 
+    /**
+     * Sum of Project::reportAmount() in cents (actual when final, else proposed).
+     *
+     * @param Collection<int, Project> $projects
+     */
+    private function sumReportAmountCents(Collection $projects): int
+    {
+        return (int) $projects->sum(
+            fn (Project $project): int => $this->paymentService->amountToCents(number_format($project->reportAmount(), 2, '.', ''))
+        );
+    }
+
+    /**
+     * Sum of final actual amounts in cents (projects without a final actual amount add 0).
+     *
+     * @param Collection<int, Project> $projects
+     */
+    private function sumActualAmountCents(Collection $projects): int
+    {
+        return (int) $projects->sum(
+            fn (Project $project): int => $this->paymentService->amountToCents(number_format($project->actualAmount() ?? 0, 2, '.', ''))
+        );
+    }
     /** @param Collection<int, Project> $projects */
     private function sumProjectMoney(Collection $projects, string $column): int
     {

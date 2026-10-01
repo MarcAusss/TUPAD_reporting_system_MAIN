@@ -49,8 +49,8 @@ final class OfficialPeriodicReportService
             ->map(fn (Collection $group, string $province): array => [
                 'province' => $province,
                 'projects' => $group->count(),
-                'total' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_total),
-                'female' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_female),
+                'total' => $group->sum(fn (Project $project): int => $project->reportBeneficiaries()),
+                'female' => $group->sum(fn (Project $project): int => $project->reportFemaleBeneficiaries()),
             ])
             ->sortBy('province', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
@@ -158,7 +158,7 @@ final class OfficialPeriodicReportService
         $months = range((($quarter - 1) * 3) + 1, (($quarter - 1) * 3) + 3);
         $projects = $this->projectQuery($filters, $user)
             ->whereHas('monitoringDetail', fn (Builder $query): Builder => $query->whereYear('cqpr_date', $year))
-            ->with(['monitoringDetail', 'provinceReference', 'municipalityReference', 'approval'])
+            ->with(['monitoringDetail', 'provinceReference', 'municipalityReference', 'approval', 'obligations', 'acpPayment'])
             ->get()
             ->filter(fn (Project $project): bool => in_array((int) $project->monitoringDetail?->cqpr_date?->month, $months, true))
             ->values();
@@ -171,9 +171,9 @@ final class OfficialPeriodicReportService
             'province' => $project->provinceReference?->name ?: $project->province ?: '—',
             'district' => $project->district ?: '—',
             'term' => $project->term?->label() ?: '—',
-            'beneficiaries' => (int) $project->beneficiaries_total,
-            'female' => (int) $project->beneficiaries_female,
-            'amount' => 'PHP '.number_format((float) $project->total_project_cost, 2),
+            'beneficiaries' => $project->reportBeneficiaries(),
+            'female' => $project->reportFemaleBeneficiaries(),
+            'amount' => 'PHP '.number_format($project->reportAmount(), 2),
             'fund_source' => $project->fund_sponsor ?: '—',
             'convergence' => $project->partner ?: '—',
             'status' => $project->status?->label() ?: '—',
@@ -431,8 +431,8 @@ final class OfficialPeriodicReportService
 
                 return [
                     $provinceKey => [
-                        'total' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_total),
-                        'female' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_female),
+                        'total' => $group->sum(fn (Project $project): int => $project->reportBeneficiaries()),
+                        'female' => $group->sum(fn (Project $project): int => $project->reportFemaleBeneficiaries()),
                     ],
                 ];
             })
@@ -452,8 +452,8 @@ final class OfficialPeriodicReportService
             'included' => $included,
             'row_type' => $rowType,
             'overall' => [
-                'total' => $projects->sum(fn (Project $project): int => (int) $project->beneficiaries_total),
-                'female' => $projects->sum(fn (Project $project): int => (int) $project->beneficiaries_female),
+                'total' => $projects->sum(fn (Project $project): int => $project->reportBeneficiaries()),
+                'female' => $projects->sum(fn (Project $project): int => $project->reportFemaleBeneficiaries()),
             ],
             'provinces' => $provinceValues,
             'date_accomplished' => $included ? $this->sprsDateRangeLabel($projects) : '',

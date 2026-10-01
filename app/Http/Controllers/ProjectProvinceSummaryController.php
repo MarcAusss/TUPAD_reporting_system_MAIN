@@ -197,6 +197,31 @@ class ProjectProvinceSummaryController extends Controller
         );
     }
 
+    /** @var array<int, array<int, array{total:int, female:int}>> */
+    private array $deductionCache = [];
+
+    /**
+     * Beneficiaries not included in the completed obligations, per barangay
+     * (recorded by the TUPAD Coordinator). Empty until obligations are completed.
+     *
+     * @return array<int, array{total:int, female:int}>
+     */
+    private function barangayDeductions(Project $project): array
+    {
+        if ($project->obligations_completed_at === null) {
+            return [];
+        }
+
+        return $this->deductionCache[$project->id] ??= collect(
+            app(\App\Services\Projects\ProjectBeneficiaryDeductionService::class)->rows($project)
+        )
+            ->map(fn (array $row): array => [
+                'total' => (int) ($row['deducted_total'] ?? 0),
+                'female' => (int) ($row['deducted_female'] ?? 0),
+            ])
+            ->all();
+    }
+
     private function renderProvinceSummary(
         Province $province,
         ?Project $sourceProject = null
@@ -288,6 +313,19 @@ class ProjectProvinceSummaryController extends Controller
                     )
                     : (int) $provinceProject->beneficiaries_female;
 
+                // Actual = approved allocation less the TC's deductions (beneficiaries
+                // not included in the completed obligations) for these barangays.
+                $projectDeductions = $this->barangayDeductions($provinceProject);
+                $locationDeducted = $location->barangays->sum(fn ($barangay) => $projectDeductions[$barangay->id]['total'] ?? 0);
+                $locationDeductedFemale = $location->barangays->sum(fn ($barangay) => $projectDeductions[$barangay->id]['female'] ?? 0);
+
+                $municipalityActual = $locationHasExactTotal
+                    ? max(0, $municipalityBeneficiaries - $locationDeducted)
+                    : $provinceProject->reportBeneficiaries();
+                $municipalityActualFemale = $locationHasExactFemale
+                    ? max(0, $municipalityFemaleBeneficiaries - $locationDeductedFemale)
+                    : $provinceProject->reportFemaleBeneficiaries();
+
                 if ($location->municipality_id) {
                     $entriesByMunicipality[
                         $location->municipality_id
@@ -300,6 +338,8 @@ class ProjectProvinceSummaryController extends Controller
                         'beneficiaries' => $municipalityBeneficiaries,
                         'female_beneficiaries' =>
                             $municipalityFemaleBeneficiaries,
+                        'actual_beneficiaries' => $municipalityActual,
+                        'actual_female_beneficiaries' => $municipalityActualFemale,
                         'is_exact' => $locationHasExactTotal,
                     ]);
                 }
@@ -333,6 +373,16 @@ class ProjectProvinceSummaryController extends Controller
                             $barangayHasExactFemale
                                 ? (int) $barangay->pivot->beneficiaries_female
                                 : (int) $provinceProject->beneficiaries_female,
+
+                        'actual_beneficiaries' =>
+                            $barangayHasExactTotal
+                                ? max(0, (int) $barangay->pivot->beneficiaries_total - ($projectDeductions[$barangay->id]['total'] ?? 0))
+                                : $provinceProject->reportBeneficiaries(),
+
+                        'actual_female_beneficiaries' =>
+                            $barangayHasExactFemale
+                                ? max(0, (int) $barangay->pivot->beneficiaries_female - ($projectDeductions[$barangay->id]['female'] ?? 0))
+                                : $provinceProject->reportFemaleBeneficiaries(),
 
                         'is_exact' => $barangayHasExactTotal,
                     ]);
@@ -380,6 +430,8 @@ class ProjectProvinceSummaryController extends Controller
                         (int) $provinceProject->beneficiaries_total,
                     'female_beneficiaries' =>
                         (int) $provinceProject->beneficiaries_female,
+                    'actual_beneficiaries' => $provinceProject->reportBeneficiaries(),
+                    'actual_female_beneficiaries' => $provinceProject->reportFemaleBeneficiaries(),
                     'is_exact' => false,
                 ]);
             }
@@ -397,6 +449,8 @@ class ProjectProvinceSummaryController extends Controller
                         (int) $provinceProject->beneficiaries_total,
                     'female_beneficiaries' =>
                         (int) $provinceProject->beneficiaries_female,
+                    'actual_beneficiaries' => $provinceProject->reportBeneficiaries(),
+                    'actual_female_beneficiaries' => $provinceProject->reportFemaleBeneficiaries(),
                     'is_exact' => false,
                 ]);
             }
@@ -437,6 +491,8 @@ class ProjectProvinceSummaryController extends Controller
                                         (int) $entries->sum(
                                             'female_beneficiaries'
                                         ),
+                                    'actual_beneficiaries' => (int) $entries->sum('actual_beneficiaries'),
+                                    'actual_female_beneficiaries' => (int) $entries->sum('actual_female_beneficiaries'),
                                     'has_legacy_coverage' =>
                                         $entries->contains(
                                             fn (array $entry) =>
@@ -493,6 +549,12 @@ class ProjectProvinceSummaryController extends Controller
                                             'female_beneficiaries'
                                         )
                                         : (int) $project->beneficiaries_female,
+                                    'actual_beneficiaries' => $isExact
+                                        ? (int) $entries->sum('actual_beneficiaries')
+                                        : $project->reportBeneficiaries(),
+                                    'actual_female_beneficiaries' => $isExact
+                                        ? (int) $entries->sum('actual_female_beneficiaries')
+                                        : $project->reportFemaleBeneficiaries(),
                                     'is_exact' => $isExact,
                                 ];
                             })
@@ -524,10 +586,13 @@ class ProjectProvinceSummaryController extends Controller
                             (int) $municipalityEntries->sum(
                                 'female_beneficiaries'
                             ),
+                        'actual_beneficiaries' => (int) $municipalityEntries->sum('actual_beneficiaries'),
+                        'actual_female_beneficiaries' => (int) $municipalityEntries->sum('actual_female_beneficiaries'),
                         'amount_assisted' =>
                             (float) $municipalityProjects->sum(
                                 'total_project_cost'
                             ),
+                        'actual_amount' => (float) $municipalityProjects->sum(fn (Project $project) => $project->reportAmount()),
                         'has_legacy_coverage' =>
                             $municipalityEntries->contains(
                                 fn (array $entry) =>
@@ -565,10 +630,13 @@ class ProjectProvinceSummaryController extends Controller
                             (int) $municipalities->sum(
                                 'female_beneficiaries'
                             ),
+                        'actual_beneficiaries' => (int) $municipalities->sum('actual_beneficiaries'),
+                        'actual_female_beneficiaries' => (int) $municipalities->sum('actual_female_beneficiaries'),
                         'amount_assisted' =>
                             (float) $districtProjects->sum(
                                 'total_project_cost'
                             ),
+                        'actual_amount' => (float) $districtProjects->sum(fn (Project $project) => $project->reportAmount()),
                         'has_legacy_coverage' =>
                             $municipalities->contains(
                                 fn (array $municipality) =>
@@ -606,6 +674,15 @@ class ProjectProvinceSummaryController extends Controller
                 (int) $projects->sum('beneficiaries_female'),
             'amount_assisted' =>
                 (float) $projects->sum('total_project_cost'),
+
+            /*
+             * Actual: obligation tranches (beneficiaries and amount) once the Focal
+             * completes them, or the ACP payment; approved values otherwise.
+             */
+            'actual_beneficiaries' => (int) $projects->sum(fn (Project $project) => $project->reportBeneficiaries()),
+            'actual_female_beneficiaries' => (int) $projects->sum(fn (Project $project) => $project->reportFemaleBeneficiaries()),
+            'actual_amount' => (float) $projects->sum(fn (Project $project) => $project->reportAmount()),
+            'final_project_count' => $projects->filter(fn (Project $project) => $project->actualAmount() !== null)->count(),
             'has_legacy_coverage' => $hasLegacyCoverage,
         ];
 
@@ -634,6 +711,8 @@ class ProjectProvinceSummaryController extends Controller
         $project->loadMissing([
             'allocation.adl',
             'approval',
+            'obligations',
+            'acpPayment',
             'barangayReference',
             'municipalityReference',
             'projectLocations.municipality',
@@ -678,6 +757,8 @@ class ProjectProvinceSummaryController extends Controller
             ->with([
                 'allocation.adl',
                 'approval',
+                'obligations',
+                'acpPayment',
                 'barangayReference',
                 'municipalityReference',
                 'projectLocations.municipality',

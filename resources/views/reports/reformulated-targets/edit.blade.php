@@ -87,7 +87,7 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[820px] border-collapse text-sm">
+                <table class="tupad-report-table w-full min-w-[820px] border-collapse text-sm">
                     <thead>
                         <tr class="bg-[#063b86] text-white">
                             <th class="border border-blue-900 px-4 py-3 text-left text-xs font-extrabold uppercase tracking-wide">Province</th>

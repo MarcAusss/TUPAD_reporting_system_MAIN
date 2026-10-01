@@ -25,10 +25,10 @@ class MajorRevisionPhase14FOfficialPrintHeaderLayoutTest extends TestCase
             ->assertSee('Republic of the Philippines')
             ->assertSee('DEPARTMENT OF LABOR AND EMPLOYMENT')
             ->assertSee('Regional Office No. 5')
-            ->assertSee('report-print-meta-strip', false)
-            ->assertSee('Report Type:')
+            ->assertSee('report-print-title', false)
+            ->assertSee('Rating Guide:')
             ->assertSee('Physical and Financial Accomplishment')
-            ->assertSee('Date:')
+            ->assertSee('As of ')
             ->assertDontSee('official-print-header__meta', false)
             ->assertDontSee('official-print-header__brand', false)
             ->assertSee('report-table-wrap', false);

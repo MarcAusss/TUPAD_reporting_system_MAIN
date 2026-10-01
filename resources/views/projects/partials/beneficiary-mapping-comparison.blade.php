@@ -50,7 +50,7 @@
     </p>
 
     @if ($mappingRows === [])
-        <div class="px-5 py-10 text-center text-sm text-slate-400">No barangay allocations recorded.</div>
+        <x-empty-state icon="users" title="No barangay allocations recorded." action-label="Encode Beneficiary Mapping" action-target="beneficiaryAddressForm" action-tab="beneficiaries" message="Encode the Beneficiary Mapping Source on the Beneficiaries tab to compare the mappings per barangay." />
     @else
         <div class="grid gap-4 p-5 lg:grid-cols-2">
             @foreach ([

@@ -95,6 +95,15 @@ final readonly class ReportFilters
         }
     }
 
+    /**
+     * The same filters, but beneficiary geography uses the Actual Beneficiary
+     * Mapping (approved addresses less the TC's deductions).
+     */
+    public function withActualBeneficiaries(): self
+    {
+        return new self(...[...get_object_vars($this), 'actualBeneficiaries' => true]);
+    }
+
     public static function fromArray(array $filters): self
     {
         return new self(

@@ -39,7 +39,8 @@ class ProjectAcpWorkflowQueueController extends Controller
         $config = $this->config($queue);
 
         $query = app(ProvinceAccessService::class)
-            ->scopeProjects(Project::query(), $request->user())
+            ->scopeProjects(Project::query()->withStatusEnteredAt(), $request->user())
+                ->applyQuickFilters($request)
             ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
             ->whereIn('status', $config['statuses'])
             ->with([

@@ -60,7 +60,8 @@
             </div>
         </div>
 
-        <form method="GET" action="{{ route('projects.index') }}" class="p-5">
+        <form data-remember-filters method="GET" action="{{ route('projects.index') }}" class="p-5">
+        <x-quick-filters :inputs="true" />
             <div class="grid gap-4 xl:grid-cols-12">
                 <div class="xl:col-span-4">
                     <label for="project-registry-search" class="mb-1.5 block text-xs font-semibold text-slate-700">
@@ -164,13 +165,15 @@
                         class="inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800">
                         Apply Filters
                     </button>
-                    <a href="{{ route('projects.index') }}"
+                    <a href="{{ route('projects.index') }}" data-clear-filters
                         class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                         Reset
                     </a>
                 </div>
             </div>
         </form>
+
+    <x-quick-filters class="px-5 pb-4 -mt-1" />
 
         @if ($hasFilters)
             <div class="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3">
@@ -328,9 +331,7 @@
                             </td>
 
                             <td class="px-5 py-4">
-                                <span class="inline-flex max-w-[180px] rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                    {{ $project->status->label() }}
-                                </span>
+                                <x-project-status :project="$project" />
                             </td>
 
                             <td class="px-5 py-4 text-right">

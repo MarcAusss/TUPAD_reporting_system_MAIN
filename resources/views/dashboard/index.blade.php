@@ -100,6 +100,7 @@
 
             {{-- Charts first: the Focal role opens this dashboard mainly to read fund trend and geographic performance, not to browse queue boxes. --}}
             @include('dashboard.partials.fund-trend-chart')
+            @include('dashboard.partials.adl-utilization-chart')
             @include('dashboard.partials.geographic-analytics')
         @elseif ($roleMode === 'tc')
             @include('dashboard.partials.tc-operations-overview')
@@ -217,6 +218,7 @@
         @if ($roleMode === 'admin')
             @include('dashboard.partials.program-snapshot')
             @include('dashboard.partials.fund-trend-chart')
+            @include('dashboard.partials.adl-utilization-chart')
         @endif
 
         @if ($actionQueueData['oldest_items']->isNotEmpty())
@@ -354,13 +356,7 @@
                                 </td>
 
                                 <td class="px-5 py-4">
-                                    <x-status-badge :tone="$project->status === \App\Enums\ProjectStatus::COMPLETED
-                                        ? 'success'
-                                        : ($project->status === \App\Enums\ProjectStatus::FOR_COMPLIANCE
-                                            ? 'warning'
-                                            : 'info')">
-                                        {{ $project->status->label() }}
-                                    </x-status-badge>
+                                    <x-project-status :project="$project" />
                                 </td>
 
                                 <td class="px-5 py-4 text-right">

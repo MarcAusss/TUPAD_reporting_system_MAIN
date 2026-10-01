@@ -101,7 +101,7 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full min-w-max border-collapse text-[11px] text-slate-800">
+            <table class="tupad-report-table w-full min-w-max border-collapse text-[11px] text-slate-800">
                 <thead>
                     <tr>
                         <th rowspan="2" class="border border-slate-700 bg-[#f8d45b] px-3 py-2 text-left font-extrabold text-slate-900">AGENCY</th>

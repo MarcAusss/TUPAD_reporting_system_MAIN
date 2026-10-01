@@ -136,8 +136,9 @@ class NgaTargetReportController extends Controller
     {
         [$municipality, $province] = $this->resolveLocation($project);
 
-        $targetBeneficiaries = (int) $project->beneficiaries_total;
-        $targetAmount = (float) $project->total_project_cost;
+        $targetBeneficiaries = $project->reportBeneficiaries();
+        // Actual amount (obligation tranches / ACP payment) once final, else the proposed cost.
+        $targetAmount = $project->reportAmount();
 
         $accomplishedAmount = $project->implementation_mode === ImplementationMode::THROUGH_ACP
             ? (float) ($project->acpPayment?->amount ?? 0)

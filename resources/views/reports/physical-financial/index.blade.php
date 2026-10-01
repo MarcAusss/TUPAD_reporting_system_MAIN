@@ -178,7 +178,7 @@
         </div>
 
         <div class="overflow-x-auto p-4">
-            <table class="tupad-report-screen-table w-full min-w-max border-collapse text-[11px] text-slate-800">
+            <table class="tupad-report-table tupad-report-screen-table w-full min-w-max border-collapse text-[11px] text-slate-800">
                 @if ($viewKey === 'overall')
                     <thead>
                         <tr>

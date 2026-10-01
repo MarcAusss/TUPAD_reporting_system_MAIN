@@ -7,7 +7,7 @@
 
 <div class="overflow-x-auto">
     @if ($template['kind'] === 'utilization')
-        <table class="tupad-system-table tupad-report-screen-table min-w-[920px] w-full text-xs" aria-label="Fund Utilization Report">
+        <table class="tupad-report-table tupad-system-table tupad-report-screen-table min-w-[920px] w-full text-xs" aria-label="Fund Utilization Report">
             <thead>
                 <tr class="bg-[#071d44] text-white">
                     <th rowspan="2" class="border border-[#26456f] px-4 py-3 text-left font-bold">Province</th>
@@ -47,7 +47,7 @@
             </tfoot>
         </table>
     @else
-        <table class="tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1450px] w-full text-xs" aria-label="{{ $template['title'] }}">
+        <table class="tupad-report-table tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1450px] w-full text-xs" aria-label="{{ $template['title'] }}">
             <thead>
                 <tr class="bg-[#071d44] text-white">
                     <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">ADL No.</th>
@@ -84,7 +84,7 @@
                             <td class="border border-slate-200 px-3 py-3 text-right tabular-nums font-semibold text-slate-800">{{ $templateMoney($row['balance_cents']) }}</td>
                         </tr>
                     @endforeach
-                    <tr class="bg-[#e7f0fb] font-bold text-[#10294f]">
+                    <tr class="tupad-report-subtotal-row bg-[#e7f0fb] font-bold text-[#10294f]">
                         <td colspan="6" class="border border-[#b8cbe2] px-3 py-2.5">Sub-total</td>
                         <td class="border border-[#b8cbe2] px-3 py-2.5 text-right tabular-nums">{{ $templateMoney($group['subtotal']['allocation_cents']) }}</td>
                         <td class="border border-[#b8cbe2] px-3 py-2.5 text-right tabular-nums">{{ $templateMoney($group['subtotal']['accomplishment_cents']) }}</td>

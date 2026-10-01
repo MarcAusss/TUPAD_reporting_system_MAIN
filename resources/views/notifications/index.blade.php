@@ -65,7 +65,7 @@
                                 View Section
                             </a>
                             @foreach ($item['actions'] ?? [] as $action)
-                                <form method="POST" action="{{ $action['url'] }}">
+                                <form method="POST" action="{{ $action['url'] }}" @if(! empty($action['confirm'])) data-confirm="{{ $action['confirm'] }}" data-confirm-title="{{ $action['label'] }} this request?" data-confirm-button="{{ $action['label'] }}" data-confirm-tone="{{ $action['style'] === 'primary' ? 'primary' : 'danger' }}" @endif>
                                     @csrf
                                     <button type="submit"
                                         class="inline-flex h-9 items-center rounded-lg px-4 text-xs font-semibold {{ $action['style'] === 'primary' ? 'bg-[#063b86] text-white hover:bg-[#052f6b]' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' }}">
@@ -91,10 +91,7 @@
 
         <div data-live-notification-list class="divide-y divide-slate-100">
             @if ($notificationData['items']->isEmpty())
-                <div class="px-5 py-12 text-center" data-notification-empty>
-                    <div class="text-sm font-semibold text-slate-800">No pending notifications</div>
-                    <p class="mt-1 text-xs text-slate-500">There are no current workflow actions requiring your role.</p>
-                </div>
+                <x-empty-state data-notification-empty icon="bell" title="No pending notifications" message="There are no current workflow actions requiring your role." />
             @else
                 @foreach ($notificationData['items'] as $item)
                     @php

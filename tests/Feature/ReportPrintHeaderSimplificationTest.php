@@ -25,10 +25,10 @@ class ReportPrintHeaderSimplificationTest extends TestCase
 
         $response->assertOk()
             ->assertSee('dole-official-letterhead', false)
-            ->assertSee('report-print-meta-strip', false)
-            ->assertSee('Report Type:')
+            ->assertSee('report-print-title', false)
+            ->assertSee('Rating Guide:')
             ->assertSee('Summary per Province')
-            ->assertSee('Date:')
+            ->assertSee('As of ')
             ->assertDontSee('official-print-header__meta', false)
             ->assertDontSee('official-print-header__title', false);
     }
@@ -47,12 +47,12 @@ class ReportPrintHeaderSimplificationTest extends TestCase
 
         $response->assertOk()
             ->assertSee('dole-official-letterhead', false)
-            ->assertSee('report-print-meta-strip', false)
-            ->assertSee('Report Type:')
+            ->assertSee('report-print-title', false)
+            ->assertSee('Rating Guide:')
             ->assertSee('Physical and Financial Accomplishment')
-            ->assertSee('Date:')
+            ->assertSee('As of ')
             ->assertSee('@page { size: Letter portrait;', false)
-            ->assertSee('.pf-print-page .dole-official-letterhead__inner', false);
+            ->assertSee('.print-portrait .dole-official-letterhead__inner', false);
     }
 
     public function test_periodic_print_uses_the_same_shared_letterhead_and_simplified_identity_strip(): void
@@ -70,10 +70,10 @@ class ReportPrintHeaderSimplificationTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('dole-official-letterhead', false)
-            ->assertSee('report-print-meta-strip', false)
-            ->assertSee('Report Type:')
+            ->assertSee('report-print-title', false)
+            ->assertSee('Rating Guide:')
             ->assertSee('Statistical Performance Reporting System (SPRS)')
-            ->assertSee('Date:')
+            ->assertSee('As of ')
             ->assertDontSee('official-print-header__meta', false);
     }
 }

@@ -66,7 +66,7 @@ final class ExecutiveDashboardService
                     'key' => $mode->value,
                     'label' => $mode->label(),
                     'project_count' => $projects->count(),
-                    'beneficiaries_total' => (int) $projects->sum('beneficiaries_total'),
+                    'beneficiaries_total' => (int) $projects->sum(fn (Project $project): int => $project->reportBeneficiaries()),
                 ];
             })
             ->values()
@@ -81,8 +81,9 @@ final class ExecutiveDashboardService
             $projectCohort,
         );
 
+        // Actual Beneficiary Mapping (approved addresses less the TC's deductions).
         $provinceRows = $this->reporting->beneficiaryGeography(
-            $filters,
+            $filters->withActualBeneficiaries(),
             ReportDimension::PROVINCE,
         );
         $sectorRows = $this->reporting->sectorAggregation(
@@ -118,7 +119,8 @@ final class ExecutiveDashboardService
                 $projectCohort,
             )->first();
 
-        $geographicBeneficiaries = $this->geographicBeneficiaryTotals($filters);
+        $geographicBeneficiaries = $this->geographicBeneficiaryTotals($filters, actual: true);
+        $geographicApprovedBeneficiaries = $this->geographicBeneficiaryTotals($filters);
         $beneficiariesTotal = $geographicBeneficiaries['beneficiaries_total']
             ?? (int) $overall['beneficiaries_total'];
         $beneficiariesFemale = $geographicBeneficiaries['beneficiaries_female']
@@ -181,8 +183,23 @@ final class ExecutiveDashboardService
                 : null,
         ];
 
+        // Approved (Create Project) vs Actual (completed obligation tranches / ACP payment).
+        $approvedVsActual = [
+            'approved_beneficiaries' => $geographicApprovedBeneficiaries['beneficiaries_total']
+                ?? (int) $projectCohort->sum('beneficiaries_total'),
+            'approved_female' => $geographicApprovedBeneficiaries['beneficiaries_female']
+                ?? (int) $projectCohort->sum('beneficiaries_female'),
+            'actual_beneficiaries' => $beneficiariesTotal,
+            'actual_female' => $beneficiariesFemale,
+            'approved_amount_cents' => $fineGeographySelected ? null : (int) ($overall['proposed_cost_cents'] ?? 0),
+            'actual_amount_cents' => $fineGeographySelected ? null : (int) ($overall['project_cost_cents'] ?? 0),
+            'final_project_count' => $projectCohort->filter(fn (Project $project): bool => $project->actualAmount() !== null)->count(),
+            'project_count' => $projectCohort->count(),
+        ];
+
         return [
             'generated_at' => CarbonImmutable::now('Asia/Manila'),
+            'approved_vs_actual' => $approvedVsActual,
             'filters' => $filters,
             'active_filters' => $this->activeFilterLabels($filters),
             'kpis' => $kpis,
@@ -317,7 +334,7 @@ final class ExecutiveDashboardService
         ];
     }
 
-    private function geographicBeneficiaryTotals(ReportFilters $filters): ?array
+    private function geographicBeneficiaryTotals(ReportFilters $filters, bool $actual = false): ?array
     {
         $dimension = match (true) {
             $filters->barangayId !== null => ReportDimension::BARANGAY,
@@ -332,7 +349,7 @@ final class ExecutiveDashboardService
         }
 
         $rows = $this->reporting->beneficiaryGeography(
-            $filters,
+            $actual ? $filters->withActualBeneficiaries() : $filters,
             $dimension,
         );
 

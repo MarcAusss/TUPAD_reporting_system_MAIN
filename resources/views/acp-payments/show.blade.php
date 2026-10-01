@@ -10,6 +10,7 @@
 
 <x-page-header
     eyebrow="Through ACP"
+    :breadcrumbs="\App\Support\Breadcrumbs::forProject($project, 'ACP Payment & Check Release')"
     :title="$project->project_title"
     description="Record the approved ACP payment and the audited release of check to the proponent."
 >
@@ -83,7 +84,7 @@
             </p>
         </div>
 
-        <form method="POST" action="{{ route('projects.acp-payment.store', $project) }}" class="p-5">
+        <form method="POST" action="{{ route('projects.acp-payment.store', $project) }}" class="p-5" data-warn-unsaved data-confirm-title="Record the ACP payment?" data-confirm="The project moves to For Release of Check to Proponent." data-confirm-button="Record Payment">
             @csrf
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
@@ -145,7 +146,7 @@
             </p>
         </div>
 
-        <form method="POST" action="{{ route('projects.acp-check-release.store', $project) }}" enctype="multipart/form-data" class="p-5">
+        <form method="POST" action="{{ route('projects.acp-check-release.store', $project) }}" enctype="multipart/form-data" class="p-5" data-warn-unsaved data-confirm-title="Record the check release?" data-confirm="The project moves to For Implementation and the TUPAD Coordinator can start the preparation steps." data-confirm-button="Record Check Release">
             @csrf
             <div class="grid gap-4 md:grid-cols-2">
                 <div>

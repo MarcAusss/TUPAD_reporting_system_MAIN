@@ -243,7 +243,7 @@ class MajorRevisionPhase14GFinalReportsReleaseVerificationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('reports.periodic.print', $query))
             ->assertOk()
-            ->assertSee('TUPAD Reporting System')
+            ->assertSee('DEPARTMENT OF LABOR AND EMPLOYMENT')
             ->assertSee('Statistical Performance Reporting System (SPRS)')
             ->assertSee('August 2026');
 

@@ -39,6 +39,13 @@ function initializeWorkspaceTabs(root) {
             panel.classList.toggle('hidden', panel.dataset.workspacePanel !== tab);
         });
 
+        // Keep the breadcrumb's last item (Projects › Province › Title › Tab) in sync.
+        const activeButton = buttons.find((button) => button.dataset.workspaceTabTarget === tab);
+        const crumb = document.querySelector('[data-breadcrumb-tab] [data-breadcrumb-label]');
+        if (crumb && activeButton) {
+            crumb.textContent = activeButton.textContent.replace(/\s+/g, ' ').trim();
+        }
+
         if (options.updateUrl !== false) {
             const url = new URL(window.location.href);
             url.searchParams.set('workspace', tab);
@@ -236,6 +243,50 @@ function initializeQuickWorkflowModal() {
     }
 }
 
+function initializeNextActionDock(root) {
+    const dock = root.querySelector('[data-quick-workflow-dock]');
+    const sentinel = root.querySelector('[data-next-action-sentinel]');
+
+    if (!dock || !sentinel || !('IntersectionObserver' in window)) {
+        return;
+    }
+
+    // The header card already shows the next action, so the floating dock only
+    // appears once that card has scrolled out of view.
+    const setHidden = (hidden) => {
+        dock.classList.toggle('opacity-0', hidden);
+        dock.classList.toggle('pointer-events-none', hidden);
+        dock.classList.toggle('-translate-y-2', hidden);
+        dock.inert = hidden;
+    };
+
+    setHidden(true);
+
+    new IntersectionObserver(([entry]) => setHidden(entry.isIntersecting), {
+        rootMargin: '-90px 0px 0px 0px',
+    }).observe(sentinel);
+}
+
+function highlightSavedSection() {
+    const anchor = window.location.hash.replace('#', '');
+    const saved = document.querySelector('[role="status"].border-emerald-200, [role="status"].tupad-feedback-success');
+
+    if (!anchor || !saved) {
+        return;
+    }
+
+    const target = document.getElementById(anchor);
+
+    if (!target) {
+        return;
+    }
+
+    window.setTimeout(() => {
+        target.classList.add('tupad-saved-highlight');
+        target.addEventListener('animationend', () => target.classList.remove('tupad-saved-highlight'), { once: true });
+    }, 250);
+}
+
 export function initializeProjectWorkspace() {
     const root = document.querySelector('[data-project-workspace]');
 
@@ -247,4 +298,6 @@ export function initializeProjectWorkspace() {
     initializeImplementationPeriod();
     initializeEvaluationFields();
     initializeQuickWorkflowModal();
+    initializeNextActionDock(root);
+    highlightSavedSection();
 }

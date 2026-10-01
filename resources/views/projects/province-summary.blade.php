@@ -94,16 +94,18 @@
             <table class="tupad-system-table tupad-wide-table w-full min-w-375 table-fixed text-[10px] xl:min-w-0">
 
                 <colgroup>
+                    <col class="w-[8%]">
+                    <col class="w-[8%]">
+                    <col class="w-[15%]">
+                    <col class="w-[6%]">
+                    <col class="w-[6%]">
                     <col class="w-[9%]">
-                    <col class="w-[10%]">
-                    <col class="w-[17%]">
+                    <col class="w-[9%]">
+                    <col class="w-[5%]">
+                    <col class="w-[9%]">
                     <col class="w-[8%]">
-                    <col class="w-[11%]">
-                    <col class="w-[7%]">
-                    <col class="w-[10%]">
                     <col class="w-[8%]">
-                    <col class="w-[10%]">
-                    <col class="w-[10%]">
+                    <col class="w-[9%]">
                 </colgroup>
 
                 <thead class="bg-[#f6f8fb] text-[#173b70]">
@@ -122,11 +124,19 @@
                         </th>
 
                         <th class="border-b border-r border-slate-200 px-2 py-3 text-center font-bold">
-                            Total Benefs.
+                            Approved Benefs.
+                        </th>
+
+                        <th class="border-b border-r border-slate-200 px-2 py-3 text-center font-bold" title="Beneficiaries on the completed obligation tranches (net of beneficiaries not included)">
+                            Actual Benefs.
                         </th>
 
                         <th class="border-b border-r border-slate-200 px-2 py-3 text-center font-bold">
-                            Total Amount Assisted
+                            Approved Amount
+                        </th>
+
+                        <th class="border-b border-r border-slate-200 px-2 py-3 text-center font-bold" title="Total of all obligation tranches (Direct Administration) or the ACP payment (Through ACP)">
+                            Actual Amount
                         </th>
 
                         <th class="border-b border-r border-slate-200 px-2 py-3 text-center font-bold">
@@ -173,6 +183,12 @@
                                 (float) $project->wages_total +
                                 (float) $project->ppe_total +
                                 (float) $project->insurance_total;
+
+                            $actualIsFinal = $project->actualAmount() !== null;
+                            $actualBenefs = $project->reportBeneficiaries();
+                            $benefsGap = (int) $project->beneficiaries_total - $actualBenefs;
+                            $actualAmount = $project->reportAmount();
+                            $amountGap = (float) $project->total_project_cost - $actualAmount;
                         @endphp
 
                         <tr class="js-project-register-row hover:bg-slate-50"
@@ -196,8 +212,28 @@
                                 {{ number_format($project->beneficiaries_total) }}
                             </td>
 
+                            <td class="border-r border-slate-100 px-2 py-3 text-center font-semibold {{ $actualIsFinal ? 'text-emerald-800' : 'text-slate-400' }}"
+                                data-sort-value="{{ $actualBenefs }}">
+                                {{ number_format($actualBenefs) }}
+                                @if ($actualIsFinal && $benefsGap !== 0)
+                                    <span class="block text-[9px] font-bold text-amber-700">{{ $benefsGap > 0 ? '−' : '+' }}{{ number_format(abs($benefsGap)) }}</span>
+                                @elseif (! $actualIsFinal)
+                                    <span class="block text-[9px] font-medium">not final</span>
+                                @endif
+                            </td>
+
                             <td class="border-r border-slate-100 px-2 py-3 text-right font-semibold text-slate-700">
                                 ₱{{ number_format((float) $project->total_project_cost, 2) }}
+                            </td>
+
+                            <td class="border-r border-slate-100 px-2 py-3 text-right font-semibold {{ $actualIsFinal ? 'text-emerald-800' : 'text-slate-400' }}"
+                                data-sort-value="{{ $actualAmount }}">
+                                ₱{{ number_format($actualAmount, 2) }}
+                                @if ($actualIsFinal && abs($amountGap) >= 0.01)
+                                    <span class="block text-[9px] font-bold text-amber-700">{{ $amountGap > 0 ? '−' : '+' }}₱{{ number_format(abs($amountGap), 2) }}</span>
+                                @elseif (! $actualIsFinal)
+                                    <span class="block text-[9px] font-medium">not final</span>
+                                @endif
                             </td>
 
                             <td class="border-r border-slate-100 px-2 py-3 text-center text-slate-700">
@@ -225,9 +261,7 @@
                     @empty
 
                         <tr>
-                            <td colspan="10" class="px-5 py-12 text-center text-sm text-slate-400">
-                                No official projects are recorded for {{ $province->name }}.
-                            </td>
+                            <td colspan="12" class="p-0"><x-empty-state size="sm" icon="document" title="No official projects are recorded for {{ $province->name }}." message="Projects created for this province will be listed here." :action-label="auth()->user()->isAdmin() || auth()->user()->isTc() ? 'Create Project' : null" :action-href="auth()->user()->isAdmin() || auth()->user()->isTc() ? route('projects.create') : null" /></td>
                         </tr>
                     @endforelse
 
@@ -245,8 +279,16 @@
                                 {{ number_format($provinceStats['beneficiaries']) }}
                             </td>
 
+                            <td class="border-r border-slate-200 px-2 py-3 text-center text-emerald-800">
+                                {{ number_format($provinceStats['actual_beneficiaries']) }}
+                            </td>
+
                             <td class="border-r border-slate-200 px-2 py-3 text-right">
                                 ₱{{ number_format($provinceStats['amount_assisted'], 2) }}
+                            </td>
+
+                            <td class="border-r border-slate-200 px-2 py-3 text-right text-emerald-800">
+                                ₱{{ number_format($provinceStats['actual_amount'], 2) }}
                             </td>
 
                             <td class="border-r border-slate-200 px-2 py-3"></td>
@@ -280,6 +322,66 @@
 
         </div>
 
+    </section>
+
+    {{-- =========================================================
+    Approved vs Actual (obligation tranches / ACP payment)
+========================================================== --}}
+    @php
+        $comparisonRows = [
+            ['label' => 'Beneficiaries', 'approved' => $provinceStats['beneficiaries'], 'actual' => $provinceStats['actual_beneficiaries'], 'money' => false],
+            ['label' => 'Female Beneficiaries', 'approved' => $provinceStats['female_beneficiaries'], 'actual' => $provinceStats['actual_female_beneficiaries'], 'money' => false],
+            ['label' => 'Amount', 'approved' => $provinceStats['amount_assisted'], 'actual' => $provinceStats['actual_amount'], 'money' => true],
+        ];
+    @endphp
+
+    <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-province-approved-actual>
+        <div class="flex flex-col gap-2 border-b border-slate-200 bg-[#fbfcfe] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-[#063b86]">Approved vs Actual</div>
+                <p class="mt-1 text-xs leading-5 text-slate-500">
+                    Approved = encoded when the project was created. Actual = the completed obligation tranches (net of beneficiaries not included) or the ACP payment.
+                    Projects whose obligations are not yet final count at their approved values.
+                </p>
+            </div>
+            <span class="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                {{ number_format($provinceStats['final_project_count']) }} of {{ number_format($provinceStats['project_count']) }} project(s) final
+            </span>
+        </div>
+
+        <div class="grid gap-3 p-5 md:grid-cols-3">
+            @foreach ($comparisonRows as $row)
+                @php
+                    $gap = $row['approved'] - $row['actual'];
+                    $format = fn ($value) => $row['money'] ? '₱'.number_format((float) $value, 2) : number_format((int) $value);
+                    $percent = $row['approved'] > 0 ? round($row['actual'] / $row['approved'] * 100, 1) : 0;
+                @endphp
+                <div class="rounded-xl border border-slate-200 p-4">
+                    <div class="text-[10px] font-bold uppercase tracking-wide text-slate-500">{{ $row['label'] }}</div>
+                    <dl class="mt-3 grid grid-cols-2 gap-2">
+                        <div>
+                            <dt class="text-[10px] font-semibold text-slate-400">Approved</dt>
+                            <dd class="text-sm font-bold text-slate-800">{{ $format($row['approved']) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-semibold text-emerald-600">Actual</dt>
+                            <dd class="text-sm font-bold text-emerald-800">{{ $format($row['actual']) }}</dd>
+                        </div>
+                    </dl>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+                        <div class="h-full rounded-full bg-emerald-500" style="width: {{ min(100, $percent) }}%"></div>
+                    </div>
+                    <div class="mt-1.5 flex items-center justify-between text-[11px]">
+                        <span class="text-slate-500">{{ $percent }}% of approved</span>
+                        @if (abs($gap) >= ($row['money'] ? 0.01 : 1))
+                            <span class="font-bold text-amber-700">{{ $gap > 0 ? '−' : '+' }}{{ $format(abs($gap)) }}</span>
+                        @else
+                            <span class="font-semibold text-emerald-700">No difference</span>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
     </section>
 
     {{-- =========================================================
@@ -473,6 +575,7 @@
                                 <div class="mt-0.5 text-xs font-bold text-slate-700">
                                     {{ number_format($district['beneficiaries']) }}
                                 </div>
+                                <div class="mt-0.5 text-[9px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual {{ number_format($district['actual_beneficiaries']) }}</div>
                             </div>
 
                             <div class="text-right">
@@ -483,6 +586,7 @@
                                 <div class="mt-0.5 text-xs font-bold text-slate-700">
                                     {{ number_format($district['female_beneficiaries']) }}
                                 </div>
+                                <div class="mt-0.5 text-[9px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual {{ number_format($district['actual_female_beneficiaries']) }}</div>
                             </div>
 
                             <div class="text-right">
@@ -493,6 +597,7 @@
                                 <div class="mt-0.5 text-xs font-bold text-[#063b86]">
                                     ₱{{ number_format($district['amount_assisted'], 2) }}
                                 </div>
+                                <div class="mt-0.5 text-[9px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual ₱{{ number_format($district['actual_amount'], 2) }}</div>
                             </div>
 
                         </div>
@@ -556,14 +661,17 @@
 
                                         <div class="text-right text-xs font-semibold text-slate-700">
                                             {{ number_format($municipality['beneficiaries']) }}
+                                            <div class="text-[9px] font-semibold text-emerald-700">Actual {{ number_format($municipality['actual_beneficiaries']) }}</div>
                                         </div>
 
                                         <div class="text-right text-xs font-semibold text-slate-700">
                                             {{ number_format($municipality['female_beneficiaries']) }}
+                                            <div class="text-[9px] font-semibold text-emerald-700">Actual {{ number_format($municipality['actual_female_beneficiaries']) }}</div>
                                         </div>
 
                                         <div class="text-right text-xs font-bold text-[#063b86]">
                                             ₱{{ number_format($municipality['amount_assisted'], 2) }}
+                                            <div class="text-[9px] font-semibold text-emerald-700">Actual ₱{{ number_format($municipality['actual_amount'], 2) }}</div>
                                         </div>
 
                                     </div>
@@ -611,6 +719,9 @@
 
                                                             <div class="text-right text-[10px] font-bold text-slate-700">
                                                                 {{ number_format($barangay['beneficiaries']) }}
+                                                                @if ($barangay['actual_beneficiaries'] !== $barangay['beneficiaries'])
+                                                                    <div class="text-[9px] font-semibold text-emerald-700">Actual {{ number_format($barangay['actual_beneficiaries']) }}</div>
+                                                                @endif
                                                             </div>
 
                                                         </div>
@@ -647,6 +758,11 @@
                                                                         {{ number_format($projectEntry['beneficiaries']) }}
                                                                         benef.
                                                                     </span>
+                                                                    @if (($projectEntry['actual_beneficiaries'] ?? $projectEntry['beneficiaries']) !== $projectEntry['beneficiaries'])
+                                                                        <span class="font-semibold text-emerald-700">
+                                                                            {{ number_format($projectEntry['actual_beneficiaries']) }} actual
+                                                                        </span>
+                                                                    @endif
                                                                 </div>
 
                                                             </div>

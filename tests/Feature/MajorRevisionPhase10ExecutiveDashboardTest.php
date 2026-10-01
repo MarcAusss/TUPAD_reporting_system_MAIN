@@ -95,6 +95,14 @@ class MajorRevisionPhase10ExecutiveDashboardTest extends TestCase
         $this->assertSame(400000, $data['kpis']['balance_cents']);
         $this->assertSame(50.0, $data['kpis']['physical_accomplishment_percent']);
         $this->assertSame(20.0, $data['kpis']['financial_accomplishment_percent']);
+
+        // Approved (Create Project) vs Actual (completed tranches / ACP payment).
+        $comparison = $data['approved_vs_actual'];
+        $this->assertSame(2, $comparison['project_count']);
+        $this->assertSame(30, $comparison['actual_beneficiaries']);
+        $this->assertSame(165000, $comparison['actual_amount_cents']);
+        $this->assertIsInt($comparison['approved_amount_cents']);
+        $this->assertGreaterThanOrEqual($comparison['actual_beneficiaries'], $comparison['approved_beneficiaries']);
     }
 
     public function test_monthly_and_quarterly_filters_apply_consistently_to_project_and_labor_metrics(): void

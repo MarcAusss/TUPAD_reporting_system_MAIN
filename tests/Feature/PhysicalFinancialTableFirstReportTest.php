@@ -63,7 +63,7 @@ class PhysicalFinancialTableFirstReportTest extends TestCase
                 'fiscal_year' => 2026,
             ]))
             ->assertOk()
-            ->assertSee('Letter-size portrait')
+            ->assertSee('@page { size: Letter portrait;', false)
             ->assertSee('1st Semester')
             ->assertSee('2nd Semester')
             ->assertDontSee('Short-Term')

@@ -214,7 +214,8 @@ final class ReportGenerationService
             $this->column('wages_cents', 'Wages', 'money'),
             $this->column('ppe_cents', 'PPE', 'money'),
             $this->column('insurance_cents', 'Insurance', 'money'),
-            $this->column('project_cost_cents', 'Project Cost', 'money'),
+            $this->column('proposed_cost_cents', 'Approved Amount', 'money'),
+            $this->column('actual_cost_cents', 'Actual Amount', 'money'),
             $this->column('obligated_cents', 'Obligated', 'money'),
             $this->column('disbursed_cents', 'Disbursed', 'money'),
         ];
@@ -296,7 +297,8 @@ final class ReportGenerationService
             $this->column('project_count', 'Projects', 'integer'),
             $this->column('beneficiaries_total', 'Beneficiaries', 'integer'),
             $this->column('beneficiaries_female', 'Female', 'integer'),
-            $this->column('project_cost_cents', 'Project Cost', 'money'),
+            $this->column('proposed_cost_cents', 'Approved Amount', 'money'),
+            $this->column('actual_cost_cents', 'Actual Amount', 'money'),
         ]));
     }
 
@@ -405,7 +407,8 @@ final class ReportGenerationService
             $this->card('Projects', $row['project_count'] ?? 0, 'integer'),
             $this->card('Beneficiaries', $row['beneficiaries_total'] ?? 0, 'integer'),
             $this->card('Female', $row['beneficiaries_female'] ?? 0, 'integer'),
-            $this->card('Project Cost', $row['project_cost_cents'] ?? 0, 'money'),
+            $this->card('Approved Amount', $row['proposed_cost_cents'] ?? 0, 'money'),
+            $this->card('Actual Amount', $row['actual_cost_cents'] ?? 0, 'money'),
             $this->card('Obligated', $row['obligated_cents'] ?? 0, 'money'),
             $this->card('Disbursed', $row['disbursed_cents'] ?? 0, 'money'),
         ];
@@ -467,7 +470,8 @@ final class ReportGenerationService
             $this->card('Intervention Categories', $rows->count(), 'integer'),
             $this->card('Projects', $rows->sum('project_count'), 'integer'),
             $this->card('Beneficiaries', $rows->sum('beneficiaries_total'), 'integer'),
-            $this->card('Project Cost', $rows->sum('project_cost_cents'), 'money'),
+            $this->card('Approved Amount', $rows->sum('proposed_cost_cents'), 'money'),
+            $this->card('Actual Amount', $rows->sum('actual_cost_cents'), 'money'),
         ];
     }
 

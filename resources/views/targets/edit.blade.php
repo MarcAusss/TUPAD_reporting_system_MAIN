@@ -50,7 +50,7 @@
     </form>
 
     <form method="POST" action="{{ route('targets.destroy', $target) }}" class="border-t border-slate-200 pt-5"
-        onsubmit="return confirm('Remove this NGA target? This cannot be undone.');">
+        data-confirm-title="Remove this NGA target?" data-confirm="This cannot be undone." data-confirm-button="Remove Target" data-confirm-tone="danger">
         @csrf
         @method('DELETE')
         <button

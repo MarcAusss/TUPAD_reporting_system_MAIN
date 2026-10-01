@@ -84,6 +84,7 @@ final class PhysicalFinancialMatrixService
             'basis_note' => implode(' ', [
                 'Reformulated physical and financial targets use Focal-maintained province targets for the selected fiscal year when saved.',
                 'If no Focal-maintained target exists for a province/year, the report keeps the previous project-derived target as a fallback.',
+                'The project-derived financial target uses each project\'s actual amount (total of its obligation tranches, or the ACP payment) once final, and its approved Total Project Cost otherwise.',
                 'Physical accomplishment uses beneficiaries on projects currently marked Completed.',
                 'Financial accomplishment uses recorded disbursements.',
                 'Balance is target less accomplishment.',
@@ -243,7 +244,7 @@ final class PhysicalFinancialMatrixService
             ->first() ?? [];
 
         return [
-            'physical' => (int) $projects->sum('beneficiaries_total'),
+            'physical' => (int) $projects->sum(fn (Project $project): int => $project->reportBeneficiaries()),
             'financial_cents' => (int) ($metrics['project_cost_cents'] ?? 0),
         ];
     }
@@ -265,7 +266,7 @@ final class PhysicalFinancialMatrixService
                     fn (Project $project): bool =>
                         $project->status === ProjectStatus::COMPLETED
                 )
-                ->sum('beneficiaries_total'),
+                ->sum(fn (Project $project): int => $project->reportBeneficiaries()),
             'financial_cents' => (int) ($metrics['disbursed_cents'] ?? 0),
         ];
     }

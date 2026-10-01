@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -15,43 +15,37 @@
             && is_array($report['fund_status_template'] ?? null);
     @endphp
 
+    {{--
+        Official print layout: letterhead, report title, the table, and signatories.
+        Nothing else is printed (no criteria strip, summary cards, notes or footers).
+    --}}
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; padding: 18px; font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: #111827; background: #fff; }
+        body { margin: 0; padding: 18px; font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: #000; background: #fff; }
         .toolbar { margin-bottom: 14px; text-align: right; }
         .toolbar button { border: 1px solid #94a3b8; border-radius: 4px; background: #fff; padding: 8px 14px; cursor: pointer; }
 
-
-        .criteria { margin-top: 9px; border: 1px solid #cbd5e1; padding: 7px 9px; background: #f8fafc; }
-        .criteria span { display: inline-block; margin: 2px 13px 2px 0; }
-        .summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; margin: 9px 0; }
-        .summary-item { border: 1px solid #cbd5e1; padding: 6px; }
-        .summary-label { color: #64748b; font-size: 7px; font-weight: bold; text-transform: uppercase; }
-        .summary-value { margin-top: 3px; font-size: 11px; font-weight: bold; }
-        .warning { margin: 8px 0; border: 1px solid #d97706; background: #fffbeb; padding: 7px; color: #78350f; }
-        .report-table-wrap { margin-top: 8px; }
+        .report-table-wrap { margin-top: 2mm; }
         table { width: 100%; border-collapse: collapse; table-layout: auto; }
         thead { display: table-header-group; }
         tr { break-inside: avoid; }
-        th, td { border: 1px solid #64748b; padding: 5px; vertical-align: middle; overflow-wrap: anywhere; }
-        th { background: #d9edf3; color: #0f172a; font-size: 7px; text-align: left; text-transform: uppercase; }
+        th, td { border: 1px solid #000; padding: 4px 5px; vertical-align: middle; overflow-wrap: anywhere; }
+        th { background: #d9edf3; color: #000; font-size: 7.5px; font-weight: 700; text-align: center; text-transform: uppercase; }
+        td { font-size: 8px; }
         .right { text-align: right; white-space: nowrap; }
-        .empty { padding: 18px; text-align: center; color: #64748b; }
-        .footer { margin-top: 9px; border-top: 1px solid #cbd5e1; padding-top: 6px; color: #64748b; font-size: 7px; }
+        .empty { padding: 18px; text-align: center; color: #475569; }
 
         .pf-print-page { break-after: page; }
         .pf-print-page:last-of-type { break-after: auto; }
-        .pf-print-page .criteria { font-size: 7px; }
-        .pf-period-title { margin: 10px 0 6px; text-align: center; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         .pf-matrix { table-layout: fixed; }
         .pf-matrix th, .pf-matrix td { text-align: center; font-size: 8px; }
+        .pf-matrix td.right { text-align: right; }
         .pf-matrix .province { text-align: left; font-weight: 700; }
         .pf-head-target { background: #cb3f1d; color: #fff; font-weight: 800; }
-        .pf-head-accomplishment { background: #f8d45b; color: #111827; font-weight: 800; }
-        .pf-head-balance { background: #f0b27a; color: #111827; font-weight: 800; }
-        .pf-head-leaf { background: #fff7db; color: #111827; font-weight: 800; }
+        .pf-head-accomplishment { background: #f8d45b; color: #000; font-weight: 800; }
+        .pf-head-balance { background: #f0b27a; color: #000; font-weight: 800; }
+        .pf-head-leaf { background: #fff7db; color: #000; font-weight: 800; }
         .pf-total td { background: #3f3f3f; color: #fff; font-weight: 800; }
-        .pf-note { margin-top: 7px; font-size: 6.8px; line-height: 1.35; color: #64748b; }
 
         .sprs-matrix { table-layout: fixed; }
         .sprs-matrix th, .sprs-matrix td { text-align: center; font-size: 6.8px; padding: 4px 3px; }
@@ -62,28 +56,11 @@
         .sprs-matrix .sprs-quarter td { background: #f8fafc; font-weight: 800; }
         .sprs-matrix .sprs-grand-total td { background: #3f3f3f; color: #fff; font-weight: 800; }
         .sprs-matrix .sprs-future td { color: #94a3b8; background: #f8fafc; }
-        .sprs-note { margin-top: 7px; font-size: 6.8px; line-height: 1.4; color: #64748b; }
-
-        .pf-print-page .dole-official-letterhead__inner {
-            grid-template-columns: 82px minmax(0, 1fr) 132px;
-            gap: 9px;
-        }
-        .pf-print-page .dole-official-letterhead__dole-logo { width: 58px; max-height: 58px; }
-        .pf-print-page .dole-official-letterhead__bagong-logo { width: 36px; max-height: 46px; }
-        .pf-print-page .dole-official-letterhead__iso-logo { width: 88px; max-height: 46px; }
-        .pf-print-page .dole-official-letterhead__republic { font-size: 7.2pt; }
-        .pf-print-page .dole-official-letterhead__department { font-size: 8.4pt; }
-        .pf-print-page .dole-official-letterhead__region { font-size: 7.5pt; }
-        .pf-print-page .dole-official-letterhead__address,
-        .pf-print-page .dole-official-letterhead__contact,
-        .pf-print-page .dole-official-letterhead__email { font-size: 6.2pt; }
-        .pf-print-page .report-print-meta-strip { padding: 5px 7px; }
-        .pf-print-page .report-print-meta-strip__item { font-size: 6.8px; }
 
         @media print {
             body { padding: 0; }
             .no-print { display: none; }
-            .dole-official-letterhead, .report-print-meta-strip { break-inside: avoid; }
+            th, td, .pf-total td, .sprs-grand-total td { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
             @if ($isPhysicalFinancial)
                 @page { size: Letter portrait; margin: 9mm; }
             @else
@@ -96,7 +73,7 @@
     <link rel="shortcut icon" type="image/png" href="{{ asset('images/favicon.png') }}">
 </head>
 
-<body>
+<body class="{{ $isPhysicalFinancial ? 'print-portrait' : 'print-landscape' }}">
     <div class="toolbar no-print">
         <button type="button" onclick="window.print()">Print Report</button>
     </div>
@@ -108,7 +85,7 @@
         @php
             $matrix = $report['physical_financial_matrix'];
             $dimension = $report['dimension'];
-            $matrixMoney = static fn (mixed $cents): string => 'â‚±' . number_format(((int) $cents) / 100, 2);
+            $matrixMoney = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
             $matrixNumber = static fn (mixed $value): string => number_format((int) $value);
             $total = $matrix['total'];
         @endphp
@@ -116,12 +93,6 @@
         @if ($dimension === \App\Enums\ReportDimension::OVERALL)
             <section class="pf-print-page">
                 @include('reports.partials.official-print-header', ['report' => $report])
-
-                <section class="criteria">
-                    @foreach ($report['criteria'] as $label => $value)
-                        <span><strong>{{ $label }}:</strong> {{ $value }}</span>
-                    @endforeach
-                </section>
 
                 <div class="report-table-wrap">
                     <table class="pf-matrix">
@@ -164,22 +135,15 @@
                     </table>
                 </div>
 
-                <div class="pf-note"><strong>Basis:</strong> {{ $matrix['basis_note'] }}</div>
+                @include('reports.partials.signatories', ['report' => $report])
             </section>
         @else
             @foreach ($matrix['periods'] as $period)
                 <section class="pf-print-page">
-                    @include('reports.partials.official-print-header', ['report' => $report])
-
-                    <section class="criteria">
-                        @foreach ($report['criteria'] as $label => $value)
-                            <span><strong>{{ $label }}:</strong> {{ $value }}</span>
-                        @endforeach
-                    </section>
-
-                    <div class="pf-period-title">
-                        {{ $period['label'] }} Physical & Financial Accomplishment
-                    </div>
+                    @include('reports.partials.official-print-header', [
+                        'report' => $report,
+                        'printTitle' => $period['label'].' Physical & Financial Accomplishment',
+                    ])
 
                     <div class="report-table-wrap">
                         <table class="pf-matrix">
@@ -210,33 +174,14 @@
                         </table>
                     </div>
 
-                    <div class="pf-note">
-                        <strong>Portrait layout:</strong> one reporting period per Letter-size portrait page.
-                    </div>
+                    @if ($loop->last)
+                        @include('reports.partials.signatories', ['report' => $report])
+                    @endif
                 </section>
             @endforeach
         @endif
     @else
         @include('reports.partials.official-print-header', ['report' => $report])
-
-        <section class="criteria">
-            @foreach ($report['criteria'] as $label => $value)
-                <span><strong>{{ $label }}:</strong> {{ $value }}</span>
-            @endforeach
-        </section>
-
-        <section class="summary">
-            @foreach ($report['summary_cards'] as $card)
-                <div class="summary-item">
-                    <div class="summary-label">{{ $card['label'] }}</div>
-                    <div class="summary-value">{{ $card['display_value'] }}</div>
-                </div>
-            @endforeach
-        </section>
-
-        @if ($report['warning'])
-            <div class="warning"><strong>Data note:</strong> {{ $report['warning'] }}</div>
-        @endif
 
         @if ($isSprsMatrix)
             @php
@@ -303,14 +248,10 @@
                     </tbody>
                 </table>
             </div>
-
-            <div class="sprs-note">
-                <strong>Reporting basis:</strong> {{ $sprsMatrix['basis_note'] }}
-            </div>
         @elseif ($isLaborMarketMatrix)
             @php
                 $laborMatrix = $report['labor_market_print_matrix'];
-                $laborMoney = static fn (mixed $cents): string => 'â‚±' . number_format(((int) $cents) / 100, 2);
+                $laborMoney = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
             @endphp
 
             <div class="report-table-wrap">
@@ -341,10 +282,6 @@
                     </tbody>
                 </table>
             </div>
-
-            <div class="footer">
-                {{ $laborMatrix['basis_note'] }}
-            </div>
         @else
             <div class="report-table-wrap">
                 <table>
@@ -360,7 +297,7 @@
                             <tr>
                                 @foreach ($report['columns'] as $column)
                                     <td class="{{ $column['align'] === 'right' ? 'right' : '' }}">
-                                        {{ $row[$column['key']] ?? 'â€”' }}
+                                        {{ $row[$column['key']] ?? '—' }}
                                     </td>
                                 @endforeach
                             </tr>
@@ -374,18 +311,10 @@
                     </tbody>
                 </table>
             </div>
-
-            <footer class="footer">
-                {{ number_format($report['rows']->count()) }} reporting row(s). Generated from the validated
-                validated reporting records; no project reference values were accepted from the browser.
-            </footer>
         @endif
-    @endif
 
-    @unless ($isFundStatusTemplate)
         @include('reports.partials.signatories', ['report' => $report])
-    @endunless
+    @endif
 </body>
 
 </html>
-

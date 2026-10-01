@@ -2,11 +2,14 @@
     'eyebrow' => null,
     'title',
     'description' => null,
+    'breadcrumbs' => [],
 ])
 
 <div class="tupad-page-header mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
     <div class="min-w-0">
+
+        <x-breadcrumbs :items="$breadcrumbs" />
 
         @if($eyebrow)
             <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">

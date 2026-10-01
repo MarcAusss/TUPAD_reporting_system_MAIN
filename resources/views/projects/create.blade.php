@@ -7,6 +7,7 @@
     <div class="mx-auto max-w-330">
 
         <x-page-header eyebrow="Project Management" title="Add Official Project"
+            :breadcrumbs="[['label' => 'Projects', 'url' => route('projects.index')], ['label' => 'Create Project']]"
             description="Encode the official project profile in sections. Required fields are marked automatically, and project cost previews update while you work.">
             <x-slot:actions>
                 <a href="{{ route('projects.index') }}"

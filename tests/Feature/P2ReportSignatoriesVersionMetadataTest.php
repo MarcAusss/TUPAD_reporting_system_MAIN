@@ -84,16 +84,16 @@ class P2ReportSignatoriesVersionMetadataTest extends TestCase
                 'group_by' => 'overall',
             ]))
             ->assertOk()
-            ->assertSee('v2.4 · Rev 7')
-            ->assertSee('Report Administrator')
             ->assertSee('Prepared by')
             ->assertSee('Prepared Officer')
             ->assertSee('Reviewed by')
             ->assertSee('Review Officer')
             ->assertSee('Approved by')
             ->assertSee('Approving Officer')
-            ->assertSee('Document Version')
-            ->assertSee('Internal Test Report');
+            // Print shows the letterhead, table and signatories only; document
+            // control (version, reference, classification) stays in the exports.
+            ->assertDontSee('Document Version')
+            ->assertDontSee('v2.4 · Rev 7');
 
         $this->actingAs($admin)
             ->get(route('reports.periodic.print', [
@@ -102,8 +102,6 @@ class P2ReportSignatoriesVersionMetadataTest extends TestCase
                 'month' => 8,
             ]))
             ->assertOk()
-            ->assertSee('v2.4 · Rev 7')
-            ->assertSee('Report Administrator')
             ->assertSee('Prepared Officer')
             ->assertSee('Approving Officer');
     }

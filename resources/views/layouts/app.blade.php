@@ -139,7 +139,8 @@
                 <div class="flex min-w-0 flex-1 items-center">
                     <form method="GET"
                         action="{{ Route::has('search.index') ? route('search.index') : route('dashboard') }}"
-                        role="search" class="hidden w-full max-w-130 md:block">
+                        role="search" class="relative hidden w-full max-w-130 md:block"
+                        data-global-search data-suggest-url="{{ route('search.suggest') }}">
                         <label for="global-search" class="sr-only">Search the TUPAD Reporting System</label>
                         <div
                             class="tupad-input flex h-11 items-center rounded-lg px-3.5 focus-within:ring-2 focus-within:ring-[#1765d8]/30">
@@ -150,9 +151,14 @@
                             </svg>
                             <input id="global-search" name="q" type="search"
                                 value="{{ request()->routeIs('search.index') ? request('q') : '' }}"
-                                placeholder="Search project, ADL, location, project code..." autocomplete="off"
+                                placeholder="Search project, ADL, barangay, project code..." autocomplete="off"
+                                role="combobox" aria-expanded="false" aria-controls="global-search-results" aria-autocomplete="list"
+                                data-global-search-input
                                 class="h-full w-full bg-transparent pl-3 text-[12px] text-[#233f67] outline-none placeholder:text-[#8290a5]">
+                            <kbd class="ml-2 hidden shrink-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold text-slate-500 lg:inline" title="Press / or Ctrl+K to search" data-global-search-hint>Ctrl K</kbd>
                         </div>
+                        <div id="global-search-results" role="listbox" data-global-search-results
+                            class="absolute inset-x-0 top-full z-60 mt-2 hidden max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl"></div>
                     </form>
                 </div>
 
@@ -224,7 +230,7 @@
             <div class="border-b border-[#e6ebf2] bg-white px-4 py-3 md:hidden">
                 <form method="GET"
                     action="{{ Route::has('search.index') ? route('search.index') : route('dashboard') }}"
-                    role="search">
+                    role="search" class="relative" data-global-search data-suggest-url="{{ route('search.suggest') }}">
                     <label for="global-search-mobile" class="sr-only">
                         Search the TUPAD Reporting System
                     </label>
@@ -238,9 +244,13 @@
 
                         <input id="global-search-mobile" name="q" type="search"
                             value="{{ request()->routeIs('search.index') ? request('q') : '' }}"
-                            placeholder="Search project, ADL, location..." autocomplete="off"
+                            placeholder="Search project, ADL, barangay..." autocomplete="off"
+                            role="combobox" aria-expanded="false" aria-controls="global-search-results-mobile" aria-autocomplete="list"
+                            data-global-search-input
                             class="h-full w-full bg-transparent pl-3 text-[12px] outline-none">
                     </div>
+                    <div id="global-search-results-mobile" role="listbox" data-global-search-results
+                        class="absolute inset-x-0 top-full z-60 mt-2 hidden max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl"></div>
                 </form>
             </div>
 
@@ -289,8 +299,8 @@
 
             <footer
                 class="mx-auto flex w-full max-w-[1660px] flex-col gap-2 px-5 pb-6 pt-1 text-center text-[10px] text-[#8794a8] sm:flex-row sm:justify-between sm:text-left xl:px-6">
-                <span>Department of Labor and Employment Â· TUPAD Reporting System</span>
-                <span>{{ now()->format('Y') }} Â· Internal Government Information System</span>
+                <span>Department of Labor and Employment · TUPAD Reporting System</span>
+                <span>{{ now()->format('Y') }} · Internal Government Information System</span>
             </footer>
         </div>
     </div>
@@ -343,6 +353,8 @@
             });
         });
     </script>
+
+    <x-confirm-dialog />
 
     @stack('scripts')
 </body>

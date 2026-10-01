@@ -1,151 +1,130 @@
+{{--
+    Official DOLE Regional Office V print letterhead (all print views).
+    Layout: DOLE Bicol logo · office block · Bagong Pilipinas · ISO 9001 Bureau Veritas · Rating Guide.
+    Optional: $report (prints its official title under the letterhead), $printTitle / $printSubtitle
+    to override it, $printOnly (hide on screen).
+--}}
 @php
     $printOnly = (bool) ($printOnly ?? false);
+    $printTitle = $printTitle ?? (isset($report) ? (string) ($report['official_title'] ?? $report['title'] ?? '') : null);
+    $printDate = isset($report) ? ($report['generated_at'] ?? now('Asia/Manila')) : now('Asia/Manila');
+
+    // One identifying line under the title: the official form + period (periodic
+    // reports) or the active filters, then the as-of date.
+    if (! isset($printSubtitle)) {
+        $isPeriodicForm = isset($report) && ($report['official_layout'] ?? false) && filled($report['official_period'] ?? null);
+        $subtitleParts = $isPeriodicForm
+            ? array_values(array_filter([$report['official_code'] ?? null, $report['official_period']]))
+            : collect(isset($report) ? (array) ($report['criteria'] ?? []) : [])
+                ->except(['Report Type'])
+                ->filter(fn ($value) => filled($value))
+                ->map(fn ($value, $label) => $label.': '.$value)
+                ->values()
+                ->all();
+        $subtitleParts[] = 'As of '.$printDate->format('F d, Y');
+        $printSubtitle = implode(' · ', $subtitleParts);
+    }
 @endphp
 
 @once
     <style>
         .dole-official-letterhead {
             width: 100%;
-            border-bottom: 3px solid #0d95b8;
-            padding: 8px 0 10px;
-            color: #0f172a;
-            font-family: Arial, Helvetica, sans-serif !important;
+            padding: 2mm 0 3mm;
+            color: #000;
             background: #fff;
-        }
-
-        .dole-official-letterhead *,
-        .dole-official-letterhead p,
-        .report-print-meta-strip * {
             font-family: Arial, Helvetica, sans-serif !important;
-        }
-
-        .dole-official-letterhead__inner {
-            display: grid;
-            grid-template-columns: 105px minmax(0, 1fr) 175px;
-            align-items: center;
-            gap: 14px;
-            width: 100%;
-        }
-
-        .dole-official-letterhead__side {
-            display: flex;
-            min-width: 0;
-            align-items: center;
-        }
-
-        .dole-official-letterhead__side--left { justify-content: center; }
-        .dole-official-letterhead__side--right { justify-content: flex-end; gap: 6px; }
-
-        .dole-official-letterhead__center {
-            min-width: 0;
-            text-align: center;
-            line-height: 1.13;
-        }
-
-        .dole-official-letterhead__republic {
-            margin: 0;
-            font-size: 8.5pt;
-            font-weight: 400;
-        }
-
-        .dole-official-letterhead__department {
-            margin: 2px 0 0;
-            font-size: 10pt;
-            font-weight: 700;
-            letter-spacing: .05px;
-        }
-
-        .dole-official-letterhead__region {
-            margin: 2px 0 0;
-            font-size: 8.7pt;
-            font-weight: 600;
-        }
-
-        .dole-official-letterhead__address,
-        .dole-official-letterhead__contact,
-        .dole-official-letterhead__email {
-            margin: 2px 0 0;
-            font-size: 7.2pt;
-            line-height: 1.15;
-        }
-
-        .dole-official-letterhead__address,
-        .dole-official-letterhead__contact { font-style: italic; }
-        .dole-official-letterhead__email { text-decoration: underline; }
-
-        .dole-official-letterhead__dole-logo {
-            display: block;
-            width: 72px;
-            max-height: 72px;
-            object-fit: contain;
-        }
-
-        .dole-official-letterhead__bagong-logo {
-            display: block;
-            width: 49px;
-            max-height: 58px;
-            object-fit: contain;
-        }
-
-        .dole-official-letterhead__iso-logo {
-            display: block;
-            width: 105px;
-            max-height: 58px;
-            object-fit: contain;
-        }
-
-        .report-print-meta-strip {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            width: 100%;
-            margin-top: 7px;
-            border: 1px solid #cbd5e1;
-            background: #f8fafc;
-            padding: 6px 9px;
-            color: #0f172a;
-            font-family: Arial, Helvetica, sans-serif;
             break-inside: avoid;
             page-break-inside: avoid;
         }
 
-        .report-print-meta-strip__item {
+        .dole-official-letterhead * { font-family: Arial, Helvetica, sans-serif !important; }
+
+        .dole-official-letterhead__inner {
             display: flex;
+            align-items: center;
+            gap: 4mm;
+            width: 100%;
+        }
+
+        .dole-official-letterhead__dole-logo {
+            flex: 0 0 auto;
+            display: block;
+            height: 22mm;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .dole-official-letterhead__center {
+            flex: 1 1 auto;
             min-width: 0;
-            align-items: baseline;
-            gap: 5px;
-            font-size: 7.2px;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .dole-official-letterhead__center p { margin: 0; }
+        .dole-official-letterhead__republic { font-size: 10pt; font-style: italic; }
+        .dole-official-letterhead__department { font-size: 11pt; font-weight: 700; letter-spacing: .1px; }
+        .dole-official-letterhead__region { font-size: 11pt; font-weight: 700; }
+        .dole-official-letterhead__address { font-size: 9.5pt; }
+        .dole-official-letterhead__email { font-size: 9.5pt; }
+
+        .dole-official-letterhead__logos {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 3mm;
+        }
+
+        .dole-official-letterhead__bagong-logo { display: block; height: 22mm; width: auto; object-fit: contain; }
+        .dole-official-letterhead__iso-logo { display: block; height: 24mm; width: auto; margin: -3mm 0; object-fit: contain; }
+
+        .dole-official-letterhead__rating {
+            flex: 0 0 auto;
+            align-self: stretch;
+            min-width: 27mm;
+            border: 1px solid #000;
+            padding: 1.5mm 2mm;
+            font-size: 6.5pt;
             line-height: 1.25;
         }
 
-        .report-print-meta-strip__item--date {
-            flex: 0 0 auto;
-            justify-content: flex-end;
-            text-align: right;
-            white-space: nowrap;
+        .dole-official-letterhead__rating strong { display: block; margin-bottom: .5mm; font-size: 6.8pt; }
+
+        .report-print-title {
+            margin: 1mm 0 3mm;
+            text-align: center;
+            color: #000;
+            font-family: Arial, Helvetica, sans-serif;
+            break-after: avoid;
+            page-break-after: avoid;
         }
 
-        .report-print-meta-strip__label {
-            font-weight: 700;
-            color: #334155;
-        }
+        .report-print-title__main { margin: 0; font-size: 11pt; font-weight: 700; text-transform: uppercase; }
+        .report-print-title__sub { margin: .5mm 0 0; font-size: 8.5pt; }
 
-        .report-print-meta-strip__value {
-            min-width: 0;
-            font-weight: 600;
-            color: #0f172a;
-        }
+        /* Portrait pages (Letter): same letterhead, scaled to the narrower width. */
+        .print-portrait .dole-official-letterhead__inner { gap: 2.5mm; }
+        .print-portrait .dole-official-letterhead__dole-logo,
+        .print-portrait .dole-official-letterhead__bagong-logo { height: 17mm; }
+        .print-portrait .dole-official-letterhead__iso-logo { height: 18mm; margin: -2.5mm 0; }
+        .print-portrait .dole-official-letterhead__republic { font-size: 8pt; }
+        .print-portrait .dole-official-letterhead__department,
+        .print-portrait .dole-official-letterhead__region { font-size: 8.8pt; }
+        .print-portrait .dole-official-letterhead__address,
+        .print-portrait .dole-official-letterhead__email { font-size: 7.6pt; }
+        .print-portrait .dole-official-letterhead__rating { min-width: 21mm; padding: 1mm 1.5mm; font-size: 5.4pt; }
+        .print-portrait .dole-official-letterhead__rating strong { font-size: 5.8pt; }
+        .print-portrait .report-print-title__main { font-size: 9.5pt; }
 
         @media screen {
-            .dole-official-letterhead--print-only { display: none !important; }
+            .dole-official-letterhead--print-only,
+            .report-print-title--print-only { display: none !important; }
         }
 
         @media print {
             .dole-official-letterhead,
-            .report-print-meta-strip {
-                break-inside: avoid;
-                page-break-inside: avoid;
+            .report-print-title {
                 print-color-adjust: exact;
                 -webkit-print-color-adjust: exact;
             }
@@ -155,46 +134,38 @@
 
 <header class="dole-official-letterhead{{ $printOnly ? ' dole-official-letterhead--print-only' : '' }}" aria-label="DOLE Regional Office V official letterhead">
     <div class="dole-official-letterhead__inner">
-        <div class="dole-official-letterhead__side dole-official-letterhead__side--left">
-            <img src="{{ asset('images/print/mainlogo.png') }}" alt="DOLE Bicol"
-                class="dole-official-letterhead__dole-logo" onerror="this.style.display='none'">
-        </div>
+        <img src="{{ asset('images/print/mainlogo.png') }}" alt="DOLE Bicol"
+            class="dole-official-letterhead__dole-logo" onerror="this.style.display='none'">
 
         <div class="dole-official-letterhead__center">
             <p class="dole-official-letterhead__republic">Republic of the Philippines</p>
             <p class="dole-official-letterhead__department">DEPARTMENT OF LABOR AND EMPLOYMENT</p>
             <p class="dole-official-letterhead__region">Regional Office No. 5</p>
-            <p class="dole-official-letterhead__address">DOLE RO5 Bldg., Doña Aurora St., Old Albay, Legazpi City</p>
-            <p class="dole-official-letterhead__contact">
-                ORD: 0981-461-8788&nbsp;&nbsp; TSSD: 0963-206-0008&nbsp;&nbsp; IMSD: 0912-330-4751
-            </p>
+            <p class="dole-official-letterhead__address">DOLE 5 Bldg., Doña Aurora Street, Old Albay, Legazpi City</p>
             <p class="dole-official-letterhead__email">ro5@dole.gov.ph</p>
         </div>
 
-        <div class="dole-official-letterhead__side dole-official-letterhead__side--right">
+        <div class="dole-official-letterhead__logos">
             <img src="{{ asset('images/print/Bagong_Pilipinas.png') }}" alt="Bagong Pilipinas"
                 class="dole-official-letterhead__bagong-logo" onerror="this.style.display='none'">
-            <img src="{{ asset('images/print/iso-bureau-veritas.jpg') }}" alt="ISO Bureau Veritas Certification"
+            <img src="{{ asset('images/print/iso-bureau-veritas.jpg') }}" alt="ISO 9001 Bureau Veritas Certification"
                 class="dole-official-letterhead__iso-logo" onerror="this.style.display='none'">
+        </div>
+
+        <div class="dole-official-letterhead__rating" aria-label="Rating guide">
+            <strong>Rating Guide:</strong>
+            1 – Poor<br>
+            2 – Good<br>
+            3 – Satisfactory<br>
+            4 – Very Satisfactory<br>
+            5 – Excellent
         </div>
     </div>
 </header>
 
-@if (isset($report))
-    @php
-        $printReportTitle = (string) ($report['official_title'] ?? $report['title'] ?? 'TUPAD Official Report');
-        $printGeneratedAt = $report['generated_at'] ?? now('Asia/Manila');
-    @endphp
-
-    <section class="report-print-meta-strip" aria-label="Printed report type and date">
-        <div class="report-print-meta-strip__item">
-            <span class="report-print-meta-strip__label">Report Type:</span>
-            <strong class="report-print-meta-strip__value">{{ $printReportTitle }}</strong>
-        </div>
-
-        <div class="report-print-meta-strip__item report-print-meta-strip__item--date">
-            <span class="report-print-meta-strip__label">Date:</span>
-            <strong class="report-print-meta-strip__value">{{ $printGeneratedAt->format('F d, Y') }}</strong>
-        </div>
+@if (filled($printTitle))
+    <section class="report-print-title{{ $printOnly ? ' report-print-title--print-only' : '' }}" aria-label="Report title">
+        <p class="report-print-title__main">{{ $printTitle }}</p>
+        <p class="report-print-title__sub">{{ $printSubtitle }}</p>
     </section>
 @endif
