@@ -257,8 +257,8 @@ class MajorRevisionPhase14DMonthlyQuarterlyReportsTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Skills Training')
-            ->assertSee('Excel')
-            ->assertSee('CSV')
+            ->assertDontSee('reports/export/excel', false)
+            ->assertDontSee('reports/export/csv', false)
             ->assertSee('project_labor_market_referrals.reporting_month');
 
         $overall = $response->viewData('laborOverall');

@@ -143,10 +143,6 @@
                     {{ $fundStatusTemplate ? 'Official table structure follows the approved TUPAD fund-status reporting template.' : 'The same validated cohort is used by screen, Print, PDF, Excel, and CSV outputs.' }}
                 </p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ route('reports.export.excel', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Excel</a>
-                <a href="{{ route('reports.export.csv', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">CSV</a>
-            </div>
         </div>
         @if ($fundStatusTemplate)
             @include('reports.fund-status.partials.template-table-screen', ['report' => $report])

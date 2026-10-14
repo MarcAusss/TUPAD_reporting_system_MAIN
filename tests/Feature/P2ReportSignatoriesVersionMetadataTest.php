@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Exports\PdfTableWriter;
-use App\Services\Exports\XlsxTableWriter;
 use App\Services\Reports\ReportDocumentControlService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -106,7 +105,7 @@ class P2ReportSignatoriesVersionMetadataTest extends TestCase
             ->assertSee('Approving Officer');
     }
 
-    public function test_pdf_and_excel_exports_embed_document_control_and_signatory_identity(): void
+    public function test_pdf_export_embeds_document_control_and_signatory_identity(): void
     {
         $admin = User::factory()->create([
             'role' => UserRole::ADMIN,
@@ -124,17 +123,6 @@ class P2ReportSignatoriesVersionMetadataTest extends TestCase
         $this->assertStringContainsString('Prepared Officer', $pdf);
         $this->assertStringContainsString('Version:', $pdf);
         $this->assertStringContainsString('Report Administrator', $pdf);
-
-        $xlsxPath = app(XlsxTableWriter::class)->write($report);
-        $xlsx = file_get_contents($xlsxPath);
-        @unlink($xlsxPath);
-
-        $this->assertIsString($xlsx);
-        $this->assertStringContainsString('Document Reference', $xlsx);
-        $this->assertStringContainsString('Document Version', $xlsx);
-        $this->assertStringContainsString('Prepared Officer', $xlsx);
-        $this->assertStringContainsString('Approving Officer', $xlsx);
-        $this->assertStringContainsString('Report Administrator', $xlsx);
     }
 
     private function sampleReport(): array

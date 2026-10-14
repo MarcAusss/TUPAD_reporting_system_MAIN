@@ -49,4 +49,15 @@ return [
             'office' => env('TUPAD_REPORT_APPROVED_BY_OFFICE', ''),
         ],
     ],
+    /*
+    | PDF export engine.
+    | "chrome": renders the same page as Print (letterhead, table, signatories) with
+    |           headless Chrome or Edge. Falls back to "native" if no browser runs.
+    | "native": the built-in text-only PDF writer (PdfTableWriter).
+    */
+    'pdf' => [
+        'engine' => env('TUPAD_PDF_ENGINE', 'chrome'),
+        'browser_path' => env('TUPAD_PDF_BROWSER_PATH'),
+        'timeout' => (int) env('TUPAD_PDF_TIMEOUT', 90),
+    ],
 ];

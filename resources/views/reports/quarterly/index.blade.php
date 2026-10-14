@@ -175,8 +175,8 @@
                     <p class="mt-1 text-xs text-slate-500">Quarterly totals are read directly from encoded referral records. Counts are not inferred from project beneficiaries.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <a href="{{ route('reports.export.excel', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700">Excel</a>
-                    <a href="{{ route('reports.export.csv', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700">CSV</a>
+                    <a href="{{ route('reports.print', $exportQuery) }}" target="_blank" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Print</a>
+                    <a href="{{ route('reports.export.pdf', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100">PDF</a>
                 </div>
             </div>
             <div class="overflow-x-auto">

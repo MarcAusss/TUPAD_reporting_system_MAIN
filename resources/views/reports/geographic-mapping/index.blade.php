@@ -62,12 +62,6 @@
                     Official report rows for the selected {{ strtolower($family['label']) }} and reporting filters.
                 </p>
             </div>
-            <div class="flex gap-2">
-                <a href="{{ route('reports.export.excel', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Excel</a>
-                <a href="{{ route('reports.export.csv', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">CSV</a>
-            </div>
         </div>
 
         @if ($rows->isEmpty())

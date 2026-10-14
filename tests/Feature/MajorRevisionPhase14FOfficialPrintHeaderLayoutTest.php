@@ -26,7 +26,7 @@ class MajorRevisionPhase14FOfficialPrintHeaderLayoutTest extends TestCase
             ->assertSee('DEPARTMENT OF LABOR AND EMPLOYMENT')
             ->assertSee('Regional Office No. 5')
             ->assertSee('report-print-title', false)
-            ->assertSee('Rating Guide:')
+            ->assertSee('ro5@dole.gov.ph')
             ->assertSee('Physical and Financial Accomplishment')
             ->assertSee('As of ')
             ->assertDontSee('official-print-header__meta', false)

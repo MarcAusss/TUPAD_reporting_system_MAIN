@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectStatus;
-use App\Services\Exports\PdfTableWriter;
+use App\Services\Exports\ReportPdfExporter;
 use App\Services\Reports\OfficialPeriodicReportService;
 use App\Services\Reports\ReportDocumentControlService;
 use Illuminate\Http\Request;
@@ -18,7 +18,7 @@ class OfficialPeriodicReportController extends Controller
     public function __construct(
         private readonly OfficialPeriodicReportService $reports,
         private readonly ReportDocumentControlService $documentControl,
-        private readonly PdfTableWriter $pdf,
+        private readonly ReportPdfExporter $pdf,
     ) {}
 
     public function print(Request $request): View

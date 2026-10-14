@@ -169,12 +169,6 @@
                     Table structure follows the supplied Physical and Financial Accomplishment template. Horizontal scrolling is available for wide quarterly and monthly matrices.
                 </p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ route('reports.export.excel', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Excel</a>
-                <a href="{{ route('reports.export.csv', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">CSV</a>
-            </div>
         </div>
 
         <div class="overflow-x-auto p-4">

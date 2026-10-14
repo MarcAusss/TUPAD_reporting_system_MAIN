@@ -24,7 +24,6 @@ use App\Models\Province;
 use App\Models\User;
 use App\Reports\ReportFilters;
 use App\Services\Exports\PdfTableWriter;
-use App\Services\Exports\XlsxTableWriter;
 use App\Services\Reports\ReportGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -62,8 +61,6 @@ class MajorRevisionPhase9ReportGenerationTest extends TestCase
             'reports.index',
             'reports.print',
             'reports.export.pdf',
-            'reports.export.excel',
-            'reports.export.csv',
         ] as $route) {
         }
     }
@@ -143,46 +140,17 @@ class MajorRevisionPhase9ReportGenerationTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
         $this->assertStringStartsWith('%PDF-1.4', $pdf->getContent());
         $this->assertStringContainsString('ALB-P9-001', $pdf->getContent());
-
-        $csv = $this->actingAs($this->focal)
-            ->get(route('reports.export.csv', $query))
-            ->assertOk()
-            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
-        $csvContent = $csv->streamedContent();
-        $this->assertStringContainsString('Project Code', $csvContent);
-        $this->assertStringContainsString('ALB-P9-001', $csvContent);
     }
 
-    public function test_excel_writer_creates_a_valid_dependency_free_xlsx_container(): void
+    public function test_excel_and_csv_exports_are_removed_leaving_print_and_pdf(): void
     {
-        $report = app(ReportGenerationService::class)->generate(
-            ReportType::FUND_STATUS,
-            ReportDimension::ADL,
-            new ReportFilters(),
-        );
-        $path = app(XlsxTableWriter::class)->write($report);
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('reports.export.excel'));
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('reports.export.csv'));
+        $this->assertTrue(\Illuminate\Support\Facades\Route::has('reports.print'));
+        $this->assertTrue(\Illuminate\Support\Facades\Route::has('reports.export.pdf'));
 
-        try {
-            $contents = file_get_contents($path);
-            $this->assertIsString($contents);
-            $this->assertStringStartsWith("PK\x03\x04", $contents);
-            $this->assertStringContainsString('[Content_Types].xml', $contents);
-            $this->assertStringContainsString('xl/worksheets/sheet1.xml', $contents);
-            $this->assertStringContainsString('ADL-PHASE9-001', $contents);
-        } finally {
-            @unlink($path);
-        }
-
-        $this->actingAs($this->admin)
-            ->get(route('reports.export.excel', [
-                'report_type' => ReportType::FUND_STATUS->value,
-                'group_by' => ReportDimension::ADL->value,
-            ]))
-            ->assertOk()
-            ->assertHeader(
-                'content-type',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            );
+        $this->actingAs($this->admin)->get('/reports/export/excel')->assertNotFound();
+        $this->actingAs($this->admin)->get('/reports/export/csv')->assertNotFound();
     }
 
     public function test_fine_geographic_exports_do_not_fabricate_financial_allocations(): void

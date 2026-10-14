@@ -1,9 +1,3 @@
-{{--
-    Official DOLE Regional Office V print letterhead (all print views).
-    Layout: DOLE Bicol logo · office block · Bagong Pilipinas · ISO 9001 Bureau Veritas · Rating Guide.
-    Optional: $report (prints its official title under the letterhead), $printTitle / $printSubtitle
-    to override it, $printOnly (hide on screen).
---}}
 @php
     $printOnly = (bool) ($printOnly ?? false);
     $printTitle = $printTitle ?? (isset($report) ? (string) ($report['official_title'] ?? $report['title'] ?? '') : null);
@@ -40,10 +34,12 @@
 
         .dole-official-letterhead * { font-family: Arial, Helvetica, sans-serif !important; }
 
+        /* One centred row: logo · office text · logos, spaced by gap (no padding). */
         .dole-official-letterhead__inner {
             display: flex;
             align-items: center;
-            gap: 4mm;
+            justify-content: center;
+            gap: 10mm;
             width: 100%;
         }
 
@@ -56,10 +52,10 @@
         }
 
         .dole-official-letterhead__center {
-            flex: 1 1 auto;
-            min-width: 0;
+            flex: 0 0 auto;
             text-align: center;
             line-height: 1.2;
+            white-space: nowrap;
         }
 
         .dole-official-letterhead__center p { margin: 0; }
@@ -79,18 +75,6 @@
         .dole-official-letterhead__bagong-logo { display: block; height: 22mm; width: auto; object-fit: contain; }
         .dole-official-letterhead__iso-logo { display: block; height: 24mm; width: auto; margin: -3mm 0; object-fit: contain; }
 
-        .dole-official-letterhead__rating {
-            flex: 0 0 auto;
-            align-self: stretch;
-            min-width: 27mm;
-            border: 1px solid #000;
-            padding: 1.5mm 2mm;
-            font-size: 6.5pt;
-            line-height: 1.25;
-        }
-
-        .dole-official-letterhead__rating strong { display: block; margin-bottom: .5mm; font-size: 6.8pt; }
-
         .report-print-title {
             margin: 1mm 0 3mm;
             text-align: center;
@@ -104,7 +88,8 @@
         .report-print-title__sub { margin: .5mm 0 0; font-size: 8.5pt; }
 
         /* Portrait pages (Letter): same letterhead, scaled to the narrower width. */
-        .print-portrait .dole-official-letterhead__inner { gap: 2.5mm; }
+        .print-portrait .dole-official-letterhead__inner { gap: 5mm; }
+        .print-portrait .dole-official-letterhead__logos { gap: 2mm; }
         .print-portrait .dole-official-letterhead__dole-logo,
         .print-portrait .dole-official-letterhead__bagong-logo { height: 17mm; }
         .print-portrait .dole-official-letterhead__iso-logo { height: 18mm; margin: -2.5mm 0; }
@@ -113,8 +98,6 @@
         .print-portrait .dole-official-letterhead__region { font-size: 8.8pt; }
         .print-portrait .dole-official-letterhead__address,
         .print-portrait .dole-official-letterhead__email { font-size: 7.6pt; }
-        .print-portrait .dole-official-letterhead__rating { min-width: 21mm; padding: 1mm 1.5mm; font-size: 5.4pt; }
-        .print-portrait .dole-official-letterhead__rating strong { font-size: 5.8pt; }
         .print-portrait .report-print-title__main { font-size: 9.5pt; }
 
         @media screen {
@@ -146,19 +129,10 @@
         </div>
 
         <div class="dole-official-letterhead__logos">
-            <img src="{{ asset('images/print/Bagong_Pilipinas.png') }}" alt="Bagong Pilipinas"
+            <img src="{{ asset('images/print/Bagong_Pilipinas-print.png') }}" alt="Bagong Pilipinas"
                 class="dole-official-letterhead__bagong-logo" onerror="this.style.display='none'">
             <img src="{{ asset('images/print/iso-bureau-veritas.jpg') }}" alt="ISO 9001 Bureau Veritas Certification"
                 class="dole-official-letterhead__iso-logo" onerror="this.style.display='none'">
-        </div>
-
-        <div class="dole-official-letterhead__rating" aria-label="Rating guide">
-            <strong>Rating Guide:</strong>
-            1 – Poor<br>
-            2 – Good<br>
-            3 – Satisfactory<br>
-            4 – Very Satisfactory<br>
-            5 – Excellent
         </div>
     </div>
 </header>

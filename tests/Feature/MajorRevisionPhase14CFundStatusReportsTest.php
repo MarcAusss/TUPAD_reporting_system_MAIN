@@ -57,8 +57,8 @@ class MajorRevisionPhase14CFundStatusReportsTest extends TestCase
             ->assertSee('Detailed Generator')
             ->assertSee('Print')
             ->assertSee('PDF')
-            ->assertSee('Excel')
-            ->assertSee('CSV');
+            ->assertDontSee('reports/export/excel', false)
+            ->assertDontSee('reports/export/csv', false);
 
         $response->assertSee(route('reports.workspace.fund-status', ['view' => 'lce']), false);
     }

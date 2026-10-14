@@ -108,7 +108,7 @@ class FundStatusSheet2TemplateTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('DEPARTMENT OF LABOR AND EMPLOYMENT')
-            ->assertSee('Rating Guide:')
+            ->assertSee('ro5@dole.gov.ph')
             ->assertSee('Fund Utilization Report')
             ->assertSee('As of ')
             ->assertSee('TUPAD Allocation')
