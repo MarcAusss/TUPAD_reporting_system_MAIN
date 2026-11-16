@@ -4,17 +4,16 @@
 
 @section('content')
     @php
-        $initialPhysicalTotal = collect($rows)->sum('physical_target');
-        $initialFinancialTotal = collect($rows)->sum(
-            fn (array $row): float => (float) $row['financial_target']
-        );
+        $inputClass = 'h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-right font-semibold tabular-nums text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
+        $moneyInputClass = 'h-10 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 text-right font-semibold tabular-nums text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
+        $terms = ['short_term' => 'Short-Term', 'long_term' => 'Long-Term'];
     @endphp
 
     <div class="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <x-page-header
             eyebrow="Focal Management"
             title="Reformulated Target"
-            description="Maintain the official annual physical and financial target by Bicol province. Only the Focal account can save changes."
+            description="Maintain the official annual physical and financial target by Bicol province, split into Short-Term and Long-Term projects. Only the Focal account can save changes."
         />
 
         <a href="{{ route('reports.workspace.physical-financial', ['fiscal_year' => $fiscalYear]) }}"
@@ -78,7 +77,7 @@
                 <div>
                     <h2 class="text-sm font-bold text-slate-900">FY{{ $fiscalYear }} Province Targets</h2>
                     <p class="mt-1 text-xs text-slate-500">
-                        Rows marked "Current report baseline" have not yet been manually saved. Saving this form converts the displayed values into official Focal-maintained targets for FY{{ $fiscalYear }}.
+                        Enter the Short-Term and Long-Term targets; the province total is their sum. Unsaved rows are prefilled from the projects of each term. Saving converts the displayed values into official Focal-maintained targets for FY{{ $fiscalYear }}.
                     </p>
                 </div>
                 <div class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
@@ -87,57 +86,68 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="tupad-report-table w-full min-w-[820px] border-collapse text-sm">
+                <table class="tupad-report-table w-full min-w-[1180px] border-collapse text-sm">
                     <thead>
                         <tr class="bg-[#063b86] text-white">
-                            <th class="border border-blue-900 px-4 py-3 text-left text-xs font-extrabold uppercase tracking-wide">Province</th>
-                            <th class="border border-blue-900 px-4 py-3 text-right text-xs font-extrabold uppercase tracking-wide">Physical Target</th>
-                            <th class="border border-blue-900 px-4 py-3 text-right text-xs font-extrabold uppercase tracking-wide">Financial Target</th>
-                            <th class="border border-blue-900 px-4 py-3 text-left text-xs font-extrabold uppercase tracking-wide">Source</th>
+                            <th rowspan="2" class="border border-blue-900 px-4 py-3 text-left text-xs font-extrabold uppercase tracking-wide">Province</th>
+                            @foreach ($terms as $termLabel)
+                                <th colspan="2" class="border border-blue-900 px-4 py-2 text-center text-xs font-extrabold uppercase tracking-wide">{{ $termLabel }}</th>
+                            @endforeach
+                            <th colspan="2" class="border border-blue-900 px-4 py-2 text-center text-xs font-extrabold uppercase tracking-wide">Total</th>
+                            <th rowspan="2" class="border border-blue-900 px-4 py-3 text-left text-xs font-extrabold uppercase tracking-wide">Source</th>
+                        </tr>
+                        <tr>
+                            @foreach (range(1, 3) as $pair)
+                                <th class="border border-blue-900 px-4 py-2 text-right text-xs font-bold">Physical</th>
+                                <th class="border border-blue-900 px-4 py-2 text-right text-xs font-bold">Financial</th>
+                            @endforeach
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($rows as $index => $row)
-                            <tr class="odd:bg-white even:bg-slate-50">
+                            <tr class="odd:bg-white even:bg-slate-50" data-target-row>
                                 <td class="border border-slate-200 px-4 py-3 font-semibold text-slate-900">
                                     {{ $row['province'] }}
                                     <input type="hidden" name="targets[{{ $index }}][province_id]" value="{{ $row['province_id'] }}">
                                 </td>
-                                <td class="border border-slate-200 px-4 py-3">
-                                    <input
-                                        name="targets[{{ $index }}][physical_target]"
-                                        type="number"
-                                        min="0"
-                                        max="100000000"
-                                        step="1"
-                                        value="{{ old('targets.'.$index.'.physical_target', $row['physical_target']) }}"
-                                        data-physical-target
-                                        class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-right font-semibold tabular-nums text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                        required>
-                                </td>
-                                <td class="border border-slate-200 px-4 py-3">
-                                    <div class="relative">
-                                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">₱</span>
+                                @foreach ($terms as $termKey => $termLabel)
+                                    <td class="border border-slate-200 px-3 py-3">
                                         <input
-                                            name="targets[{{ $index }}][financial_target]"
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value="{{ old('targets.'.$index.'.financial_target', $row['financial_target']) }}"
-                                            data-financial-target
-                                            data-money-input
-                                            class="h-10 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 text-right font-semibold tabular-nums text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                            required>
-                                    </div>
-                                </td>
+                                            name="targets[{{ $index }}][{{ $termKey }}_physical_target]"
+                                            type="number" min="0" max="100000000" step="1"
+                                            value="{{ old('targets.'.$index.'.'.$termKey.'_physical_target', $row[$termKey]['physical']) }}"
+                                            aria-label="{{ $row['province'] }} {{ $termLabel }} physical target"
+                                            data-physical data-term="{{ $termKey }}"
+                                            class="{{ $inputClass }}" required>
+                                    </td>
+                                    <td class="border border-slate-200 px-3 py-3">
+                                        <div class="relative">
+                                            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">₱</span>
+                                            <input
+                                                name="targets[{{ $index }}][{{ $termKey }}_financial_target]"
+                                                type="number" min="0" step="0.01"
+                                                value="{{ old('targets.'.$index.'.'.$termKey.'_financial_target', $row[$termKey]['financial']) }}"
+                                                aria-label="{{ $row['province'] }} {{ $termLabel }} financial target"
+                                                data-financial data-term="{{ $termKey }}" data-money-input
+                                                class="{{ $moneyInputClass }}" required>
+                                        </div>
+                                    </td>
+                                @endforeach
+                                <td class="border border-slate-200 bg-slate-50 px-4 py-3 text-right font-bold tabular-nums text-slate-900" data-row-physical>0</td>
+                                <td class="border border-slate-200 bg-slate-50 px-4 py-3 text-right font-bold tabular-nums text-slate-900" data-row-financial>₱0.00</td>
                                 <td class="border border-slate-200 px-4 py-3 text-xs">
-                                    @if ($row['saved'])
+                                    @if ($row['split'])
                                         <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">Saved target</span>
-                                        @if ($row['updated_at'])
-                                            <div class="mt-1 text-[11px] text-slate-500">Updated {{ $row['updated_at']->timezone('Asia/Manila')->format('M j, Y g:i A') }}</div>
-                                        @endif
+                                    @elseif ($row['saved'])
+                                        <span class="inline-flex rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">Saved total, not yet split</span>
+                                        <div class="mt-1 text-[11px] text-slate-500">
+                                            Previous total: {{ number_format($row['legacy_total']['physical']) }} / ₱{{ number_format((float) $row['legacy_total']['financial'], 2) }}
+                                        </div>
                                     @else
                                         <span class="inline-flex rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">Current report baseline</span>
+                                    @endif
+                                    @if ($row['saved'] && $row['updated_at'])
+                                        <div class="mt-1 text-[11px] text-slate-500">Updated {{ $row['updated_at']->timezone('Asia/Manila')->format('M j, Y g:i A') }}</div>
                                     @endif
                                 </td>
                             </tr>
@@ -146,8 +156,12 @@
                     <tfoot>
                         <tr class="bg-slate-900 text-white">
                             <td class="border border-slate-700 px-4 py-3 text-xs font-extrabold uppercase tracking-wide">Regional Total</td>
-                            <td id="physical-total" class="border border-slate-700 px-4 py-3 text-right font-extrabold tabular-nums">{{ number_format($initialPhysicalTotal) }}</td>
-                            <td id="financial-total" class="border border-slate-700 px-4 py-3 text-right font-extrabold tabular-nums">₱{{ number_format($initialFinancialTotal, 2) }}</td>
+                            @foreach ($terms as $termKey => $termLabel)
+                                <td class="border border-slate-700 px-4 py-3 text-right font-extrabold tabular-nums" data-total-physical="{{ $termKey }}">0</td>
+                                <td class="border border-slate-700 px-4 py-3 text-right font-extrabold tabular-nums" data-total-financial="{{ $termKey }}">₱0.00</td>
+                            @endforeach
+                            <td class="border border-slate-700 px-4 py-3 text-right font-extrabold tabular-nums" data-total-physical="all">0</td>
+                            <td class="border border-slate-700 px-4 py-3 text-right font-extrabold tabular-nums" data-total-financial="all">₱0.00</td>
                             <td class="border border-slate-700 px-4 py-3"></td>
                         </tr>
                     </tfoot>
@@ -156,7 +170,7 @@
 
             <div class="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-xs leading-5 text-slate-600">
-                    Saved values automatically feed the Physical & Financial report, print view, PDF, Excel, and CSV when FY{{ $fiscalYear }} is selected.
+                    Saved values feed the Physical & Financial report (Combined and By Term tables), print view, PDF, Excel, and CSV when FY{{ $fiscalYear }} is selected.
                 </p>
                 <button type="submit"
                     class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6d]">
@@ -171,37 +185,53 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const form = document.getElementById('reformulated-target-form');
-            const physicalTotal = document.getElementById('physical-total');
-            const financialTotal = document.getElementById('financial-total');
 
-            if (!form || !physicalTotal || !financialTotal) {
+            if (!form) {
                 return;
             }
 
-            const numberFormatter = new Intl.NumberFormat('en-PH', {
-                maximumFractionDigits: 0,
-            });
-            const moneyFormatter = new Intl.NumberFormat('en-PH', {
-                style: 'currency',
-                currency: 'PHP',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            });
+            const numberFormatter = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 });
+            const moneyFormatter = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const unformat = function (value) {
+                return window.TupadMoney ? window.TupadMoney.unformat(value) : String(value || '').replace(/,/g, '');
+            };
+            const physicalOf = function (input) { return Number.parseInt(input.value || '0', 10) || 0; };
+            const financialOf = function (input) { return Number.parseFloat(unformat(input.value) || '0') || 0; };
+            const peso = function (value) { return '₱' + moneyFormatter.format(value); };
 
             function refreshTotals() {
-                let physical = 0;
-                let financial = 0;
+                const totals = {
+                    short_term: { physical: 0, financial: 0 },
+                    long_term: { physical: 0, financial: 0 },
+                    all: { physical: 0, financial: 0 },
+                };
 
-                form.querySelectorAll('[data-physical-target]').forEach(function (input) {
-                    physical += Number.parseInt(input.value || '0', 10) || 0;
+                form.querySelectorAll('[data-target-row]').forEach(function (row) {
+                    let rowPhysical = 0;
+                    let rowFinancial = 0;
+
+                    row.querySelectorAll('[data-physical]').forEach(function (input) {
+                        const value = physicalOf(input);
+                        rowPhysical += value;
+                        totals[input.dataset.term].physical += value;
+                    });
+
+                    row.querySelectorAll('[data-financial]').forEach(function (input) {
+                        const value = financialOf(input);
+                        rowFinancial += value;
+                        totals[input.dataset.term].financial += value;
+                    });
+
+                    totals.all.physical += rowPhysical;
+                    totals.all.financial += rowFinancial;
+                    row.querySelector('[data-row-physical]').textContent = numberFormatter.format(rowPhysical);
+                    row.querySelector('[data-row-financial]').textContent = peso(rowFinancial);
                 });
 
-                form.querySelectorAll('[data-financial-target]').forEach(function (input) {
-                    financial += Number.parseFloat(window.TupadMoney.unformat(input.value) || '0') || 0;
+                Object.keys(totals).forEach(function (key) {
+                    form.querySelector('[data-total-physical="' + key + '"]').textContent = numberFormatter.format(totals[key].physical);
+                    form.querySelector('[data-total-financial="' + key + '"]').textContent = peso(totals[key].financial);
                 });
-
-                physicalTotal.textContent = numberFormatter.format(physical);
-                financialTotal.textContent = moneyFormatter.format(financial).replace('PHP', '₱').trim();
             }
 
             form.addEventListener('input', refreshTotals);

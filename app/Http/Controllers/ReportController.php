@@ -108,7 +108,12 @@ class ReportController extends Controller
                 'nullable',
                 'integer',
                 'between:2000,2100',
-                'required_with:quarter,month',
+                'required_with:semester,quarter,month',
+            ],
+            'semester' => [
+                'nullable',
+                'integer',
+                'between:1,2',
             ],
             'quarter' => [
                 'nullable',
@@ -172,6 +177,17 @@ class ReportController extends Controller
                 $validator->errors()->add(
                     'month',
                     'Month and quarter cannot be used at the same time.'
+                );
+            }
+
+            $hasSemester = array_key_exists('semester', $input)
+                && $input['semester'] !== null
+                && $input['semester'] !== '';
+
+            if ($hasSemester && ($hasQuarter || $hasMonth)) {
+                $validator->errors()->add(
+                    'semester',
+                    'Semester cannot be combined with a quarter or month.'
                 );
             }
 

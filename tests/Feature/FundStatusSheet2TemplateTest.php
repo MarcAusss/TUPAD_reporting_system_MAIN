@@ -96,7 +96,16 @@ class FundStatusSheet2TemplateTest extends TestCase
             ->get(route('reports.workspace.fund-status', ['view' => 'province']))
             ->assertOk()
             ->assertSee('Summary per Province')
-            ->assertSee('Sub-total');
+            ->assertSeeInOrder(['Sub-total', 'Albay Total']);
+
+        $sponsor = $this->actingAs($this->admin)
+            ->get(route('reports.workspace.fund-status', ['view' => 'sponsor']))
+            ->assertOk()
+            ->assertSeeInOrder(['Fund Sponsor', 'ADL No.', 'Partner', 'Location', 'TUPAD Allocation', 'Sub-total', 'TOTAL']);
+
+        $sponsorTemplate = $sponsor->viewData('report')['fund_status_template'];
+        $this->assertSame('sponsor', $sponsorTemplate['kind']);
+        $this->assertSame(10000000, $sponsorTemplate['totals']['allocation_cents']);
     }
 
     public function test_fund_status_print_contains_only_letterhead_type_date_and_sheet_two_table(): void
@@ -131,6 +140,7 @@ class FundStatusSheet2TemplateTest extends TestCase
         foreach ([
             'adl' => 'Summary per ADL',
             'province' => 'Summary per Province',
+            'sponsor' => 'Summary per Sponsor',
         ] as $groupBy => $title) {
             $this->actingAs($this->admin)
                 ->get(route('reports.print', [

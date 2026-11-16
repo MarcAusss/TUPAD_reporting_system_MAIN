@@ -1,6 +1,3 @@
-{{-- <------------------------------------------- Auth Brand Panel ------------------------------/> --}}
-{{-- Decorative visual panel shared by the login and required password change screens. --}}
-
 @php
     $eyebrow ??= 'TUPAD Reporting System';
     $headline ??= 'Tulong Panghanapbuhay sa Ating Disadvantaged Workers';
@@ -78,4 +75,4 @@
     </div>
 
 </div>  
-     
+      

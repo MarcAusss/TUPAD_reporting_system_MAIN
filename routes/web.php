@@ -8,10 +8,12 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RequiredPasswordChangeController;
 use App\Http\Controllers\CoordinatorAccountController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DistrictRepresentativeController;
 use App\Http\Controllers\DashboardGeographicAnalyticsController;
 use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MunicipalityIncomeClassController;
 use App\Http\Controllers\MonthlyQuarterlyReportController;
 use App\Http\Controllers\NgaTargetController;
 use App\Http\Controllers\NgaTargetReportController;
@@ -213,6 +215,18 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
         Route::put('/reports/reformulated-targets', [ReformulatedTargetController::class, 'update'])
             ->name('reports.reformulated-targets.update');
+
+        Route::get('/reports/district-representatives', [DistrictRepresentativeController::class, 'edit'])
+            ->name('reports.district-representatives.edit');
+
+        Route::put('/reports/district-representatives', [DistrictRepresentativeController::class, 'update'])
+            ->name('reports.district-representatives.update');
+
+        Route::get('/locations/income-classes', [MunicipalityIncomeClassController::class, 'edit'])
+            ->name('locations.income-classes.edit');
+
+        Route::put('/locations/income-classes', [MunicipalityIncomeClassController::class, 'update'])
+            ->name('locations.income-classes.update');
     });
 
     Route::middleware('role:admin,tc,focal')->group(function () {
@@ -222,6 +236,9 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
         Route::get('/reports/nga-targets', [NgaTargetReportController::class, 'index'])
             ->name('reports.workspace.nga-targets');
+
+        Route::get('/reports/nga-targets/print', [NgaTargetReportController::class, 'print'])
+            ->name('reports.workspace.nga-targets.print');
 
         Route::get('/reports/fund-status', [FundStatusReportController::class, 'index'])
             ->name('reports.workspace.fund-status');

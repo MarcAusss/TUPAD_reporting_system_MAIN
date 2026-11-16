@@ -160,6 +160,58 @@ class ActualBeneficiaryMappingTest extends TestCase
             ->assertSee('Actual Beneficiary Mapping');
     }
 
+    public function test_beneficiaries_tab_shows_payment_counts_beside_the_approved_counts(): void
+    {
+        $beneficiariesTab = route('projects.show', ['project' => $this->project, 'workspace' => 'beneficiaries']);
+
+        // Before payment: only the approved counts.
+        $this->actingAs($this->focal)->get($beneficiariesTab)
+            ->assertOk()
+            ->assertDontSee('Updated from Payment')
+            ->assertDontSee('Actual Total (Payment)');
+
+        // Payment completed for 8 of the 10 approved beneficiaries.
+        $this->completeObligation(beneficiaries: 8, female: 5);
+
+        $this->actingAs($this->focal)->get($beneficiariesTab)
+            ->assertOk()
+            ->assertSee('Updated from Payment')
+            ->assertSee('Actual (Payment)')
+            ->assertSee('Approved (Create Project)')
+            ->assertSee('−2 not included in the payment')
+            ->assertSee('Actual Total (Payment)')
+            // Per-barangay counts wait for the TC's deductions.
+            ->assertSee('update once the TC records')
+            ->assertDontSee('Actual Female</th>', false);
+    }
+
+    public function test_beneficiary_mapping_source_shows_each_barangays_actual_count_after_deductions(): void
+    {
+        $this->completeObligation(beneficiaries: 8, female: 5);
+        $this->saveDeductions([
+            $this->rawis->id => ['total' => 1, 'female' => 1],
+            $this->bogtong->id => ['total' => 1, 'female' => 0],
+        ])->assertSessionHasNoErrors();
+
+        $beneficiariesTab = route('projects.show', ['project' => $this->project, 'workspace' => 'beneficiaries']);
+
+        // Read-only table (Focal): encoded and actual columns side by side.
+        $this->actingAs($this->focal)->get($beneficiariesTab)
+            ->assertOk()
+            ->assertSee('deducted by barangay')
+            ->assertSee('Encoded Total')
+            ->assertSee('Actual Total</th>', false)
+            ->assertSee('actual 8 (5 female)');
+
+        // Admin/TC saved list: encoded → actual per barangay (Rawis 6 → 5).
+        $this->actingAs($this->tc)->get($beneficiariesTab)
+            ->assertOk()
+            ->assertSee('→ 5', false);
+
+        // The encoded allocation itself is kept.
+        $this->assertSame(6, (int) $this->rawisAddress->fresh()->beneficiaries_total);
+    }
+
     public function test_changing_recorded_deductions_needs_focal_approval_and_is_noted(): void
     {
         $this->completeObligation(beneficiaries: 8, female: 5);

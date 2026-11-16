@@ -9,16 +9,28 @@
     @php
         $isPhysicalFinancial = ($report['type'] ?? null) === \App\Enums\ReportType::PHYSICAL_FINANCIAL
             && is_array($report['physical_financial_matrix'] ?? null);
+        $isPfAllMonths = $isPhysicalFinancial
+            && ($report['dimension'] ?? null) === \App\Enums\ReportDimension::MONTH
+            && ($report['physical_financial_matrix']['selected_month'] ?? null) === null;
+        // Per Semester / per Quarter with no single period chosen print one table with
+        // target, every period and balance (like the on-screen report).
+        $pfDimension = $report['dimension'] ?? null;
+        $isPfAllQuarters = $isPhysicalFinancial
+            && $pfDimension === \App\Enums\ReportDimension::QUARTER
+            && ($report['physical_financial_matrix']['selected_quarter'] ?? null) === null;
+        $isPfAllSemesters = $isPhysicalFinancial
+            && $pfDimension === \App\Enums\ReportDimension::SEMESTER
+            && ($report['physical_financial_matrix']['selected_semester'] ?? null) === null;
+        $isPfAllPeriodsWithTarget = $isPfAllQuarters || $isPfAllSemesters;
         $isLaborMarketMatrix = is_array($report['labor_market_print_matrix'] ?? null);
         $isSprsMatrix = is_array($report['sprs_print_matrix'] ?? null);
+        $isCqprTemplate = is_array($report['cqpr_template'] ?? null);
+        $isOrientationTemplate = is_array($report['orientation_template'] ?? null);
         $isFundStatusTemplate = ($report['type'] ?? null) === \App\Enums\ReportType::FUND_STATUS
             && is_array($report['fund_status_template'] ?? null);
     @endphp
 
-    {{--
-        Official print layout: letterhead, report title, the table, and signatories.
-        Nothing else is printed (no criteria strip, summary cards, notes or footers).
-    --}}
+
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; padding: 18px; font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: #000; background: #fff; }
@@ -45,6 +57,10 @@
         .pf-head-accomplishment { background: #f8d45b; color: #000; font-weight: 800; }
         .pf-head-balance { background: #f0b27a; color: #000; font-weight: 800; }
         .pf-head-leaf { background: #fff7db; color: #000; font-weight: 800; }
+        .pf-matrix.pf-all-months th, .pf-matrix.pf-all-months td { font-size: 6.5px; padding: 3px 2px; }
+        .pf-matrix.pf-all-months .province { width: 7%; }
+        .pf-matrix.pf-all-quarters th, .pf-matrix.pf-all-quarters td { font-size: 7px; padding: 3px 2px; }
+        .pf-matrix.pf-all-quarters .province, .pf-matrix.pf-all-semesters .province { width: 10%; }
         .pf-total td { background: #3f3f3f; color: #fff; font-weight: 800; }
 
         .sprs-matrix { table-layout: fixed; }
@@ -61,7 +77,11 @@
             body { padding: 0; }
             .no-print { display: none; }
             th, td, .pf-total td, .sprs-grand-total td { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            @if ($isPhysicalFinancial)
+            @if ($isPfAllMonths || $isPfAllQuarters)
+                @page { size: Legal landscape; margin: 6mm; }
+            @elseif ($isPfAllSemesters)
+                @page { size: Letter landscape; margin: 8mm; }
+            @elseif ($isPhysicalFinancial)
                 @page { size: Letter portrait; margin: 9mm; }
             @else
                 @page { size: A4 landscape; margin: 8mm; }
@@ -131,6 +151,108 @@
                                 <td class="right">{{ $matrixNumber(data_get($total, 'balance.physical', 0)) }}</td>
                                 <td class="right">{{ $matrixMoney(data_get($total, 'balance.financial_cents', 0)) }}</td>
                             </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                @include('reports.partials.signatories', ['report' => $report])
+            </section>
+        @elseif ($isPfAllMonths)
+            <section class="pf-print-page">
+                @include('reports.partials.official-print-header', [
+                    'report' => $report,
+                    'printTitle' => 'Physical & Financial Accomplishment per Month',
+                ])
+
+                <div class="report-table-wrap">
+                    <table class="pf-matrix pf-all-months">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" class="pf-head-target province">Province</th>
+                                @foreach ($matrix['periods'] as $period)
+                                    <th colspan="2" class="pf-head-accomplishment">{{ $period['label'] }}</th>
+                                @endforeach
+                            </tr>
+                            <tr>
+                                @foreach ($matrix['periods'] as $period)
+                                    <th class="pf-head-leaf">Physical</th>
+                                    <th class="pf-head-leaf">Financial</th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($matrix['rows'] as $row)
+                                <tr>
+                                    <td class="province">{{ $row['province'] }}</td>
+                                    @foreach ($matrix['periods'] as $period)
+                                        <td class="right">{{ $matrixNumber(data_get($row, 'periods.'.$period['key'].'.physical', 0)) }}</td>
+                                        <td class="right">{{ $matrixMoney(data_get($row, 'periods.'.$period['key'].'.financial_cents', 0)) }}</td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                            <tr class="pf-total">
+                                <td class="province">TOTAL</td>
+                                @foreach ($matrix['periods'] as $period)
+                                    <td class="right">{{ $matrixNumber(data_get($total, 'periods.'.$period['key'].'.physical', 0)) }}</td>
+                                    <td class="right">{{ $matrixMoney(data_get($total, 'periods.'.$period['key'].'.financial_cents', 0)) }}</td>
+                                @endforeach
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                @include('reports.partials.signatories', ['report' => $report])
+            </section>
+        @elseif ($isPfAllPeriodsWithTarget)
+            <section class="pf-print-page">
+                @include('reports.partials.official-print-header', [
+                    'report' => $report,
+                    'printTitle' => $isPfAllQuarters
+                        ? 'Physical & Financial Accomplishment per Quarter'
+                        : 'Physical & Financial Accomplishment per Semester',
+                ])
+
+                <div class="report-table-wrap">
+                    <table class="pf-matrix {{ $isPfAllQuarters ? 'pf-all-quarters' : 'pf-all-semesters' }}">
+                        <thead>
+                            <tr>
+                                <th rowspan="3" class="pf-head-target province">Province</th>
+                                <th rowspan="2" colspan="2" class="pf-head-target">Reformulated Target</th>
+                                <th colspan="{{ count($matrix['periods']) * 2 }}" class="pf-head-accomplishment">
+                                    {{ $isPfAllQuarters ? 'Accomplishment' : 'CY'.($matrix['fiscal_year'] ?? now('Asia/Manila')->year) }}
+                                </th>
+                                <th rowspan="2" colspan="2" class="pf-head-balance">Balance</th>
+                            </tr>
+                            <tr>
+                                @foreach ($matrix['periods'] as $period)
+                                    <th colspan="2" class="pf-head-accomplishment">{{ $period['label'] }}</th>
+                                @endforeach
+                            </tr>
+                            <tr>
+                                @foreach (range(1, count($matrix['periods']) + 2) as $pair)
+                                    <th class="pf-head-leaf">Physical</th>
+                                    <th class="pf-head-leaf">Financial</th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ([...collect($matrix['rows'])->values()->all(), ['province' => 'TOTAL', '__total' => true]] as $row)
+                                @php
+                                    $isTotalRow = isset($row['__total']);
+                                    $source = $isTotalRow ? $total : $row;
+                                @endphp
+                                <tr @class(['pf-total' => $isTotalRow])>
+                                    <td class="province">{{ $row['province'] }}</td>
+                                    <td class="right">{{ $matrixNumber(data_get($source, 'target.physical', 0)) }}</td>
+                                    <td class="right">{{ $matrixMoney(data_get($source, 'target.financial_cents', 0)) }}</td>
+                                    @foreach ($matrix['periods'] as $period)
+                                        <td class="right">{{ $matrixNumber(data_get($source, 'periods.'.$period['key'].'.physical', 0)) }}</td>
+                                        <td class="right">{{ $matrixMoney(data_get($source, 'periods.'.$period['key'].'.financial_cents', 0)) }}</td>
+                                    @endforeach
+                                    <td class="right">{{ $matrixNumber(data_get($source, 'balance.physical', 0)) }}</td>
+                                    <td class="right">{{ $matrixMoney(data_get($source, 'balance.financial_cents', 0)) }}</td>
+                                </tr>
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
@@ -248,6 +370,10 @@
                     </tbody>
                 </table>
             </div>
+        @elseif ($isOrientationTemplate)
+            @include('reports.monthly.partials.orientation-table-print', ['report' => $report])
+        @elseif ($isCqprTemplate)
+            @include('reports.quarterly.partials.cqpr-table-print', ['report' => $report])
         @elseif ($isLaborMarketMatrix)
             @php
                 $laborMatrix = $report['labor_market_print_matrix'];

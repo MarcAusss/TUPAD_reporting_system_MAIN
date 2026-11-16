@@ -69,7 +69,6 @@
 
         @include('projects.partials.show.overview')
 
-        {{-- Project & Workflow Records (one editable section per workflow step) --}}
         @include('projects.partials.workflow-records')
 
         @include('projects.partials.show.beneficiaries-wage')
@@ -88,7 +87,6 @@
 
         @include('projects.partials.show.evaluation-history')
 
-        {{-- Implementation Preparation (Direct Administration, and Through ACP after the check release) --}}
 
         @php
             $implementationIsAcp = $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP;

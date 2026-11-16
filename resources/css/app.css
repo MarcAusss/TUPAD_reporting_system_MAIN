@@ -1461,6 +1461,21 @@ main table.tupad-report-table.tupad-report-table.tupad-report-table tbody tr.tup
     font-weight: 700 !important;
 }
 
+/* SPRS quarter sub-totals: stronger than ordinary sub-totals so quarters stand out from month rows. */
+main table.tupad-report-table.tupad-report-table.tupad-report-table tbody tr.tupad-report-subtotal-row.tupad-sprs-quarter-row td {
+    border: 1px solid #9fbbe0 !important;
+    border-top: 2px solid #063b86 !important;
+    border-bottom: 2px solid #063b86 !important;
+    background: #c9dcf2 !important;
+    color: #071d44 !important;
+    font-weight: 800 !important;
+}
+
+main table.tupad-report-table.tupad-report-table.tupad-report-table tbody tr.tupad-report-subtotal-row.tupad-sprs-quarter-row td:first-child {
+    border-left: 4px solid #063b86 !important;
+    letter-spacing: 0.04em;
+}
+
 /* Total rows: in tbody (.tupad-report-total-row) or tfoot. */
 main table.tupad-report-table.tupad-report-table.tupad-report-table tbody tr.tupad-report-total-row td,
 main table.tupad-report-table.tupad-report-table.tupad-report-table tbody tr.tupad-table-total-row td,

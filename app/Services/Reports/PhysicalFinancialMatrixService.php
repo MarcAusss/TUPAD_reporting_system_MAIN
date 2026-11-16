@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Enums\ProjectStatus;
+use App\Enums\ProjectTerm;
 use App\Enums\ReportDimension;
 use App\Models\Project;
 use App\Models\Province;
@@ -42,10 +43,36 @@ final class PhysicalFinancialMatrixService
             );
         }
 
-        $projects = $this->reportingData->projects($filters);
+        // Month/quarter/semester view + matching period filter: load the whole
+        // fiscal year and keep only the selected period's column, so its figures
+        // match the all-periods table.
+        $selectedMonth = $dimension === ReportDimension::MONTH ? $filters->month : null;
+        $selectedQuarter = $dimension === ReportDimension::QUARTER ? $filters->quarter : null;
+        $selectedSemester = $dimension === ReportDimension::SEMESTER ? $filters->semester : null;
+        $selectedPeriodKey = match (true) {
+            $selectedMonth !== null => 'month-'.$selectedMonth,
+            $selectedQuarter !== null => 'quarter-'.$selectedQuarter,
+            $selectedSemester !== null => 'semester-'.$selectedSemester,
+            default => null,
+        };
+        $projectFilters = $selectedPeriodKey !== null
+            ? new ReportFilters(...[...get_object_vars($filters), 'month' => null, 'quarter' => null, 'semester' => null])
+            : $filters;
+
+        $projects = $this->reportingData->projects($projectFilters);
         $periods = $this->periods($dimension);
+
+        if ($selectedPeriodKey !== null) {
+            $periods = array_values(array_filter(
+                $periods,
+                fn (array $period): bool => $period['key'] === $selectedPeriodKey,
+            ));
+        }
         $provinceBuckets = $this->provinceBuckets($projects, $filters);
         $manualTargets = $this->manualTargets($filters);
+
+        // Short-/long-term breakdown backs the "By Term" tables (Overall, Semester, Quarter).
+        $withTerms = in_array($dimension, [ReportDimension::OVERALL, ReportDimension::SEMESTER, ReportDimension::QUARTER], true);
 
         $rows = $provinceBuckets
             ->map(
@@ -55,11 +82,17 @@ final class PhysicalFinancialMatrixService
                         $provinceProjects,
                         $periods,
                         $manualTargets->get($province),
+                        $withTerms,
                     )
             )
             ->values();
 
-        $total = $this->matrixRow('TOTAL', $projects, $periods);
+        $total = $this->matrixRow('TOTAL', $projects, $periods, null, $withTerms);
+
+        if ($withTerms) {
+            $total['terms'] = $this->totalTerms($rows, $total['terms']);
+        }
+
         $total['target'] = [
             'physical' => (int) $rows->sum(
                 fn (array $row): int => (int) data_get($row, 'target.physical', 0)
@@ -79,6 +112,9 @@ final class PhysicalFinancialMatrixService
             'dimension' => $dimension->value,
             'fiscal_year' => $filters->fiscalYear,
             'periods' => $periods,
+            'selected_month' => $selectedMonth,
+            'selected_quarter' => $selectedQuarter,
+            'selected_semester' => $selectedSemester,
             'rows' => $rows,
             'total' => $total,
             'basis_note' => implode(' ', [
@@ -190,6 +226,7 @@ final class PhysicalFinancialMatrixService
         Collection $projects,
         array $periods,
         ?ReformulatedTarget $manualTarget = null,
+        bool $withTerms = false,
     ): array {
         $target = $this->targetMetrics($projects, $manualTarget);
         $accomplishment = $this->accomplishmentMetrics($projects);
@@ -220,7 +257,86 @@ final class PhysicalFinancialMatrixService
                 'financial_cents' =>
                     $target['financial_cents'] - $accomplishment['financial_cents'],
             ],
+            'terms' => $withTerms ? $this->termMetrics($projects, $manualTarget, $periods) : [],
         ];
+    }
+
+    /**
+     * Short-/long-term target, accomplishment, and balance for one province.
+     *
+     * Target: the Focal split when saved; when Focal saved only a combined total
+     * (before the split existed) the term target is null ("not yet split");
+     * with no Focal target at all it falls back to the projects of that term.
+     * `derived_target` is always the project-based figure (used to prefill the
+     * Focal editor).
+     *
+     * `periods` holds the term's accomplishment per period (e.g. per semester);
+     * balance is always target less the full accomplishment.
+     *
+     * @param Collection<int, Project> $projects
+     * @param array<int, array{key:string,label:string}> $periods
+     * @return array<string, array{label:string, target:?array, derived_target:array, accomplishment:array, periods:array, balance:?array}>
+     */
+    private function termMetrics(Collection $projects, ?ReformulatedTarget $manualTarget, array $periods = []): array
+    {
+        $terms = [];
+
+        foreach (ProjectTerm::cases() as $term) {
+            $termProjects = $projects
+                ->filter(fn (Project $project): bool => $project->term === $term)
+                ->values();
+
+            $derived = $this->targetMetrics($termProjects);
+            $target = $manualTarget !== null ? $manualTarget->termTarget($term) : $derived;
+            $accomplishment = $this->accomplishmentMetrics($termProjects);
+
+            $terms[$term->value] = [
+                'label' => $term->label(),
+                'target' => $target,
+                'derived_target' => $derived,
+                'accomplishment' => $accomplishment,
+                'periods' => collect($periods)->mapWithKeys(fn (array $period): array => [
+                    $period['key'] => $this->accomplishmentMetrics(
+                        $termProjects
+                            ->filter(fn (Project $project): bool => $this->projectMatchesPeriod($project, $period['key']))
+                            ->values()
+                    ),
+                ])->all(),
+                'balance' => $target === null ? null : [
+                    'physical' => $target['physical'] - $accomplishment['physical'],
+                    'financial_cents' => $target['financial_cents'] - $accomplishment['financial_cents'],
+                ],
+            ];
+        }
+
+        return $terms;
+    }
+
+    /**
+     * TOTAL row targets are the sum of the province rows (like the combined
+     * table). If any province's target is not yet split, the term total is
+     * left null rather than showing a misleading partial sum.
+     *
+     * @param Collection<int, array> $rows
+     */
+    private function totalTerms(Collection $rows, array $totalTerms): array
+    {
+        foreach ($totalTerms as $key => $term) {
+            $rowTargets = $rows->map(fn (array $row): ?array => $row['terms'][$key]['target'] ?? null);
+
+            $target = $rowTargets->contains(null) ? null : [
+                'physical' => (int) $rowTargets->sum('physical'),
+                'financial_cents' => (int) $rowTargets->sum('financial_cents'),
+            ];
+
+            $totalTerms[$key]['target'] = $target;
+            $totalTerms[$key]['balance'] = $target === null ? null : [
+                'physical' => $target['physical'] - $term['accomplishment']['physical'],
+                'financial_cents' => $target['financial_cents'] - $term['accomplishment']['financial_cents'],
+            ];
+        }
+
+        return $totalTerms;
     }
 
     /** @param Collection<int, Project> $projects */

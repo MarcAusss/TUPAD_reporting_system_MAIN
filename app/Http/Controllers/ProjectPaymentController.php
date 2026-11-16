@@ -21,13 +21,14 @@ class ProjectPaymentController extends Controller
     /**
      * Fields that make a tranche row "filled". Obligation date and remarks
      * are excluded because the date is prefilled for every new row.
+     *
+     * Payment tranches cover wages only: insurance is paid at Preparation
+     * (GSIS enrollment with its OR number) and PPE at PPE Delivery.
      */
     private const ROW_CONTENT_FIELDS = [
         'beneficiaries_total',
         'beneficiaries_female',
         'wages_amount',
-        'insurance_amount',
-        'ppe_amount',
         'payee',
     ];
 
@@ -71,7 +72,6 @@ class ProjectPaymentController extends Controller
         $obligatedTotals = $paymentService->obligatedTotals($project->obligations);
         $remaining = fn (string $key): int => max(0, $limits[$key] - $obligatedTotals[$key]);
         $wagePerBeneficiary = $paymentService->wagePerBeneficiaryCents($project);
-        $insurancePerBeneficiary = $paymentService->insurancePerBeneficiaryCents($project);
 
         return view('payments.show', [
             'project' => $project,
@@ -83,7 +83,6 @@ class ProjectPaymentController extends Controller
             'obligationLimits' => $limits,
             'obligatedTotals' => $obligatedTotals,
             'wagePerBeneficiaryCents' => $wagePerBeneficiary,
-            'insurancePerBeneficiaryCents' => $insurancePerBeneficiary,
             'remainingDefaults' => [
                 'beneficiaries_total' => $remaining('beneficiaries_total'),
                 'beneficiaries_female' => $remaining('beneficiaries_female'),
@@ -91,11 +90,6 @@ class ProjectPaymentController extends Controller
                     $remaining('wages'),
                     $remaining('beneficiaries_total') * $wagePerBeneficiary
                 )),
-                'insurance_amount' => $paymentService->centsToDecimal(min(
-                    $remaining('insurance'),
-                    $remaining('beneficiaries_total') * $insurancePerBeneficiary
-                )),
-                'ppe_amount' => $paymentService->centsToDecimal($remaining('ppe')),
             ],
             'paymentService' => $paymentService,
         ]);
@@ -127,10 +121,8 @@ class ProjectPaymentController extends Controller
                 ->contains(fn (string $field): bool => trim((string) ($row[$field] ?? '')) !== ''))
             // Accept formatted amounts such as "9,100.00".
             ->map(function (array $row): array {
-                foreach (['wages_amount', 'insurance_amount', 'ppe_amount'] as $field) {
-                    if (isset($row[$field])) {
-                        $row[$field] = str_replace([',', ' '], '', trim((string) $row[$field]));
-                    }
+                if (isset($row['wages_amount'])) {
+                    $row['wages_amount'] = str_replace([',', ' '], '', trim((string) $row['wages_amount']));
                 }
 
                 return $row;
@@ -144,21 +136,12 @@ class ProjectPaymentController extends Controller
             'tranches' => [$completing ? 'nullable' : 'required', 'array'],
             'tranches.*.beneficiaries_total' => ['required', 'integer', 'min:1'],
             'tranches.*.beneficiaries_female' => ['nullable', 'integer', 'min:0', 'lte:tranches.*.beneficiaries_total'],
-            // Only one of wages, insurance, or PPE is needed; blanks count as zero.
-            'tranches.*.wages_amount' => [
-                'nullable',
-                'required_without_all:tranches.*.insurance_amount,tranches.*.ppe_amount',
-                self::MONEY_RULE,
-            ],
-            'tranches.*.insurance_amount' => ['nullable', self::MONEY_RULE],
-            'tranches.*.ppe_amount' => ['nullable', self::MONEY_RULE],
+            'tranches.*.wages_amount' => ['required', self::MONEY_RULE],
             'tranches.*.obligation_date' => ['required', 'date'],
             'tranches.*.payee' => ['required', 'string', 'max:255'],
             'tranches.*.remarks' => ['nullable', 'string', 'max:3000'],
         ], [
             'tranches.required' => 'Enter at least one tranche before saving.',
-            'tranches.*.wages_amount.required_without_all' =>
-                'Enter at least one amount (wages, insurance, or PPE) for each tranche.',
             'tranches.*.beneficiaries_female.lte' =>
                 'Female beneficiaries cannot exceed the tranche\'s total beneficiaries.',
             'tranches.*.*.regex' =>
@@ -167,8 +150,6 @@ class ProjectPaymentController extends Controller
             'tranches.*.beneficiaries_total' => 'number of beneficiaries',
             'tranches.*.beneficiaries_female' => 'female beneficiaries',
             'tranches.*.wages_amount' => 'wages',
-            'tranches.*.insurance_amount' => 'insurance',
-            'tranches.*.ppe_amount' => 'PPE',
             'tranches.*.obligation_date' => 'obligation date',
             'tranches.*.payee' => 'payee',
         ]);
@@ -217,15 +198,16 @@ class ProjectPaymentController extends Controller
             $rows = $validated['tranches'] ?? [];
 
             foreach ($rows as $key => $row) {
+                // Wages only; insurance and PPE were settled at Preparation.
                 $wagesCents = $paymentService->amountToCents($row['wages_amount'] ?? null);
-                $insuranceCents = $paymentService->amountToCents($row['insurance_amount'] ?? null);
-                $ppeCents = $paymentService->amountToCents($row['ppe_amount'] ?? null);
-                $totalCents = $wagesCents + $insuranceCents + $ppeCents;
+                $insuranceCents = 0;
+                $ppeCents = 0;
+                $totalCents = $wagesCents;
 
                 if ($totalCents <= 0) {
                     throw ValidationException::withMessages([
                         "tranches.{$key}.wages_amount" =>
-                            'A tranche\'s total overall amount must be greater than zero.',
+                            'A tranche\'s wages must be greater than zero.',
                     ]);
                 }
 

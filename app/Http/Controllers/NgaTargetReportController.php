@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ImplementationMode;
 use App\Models\Project;
+use App\Services\Reports\ReportDocumentControlService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -34,7 +35,42 @@ class NgaTargetReportController extends Controller
      *   mirrors Target beneficiaries once any amount has actually been paid.
      * - Balance: Target minus Accomplished (the remainder still owed).
      */
+    public function __construct(
+        private readonly ReportDocumentControlService $documentControl,
+    ) {}
+
     public function index(Request $request): View
+    {
+        return view('reports.nga-targets.index', $this->reportData($request));
+    }
+
+    /**
+     * Official print layout of the same table, honoring the on-screen filters.
+     */
+    public function print(Request $request): View
+    {
+        $data = $this->reportData($request);
+
+        $criteria = array_filter([
+            'Agency' => $data['agencyFilter'],
+            'Program' => $data['programFilter'],
+            'Search' => $data['search'],
+        ], static fn (string $value): bool => $value !== '');
+
+        return view('reports.nga-targets.print', [
+            ...$data,
+            'report' => $this->documentControl->apply([
+                'title' => 'NGA Target Accomplishment',
+                'official_title' => 'NGA Target Accomplishment',
+                'criteria' => $criteria,
+            ], $request->user()),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function reportData(Request $request): array
     {
         $search = trim((string) $request->string('q'));
         $agencyFilter = trim((string) $request->string('agency'));
@@ -55,6 +91,7 @@ class NgaTargetReportController extends Controller
             ->pluck('program');
 
         $projects = Project::query()
+            ->reportable()
             ->with([
                 'projectLocations.province',
                 'projectLocations.municipality',
@@ -94,7 +131,7 @@ class NgaTargetReportController extends Controller
 
         $totals = $this->sumRows($rows);
 
-        return view('reports.nga-targets.index', [
+        return [
             'rows' => $rows,
             'totals' => $totals,
             'search' => $search,
@@ -103,7 +140,7 @@ class NgaTargetReportController extends Controller
             'agencyOptions' => $agencyOptions,
             'programOptions' => $programOptions,
             'projectCount' => $projects->count(),
-        ]);
+        ];
     }
 
     /**

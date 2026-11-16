@@ -58,8 +58,6 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
                     'beneficiaries_total' => 50,
                     'beneficiaries_female' => 25,
                     'wages_amount' => '455000.00',
-                    'insurance_amount' => '2500.00',
-                    'ppe_amount' => '0.00',
                     'obligation_date' => now()->toDateString(),
                     'payee' => 'TUPAD Beneficiaries',
                 ]],
@@ -75,7 +73,7 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
                     [$project, $obligation]
                 ),
                 [
-                    'amount' => '457500.00',
+                    'amount' => '455000.00',
                     'date_disbursed' => now()->toDateString(),
                     'ldap_check_number' => 'LDAP-FINAL-WORKFLOW',
                 ]
@@ -84,7 +82,7 @@ class FinalProjectWorkflowTerminologyTest extends TestCase
 
         $this->assertDatabaseHas('project_disbursements', [
             'project_obligation_id' => $obligation->id,
-            'amount' => 457500,
+            'amount' => 455000,
             'ldap_check_number' => 'LDAP-FINAL-WORKFLOW',
         ]);
 

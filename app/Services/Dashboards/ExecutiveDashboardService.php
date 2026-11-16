@@ -33,6 +33,8 @@ final class ExecutiveDashboardService
 
     public function build(ReportFilters $filters): array
     {
+        // Dashboards track the whole pipeline, not only reportable projects.
+        $filters = $filters->withAllProjects();
         $projectCohort = $this->reporting->projects($filters);
         [$periodStart, $periodEnd] = $filters->periodBounds();
         $laborCohort = $periodStart === null && $periodEnd === null

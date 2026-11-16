@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
 use App\Models\AdlRealignment;
+use App\Models\DistrictRepresentative;
 use App\Models\NgaTarget;
 use App\Models\Project;
 use App\Models\ProjectApproval;
@@ -93,6 +94,7 @@ class AppServiceProvider extends ServiceProvider
             ProjectBeneficiary::class,
             ReformulatedTarget::class,
             NgaTarget::class,
+            DistrictRepresentative::class,
         ];
 
         foreach ($auditedModels as $model) {

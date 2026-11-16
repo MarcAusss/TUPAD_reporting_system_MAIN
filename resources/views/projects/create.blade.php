@@ -13,7 +13,7 @@
                     class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     Cancel
                 </a>
-            </x-slot:actions>   
+            </x-slot:actions>
         </x-page-header>
 
         @if ($allocations->isEmpty())
@@ -29,7 +29,7 @@
                     A new official project cannot be encoded until an allocation with remaining budget exists.
                 </p>
             </div>
-        @elseif($exhaustedAllocationCount > 0)j
+        @elseif($exhaustedAllocationCount > 0)
             <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
                 <div class="text-xs font-bold uppercase tracking-widest text-amber-700">
                     Some Allocations Hidden
@@ -1603,15 +1603,15 @@
                                 <div class="mt-2 space-y-1.5">
                                     ${item.barangays.map(
                                         barangay => `
-                                                        <div class="flex items-center justify-between gap-3 rounded-md bg-white px-2 py-1.5 text-[10px] shadow-sm">
-                                                            <span class="min-w-0 truncate font-medium text-slate-600">
-                                                                ${escapeHtml(barangay.name)}
-                                                            </span>
-                                                            <span class="shrink-0 font-semibold text-blue-800">
-                                                                ${barangay.total === '' ? '—' : Number(barangay.total).toLocaleString()} total
-                                                            </span>
-                                                        </div>
-                                                    `
+                                                            <div class="flex items-center justify-between gap-3 rounded-md bg-white px-2 py-1.5 text-[10px] shadow-sm">
+                                                                <span class="min-w-0 truncate font-medium text-slate-600">
+                                                                    ${escapeHtml(barangay.name)}
+                                                                </span>
+                                                                <span class="shrink-0 font-semibold text-blue-800">
+                                                                    ${barangay.total === '' ? '—' : Number(barangay.total).toLocaleString()} total
+                                                                </span>
+                                                            </div>
+                                                        `
                                     ).join('')}
                                 </div>
                             </div>

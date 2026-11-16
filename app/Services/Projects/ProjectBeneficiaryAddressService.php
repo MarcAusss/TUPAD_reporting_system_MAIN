@@ -191,37 +191,27 @@ class ProjectBeneficiaryAddressService
         $allocatedTotal = (int) $rows->sum('beneficiaries_total');
         $allocatedFemale = (int) $rows->sum('beneficiaries_female');
 
-        if ($allocatedTotal !== (int) $project->beneficiaries_total) {
+        // Allocations may be below the declared counts (e.g. fewer beneficiaries
+        // actually served) but never above them.
+        if ($allocatedTotal > (int) $project->beneficiaries_total) {
             throw ValidationException::withMessages([
-                'beneficiary_addresses' => $allocatedTotal > (int) $project->beneficiaries_total
-                    ? sprintf(
-                        "Allocated total of %s exceeds the project's declared Total Beneficiaries of %s by %s.",
-                        number_format($allocatedTotal),
-                        number_format((int) $project->beneficiaries_total),
-                        number_format($allocatedTotal - (int) $project->beneficiaries_total),
-                    )
-                    : sprintf(
-                        'Beneficiary address allocations must total %s beneficiaries. Current total: %s.',
-                        number_format((int) $project->beneficiaries_total),
-                        number_format($allocatedTotal),
-                    ),
+                'beneficiary_addresses' => sprintf(
+                    "Allocated total of %s exceeds the project's declared Total Beneficiaries of %s by %s.",
+                    number_format($allocatedTotal),
+                    number_format((int) $project->beneficiaries_total),
+                    number_format($allocatedTotal - (int) $project->beneficiaries_total),
+                ),
             ]);
         }
 
-        if ($allocatedFemale !== (int) $project->beneficiaries_female) {
+        if ($allocatedFemale > (int) $project->beneficiaries_female) {
             throw ValidationException::withMessages([
-                'beneficiary_addresses' => $allocatedFemale > (int) $project->beneficiaries_female
-                    ? sprintf(
-                        "Allocated female count of %s exceeds the project's declared Female Beneficiaries of %s by %s.",
-                        number_format($allocatedFemale),
-                        number_format((int) $project->beneficiaries_female),
-                        number_format($allocatedFemale - (int) $project->beneficiaries_female),
-                    )
-                    : sprintf(
-                        'Female beneficiary address allocations must total %s. Current total: %s.',
-                        number_format((int) $project->beneficiaries_female),
-                        number_format($allocatedFemale),
-                    ),
+                'beneficiary_addresses' => sprintf(
+                    "Allocated female count of %s exceeds the project's declared Female Beneficiaries of %s by %s.",
+                    number_format($allocatedFemale),
+                    number_format((int) $project->beneficiaries_female),
+                    number_format($allocatedFemale - (int) $project->beneficiaries_female),
+                ),
             ]);
         }
 

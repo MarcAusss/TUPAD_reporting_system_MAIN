@@ -5,7 +5,9 @@
 @section('content')
     @php
         $money = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
-        $monthName = \Carbon\CarbonImmutable::create((int) $filters['fiscal_year'], (int) $filters['month'], 1)->format('F Y');
+        $monthName = filled($filters['month'] ?? null)
+            ? \Carbon\CarbonImmutable::create((int) $filters['fiscal_year'], (int) $filters['month'], 1)->format('F Y')
+            : 'January – December ' . (int) $filters['fiscal_year'];
         $commonQuery = array_filter([
             'fiscal_year' => $filters['fiscal_year'] ?? null,
             'month' => $filters['month'] ?? null,
@@ -63,9 +65,12 @@
                 </div>
                 <div>
                     <label for="month" class="mb-2 block text-xs font-semibold text-slate-700">Month</label>
-                    <select id="month" name="month" required class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                    <select id="month" name="month" @required($viewKey !== 'orientations') class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                        @if ($viewKey === 'orientations')
+                            <option value="">All months</option>
+                        @endif
                         @foreach (range(1, 12) as $month)
-                            <option value="{{ $month }}" @selected((int) $filters['month'] === $month)>{{ \Carbon\CarbonImmutable::create(2000, $month, 1)->format('F') }}</option>
+                            <option value="{{ $month }}" @selected((int) ($filters['month'] ?? 0) === $month)>{{ \Carbon\CarbonImmutable::create(2000, $month, 1)->format('F') }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -109,8 +114,8 @@
     @if ($viewKey === 'sprs')
         <section class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             @foreach ([
-                ['Projects', $summary['project_count'], 'Projects with an SPRS date in the selected month'],
-                ['Beneficiaries', $summary['beneficiaries_total'], 'Encoded beneficiaries for the same SPRS cohort'],
+                ['Projects', $summary['project_count'], 'Projects reported in the selected month'],
+                ['Beneficiaries', $summary['beneficiaries_total'], 'Beneficiaries for the same SPRS cohort'],
                 ['Female Beneficiaries', $summary['beneficiaries_female'], 'Female beneficiaries in the same cohort'],
                 ['Completed Projects', $summary['completed_project_count'], 'Projects currently marked Completed'],
             ] as [$label, $value, $hint])
@@ -139,7 +144,7 @@
     @else
         <section class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             @foreach ([
-                ['Orientation Records', $orientationCounts['orientation_records'], 'Recorded orientations in the selected month'],
+                ['Orientation Records', $orientationCounts['orientation_records'], 'Recorded orientations in ' . $monthName],
                 ['AlkanSSSya', $orientationCounts['alkansssya'], 'Orientations explicitly marked with AlkanSSSya coverage'],
                 ['YAKAP', $orientationCounts['yakap'], 'Orientations explicitly marked with YAKAP coverage'],
                 ['Program Unspecified', $orientationCounts['program_unspecified'], 'Legacy or unclassified orientation records; no program is inferred'],
@@ -158,14 +163,123 @@
             <h2 class="text-sm font-bold text-slate-900">{{ $viewConfig['label'] }}</h2>
             <p class="mt-1 text-xs leading-5 text-slate-500">
                 @if ($viewKey === 'sprs')
-                    Only projects with an encoded SPRS monitoring date inside {{ $monthName }} are listed. Financial values are the current audited values of those projects.
+                    Beneficiaries per province from January up to {{ $monthName }}. A project counts in the month of its SPRS date, otherwise the month its obligations were completed or its ACP payment was recorded. Later months stay blank.
                 @else
-                    Program coverage is reported only when explicitly encoded on the orientation record. Legacy remarks are not parsed or guessed.
+                    Every orientation conducted in {{ $monthName }}, listed under its month with a sub-total after each quarter. Choose a month to view only that month. Topics are marked only when explicitly encoded on the orientation record.
                 @endif
             </p>
         </div>
 
-        @if ($rows->isEmpty())
+        @if ($viewKey === 'sprs')
+            @php
+                $sprsNumber = static fn (mixed $value): string => number_format((int) $value);
+                $sprsRowClass = static fn (string $type): string => match ($type) {
+                    'quarter' => 'tupad-report-subtotal-row tupad-sprs-quarter-row bg-[#c9dcf2] font-extrabold text-[#071d44]',
+                    'grand_total' => 'tupad-report-total-row bg-[#10294f] font-extrabold text-white',
+                    default => 'bg-white text-slate-700 hover:bg-blue-50/70',
+                };
+            @endphp
+            <div class="overflow-x-auto">
+                <table class="tupad-report-table tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1200px] w-full text-xs" aria-label="SPRS province and month matrix">
+                    <thead>
+                        <tr class="bg-[#071d44] text-white">
+                            <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Province / Month</th>
+                            <th colspan="2" class="border border-[#26456f] bg-[#063b86] px-3 py-2 text-center font-bold">Overall</th>
+                            @foreach ($sprsMatrix['province_headers'] as $provinceLabel)
+                                <th colspan="2" class="border border-[#26456f] px-3 py-2 text-center font-bold">{{ $provinceLabel }}</th>
+                            @endforeach
+                        </tr>
+                        <tr class="bg-[#dbe8f7] text-[#10294f]">
+                            @foreach (range(0, count($sprsMatrix['province_headers'])) as $column)
+                                <th class="border border-[#b8cbe2] px-3 py-2 text-right font-bold">Total</th>
+                                <th class="border border-[#b8cbe2] px-3 py-2 text-right font-bold">Female</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($sprsMatrix['rows'] as $row)
+                            @php($isMonth = $row['row_type'] === 'month')
+                            <tr class="{{ $sprsRowClass($row['row_type']) }}">
+                                <td class="whitespace-nowrap border border-slate-200 px-3 py-2">{{ $row['label'] }}</td>
+                                <td @class(['border border-slate-200 px-3 py-2 text-right tabular-nums font-semibold', 'bg-[#eef3fa]' => $isMonth])>{{ $row['included'] ? $sprsNumber($row['overall']['total']) : '' }}</td>
+                                <td @class(['border border-slate-200 px-3 py-2 text-right tabular-nums', 'bg-[#eef3fa]' => $isMonth])>{{ $row['included'] ? $sprsNumber($row['overall']['female']) : '' }}</td>
+                                @foreach ($sprsMatrix['province_headers'] as $provinceKey => $provinceLabel)
+                                    @php($value = $row['provinces'][$provinceKey])
+                                    {{-- Months that have ended show 0 when empty; the current/future months stay blank when zero; sub-totals always show. --}}
+                                    @php($show = $row['included'] && (! $isMonth || ($row['elapsed'] ?? false) || $value['total'] > 0))
+                                    <td class="border border-slate-200 px-3 py-2 text-right tabular-nums">{{ $show ? $sprsNumber($value['total']) : '' }}</td>
+                                    <td class="border border-slate-200 px-3 py-2 text-right tabular-nums">{{ $show ? $sprsNumber($value['female']) : '' }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @elseif ($viewKey === 'orientations')
+            <div class="overflow-x-auto">
+                <table class="tupad-report-table tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1100px] w-full text-xs" aria-label="List of Orientations Conducted">
+                    <thead>
+                        <tr class="bg-[#071d44] text-white">
+                            <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-center font-bold">No.</th>
+                            <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Date of Activity</th>
+                            <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Venue</th>
+                            <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Learning Modality<br><span class="text-[10px] font-medium text-blue-200">(AVP / Face-to-Face)</span></th>
+                            <th colspan="2" class="border border-[#26456f] px-3 py-2 text-center font-bold">No. of Beneficiaries Oriented</th>
+                            <th colspan="2" class="border border-[#26456f] px-3 py-2 text-center font-bold">Topics Discussed</th>
+                            <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Name of Facilitator/s</th>
+                        </tr>
+                        <tr class="bg-[#dbe8f7] text-[#10294f]">
+                            <th class="border border-[#b8cbe2] px-3 py-2 text-right font-bold">Total</th>
+                            <th class="border border-[#b8cbe2] px-3 py-2 text-right font-bold">Female</th>
+                            <th class="border border-[#b8cbe2] px-3 py-2 text-center font-bold">AlkanSSSya Program</th>
+                            <th class="border border-[#b8cbe2] px-3 py-2 text-center font-bold">YAKAP Program</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($orientationTable['sections'] as $section)
+                            @if ($section['type'] === 'month')
+                                <tr class="bg-[#eef3fa] text-[#10294f]">
+                                    <td colspan="9" class="border border-[#b8cbe2] px-3 py-2 text-[11px] font-extrabold tracking-[0.08em]">{{ $section['label'] }}</td>
+                                </tr>
+                                @forelse ($section['rows'] as $row)
+                                    <tr class="bg-white hover:bg-blue-50/70">
+                                        <td class="border border-slate-200 px-3 py-2.5 text-center font-semibold text-slate-800">{{ $row['no'] }}</td>
+                                        <td class="whitespace-nowrap border border-slate-200 px-3 py-2.5 text-slate-700">{{ $row['date'] }}</td>
+                                        <td class="border border-slate-200 px-3 py-2.5 text-slate-700">
+                                            {{ $row['venue'] }}
+                                            <div class="mt-0.5 text-[11px] text-slate-400">{{ $row['project'] }}</div>
+                                        </td>
+                                        <td class="border border-slate-200 px-3 py-2.5 text-slate-700">{{ $row['modality'] }}</td>
+                                        <td class="border border-slate-200 px-3 py-2.5 text-right tabular-nums font-semibold text-slate-800">{{ number_format($row['total']) }}</td>
+                                        <td class="border border-slate-200 px-3 py-2.5 text-right tabular-nums text-slate-700">{{ number_format($row['female']) }}</td>
+                                        <td class="border border-slate-200 px-3 py-2.5 text-center font-bold text-[#063b86]">{{ $row['alkansssya'] ? '✓' : '' }}</td>
+                                        <td class="border border-slate-200 px-3 py-2.5 text-center font-bold text-[#063b86]">{{ $row['yakap'] ? '✓' : '' }}</td>
+                                        <td class="border border-slate-200 px-3 py-2.5 text-slate-700">{{ $row['facilitator'] }}</td>
+                                    </tr>
+                                @empty
+                                    <tr class="bg-white"><td colspan="9" class="border border-slate-200 px-3 py-2 text-center text-[11px] text-slate-400">No orientations recorded</td></tr>
+                                @endforelse
+                            @else
+                                <tr class="bg-[#c9dcf2] font-bold text-[#071d44]">
+                                    <td colspan="4" class="border border-[#b8cbe2] px-3 py-2.5">{{ $section['label'] }}</td>
+                                    <td class="border border-[#b8cbe2] px-3 py-2.5 text-right tabular-nums">{{ number_format($section['totals']['total']) }}</td>
+                                    <td class="border border-[#b8cbe2] px-3 py-2.5 text-right tabular-nums">{{ number_format($section['totals']['female']) }}</td>
+                                    <td colspan="3" class="border border-[#b8cbe2] px-3 py-2.5"></td>
+                                </tr>
+                            @endif
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-[#10294f] font-bold text-white">
+                            <td colspan="4" class="border border-[#26456f] px-3 py-3">{{ count($orientationTable['sections']) > 1 ? 'GRAND TOTAL' : 'TOTAL' }}</td>
+                            <td class="border border-[#26456f] px-3 py-3 text-right tabular-nums">{{ number_format($orientationTable['totals']['total']) }}</td>
+                            <td class="border border-[#26456f] px-3 py-3 text-right tabular-nums">{{ number_format($orientationTable['totals']['female']) }}</td>
+                            <td colspan="3" class="border border-[#26456f] px-3 py-3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        @elseif ($rows->isEmpty())
             <div class="px-5 py-12 text-center">
                 <div class="text-sm font-semibold text-slate-700">No monthly report data matched the selected criteria.</div>
                 <div class="mt-1 text-xs text-slate-500">Change the month or filters and try again.</div>

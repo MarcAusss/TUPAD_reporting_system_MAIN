@@ -6,6 +6,9 @@
     $orPayments = app(\App\Services\Payments\ProjectPaymentService::class);
     $orSummary = $orPayments->summary($project);
     $orObligations = $project->obligations->sortBy('tranche_number')->values();
+    $orHasLegacyAmounts = $orObligations->contains(
+        fn ($obligation): bool => (float) $obligation->insurance_amount > 0 || (float) $obligation->ppe_amount > 0
+    );
     $orShow = $project->implementation_mode !== \App\Enums\ImplementationMode::THROUGH_ACP
         && $orObligations->isNotEmpty()
         && $orSummary['obligations_completed']
@@ -73,8 +76,11 @@
                                 <th class="{{ $orTh }}">Payee</th>
                                 <th class="{{ $orTh }} text-right">Beneficiaries</th>
                                 <th class="{{ $orTh }} text-right">Wages</th>
-                                <th class="{{ $orTh }} text-right">Insurance</th>
-                                <th class="{{ $orTh }} text-right">PPE</th>
+                                {{-- Insurance/PPE are paid at Preparation; only older tranches carry them. --}}
+                                @if ($orHasLegacyAmounts)
+                                    <th class="{{ $orTh }} text-right">Insurance</th>
+                                    <th class="{{ $orTh }} text-right">PPE</th>
+                                @endif
                                 <th class="{{ $orTh }} text-right">Total</th>
                             </tr>
                         </thead>
@@ -91,8 +97,10 @@
                                         @endif
                                     </td>
                                     <td class="{{ $orTd }} whitespace-nowrap text-right text-slate-700">{{ $orMoney($obligation->wages_amount ?? 0) }}</td>
-                                    <td class="{{ $orTd }} whitespace-nowrap text-right text-slate-700">{{ $orMoney($obligation->insurance_amount ?? 0) }}</td>
-                                    <td class="{{ $orTd }} whitespace-nowrap text-right text-slate-700">{{ $orMoney($obligation->ppe_amount ?? 0) }}</td>
+                                    @if ($orHasLegacyAmounts)
+                                        <td class="{{ $orTd }} whitespace-nowrap text-right text-slate-700">{{ $orMoney($obligation->insurance_amount ?? 0) }}</td>
+                                        <td class="{{ $orTd }} whitespace-nowrap text-right text-slate-700">{{ $orMoney($obligation->ppe_amount ?? 0) }}</td>
+                                    @endif
                                     <td class="{{ $orTd }} whitespace-nowrap text-right font-semibold text-slate-900">{{ $orMoney($orPayments->obligationCents($obligation) / 100) }}</td>
                                 </tr>
                             @endforeach
@@ -102,8 +110,10 @@
                                 <td class="{{ $orTd }}" colspan="3">Total ({{ $orObligations->count() }} {{ \Illuminate\Support\Str::plural('tranche', $orObligations->count()) }})</td>
                                 <td class="{{ $orTd }} text-right">{{ number_format((int) $orObligations->sum('beneficiaries_total')) }}</td>
                                 <td class="{{ $orTd }} whitespace-nowrap text-right">{{ $orMoney($orObligations->sum('wages_amount')) }}</td>
-                                <td class="{{ $orTd }} whitespace-nowrap text-right">{{ $orMoney($orObligations->sum('insurance_amount')) }}</td>
-                                <td class="{{ $orTd }} whitespace-nowrap text-right">{{ $orMoney($orObligations->sum('ppe_amount')) }}</td>
+                                @if ($orHasLegacyAmounts)
+                                    <td class="{{ $orTd }} whitespace-nowrap text-right">{{ $orMoney($orObligations->sum('insurance_amount')) }}</td>
+                                    <td class="{{ $orTd }} whitespace-nowrap text-right">{{ $orMoney($orObligations->sum('ppe_amount')) }}</td>
+                                @endif
                                 <td class="{{ $orTd }} whitespace-nowrap text-right">{{ $orMoney($orSummary['obligated_cents'] / 100) }}</td>
                             </tr>
                         </tfoot>

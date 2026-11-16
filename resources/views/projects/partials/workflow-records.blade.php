@@ -214,7 +214,10 @@
                             </summary>
 
                             <form method="POST" action="{{ route('projects.sections.update', [$project, $instance['key'], $recordId]) }}"
-                                class="border-t border-slate-200 bg-white p-4" data-section-form>
+                                class="border-t border-slate-200 bg-white p-4" data-section-form
+                                @foreach (isset($definition['form_attributes']) ? $definition['form_attributes']($project) : [] as $attributeName => $attributeValue)
+                                    {{ $attributeName }}="{{ $attributeValue }}"
+                                @endforeach>
                                 @csrf
                                 @method('PUT')
 
@@ -278,6 +281,10 @@
                                                         type="{{ match ($field['type']) { 'date' => 'date', 'number' => 'number', default => 'text' } }}"
                                                         @if ($field['type'] === 'money') data-money-input inputmode="decimal" @endif
                                                         class="{{ $sectionInputClass }}">
+                                                @endif
+
+                                                @if (! empty($field['hint']))
+                                                    <p class="mt-1 text-[11px] text-slate-500">{{ $field['hint'] }}</p>
                                                 @endif
                                             @endif
                                         </div>
@@ -367,6 +374,31 @@
                 select?.addEventListener('change', () => {
                     other?.classList.toggle('hidden', select.value !== @js($releaseController::OTHER_MODE));
                 });
+
+                // Obligation tranche: Wages = beneficiaries × wage per beneficiary,
+                // recalculated when beneficiaries change (e.g. one is deducted).
+                // Wages stay editable; Female is lowered if it exceeds the total.
+                if (form.dataset.wagePerBeneficiaryCents !== undefined) {
+                    const wagePerBeneficiaryCents = Number(form.dataset.wagePerBeneficiaryCents || 0);
+                    const beneficiaries = form.querySelector('[name="beneficiaries_total"]');
+                    const female = form.querySelector('[name="beneficiaries_female"]');
+                    const wages = form.querySelector('[name="wages_amount"]');
+
+                    beneficiaries?.addEventListener('input', () => {
+                        if (beneficiaries.value.trim() === '') return;
+
+                        const count = Math.max(0, parseInt(beneficiaries.value, 10) || 0);
+                        const decimal = ((count * wagePerBeneficiaryCents) / 100).toFixed(2);
+
+                        if (wages && wagePerBeneficiaryCents > 0) {
+                            wages.value = window.TupadMoney ? window.TupadMoney.format(decimal) : decimal;
+                        }
+
+                        if (female && (parseInt(female.value, 10) || 0) > count) {
+                            female.value = count;
+                        }
+                    });
+                }
             });
         })();
     </script>

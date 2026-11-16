@@ -51,8 +51,10 @@ class OfficialPeriodicReportController extends Controller
             'implementation_mode' => ['nullable', Rule::enum(ImplementationMode::class)],
             'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
         ];
-        if ($monthly) $rules['month'] = ['required', 'integer', 'between:1,12'];
-        if ($quarterly) $rules['quarter'] = ['required', 'integer', 'between:1,4'];
+        // Orientations without a month print the whole year, month by month.
+        if ($monthly) $rules['month'] = [$form === 'orientations' ? 'nullable' : 'required', 'integer', 'between:1,12'];
+        // CQPR without a quarter prints all four quarters as separate sections.
+        if ($quarterly) $rules['quarter'] = [$form === 'cqpr' ? 'nullable' : 'required', 'integer', 'between:1,4'];
         if ($form === 'labor-market') $rules['labor_market_program'] = ['nullable', Rule::enum(LaborMarketProgram::class)];
 
         $validated = validator($request->query(), $rules)

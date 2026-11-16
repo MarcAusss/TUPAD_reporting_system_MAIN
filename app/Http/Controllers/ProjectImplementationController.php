@@ -86,6 +86,12 @@ class ProjectImplementationController extends Controller
                 'date',
             ],
 
+            'ppe.delivery_receipt_number' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
             'ppe.ppe_provided' => [
                 'required',
                 'string',
@@ -190,6 +196,11 @@ class ProjectImplementationController extends Controller
                         [
                             'delivery_receipt_date' =>
                                 $validated['ppe']['delivery_receipt_date'],
+
+                            'delivery_receipt_number' =>
+                                filled($validated['ppe']['delivery_receipt_number'] ?? null)
+                                    ? trim($validated['ppe']['delivery_receipt_number'])
+                                    : null,
 
                             'ppe_provided' =>
                                 $validated['ppe']['ppe_provided'],
@@ -333,6 +344,7 @@ class ProjectImplementationController extends Controller
         $validated = $request->validate([
             'deliveries' => ['required', 'array', 'min:1'],
             'deliveries.*.delivery_receipt_date' => ['required', 'date'],
+            'deliveries.*.delivery_receipt_number' => ['nullable', 'string', 'max:150'],
             'deliveries.*.remarks' => ['nullable', 'string', 'max:3000'],
 
             'deliveries.*.items' => [
@@ -456,6 +468,9 @@ class ProjectImplementationController extends Controller
 
                 $record = $project->ppeDeliveries()->create([
                     'delivery_receipt_date' => $delivery['delivery_receipt_date'],
+                    'delivery_receipt_number' => filled($delivery['delivery_receipt_number'] ?? null)
+                        ? trim($delivery['delivery_receipt_number'])
+                        : null,
                     'ppe_provided' => $summary,
                     'inventory_reference' => null,
                     'remarks' => $delivery['remarks'] ?? null,

@@ -39,6 +39,8 @@ final class ReportGenerationService
                     ReportDimension::OVERALL => 'Fund Utilization Report',
                     ReportDimension::ADL => 'Summary per ADL',
                     ReportDimension::PROVINCE => 'Summary per Province',
+                    ReportDimension::SPONSOR => 'Summary per Sponsor',
+                    ReportDimension::DISTRICT => 'Summary per District',
                     default => 'TUPAD FUND STATUS REPORT',
                 },
                 ReportType::GEOGRAPHIC_BENEFICIARIES => 'TUPAD GEOGRAPHIC BENEFICIARY REPORT',
@@ -500,6 +502,10 @@ final class ReportGenerationService
             return 'Q'.$filters->quarter.' '.$filters->fiscalYear;
         }
 
+        if ($filters->fiscalYear && $filters->semester) {
+            return ($filters->semester === 1 ? '1st' : '2nd').' Semester '.$filters->fiscalYear;
+        }
+
         if ($filters->fiscalYear) {
             return 'FY '.$filters->fiscalYear;
         }
@@ -536,6 +542,10 @@ final class ReportGenerationService
 
         if ($filters->fiscalYear) {
             $criteria['Fiscal Year'] = (string) $filters->fiscalYear;
+        }
+
+        if ($filters->semester) {
+            $criteria['Semester'] = $filters->semester === 1 ? '1st Semester' : '2nd Semester';
         }
 
         if ($filters->quarter) {

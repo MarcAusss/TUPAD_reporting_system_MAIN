@@ -216,6 +216,46 @@ class MajorRevisionPhase14DMonthlyQuarterlyReportsTest extends TestCase
         $this->assertSame(1, $cqpr->viewData('summary')['project_count']);
     }
 
+    public function test_cqpr_uses_one_template_table_for_all_quarters_until_filtered(): void
+    {
+        foreach (['CQPR Third Quarter' => '2026-09-15', 'CQPR Fourth Quarter' => '2026-10-01'] as $title => $date) {
+            $project = $this->project($this->masbate, ['project_title' => $title]);
+            ProjectMonitoringDetail::query()->create([
+                'project_id' => $project->id,
+                'cqpr_date' => $date,
+                'updated_by' => $this->admin->id,
+            ]);
+        }
+
+        $all = $this->actingAs($this->admin)
+            ->get(route('reports.workspace.quarterly', ['view' => 'cqpr', 'fiscal_year' => 2026]))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'Sub-Total (Albay)',
+                'CQPR Third Quarter', 'CQPR Fourth Quarter', 'Sub-Total (Masbate)',
+                'Sub-Total (Sorsogon)', 'Sub-Total (RO)', 'TOTAL',
+            ])
+            ->assertDontSee('Quarter 3 ·')
+            ->assertSee('Work Period Category')
+            ->assertSee('Income Class');
+
+        $this->assertCount(1, $all->viewData('cqpr')['sections']);
+
+        $filtered = $this->actingAs($this->admin)
+            ->get(route('reports.workspace.quarterly', ['view' => 'cqpr', 'fiscal_year' => 2026, 'quarter' => 4]))
+            ->assertOk()
+            ->assertSee('CQPR Fourth Quarter')
+            ->assertDontSee('CQPR Third Quarter');
+
+        $this->assertCount(1, $filtered->viewData('cqpr')['sections']);
+
+        $this->actingAs($this->admin)
+            ->get(route('reports.periodic.print', ['form' => 'cqpr', 'fiscal_year' => 2026]))
+            ->assertOk()
+            ->assertSeeInOrder(['CQPR Third Quarter', 'CQPR Fourth Quarter', 'Sub-Total (Masbate)', 'Sub-Total (RO)', 'TOTAL'])
+            ->assertDontSee('cqpr-section-title', false);
+    }
+
     public function test_quarterly_active_labor_market_report_uses_referral_reporting_month_and_existing_export_engine(): void
     {
         $project = $this->project($this->masbate);

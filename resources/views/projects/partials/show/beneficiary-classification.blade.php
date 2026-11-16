@@ -67,6 +67,22 @@
         $beneficiaryAddressAllocatedTotal = (int) $project->beneficiaryAddresses->sum('beneficiaries_total');
         $beneficiaryAddressAllocatedFemale = (int) $project->beneficiaryAddresses->sum('beneficiaries_female');
 
+        // After payment: actual counts from the completed tranches, and per
+        // barangay the mapped allocation minus the TC's recorded deductions.
+        // The encoded (approved) allocation itself is never overwritten.
+        $mappingActualCounts = $project->actualBeneficiaryCounts();
+        $mappingDeductionService = app(\App\Services\Projects\ProjectBeneficiaryDeductionService::class);
+        $mappingShortfall = $mappingDeductionService->shortfall($project) ?? ['total' => 0, 'female' => 0];
+        $mappingNeedsDeduction = $mappingDeductionService->needsDeduction($project);
+        $mappingDeductionsRecorded = $mappingDeductionService->isRecorded($project);
+        $mappingHasPaymentShortfall = $mappingActualCounts !== null
+            && $project->beneficiaryAddresses->isNotEmpty()
+            && $mappingNeedsDeduction;
+        // Per-barangay actual counts are only known once the TC records deductions.
+        $mappingShowActual = $mappingHasPaymentShortfall && $mappingDeductionsRecorded;
+        $mappingActualAllocatedTotal = (int) $project->beneficiaryAddresses->sum(fn ($address) => $address->actualTotal());
+        $mappingActualAllocatedFemale = (int) $project->beneficiaryAddresses->sum(fn ($address) => $address->actualFemale());
+
         $ppeDistributionItems = $project->ppeItems->map(fn ($item) => [
             'id' => $item->id,
             'product' => $item->product,
@@ -102,7 +118,7 @@
                     </p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 sm:min-w-67.5">
+                <div class="grid grid-cols-2 gap-2 sm:min-w-67.5 {{ $mappingActualCounts !== null ? 'lg:grid-cols-4' : '' }}">
                     <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Declared Total
                         </div>
@@ -115,8 +131,41 @@
                         <div class="mt-1 text-sm font-bold text-slate-900">
                             {{ number_format($project->beneficiaries_female) }}</div>
                     </div>
+                    @if ($mappingActualCounts !== null)
+                        <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                            <div class="text-[9px] font-bold uppercase tracking-wide text-emerald-700">Actual Total (Payment)</div>
+                            <div class="mt-1 text-sm font-bold text-emerald-900">{{ number_format($mappingActualCounts[0]) }}</div>
+                        </div>
+                        <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                            <div class="text-[9px] font-bold uppercase tracking-wide text-emerald-700">Actual Female (Payment)</div>
+                            <div class="mt-1 text-sm font-bold text-emerald-900">{{ number_format($mappingActualCounts[1]) }}</div>
+                        </div>
+                    @endif
                 </div>
             </div>
+
+            @if ($mappingHasPaymentShortfall)
+                @if ($mappingDeductionsRecorded)
+                    <div class="border-b border-blue-100 bg-emerald-50/60 px-5 py-3 text-[11px] leading-5 text-emerald-900" data-actual-mapping-note>
+                        Updated from the payment: {{ number_format($mappingShortfall['total']) }}
+                        {{ \Illuminate\Support\Str::plural('beneficiary', $mappingShortfall['total']) }}
+                        ({{ number_format($mappingShortfall['female']) }} female) not included in the payment were deducted by barangay.
+                        Each barangay shows its encoded count and its <span class="font-semibold">actual</span> count after the deduction.
+                    </div>
+                @else
+                    <div class="border-b border-blue-100 bg-amber-50 px-5 py-3 text-[11px] leading-5 text-amber-900" data-actual-mapping-note>
+                        The payment covers {{ number_format($mappingShortfall['total']) }} fewer
+                        {{ \Illuminate\Support\Str::plural('beneficiary', $mappingShortfall['total']) }}
+                        ({{ number_format($mappingShortfall['female']) }} female) than declared. The barangay counts below update once the TC records
+                        which barangays they came from in
+                        @if (auth()->user()->isAdmin() || auth()->user()->isTc())
+                            <a href="{{ route('project-workflow.index', 'beneficiary-deduction') }}" class="font-semibold underline">Beneficiary Deduction</a>.
+                        @else
+                            Beneficiary Deduction.
+                        @endif
+                    </div>
+                @endif
+            @endif
 
             @if (auth()->user()->isAdmin() || auth()->user()->isTc())
                 @if ($beneficiaryAddressProvince)
@@ -234,9 +283,17 @@
                                                     @endif
                                                 </span>
                                                 <span class="shrink-0 text-right text-[10px] font-semibold text-slate-500">
-                                                    {{ number_format($address->beneficiaries_total) }} total
-                                                    <br>
-                                                    {{ number_format($address->beneficiaries_female) }} female
+                                                    @if ($mappingShowActual && ($address->actualTotal() !== (int) $address->beneficiaries_total || $address->actualFemale() !== (int) $address->beneficiaries_female))
+                                                        <span class="line-through decoration-slate-300">{{ number_format($address->beneficiaries_total) }}</span>
+                                                        <span class="text-emerald-700">→ {{ number_format($address->actualTotal()) }}</span> total
+                                                        <br>
+                                                        <span class="line-through decoration-slate-300">{{ number_format($address->beneficiaries_female) }}</span>
+                                                        <span class="text-emerald-700">→ {{ number_format($address->actualFemale()) }}</span> female
+                                                    @else
+                                                        {{ number_format($address->beneficiaries_total) }} total
+                                                        <br>
+                                                        {{ number_format($address->beneficiaries_female) }} female
+                                                    @endif
                                                 </span>
                                             </button>
                                         @empty
@@ -330,6 +387,9 @@
                                 {{ number_format($project->beneficiaryAddresses->count()) }} barangay record(s) ·
                                 {{ number_format($beneficiaryAddressAllocatedTotal) }} total ·
                                 {{ number_format($beneficiaryAddressAllocatedFemale) }} female
+                                @if ($mappingShowActual)
+                                    · <span class="font-semibold text-emerald-700">{{ 'actual '.number_format($mappingActualAllocatedTotal).' ('.number_format($mappingActualAllocatedFemale).' female)' }}</span>
+                                @endif
                             </div>
                         </div>
                         <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">Expand
@@ -344,8 +404,12 @@
                                     <th class="px-4 py-3 text-left">District</th>
                                     <th class="px-4 py-3 text-left">Municipality / City</th>
                                     <th class="px-4 py-3 text-left">Barangay</th>
-                                    <th class="px-4 py-3 text-right">Total</th>
-                                    <th class="px-4 py-3 text-right">Female</th>
+                                    <th class="px-4 py-3 text-right">{{ $mappingShowActual ? 'Encoded Total' : 'Total' }}</th>
+                                    <th class="px-4 py-3 text-right">{{ $mappingShowActual ? 'Encoded Female' : 'Female' }}</th>
+                                    @if ($mappingShowActual)
+                                        <th class="px-4 py-3 text-right text-emerald-700">Actual Total</th>
+                                        <th class="px-4 py-3 text-right text-emerald-700">Actual Female</th>
+                                    @endif
                                     <th class="px-4 py-3 text-right">Hazardous</th>
                                 </tr>
                             </thead>
@@ -364,12 +428,18 @@
                                             {{ number_format($address->beneficiaries_total) }}</td>
                                         <td class="px-4 py-3 text-right text-xs text-slate-600">
                                             {{ number_format($address->beneficiaries_female) }}</td>
+                                        @if ($mappingShowActual)
+                                            <td class="px-4 py-3 text-right text-xs font-semibold text-emerald-800">
+                                                {{ number_format($address->actualTotal()) }}</td>
+                                            <td class="px-4 py-3 text-right text-xs text-emerald-800">
+                                                {{ number_format($address->actualFemale()) }}</td>
+                                        @endif
                                         <td class="px-4 py-3 text-right text-xs text-slate-600">
                                             {{ $ppeProfilesByBarangay->get($address->barangay_id)?->hazardous_workers !== null ? number_format($ppeProfilesByBarangay->get($address->barangay_id)->hazardous_workers) : '—' }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="p-0"><x-empty-state size="sm" icon="users" title="No beneficiary address allocation has been encoded yet." action-label="Encode Beneficiary Mapping" action-target="beneficiaryAddressForm" action-tab="beneficiaries" message="Encode the Beneficiary Mapping Source to see where the beneficiaries come from." /></td>
+                                        <td colspan="{{ $mappingShowActual ? 9 : 7 }}" class="p-0"><x-empty-state size="sm" icon="users" title="No beneficiary address allocation has been encoded yet." action-label="Encode Beneficiary Mapping" action-target="beneficiaryAddressForm" action-tab="beneficiaries" message="Encode the Beneficiary Mapping Source to see where the beneficiaries come from." /></td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -470,19 +540,24 @@
                     let valid = true;
                     const lines = [];
 
+                    // Fewer recipients than planned is allowed; only exceeding
+                    // an item's planned count blocks saving.
                     ppeDistributable.forEach(item => {
                         const sum = rows.reduce((total, row) => {
                             const input = row.querySelector(`.beneficiary-ppe-item-input[data-ppe-item-id="${item.id}"]`);
                             return total + Number(input?.value || 0);
                         }, 0);
 
-                        const ok = sum === item.beneficiary_count;
-                        if (!ok) valid = false;
+                        const exceeds = sum > item.beneficiary_count;
+                        const tone = exceeds
+                            ? 'bg-red-50 text-red-700'
+                            : (sum === item.beneficiary_count ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800');
+                        if (exceeds) valid = false;
 
                         lines.push(`
-                            <div class="flex items-center justify-between rounded-md px-2.5 py-1.5 text-[11px] ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}">
+                            <div class="flex items-center justify-between rounded-md px-2.5 py-1.5 text-[11px] ${tone}">
                                 <span class="truncate">${escapeHtml(item.product)}</span>
-                                <span class="shrink-0 font-semibold">${sum} of ${item.beneficiary_count} distributed</span>
+                                <span class="shrink-0 font-semibold">${sum} of ${item.beneficiary_count} distributed${exceeds ? ' (exceeds)' : ''}</span>
                             </div>
                         `);
                     });
@@ -576,20 +651,22 @@
                         return false;
                     }
 
+                    if (!ppeValid) {
+                        status.className =
+                            'mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-[11px] font-medium leading-5 text-red-700';
+                        status.textContent =
+                            'Check the PPE distribution: an item cannot exceed its planned count, and hazardous/complete-set counts must fit within range.';
+                        return false;
+                    }
+
+                    // Below the declared counts is allowed (e.g. fewer beneficiaries
+                    // actually served); only exceeding them blocks saving.
                     if (allocatedTotal !== declaredTotal || allocatedFemale !== declaredFemale) {
                         status.className =
                             'mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
                         status.textContent =
-                            `Allocated ${allocatedTotal.toLocaleString()} of ${declaredTotal.toLocaleString()} total and ${allocatedFemale.toLocaleString()} of ${declaredFemale.toLocaleString()} female beneficiaries.`;
-                        return false;
-                    }
-
-                    if (!ppeValid) {
-                        status.className =
-                            'mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
-                        status.textContent =
-                            'Complete the PPE distribution below: every item must be fully distributed, and hazardous/complete-set counts must fit within range.';
-                        return false;
+                            `Allocated ${allocatedTotal.toLocaleString()} of ${declaredTotal.toLocaleString()} total and ${allocatedFemale.toLocaleString()} of ${declaredFemale.toLocaleString()} female beneficiaries. You can still save.`;
+                        return true;
                     }
 
                     status.className =

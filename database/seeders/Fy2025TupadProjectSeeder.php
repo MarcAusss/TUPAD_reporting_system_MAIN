@@ -160,7 +160,6 @@ final class Fy2025TupadProjectSeeder extends Seeder
                         'province_id' => $province->id,
                         'name' => $municipalityName,
                         'district' => $district,
-                        'income_class' => null,
                         'is_city' => (bool) ($properties['is_city'] ?? false),
                         'is_active' => true,
                     ],

@@ -1,4 +1,3 @@
-{{-- Show / hide toggle for password inputs marked with data-toggle-password="<input id>". --}}
 <script>
     document.querySelectorAll('[data-toggle-password]').forEach(function (button) {
         button.addEventListener('click', function () {

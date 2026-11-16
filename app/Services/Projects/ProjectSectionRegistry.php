@@ -146,6 +146,7 @@ final class ProjectSectionRegistry
                 'title' => fn (Model $delivery, int $position): string => 'PPE Delivery #'.$position,
                 'fields' => [
                     'delivery_receipt_date' => ['label' => 'Delivery Receipt Date', 'type' => 'date', 'rules' => ['required', 'date']],
+                    'delivery_receipt_number' => ['label' => 'Delivery Receipt No.', 'type' => 'text', 'rules' => ['nullable', 'string', 'max:150']],
                     'inventory_reference' => ['label' => 'Inventory Reference', 'type' => 'text', 'rules' => ['nullable', 'string', 'max:255']],
                     'remarks' => ['label' => 'Remarks', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:3000']],
                 ],
@@ -236,25 +237,42 @@ final class ProjectSectionRegistry
                 'fields' => [
                     'beneficiaries_total' => ['label' => 'No. of Beneficiaries', 'type' => 'number', 'rules' => ['required', 'integer', 'min:1']],
                     'beneficiaries_female' => ['label' => 'Female', 'type' => 'number', 'rules' => ['required', 'integer', 'min:0', 'lte:beneficiaries_total']],
-                    'wages_amount' => ['label' => 'Wages', 'type' => 'money', 'rules' => ['required', self::MONEY_RULE]],
-                    'insurance_amount' => ['label' => 'Insurance', 'type' => 'money', 'rules' => ['required', self::MONEY_RULE]],
-                    'ppe_amount' => ['label' => 'PPE (Total Amount)', 'type' => 'money', 'rules' => ['required', self::MONEY_RULE]],
+                    // Tranches are wages only: insurance is paid at Preparation
+                    // (GSIS enrollment) and PPE at PPE Delivery.
+                    'wages_amount' => [
+                        'label' => 'Wages',
+                        'type' => 'money',
+                        'rules' => ['required', self::MONEY_RULE],
+                        'hint' => 'Auto: beneficiaries × wage rate × days. You can still edit it.',
+                    ],
                     'obligation_date' => ['label' => 'Obligation Date', 'type' => 'date', 'rules' => ['required', 'date']],
                     'payee' => ['label' => 'Payee', 'type' => 'text', 'rules' => ['required', 'string', 'max:255']],
                     'remarks' => ['label' => 'Remarks', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:3000']],
                 ],
-                'extra' => fn (ProjectObligation $obligation): array => [
-                    'Total Overall' => $this->peso($obligation->amount),
-                    'Disbursed' => $this->peso($this->payments->disbursedForObligationCents($obligation) / 100),
+                // Lets the editor recalculate wages when beneficiaries change.
+                'form_attributes' => fn (Project $project): array => [
+                    'data-wage-per-beneficiary-cents' => $this->payments->wagePerBeneficiaryCents($project),
                 ],
+                'extra' => fn (ProjectObligation $obligation): array => array_filter([
+                    // Tranches recorded before the wages-only rule may still carry
+                    // insurance/PPE; saving the tranche clears them.
+                    'Insurance (old entry)' => (float) $obligation->insurance_amount > 0
+                        ? $this->peso($obligation->insurance_amount).' · cleared when this tranche is saved'
+                        : null,
+                    'PPE (old entry)' => (float) $obligation->ppe_amount > 0
+                        ? $this->peso($obligation->ppe_amount).' · cleared when this tranche is saved'
+                        : null,
+                    'Tranche Amount' => $this->peso($obligation->amount),
+                    'Disbursed' => $this->peso($this->payments->disbursedForObligationCents($obligation) / 100),
+                ], fn ($value) => $value !== null),
                 'validate' => fn (Project $project, ProjectObligation $obligation, array $data) => $this->validateObligation($project, $obligation, $data),
                 'save' => function (Project $project, ProjectObligation $obligation, array $data): void {
-                    $total = $this->payments->amountToCents($data['wages_amount'])
-                        + $this->payments->amountToCents($data['insurance_amount'])
-                        + $this->payments->amountToCents($data['ppe_amount']);
-
                     $obligation->update($data + [
-                        'amount' => $this->payments->centsToDecimal($total),
+                        'insurance_amount' => 0,
+                        'ppe_amount' => 0,
+                        'amount' => $this->payments->centsToDecimal(
+                            $this->payments->amountToCents($data['wages_amount'])
+                        ),
                         'month' => date('F Y', strtotime($data['obligation_date'])),
                     ]);
                 },
@@ -498,21 +516,18 @@ final class ProjectSectionRegistry
             $project->obligations()->whereKeyNot($obligation->getKey())->get()
         );
 
+        // Wages only; any old insurance/PPE on this tranche is cleared on save.
         $wages = $this->payments->amountToCents($data['wages_amount']);
-        $insurance = $this->payments->amountToCents($data['insurance_amount']);
-        $ppe = $this->payments->amountToCents($data['ppe_amount']);
-        $total = $wages + $insurance + $ppe;
+        $total = $wages;
 
         if ($total <= 0) {
-            throw ValidationException::withMessages(['wages_amount' => 'The tranche total must be greater than zero.']);
+            throw ValidationException::withMessages(['wages_amount' => 'The tranche wages must be greater than zero.']);
         }
 
         $checks = [
             'beneficiaries_total' => ['beneficiaries_total', (int) $data['beneficiaries_total'], 'number of beneficiaries', false],
             'beneficiaries_female' => ['beneficiaries_female', (int) $data['beneficiaries_female'], 'female beneficiaries', false],
             'wages' => ['wages_amount', $wages, 'wages', true],
-            'insurance' => ['insurance_amount', $insurance, 'insurance', true],
-            'ppe' => ['ppe_amount', $ppe, 'PPE amount', true],
             'total' => ['wages_amount', $total, 'Total Project Cost', true],
         ];
 

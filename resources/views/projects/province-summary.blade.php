@@ -38,9 +38,6 @@
         </x-slot:actions>
     </x-page-header>
 
-    {{-- =========================================================
-    TOP: Province Project Register
-========================================================== --}}
 
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
@@ -78,12 +75,6 @@
                         </svg>
                     </div>
                 @endunless
-
-                <!-- <button type="button"
-                    class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                    onclick="window.print()">
-                    Print / Export
-                </button> -->
 
             </div>
 

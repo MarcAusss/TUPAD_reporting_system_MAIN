@@ -8,7 +8,9 @@ use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectInterventionFocus;
 use App\Enums\ProjectStatus;
 use App\Enums\ReportDimension;
+use App\Models\Adl;
 use App\Models\AdlAllocation;
+use App\Models\DistrictRepresentative;
 use App\Models\Project;
 use App\Models\ProjectBeneficiaryAddress;
 use App\Models\ProjectLocation;
@@ -195,12 +197,18 @@ final class ReportingDataService
             ReportDimension::OVERALL,
             ReportDimension::ADL,
             ReportDimension::PROVINCE,
+            ReportDimension::SPONSOR,
+            ReportDimension::DISTRICT,
         ], true)) {
             return null;
         }
 
         $allocationRows = $this->fundStatusTemplateAllocationRows($filters);
         $totals = $this->fundStatusTemplateTotals($allocationRows);
+
+        if ($dimension === ReportDimension::DISTRICT) {
+            return $this->fundStatusDistrictTemplate($filters, $allocationRows);
+        }
 
         if ($dimension === ReportDimension::OVERALL) {
             $provinceOrder = collect([
@@ -281,6 +289,46 @@ final class ReportingDataService
             ];
         }
 
+        if ($dimension === ReportDimension::SPONSOR) {
+            $groups = $allocationRows
+                ->groupBy('fund_sponsor')
+                ->map(function (Collection $rows, string $sponsor): array {
+                    $adlGroups = $rows
+                        ->sortBy(fn (array $row): string => implode('|', [
+                            strtolower($row['adl_number']),
+                            strtolower($row['province']),
+                            strtolower($row['municipality']),
+                            str_pad((string) $row['allocation_id'], 10, '0', STR_PAD_LEFT),
+                        ]))
+                        ->groupBy('adl_id')
+                        ->map(fn (Collection $adlRows): array => [
+                            'label' => (string) ($adlRows->first()['adl_number'] ?? 'Unassigned ADL'),
+                            'rows' => $adlRows->values(),
+                            'subtotal' => $this->fundStatusTemplateTotals($adlRows),
+                        ])
+                        ->values();
+
+                    return [
+                        'label' => $sponsor,
+                        'adl_groups' => $adlGroups,
+                        // Allocation rows plus one sub-total row per ADL; the
+                        // Fund Sponsor cell spans the whole block.
+                        'row_span' => $rows->count() + $adlGroups->count(),
+                        'subtotal' => $this->fundStatusTemplateTotals($rows),
+                    ];
+                })
+                ->sortBy(fn (array $group): string => strtolower($group['label']))
+                ->values();
+
+            return [
+                'kind' => 'sponsor',
+                'title' => 'Summary per Sponsor',
+                'rows' => $allocationRows,
+                'groups' => $groups,
+                'totals' => $totals,
+            ];
+        }
+
         $provinceOrder = collect([
             'Albay',
             'Camarines Norte',
@@ -302,9 +350,21 @@ final class ReportingDataService
                     ]))
                     ->values();
 
+                // Within a province, each ADL gets its own sub-total before
+                // the province total closes the group.
+                $adlGroups = $sorted
+                    ->groupBy('adl_id')
+                    ->map(fn (Collection $adlRows): array => [
+                        'label' => (string) ($adlRows->first()['adl_number'] ?? 'Unassigned ADL'),
+                        'rows' => $adlRows->values(),
+                        'subtotal' => $this->fundStatusTemplateTotals($adlRows),
+                    ])
+                    ->values();
+
                 return [
                     'label' => $province,
                     'rows' => $sorted,
+                    'adl_groups' => $adlGroups,
                     'subtotal' => $this->fundStatusTemplateTotals($sorted),
                 ];
             })
@@ -378,6 +438,165 @@ final class ReportingDataService
                 ];
             })
             ->values();
+    }
+
+    /**
+     * Summary per District: one row per congressional district (with its
+     * focal-maintained representative), province sub-totals, and a grand
+     * total.
+     *
+     * A = ADL allocation grant amounts recorded for the district.
+     * B = the district's share of its ADL's net TUPAD-to-GIP realignment,
+     *     split across the ADL's allocations in proportion to their grants
+     *     (an ADL normally covers a single district, so it is usually 100%).
+     * C = A - B, D = obligated / ACP-paid accomplishment, E = C - D.
+     *
+     * @param  Collection<int, array<string, mixed>>  $allocationRows
+     */
+    private function fundStatusDistrictTemplate(
+        ReportFilters $filters,
+        Collection $allocationRows,
+    ): array {
+        $provinceOrder = [
+            'Albay',
+            'Camarines Norte',
+            'Camarines Sur',
+            'Catanduanes',
+            'Masbate',
+            'Sorsogon',
+        ];
+
+        $adls = Adl::query()
+            ->whereIn('id', $allocationRows->pluck('adl_id')->unique()->values())
+            ->withSum('realignments', 'amount')
+            ->with('allocations:id,adl_id,grant_amount,amount')
+            ->get()
+            ->keyBy('id');
+
+        $rows = $allocationRows->map(function (array $row) use ($adls): array {
+            /** @var Adl|null $adl */
+            $adl = $adls->get($row['adl_id']);
+            $adlAllocationCents = (int) ($adl?->allocations->sum(
+                fn (AdlAllocation $allocation): int => $this->paymentService->amountToCents(
+                    $allocation->grant_amount ?? $allocation->amount
+                )
+            ) ?? 0);
+            // Realignments are stored signed; TUPAD-to-GIP moves are negative.
+            $realignedToGipCents = max(0, -(int) round(((float) ($adl?->realignments_sum_amount ?? 0)) * 100));
+            $realignedCents = $adlAllocationCents > 0
+                ? (int) round($realignedToGipCents * $row['allocation_cents'] / $adlAllocationCents)
+                : 0;
+
+            return $row + [
+                'district_key' => DistrictRepresentative::districtKey(
+                    $row['district'] === '—' ? null : $row['district']
+                ),
+                'realigned_cents' => $realignedCents,
+            ];
+        });
+
+        $representatives = DistrictRepresentative::query()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('province');
+
+        $provinceNames = collect($provinceOrder)
+            ->merge($rows->pluck('province'))
+            ->unique()
+            ->values();
+
+        if ($filters->provinceId) {
+            $filteredProvince = Province::query()->find($filters->provinceId)?->name;
+            $provinceNames = $provinceNames
+                ->filter(fn (string $name): bool => $name === $filteredProvince)
+                ->values();
+        }
+
+        $groups = $provinceNames->map(function (string $province) use ($rows, $representatives): array {
+            $provinceRows = $rows->where('province', $province);
+            $districtRows = collect();
+
+            foreach ($representatives->get($province, collect()) as $representative) {
+                $districtRows->put(
+                    DistrictRepresentative::districtKey($representative->district),
+                    [
+                        'representative' => $representative->representative ?: '—',
+                        'district' => $representative->district,
+                    ],
+                );
+            }
+
+            // Districts encoded on allocations but missing a representative
+            // record, and party-list allocations without any district.
+            foreach ($provinceRows->pluck('district_key')->unique()->sort() as $key) {
+                if (! $districtRows->has($key)) {
+                    $districtRows->put($key, [
+                        'representative' => $key === '' ? 'Party-list / No district' : '—',
+                        'district' => $key === '' ? '—' : $provinceRows->firstWhere('district_key', $key)['district'],
+                    ]);
+                }
+            }
+
+            $districtRows = $districtRows
+                ->map(function (array $district, string $key) use ($provinceRows): array {
+                    $matched = $provinceRows->where('district_key', $key);
+
+                    // One row per ADL; a district without any ADL keeps a
+                    // single empty row so its representative still shows.
+                    $adls = $matched
+                        ->groupBy('adl_id')
+                        ->map(fn (Collection $adlRows): array => [
+                            'adl_number' => (string) $adlRows->first()['adl_number'],
+                        ] + $this->fundStatusDistrictTotals($adlRows))
+                        ->sortBy('adl_number', SORT_NATURAL)
+                        ->values();
+
+                    if ($adls->isEmpty()) {
+                        $adls->push(['adl_number' => '—'] + $this->fundStatusDistrictTotals(collect()));
+                    }
+
+                    return $district + [
+                        'district_label' => $district['district'] === '—'
+                            ? '—'
+                            : (string) preg_replace('/\s*district\s*$/i', '', $district['district']),
+                        'adls' => $adls,
+                        'subtotal' => $this->fundStatusDistrictTotals($matched),
+                    ];
+                })
+                ->values();
+
+            return [
+                'label' => $province,
+                'rows' => $districtRows,
+                'subtotal' => $this->fundStatusDistrictTotals($provinceRows),
+            ];
+        })->values();
+
+        return [
+            'kind' => 'district',
+            'title' => 'Summary per District',
+            'rows' => $rows,
+            'groups' => $groups,
+            'totals' => $this->fundStatusDistrictTotals($rows),
+        ];
+    }
+
+    /** @param Collection<int, array<string, mixed>> $rows */
+    private function fundStatusDistrictTotals(Collection $rows): array
+    {
+        $originalCents = (int) $rows->sum('allocation_cents');
+        $realignedCents = (int) $rows->sum('realigned_cents');
+        $tupadCents = $originalCents - $realignedCents;
+        $implementedCents = (int) $rows->sum('accomplishment_cents');
+
+        return [
+            'original_cents' => $originalCents,
+            'realigned_cents' => $realignedCents,
+            'tupad_cents' => $tupadCents,
+            'implemented_cents' => $implementedCents,
+            'balance_cents' => $tupadCents - $implementedCents,
+        ];
     }
 
     /** @param Collection<int, array<string, mixed>> $rows */
@@ -1031,6 +1250,10 @@ final class ReportingDataService
             'laborMarketReferrals',
         ]);
 
+        if (! $filters->allProjects) {
+            $query->reportable();
+        }
+
         if ($filters->term) {
             $query->where('term', $filters->term->value);
         }
@@ -1555,29 +1778,14 @@ final class ReportingDataService
 
     private function withoutGeographicFilters(ReportFilters $filters): ReportFilters
     {
-        return new ReportFilters(
-            dateFrom: $filters->dateFrom,
-            dateTo: $filters->dateTo,
-            fiscalYear: $filters->fiscalYear,
-            quarter: $filters->quarter,
-            month: $filters->month,
-            term: $filters->term,
-            status: $filters->status,
-            implementationMode: $filters->implementationMode,
-            adlId: $filters->adlId,
-            provinceId: null,
-            district: null,
-            municipalityId: null,
-            barangayId: null,
-            sponsor: $filters->sponsor,
-            partner: $filters->partner,
-            projectCode: $filters->projectCode,
-            sectorGroup: $filters->sectorGroup,
-            sector: $filters->sector,
-            interventionFocus: $filters->interventionFocus,
-            laborMarketProgram: $filters->laborMarketProgram,
-            actualBeneficiaries: $filters->actualBeneficiaries,
-        );
+        // Copy every filter (incl. semester / allProjects) and drop only geography.
+        return new ReportFilters(...[
+            ...get_object_vars($filters),
+            'provinceId' => null,
+            'district' => null,
+            'municipalityId' => null,
+            'barangayId' => null,
+        ]);
     }
 
     /** @return Collection<int, ProjectBeneficiaryAddress> */

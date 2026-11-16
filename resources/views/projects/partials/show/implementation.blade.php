@@ -334,6 +334,9 @@
                                             <div class="flex items-center justify-between gap-2">
                                                 <span class="text-xs font-semibold text-emerald-900">
                                                     {{ $delivery->delivery_receipt_date->format('M d, Y') }}
+                                                    @if ($delivery->delivery_receipt_number)
+                                                        · DR No. {{ $delivery->delivery_receipt_number }}
+                                                    @endif
                                                 </span>
                                                 <span class="text-[10px] text-emerald-700">
                                                     By {{ $delivery->recorder?->name ?? 'System' }}
@@ -471,12 +474,22 @@
                                                 <button type="button" data-remove-delivery-receipt class="text-[11px] font-semibold text-red-600 hover:underline">Remove</button>
                                             </div>
 
-                                            <div class="mt-3">
-                                                <label class="mb-2 block text-xs font-semibold text-slate-700">Date of Delivery Receipt</label>
-                                                <input name="deliveries[${index}][delivery_receipt_date]" type="date" required
-                                                    value="${escapeHtml(initial.delivery_receipt_date ?? '')}"
-                                                    class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
-                                                <p class="mt-1 hidden text-xs font-medium text-red-600" data-error="deliveries.${index}.delivery_receipt_date"></p>
+                                            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                                <div>
+                                                    <label class="mb-2 block text-xs font-semibold text-slate-700">Date of Delivery Receipt</label>
+                                                    <input name="deliveries[${index}][delivery_receipt_date]" type="date" required
+                                                        value="${escapeHtml(initial.delivery_receipt_date ?? '')}"
+                                                        class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                                    <p class="mt-1 hidden text-xs font-medium text-red-600" data-error="deliveries.${index}.delivery_receipt_date"></p>
+                                                </div>
+                                                <div>
+                                                    <label class="mb-2 block text-xs font-semibold text-slate-700">Delivery Receipt No.</label>
+                                                    <input name="deliveries[${index}][delivery_receipt_number]" type="text" maxlength="150"
+                                                        data-delivery-receipt-number
+                                                        value="${escapeHtml(initial.delivery_receipt_number ?? '')}"
+                                                        class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                                    <p class="mt-1 hidden text-xs font-medium text-red-600" data-error="deliveries.${index}.delivery_receipt_number"></p>
+                                                </div>
                                             </div>
 
                                             <div class="mt-4" data-items-container>
@@ -586,6 +599,7 @@
 
                                     return {
                                         delivery_receipt_date: cardEl.querySelector('input[type="date"]').value,
+                                        delivery_receipt_number: cardEl.querySelector('[data-delivery-receipt-number]')?.value ?? '',
                                         remarks: cardEl.querySelector('textarea').value,
                                         items,
                                     };

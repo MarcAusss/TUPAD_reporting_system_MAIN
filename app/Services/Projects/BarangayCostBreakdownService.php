@@ -215,15 +215,15 @@ class BarangayCostBreakdownService
             ];
         }
 
-        // Rule (a)-equivalent read-only check: stored recipients must still
-        // sum to each item's current beneficiary_count.
+        // Rule (a)-equivalent read-only check: stored recipients may be fewer
+        // than each item's current beneficiary_count, but never more.
         if ($basis === 'exact') {
             foreach ($ppeItems as $item) {
                 $sum = collect($rows)->sum(
                     fn (array $row): int => collect($row['ppe_items'])->firstWhere('item_id', $item->id)['recipients'] ?? 0
                 );
 
-                if ($sum !== (int) $item->beneficiary_count) {
+                if ($sum > (int) $item->beneficiary_count) {
                     $distributionInvalid = true;
                 }
             }

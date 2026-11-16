@@ -37,6 +37,11 @@ final readonly class ReportFilters
         // Actual Beneficiary Mapping: beneficiary addresses minus the TC's
         // deductions for beneficiaries not included in the obligations.
         public bool $actualBeneficiaries = false,
+        // Reports only include projects whose obligations are completed or
+        // ACP payment is recorded; dashboards opt in to every project.
+        public bool $allProjects = false,
+        // Reporting semester: 1 = January–June, 2 = July–December.
+        public ?int $semester = null,
     ) {
         if ($this->dateFrom && $this->dateTo && $this->dateTo->lt($this->dateFrom)) {
             throw new InvalidArgumentException(
@@ -62,15 +67,21 @@ final readonly class ReportFilters
             );
         }
 
-        if (($this->quarter !== null || $this->month !== null) && $this->fiscalYear === null) {
+        if ($this->semester !== null && ($this->semester < 1 || $this->semester > 2)) {
             throw new InvalidArgumentException(
-                'Fiscal year is required when filtering by quarter or month.'
+                'Semester must be 1 or 2.'
             );
         }
 
-        if ($this->quarter !== null && $this->month !== null) {
+        if (($this->semester !== null || $this->quarter !== null || $this->month !== null) && $this->fiscalYear === null) {
             throw new InvalidArgumentException(
-                'Use either a reporting quarter or a reporting month, not both.'
+                'Fiscal year is required when filtering by semester, quarter or month.'
+            );
+        }
+
+        if (count(array_filter([$this->semester, $this->quarter, $this->month], fn (?int $value): bool => $value !== null)) > 1) {
+            throw new InvalidArgumentException(
+                'Use only one of reporting semester, quarter or month.'
             );
         }
 
@@ -102,6 +113,12 @@ final readonly class ReportFilters
     public function withActualBeneficiaries(): self
     {
         return new self(...[...get_object_vars($this), 'actualBeneficiaries' => true]);
+    }
+
+    /** The same filters, including projects not yet obligated or paid. */
+    public function withAllProjects(): self
+    {
+        return new self(...[...get_object_vars($this), 'allProjects' => true]);
     }
 
     public static function fromArray(array $filters): self
@@ -146,6 +163,8 @@ final readonly class ReportFilters
                 $filters['labor_market_program'] ?? null,
             ),
             actualBeneficiaries: filter_var($filters['actual_beneficiaries'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            allProjects: filter_var($filters['all_projects'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            semester: self::integer($filters['semester'] ?? null),
         );
     }
 
@@ -170,6 +189,13 @@ final readonly class ReportFilters
                     1,
                 )->startOfDay();
                 $periodEnd = $periodStart->addMonths(2)->endOfMonth();
+            } elseif ($this->semester !== null) {
+                $periodStart = CarbonImmutable::create(
+                    $this->fiscalYear,
+                    $this->semester === 1 ? 1 : 7,
+                    1,
+                )->startOfDay();
+                $periodEnd = $periodStart->addMonths(5)->endOfMonth();
             } else {
                 $periodStart = CarbonImmutable::create(
                     $this->fiscalYear,

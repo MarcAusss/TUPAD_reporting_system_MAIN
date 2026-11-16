@@ -14,6 +14,10 @@ final class DatabaseSeeder extends Seeder
         }
 
         $this->call(Fy2025TupadProjectSeeder::class);
-        $this->call(ProvinceProjectStatusCoverageSeeder::class);
+
+        // Baseline municipal income classes (fills blanks only; Focal edits are kept).
+        \App\Support\MunicipalityIncomeClasses::applyInitial();
+
+        // $this->call(ProvinceProjectStatusCoverageSeeder::class);
     }
 }

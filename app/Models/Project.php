@@ -395,6 +395,51 @@ class Project extends Model
     }
 
     /**
+     * Projects that belong in reports: Direct Administration once the Focal
+     * completes the obligations, Through ACP once the ACP payment is recorded,
+     * regardless of the project's current workflow status.
+     */
+    public function scopeReportable(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where(function (\Illuminate\Database\Eloquent\Builder $reportable): void {
+            $reportable
+                ->where(fn (\Illuminate\Database\Eloquent\Builder $direct) => $direct
+                    ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
+                    ->whereNotNull('obligations_completed_at'))
+                ->orWhere(fn (\Illuminate\Database\Eloquent\Builder $acp) => $acp
+                    ->where('implementation_mode', ImplementationMode::THROUGH_ACP->value)
+                    ->whereHas('acpPayment', fn (\Illuminate\Database\Eloquent\Builder $payment) => $payment->where('amount', '>', 0)));
+        });
+    }
+
+    /**
+     * The date the project entered reports (see scopeReportable): obligation
+     * completion for Direct Administration, the ACP payment date for Through ACP.
+     */
+    public function reportableDate(): ?\Carbon\CarbonInterface
+    {
+        if ($this->implementation_mode === ImplementationMode::THROUGH_ACP) {
+            $payment = $this->relationLoaded('acpPayment') ? $this->acpPayment : $this->acpPayment()->first();
+
+            return $payment && (float) $payment->amount > 0
+                ? ($payment->payment_date ?? $payment->created_at)
+                : null;
+        }
+
+        return $this->obligations_completed_at;
+    }
+
+    /**
+     * Reporting-period date for a monitoring-based report (SPRS / CQPR): the
+     * manually encoded monitoring date when present, otherwise the date the
+     * project became reportable.
+     */
+    public function periodicReportDate(string $monitoringField): ?\Carbon\CarbonInterface
+    {
+        return $this->monitoringDetail?->{$monitoringField} ?? $this->reportableDate();
+    }
+
+    /**
      * Projects that have stayed in their current (non-completed) status for at least $days days.
      */
     public function scopeAgedInStatus(\Illuminate\Database\Eloquent\Builder $query, int $days): \Illuminate\Database\Eloquent\Builder

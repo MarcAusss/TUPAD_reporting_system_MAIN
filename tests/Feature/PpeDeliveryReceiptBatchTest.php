@@ -102,6 +102,7 @@ class PpeDeliveryReceiptBatchTest extends TestCase
                 'deliveries' => [
                     [
                         'delivery_receipt_date' => '2026-08-10',
+                        'delivery_receipt_number' => ' DR-0001 ',
                         'remarks' => 'First batch',
                         'items' => [
                             $gloves->id => ['ppe_item_id' => $gloves->id, 'quantity' => 10],
@@ -123,6 +124,18 @@ class PpeDeliveryReceiptBatchTest extends TestCase
         $response->assertSessionDoesntHaveErrors();
 
         $this->assertSame(2, ProjectPpeDelivery::query()->where('project_id', $project->id)->count());
+
+        // Delivery Receipt No. is stored trimmed; it is optional, so the second receipt has none.
+        $this->assertDatabaseHas('project_ppe_deliveries', [
+            'project_id' => $project->id,
+            'delivery_receipt_number' => 'DR-0001',
+        ]);
+        $this->assertDatabaseHas('project_ppe_deliveries', [
+            'project_id' => $project->id,
+            'remarks' => 'Second batch',
+            'delivery_receipt_number' => null,
+        ]);
+
         $this->assertSame(0, $gloves->fresh()->remainingDeliverableQuantity());
         $this->assertSame(0, $boots->fresh()->remainingDeliverableQuantity());
 
