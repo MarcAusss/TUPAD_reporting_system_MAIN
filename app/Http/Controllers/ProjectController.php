@@ -136,7 +136,8 @@ class ProjectController extends Controller
         }
 
         $query = $provinceAccess
-            ->scopeProjects(Project::query(), $user)
+            ->scopeProjects(Project::query()->withStatusEnteredAt(), $user)
+                ->applyQuickFilters($request)
             ->with([
                 'allocation.adl',
                 'creator',

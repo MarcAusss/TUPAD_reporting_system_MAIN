@@ -6,6 +6,8 @@
     @php
         $money = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
         $number = static fn (mixed $value): string => number_format((int) $value);
+        // Overall, Semester and Quarter views offer a Combined / By Term (Short / Long) toggle.
+        $hasTermView = in_array($viewKey, ['overall', 'semester', 'quarter'], true);
 
         $summaryCards = [
             ['label' => 'Projects', 'value' => $number($matrixTotal['project_count'] ?? 0)],
@@ -36,10 +38,17 @@
                 class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Detailed Generator
             </a>
-            <a href="{{ route('reports.print', $exportQuery) }}" target="_blank"
-                class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                Print
-            </a>
+            @if (in_array($viewKey, ['month', 'quarter', 'semester'], true))
+                <button type="button" data-print-period-open
+                    class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    Print
+                </button>
+            @else
+                <a href="{{ route('reports.print', $exportQuery) }}" target="_blank"
+                    class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    Print
+                </a>
+            @endif
             <a href="{{ route('reports.export.pdf', $exportQuery) }}"
                 class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 PDF
@@ -84,7 +93,7 @@
         <form method="GET" action="{{ route('reports.workspace.physical-financial') }}" class="p-5">
             <input type="hidden" name="view" value="{{ $viewKey }}">
 
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div @class(['grid gap-4 md:grid-cols-2', 'xl:grid-cols-6' => $viewKey === 'month', 'xl:grid-cols-5' => $viewKey !== 'month'])>
                 <div>
                     <label for="fiscal_year" class="mb-2 block text-xs font-semibold text-slate-700">Fiscal Year</label>
                     <input id="fiscal_year" name="fiscal_year" type="number" min="2000" max="2100"
@@ -92,6 +101,18 @@
                         placeholder="{{ $viewKey === 'overall' ? 'All years' : now('Asia/Manila')->year }}"
                         class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
                 </div>
+
+                @if ($viewKey === 'month')
+                    <div>
+                        <label for="month" class="mb-2 block text-xs font-semibold text-slate-700">Month</label>
+                        <select id="month" name="month" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            <option value="">All months</option>
+                            @foreach ($monthOptions as $monthNumber => $monthLabel)
+                                <option value="{{ $monthNumber }}" @selected((int) ($filters['month'] ?? 0) === $monthNumber)>{{ $monthLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
 
                 <div>
                     <label for="implementation_mode" class="mb-2 block text-xs font-semibold text-slate-700">Implementation Mode</label>
@@ -169,16 +190,27 @@
                     Table structure follows the supplied Physical and Financial Accomplishment template. Horizontal scrolling is available for wide quarterly and monthly matrices.
                 </p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ route('reports.export.excel', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Excel</a>
-                <a href="{{ route('reports.export.csv', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">CSV</a>
-            </div>
+
+            @if ($hasTermView)
+                <div class="inline-flex shrink-0 rounded-lg border border-slate-300 bg-slate-100 p-1" role="group" aria-label="Table layout" data-pf-layout-toggle>
+                    <button type="button" data-pf-layout="combined" aria-pressed="true"
+                        class="rounded-md px-4 py-1.5 text-xs font-bold text-slate-600 transition aria-pressed:bg-white aria-pressed:text-[#063b86] aria-pressed:shadow-sm">
+                        Combined
+                    </button>
+                    <button type="button" data-pf-layout="term" aria-pressed="false"
+                        class="rounded-md px-4 py-1.5 text-xs font-bold text-slate-600 transition aria-pressed:bg-white aria-pressed:text-[#063b86] aria-pressed:shadow-sm">
+                        By Term (Short / Long)
+                    </button>
+                </div>
+            @endif
         </div>
 
-        <div class="overflow-x-auto p-4">
-            <table class="tupad-report-screen-table w-full min-w-max border-collapse text-[11px] text-slate-800">
+        @if ($hasTermView)
+            @include('reports.physical-financial.partials.by-term')
+        @endif
+
+        <div class="overflow-x-auto p-4" data-pf-panel="combined">
+            <table class="tupad-report-table tupad-report-screen-table w-full min-w-max border-collapse text-[11px] text-slate-800">
                 @if ($viewKey === 'overall')
                     <thead>
                         <tr>
@@ -317,6 +349,80 @@
 
         <div class="border-t border-slate-200 bg-slate-50 px-5 py-3 text-[11px] leading-5 text-slate-600">
             <strong class="text-slate-700">Reporting basis:</strong> {{ $matrix['basis_note'] }}
+            @if ($hasTermView)
+                <span data-pf-panel="term" hidden>
+                    By Term splits projects by their recorded term (Short-Term 10–30 days, Long-Term 31–90 days). Term targets come from the Focal short-/long-term split; without a saved Focal target they fall back to the projects of that term.
+                </span>
+            @endif
         </div>
     </section>
+
+    @if ($viewKey === 'month')
+        @include('reports.physical-financial.partials.print-period-dialog', [
+            'printParam' => 'month',
+            'printOptions' => $monthOptions,
+            'printLabel' => 'Accomplishment per Month',
+            'allLabel' => 'All months',
+            'allDescription' => 'January to December in one table, same as the report',
+            'singleHeading' => 'Or a single month',
+        ])
+    @elseif ($viewKey === 'quarter')
+        @include('reports.physical-financial.partials.print-period-dialog', [
+            'printParam' => 'quarter',
+            'printOptions' => $quarterOptions,
+            'printLabel' => 'Accomplishment per Quarter',
+            'allLabel' => 'All quarters',
+            'allDescription' => '1st to 4th Quarter in one table with target and balance, same as the report',
+            'singleHeading' => 'Or a single quarter',
+        ])
+    @elseif ($viewKey === 'semester')
+        @include('reports.physical-financial.partials.print-period-dialog', [
+            'printParam' => 'semester',
+            'printOptions' => $semesterOptions,
+            'printLabel' => 'Accomplishment per Semester',
+            'allLabel' => 'All semesters',
+            'allDescription' => '1st and 2nd Semester in one table with target and balance, same as the report',
+            'singleHeading' => 'Or a single semester',
+        ])
+    @endif
 @endsection
+
+@if ($hasTermView)
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const toggle = document.querySelector('[data-pf-layout-toggle]');
+
+                if (!toggle) {
+                    return;
+                }
+
+                const storageKey = 'tupad.pf.termLayout';
+
+                function show(layout) {
+                    toggle.querySelectorAll('[data-pf-layout]').forEach(function (button) {
+                        button.setAttribute('aria-pressed', button.dataset.pfLayout === layout ? 'true' : 'false');
+                    });
+
+                    document.querySelectorAll('[data-pf-panel]').forEach(function (panel) {
+                        panel.hidden = panel.dataset.pfPanel !== layout;
+                    });
+
+                    try { window.localStorage.setItem(storageKey, layout); } catch (error) { /* storage unavailable */ }
+                }
+
+                toggle.addEventListener('click', function (event) {
+                    const button = event.target.closest('[data-pf-layout]');
+
+                    if (button) {
+                        show(button.dataset.pfLayout);
+                    }
+                });
+
+                let saved = null;
+                try { saved = window.localStorage.getItem(storageKey); } catch (error) { /* storage unavailable */ }
+                show(saved === 'term' ? 'term' : 'combined');
+            });
+        </script>
+    @endpush
+@endif

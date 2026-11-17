@@ -97,3 +97,13 @@
     <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path></svg>
     <span>User Accounts</span>
 </a>
+
+<a href="{{ route('locations.income-classes.edit') }}" class="{{ $navClass(request()->routeIs('locations.income-classes.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+    <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18"></path><path d="M5 21V10l7-5 7 5v11"></path><path d="M9 21v-6h6v6"></path></svg>
+    <span>Income Classes</span>
+</a>
+
+<a href="{{ route('reports.district-representatives.edit') }}" class="{{ $navClass(request()->routeIs('reports.district-representatives.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+    <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path><path d="m16 3 1.5 1.5L21 1"></path></svg>
+    <span>Edit Representatives</span>
+</a>

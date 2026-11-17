@@ -50,8 +50,8 @@ class MajorRevisionPhase14BPhysicalFinancialAccomplishmentReportsTest extends Te
             ->assertSee('Detailed Generator')
             ->assertSee('Print')
             ->assertSee('PDF')
-            ->assertSee('Excel')
-            ->assertSee('CSV');
+            ->assertDontSee('reports/export/excel', false)
+            ->assertDontSee('reports/export/csv', false);
 
         $response->assertSee(route('reports.print', [
             'report_type' => 'physical_financial',

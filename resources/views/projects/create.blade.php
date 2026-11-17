@@ -6,7 +6,7 @@
 
     <div class="mx-auto max-w-330">
 
-        <x-page-header eyebrow="Project Management" title="Add Official Project"
+        <x-page-header eyebrow="Project Management" title="Add Official Project" :breadcrumbs="[['label' => 'Projects', 'url' => route('projects.index')], ['label' => 'Create Project']]"
             description="Encode the official project profile in sections. Required fields are marked automatically, and project cost previews update while you work.">
             <x-slot:actions>
                 <a href="{{ route('projects.index') }}"
@@ -16,7 +16,7 @@
             </x-slot:actions>
         </x-page-header>
 
-        @if($allocations->isEmpty())
+        @if ($allocations->isEmpty())
             <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
                 <div class="text-xs font-bold uppercase tracking-widest text-red-700">
                     No Allocation Available
@@ -122,15 +122,13 @@
 
                                 @foreach ($allocations as $allocation)
                                     @php($allocationFinance = $allocationFinancials->get($allocation->id))
-                                    <option
-                                        value="{{ $allocation->id }}"
+                                    <option value="{{ $allocation->id }}"
                                         data-adl-number="{{ $allocation->adl->adl_number }}"
                                         data-location="{{ $allocation->location }}"
                                         data-allocation="{{ number_format(($allocationFinance['allocation_cents'] ?? 0) / 100, 2, '.', '') }}"
                                         data-utilized="{{ number_format(($allocationFinance['utilized_cents'] ?? 0) / 100, 2, '.', '') }}"
                                         data-remaining="{{ number_format(max(0, $allocationFinance['remaining_cents'] ?? 0) / 100, 2, '.', '') }}"
-                                        @selected(old('adl_allocation_id') == $allocation->id)
-                                    >
+                                        @selected(old('adl_allocation_id') == $allocation->id)>
                                         {{ $allocation->adl->adl_number }}
                                         —
                                         {{ $allocation->location }}
@@ -146,29 +144,40 @@
                                 Fund Sponsor and Partner are encoded below by the TUPAD Coordinator.
                             </p>
 
-                            <div id="allocationBudgetPanel" class="mt-4 hidden rounded-xl border border-blue-200 bg-blue-50 p-4">
+                            <div id="allocationBudgetPanel"
+                                class="mt-4 hidden rounded-xl border border-blue-200 bg-blue-50 p-4">
                                 <div class="flex flex-wrap items-start justify-between gap-3">
                                     <div>
-                                        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-blue-700">Selected Allocation Capacity</div>
-                                        <div id="allocationBudgetLabel" class="mt-1 text-sm font-semibold text-blue-950"></div>
+                                        <div class="text-[10px] font-bold uppercase tracking-widest text-blue-700">Selected
+                                            Allocation Capacity</div>
+                                        <div id="allocationBudgetLabel" class="mt-1 text-sm font-semibold text-blue-950">
+                                        </div>
                                     </div>
-                                    <div id="allocationBudgetState" class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-blue-700">Available</div>
+                                    <div id="allocationBudgetState"
+                                        class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-blue-700">
+                                        Available</div>
                                 </div>
                                 <div class="mt-4 grid gap-3 sm:grid-cols-3">
                                     <div class="rounded-lg bg-white px-3 py-3">
                                         <div class="text-[10px] uppercase tracking-wide text-slate-400">Allocation</div>
-                                        <div id="allocationOriginalAmount" class="mt-1 text-sm font-bold text-slate-900">₱0.00</div>
+                                        <div id="allocationOriginalAmount" class="mt-1 text-sm font-bold text-slate-900">
+                                            ₱0.00</div>
                                     </div>
                                     <div class="rounded-lg bg-white px-3 py-3">
-                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Already Utilized</div>
-                                        <div id="allocationUtilizedAmount" class="mt-1 text-sm font-bold text-slate-900">₱0.00</div>
+                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Already Utilized
+                                        </div>
+                                        <div id="allocationUtilizedAmount" class="mt-1 text-sm font-bold text-slate-900">
+                                            ₱0.00</div>
                                     </div>
                                     <div class="rounded-lg bg-white px-3 py-3">
-                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Remaining Available</div>
-                                        <div id="allocationRemainingAmount" class="mt-1 text-sm font-bold text-emerald-700">₱0.00</div>
+                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Remaining Available
+                                        </div>
+                                        <div id="allocationRemainingAmount" class="mt-1 text-sm font-bold text-emerald-700">
+                                            ₱0.00</div>
                                     </div>
                                 </div>
-                                <div id="allocationProjectCostMessage" class="mt-3 text-xs font-medium text-blue-800">Enter project cost inputs to compare against the remaining allocation.</div>
+                                <div id="allocationProjectCostMessage" class="mt-3 text-xs font-medium text-blue-800">Enter
+                                    project cost inputs to compare against the remaining allocation.</div>
                             </div>
 
                         </div>
@@ -330,7 +339,8 @@
 
                                     <div id="partnerOtherWrap"
                                         class="{{ old('partner') === '__other__' ? '' : 'hidden' }}">
-                                        <label for="partner_other" class="mb-2 block text-sm font-semibold text-slate-700">
+                                        <label for="partner_other"
+                                            class="mb-2 block text-sm font-semibold text-slate-700">
                                             Other Partner
                                         </label>
 
@@ -680,7 +690,8 @@
                                 <input id="beneficiariesFemale" name="beneficiaries_female" type="number"
                                     min="0" value="{{ old('beneficiaries_female', 0) }}" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
-                                <p id="femaleBeneficiaryLimit" class="mt-1 text-[11px] text-slate-500">Maximum: enter Total Beneficiaries first.</p>
+                                <p id="femaleBeneficiaryLimit" class="mt-1 text-[11px] text-slate-500">Maximum: enter
+                                    Total Beneficiaries first.</p>
 
                             </div>
 
@@ -691,8 +702,7 @@
                                 </label>
 
                                 <input id="wageRate" name="wage_rate" type="number" step="0.01" min="0.01"
-                                    data-money-input
-                                    value="{{ old('wage_rate', 455) }}" required
+                                    data-money-input value="{{ old('wage_rate', 455) }}" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                                 <p class="mt-1 text-[11px] leading-4 text-slate-500">
@@ -870,7 +880,8 @@
                         </h2>
 
                         <p class="mt-1 text-xs leading-5 text-slate-600">
-                            Saving a complete project profile moves it directly to <strong>TSSD Evaluation</strong> status — no separate submission step is needed.
+                            Saving a complete project profile moves it directly to <strong>TSSD Evaluation</strong> status —
+                            no separate submission step is needed.
                         </p>
                     </section>
 
@@ -1592,15 +1603,15 @@
                                 <div class="mt-2 space-y-1.5">
                                     ${item.barangays.map(
                                         barangay => `
-                                                    <div class="flex items-center justify-between gap-3 rounded-md bg-white px-2 py-1.5 text-[10px] shadow-sm">
-                                                        <span class="min-w-0 truncate font-medium text-slate-600">
-                                                            ${escapeHtml(barangay.name)}
-                                                        </span>
-                                                        <span class="shrink-0 font-semibold text-blue-800">
-                                                            ${barangay.total === '' ? '—' : Number(barangay.total).toLocaleString()} total
-                                                        </span>
-                                                    </div>
-                                                `
+                                                            <div class="flex items-center justify-between gap-3 rounded-md bg-white px-2 py-1.5 text-[10px] shadow-sm">
+                                                                <span class="min-w-0 truncate font-medium text-slate-600">
+                                                                    ${escapeHtml(barangay.name)}
+                                                                </span>
+                                                                <span class="shrink-0 font-semibold text-blue-800">
+                                                                    ${barangay.total === '' ? '—' : Number(barangay.total).toLocaleString()} total
+                                                                </span>
+                                                            </div>
+                                                        `
                                     ).join('')}
                                 </div>
                             </div>
@@ -1687,7 +1698,8 @@
                 if (exceeded) {
                     const overBy = Math.abs(afterProject);
                     allocationBudgetState.textContent = 'Exceeded';
-                    allocationBudgetState.className = 'rounded-full bg-red-100 px-3 py-1 text-[10px] font-bold uppercase text-red-700';
+                    allocationBudgetState.className =
+                        'rounded-full bg-red-100 px-3 py-1 text-[10px] font-bold uppercase text-red-700';
                     allocationProjectCostMessage.className = 'mt-3 text-xs font-semibold text-red-700';
                     allocationProjectCostMessage.textContent =
                         `Total Project Cost ${currency(projectTotal)} exceeds the remaining allocation ${currency(data.remaining)} by ${currency(overBy)}.`;
@@ -1696,7 +1708,8 @@
                     );
                 } else {
                     allocationBudgetState.textContent = 'Available';
-                    allocationBudgetState.className = 'rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase text-emerald-700';
+                    allocationBudgetState.className =
+                        'rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase text-emerald-700';
                     allocationProjectCostMessage.className = 'mt-3 text-xs font-medium text-emerald-700';
                     allocationProjectCostMessage.textContent =
                         `Remaining after this project: ${currency(Math.max(0, afterProject))}.`;
@@ -1718,8 +1731,10 @@
                 beneficiariesFemale.max = String(beneficiaryMaximum);
                 insuranceBeneficiaries.max = String(beneficiaryMaximum);
 
-                femaleBeneficiaryLimit.textContent = `Maximum: ${beneficiaryMaximum.toLocaleString()} beneficiaries.`;
-                insuranceBeneficiaryLimit.textContent = `Maximum: ${beneficiaryMaximum.toLocaleString()} beneficiaries.`;
+                femaleBeneficiaryLimit.textContent =
+                    `Maximum: ${beneficiaryMaximum.toLocaleString()} beneficiaries.`;
+                insuranceBeneficiaryLimit.textContent =
+                    `Maximum: ${beneficiaryMaximum.toLocaleString()} beneficiaries.`;
 
                 if (Number(beneficiariesFemale.value || 0) > beneficiaryMaximum) {
                     beneficiariesFemale.setCustomValidity(
@@ -2028,16 +2043,49 @@
             */
 
             const PPE_STANDARD_SETS = {
-                non_hazardous: [
-                    { ppe_type: 'non_hazardous', product: 'TUPAD Shirt', unit_amount: 280.00, qty: 2 },
-                    { ppe_type: 'non_hazardous', product: 'Bucket Hat', unit_amount: 70.00, qty: 1 },
+                non_hazardous: [{
+                        ppe_type: 'non_hazardous',
+                        product: 'TUPAD Shirt',
+                        unit_amount: 280.00,
+                        qty: 2
+                    },
+                    {
+                        ppe_type: 'non_hazardous',
+                        product: 'Bucket Hat',
+                        unit_amount: 70.00,
+                        qty: 1
+                    },
                 ],
-                hazardous: [
-                    { ppe_type: 'non_hazardous', product: 'TUPAD Shirt', unit_amount: 280.00, qty: 2 },
-                    { ppe_type: 'non_hazardous', product: 'Bucket Hat', unit_amount: 70.00, qty: 1 },
-                    { ppe_type: 'hazardous', product: 'Mask', unit_amount: 80.00, qty: 1 },
-                    { ppe_type: 'hazardous', product: 'Gloves', unit_amount: 70.00, qty: 1 },
-                    { ppe_type: 'hazardous', product: 'Rubber Boots', unit_amount: 350.00, qty: 1 },
+                hazardous: [{
+                        ppe_type: 'non_hazardous',
+                        product: 'TUPAD Shirt',
+                        unit_amount: 280.00,
+                        qty: 2
+                    },
+                    {
+                        ppe_type: 'non_hazardous',
+                        product: 'Bucket Hat',
+                        unit_amount: 70.00,
+                        qty: 1
+                    },
+                    {
+                        ppe_type: 'hazardous',
+                        product: 'Mask',
+                        unit_amount: 80.00,
+                        qty: 1
+                    },
+                    {
+                        ppe_type: 'hazardous',
+                        product: 'Gloves',
+                        unit_amount: 70.00,
+                        qty: 1
+                    },
+                    {
+                        ppe_type: 'hazardous',
+                        product: 'Rubber Boots',
+                        unit_amount: 350.00,
+                        qty: 1
+                    },
                 ],
             };
 

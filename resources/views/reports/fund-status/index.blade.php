@@ -129,9 +129,15 @@
 
     @endunless
 
-    @if ($viewKey === 'district')
-        <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-900">
-            <strong>District financial integrity:</strong> projects may span multiple districts and the current database does not store an exact district-level financial allocation. District rows therefore do not divide or guess project money.
+    @if (session('success'))
+        <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if ($errors->has('representatives') || $errors->has('representatives.*'))
+        <div class="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">
+            {{ $errors->first('representatives') ?: $errors->first('representatives.*') }}
         </div>
     @endif
 
@@ -143,10 +149,12 @@
                     {{ $fundStatusTemplate ? 'Official table structure follows the approved TUPAD fund-status reporting template.' : 'The same validated cohort is used by screen, Print, PDF, Excel, and CSV outputs.' }}
                 </p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ route('reports.export.excel', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Excel</a>
-                <a href="{{ route('reports.export.csv', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">CSV</a>
-            </div>
+            @if ($districtRepresentatives->isNotEmpty())
+                <button type="button" onclick="document.getElementById('district-representatives-dialog').showModal()"
+                    class="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                    Edit Representatives
+                </button>
+            @endif
         </div>
         @if ($fundStatusTemplate)
             @include('reports.fund-status.partials.template-table-screen', ['report' => $report])
@@ -158,7 +166,7 @@
                 <div class="px-5 py-12 text-center"><div class="text-sm font-semibold text-slate-700">No fund-status data matched the selected criteria.</div><div class="mt-1 text-xs text-slate-500">Adjust the filters and try again.</div></div>
             @else
                 <div class="overflow-x-auto">
-                    <table class="tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1500px] w-full text-xs">
+                    <table class="tupad-report-table tupad-system-table tupad-report-screen-table tupad-wide-table min-w-[1500px] w-full text-xs">
                         <thead class="bg-slate-50 text-slate-600"><tr>@foreach ($report['columns'] as $column)<th @class(['border-b border-slate-200 px-4 py-3 font-bold', 'text-right' => $column['align'] === 'right', 'text-left' => $column['align'] !== 'right'])>{{ $column['label'] }}</th>@endforeach</tr></thead>
                         <tbody class="divide-y divide-slate-100">
                             @foreach ($report['display_rows'] as $row)
@@ -170,4 +178,53 @@
             @endif
         @endif
     </section>
+
+    @if ($districtRepresentatives->isNotEmpty())
+        <dialog id="district-representatives-dialog" aria-labelledby="district-representatives-title"
+            class="tupad-dialog w-[calc(100%-2rem)] max-w-2xl rounded-2xl border border-slate-200 bg-white p-0 text-left shadow-2xl">
+            <form method="POST" action="{{ route('reports.district-representatives.update') }}">
+                @csrf
+                @method('PUT')
+                @foreach ($commonQuery as $key => $value)
+                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                @endforeach
+
+                <div class="border-b border-slate-100 px-5 py-4">
+                    <h2 id="district-representatives-title" class="text-base font-bold text-slate-900">Edit District Representatives</h2>
+                    <p class="mt-1 text-xs leading-5 text-slate-500">Update the names after each congressional election. Changes apply to the Summary per District report.</p>
+                </div>
+
+                <div class="max-h-[60vh] overflow-y-auto px-5 py-4">
+                    @foreach ($districtRepresentatives->groupBy('province') as $province => $entries)
+                        <fieldset class="mb-4 last:mb-0">
+                            <legend class="mb-2 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#063b86]">{{ $province }}</legend>
+                            <div class="space-y-2">
+                                @foreach ($entries as $entry)
+                                    @php($index = $loop->parent->index * 100 + $loop->index)
+                                    <div class="grid grid-cols-[7rem_1fr] items-center gap-3">
+                                        <label for="representative-{{ $entry->id }}" class="text-xs font-semibold text-slate-600">{{ $entry->district }}</label>
+                                        <input type="hidden" name="representatives[{{ $index }}][id]" value="{{ $entry->id }}">
+                                        <input id="representative-{{ $entry->id }}" name="representatives[{{ $index }}][representative]"
+                                            value="{{ old("representatives.$index.representative", $entry->representative) }}" maxlength="255"
+                                            class="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                                    </div>
+                                @endforeach
+                            </div>
+                        </fieldset>
+                    @endforeach
+                </div>
+
+                <div class="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3 sm:flex-row sm:justify-end">
+                    <button type="button" onclick="this.closest('dialog').close()"
+                        class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="inline-flex h-10 items-center justify-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b]">
+                        Save Representatives
+                    </button>
+                </div>
+            </form>
+        </dialog>
+    @endif
 @endsection

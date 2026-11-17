@@ -16,45 +16,89 @@
         \App\Enums\ProjectStatus::FOR_APPROVAL => 'Approved',
         default => $workspace['action']['title'],
     };
+
+    $dockCompleted = $project->status === \App\Enums\ProjectStatus::COMPLETED;
+
+    // Edit requests that need this user's attention on this project.
+    $dockSectionLabels = collect(app(\App\Services\Projects\ProjectSectionRegistry::class)->definitions())->map(fn ($definition) => $definition['label'] ?? null);
+    $dockEditRequests = $project->relationLoaded('editRequests') ? $project->editRequests : collect();
+    $dockPendingEditRequests = ($user->isFocal() || $user->isAdmin())
+        ? $dockEditRequests->where('status', \App\Models\ProjectEditRequest::PENDING)->values()
+        : collect();
+    $dockApprovedEditRequests = $user->isTc()
+        ? $dockEditRequests->where('status', \App\Models\ProjectEditRequest::APPROVED)->where('requested_by', $user->id)->values()
+        : collect();
+    $dockEditAnchor = fn ($editRequest) => 'section-'.str_replace('_', '-', $editRequest->section).'-'.$editRequest->record_id;
 @endphp
 
-<section class="sticky top-21.5 z-20 mt-4 rounded-xl border border-blue-200 bg-white/95 shadow-md backdrop-blur" data-quick-workflow-dock>
-    <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">Next Workflow Action</span>
-                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                    {{ $project->status->label() }} → {{ $nextStatusLabel }}
-                </span>
+{{-- Zero-height sticky rail: the dock floats over the page once the header's action card scrolls away, and sits at the bottom of the screen on phones. --}}
+<div class="sticky top-21.5 z-20 h-0" data-quick-workflow-dock-rail>
+    <section data-quick-workflow-dock
+        class="mt-3 rounded-xl border bg-white/95 shadow-lg backdrop-blur transition duration-200 {{ $dockCompleted ? 'border-emerald-200' : 'border-blue-200' }} max-sm:fixed max-sm:inset-x-3 max-sm:bottom-3 max-sm:mt-0">
+        <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    @if($dockCompleted)
+                        <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                            All workflow steps complete
+                        </span>
+                    @else
+                        <span class="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">Next Workflow Action</span>
+                        <span class="hidden rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600 sm:inline-flex">
+                            {{ $project->status->label() }} → {{ $nextStatusLabel }}
+                        </span>
+                    @endif
+                </div>
+                <div class="mt-1 truncate text-sm font-bold text-slate-950">{{ $workspace['action']['title'] }}</div>
+                <p class="mt-0.5 hidden text-xs text-slate-500 md:block">{{ $workspace['action']['description'] }}</p>
             </div>
-            <div class="mt-1 truncate text-sm font-bold text-slate-950">{{ $workspace['action']['title'] }}</div>
-            <p class="mt-0.5 hidden text-xs text-slate-500 md:block">{{ $workspace['action']['description'] }}</p>
-        </div>
 
-        <div class="flex shrink-0 items-center gap-2">
-            @if($quickModalAvailable)
-                <button type="button" data-quick-workflow-open
-                    class="inline-flex h-10 items-center justify-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b] focus:outline-none focus:ring-2 focus:ring-blue-300">
-                    Continue Workflow
-                </button>
-            @elseif($workspace['action']['label'] && $workspace['action']['href'])
-                @if($workspace['action']['external'])
-                    <a href="{{ $workspace['action']['href'] }}"
-                        class="inline-flex h-10 items-center justify-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b]">
-                        {{ $workspace['action']['label'] }}
-                    </a>
-                @else
-                    <a href="{{ request()->fullUrlWithQuery(['workspace' => $workspace['action']['tab']]).'#'.$workspace['action']['anchor'] }}"
-                        data-workspace-open-tab="{{ $workspace['action']['tab'] }}"
-                        data-workspace-anchor="{{ $workspace['action']['anchor'] }}"
-                        class="inline-flex h-10 items-center justify-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b]">
-                        {{ $workspace['action']['label'] }}
+            <div class="flex shrink-0 flex-wrap items-center gap-2">
+                @if($dockPendingEditRequests->isNotEmpty())
+                    @php $firstPending = $dockPendingEditRequests->first(); @endphp
+                    <a href="{{ request()->fullUrlWithQuery(['workspace' => 'overview']).'#'.$dockEditAnchor($firstPending) }}"
+                        data-workspace-open-tab="overview" data-workspace-anchor="{{ $dockEditAnchor($firstPending) }}"
+                        title="{{ $dockPendingEditRequests->map(fn ($r) => $dockSectionLabels[$r->section] ?? $r->section)->implode(', ') }}"
+                        class="inline-flex h-10 items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+                        Review edit request
+                        <span class="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{{ $dockPendingEditRequests->count() }}</span>
                     </a>
                 @endif
-            @endif
+
+                @foreach($dockApprovedEditRequests->take(2) as $approvedRequest)
+                    <a href="{{ request()->fullUrlWithQuery(['workspace' => 'overview']).'#'.$dockEditAnchor($approvedRequest) }}"
+                        data-workspace-open-tab="overview" data-workspace-anchor="{{ $dockEditAnchor($approvedRequest) }}"
+                        class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                        Edit approved: {{ $dockSectionLabels[$approvedRequest->section] ?? $approvedRequest->section }}
+                    </a>
+                @endforeach
+
+                @if($quickModalAvailable)
+                    <button type="button" data-quick-workflow-open
+                        class="inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b] focus:outline-none focus:ring-2 focus:ring-blue-300 sm:flex-none">
+                        Continue Workflow
+                    </button>
+                @elseif($workspace['action']['label'] && $workspace['action']['href'])
+                    @if($workspace['action']['external'])
+                        <a href="{{ $workspace['action']['href'] }}"
+                            class="inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b] sm:flex-none">
+                            {{ $workspace['action']['label'] }}
+                        </a>
+                    @else
+                        <a href="{{ request()->fullUrlWithQuery(['workspace' => $workspace['action']['tab']]).'#'.$workspace['action']['anchor'] }}"
+                            data-workspace-open-tab="{{ $workspace['action']['tab'] }}"
+                            data-workspace-anchor="{{ $workspace['action']['anchor'] }}"
+                            class="inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6b] sm:flex-none">
+                            {{ $workspace['action']['label'] }}
+                        </a>
+                    @endif
+                @endif
+            </div>
         </div>
-    </div>
-</section>
+    </section>
+</div>
 
 @if($quickModalAvailable)
     @php
@@ -147,7 +191,7 @@
                             </div>
                         </form>
                     @elseif($project->status === \App\Enums\ProjectStatus::FOR_APPROVAL)
-                        <form method="POST" action="{{ route('projects.approval.store', $project) }}" class="space-y-4">
+                        <form method="POST" action="{{ route('projects.approval.store', $project) }}" class="space-y-4" data-confirm-title="Approve this project?" data-confirm="The system generates the official project code and moves the project to the next stage. This cannot be undone." data-confirm-button="Approve Project">
                             @csrf
                             <input type="hidden" name="quick_action" value="1">
                             <div>

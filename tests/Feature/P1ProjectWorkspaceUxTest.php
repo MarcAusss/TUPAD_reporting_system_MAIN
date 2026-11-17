@@ -71,7 +71,7 @@ class P1ProjectWorkspaceUxTest extends TestCase
 
     public function test_project_detail_source_is_grouped_into_workspace_tabs_and_uses_module_javascript(): void
     {
-        $blade = file_get_contents(resource_path('views/projects/show.blade.php'));
+        $blade = $this->projectShowSource();
         $component = file_get_contents(resource_path('views/components/project-workspace-header.blade.php'));
         $appJs = file_get_contents(resource_path('js/app.js'));
         $workspaceJs = file_get_contents(resource_path('js/project-workspace.js'));
@@ -114,5 +114,15 @@ class P1ProjectWorkspaceUxTest extends TestCase
         ]);
 
         return $user;
+    }
+
+    private function projectShowSource(): string
+    {
+        $files = array_merge(
+            [resource_path('views/projects/show.blade.php')],
+            glob(resource_path('views/projects/partials/show/*.blade.php')) ?: [],
+        );
+
+        return implode("\n", array_map('file_get_contents', $files));
     }
 }

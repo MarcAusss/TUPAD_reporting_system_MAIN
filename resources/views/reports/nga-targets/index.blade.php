@@ -7,6 +7,9 @@
         $money = static fn (mixed $value): string => '₱'.number_format((float) $value, 2);
         $number = static fn (mixed $value): string => number_format((int) $value);
 
+        // Municipality / Province columns only appear once the report is filtered.
+        $showLocation = $search !== '' || $agencyFilter !== '' || $programFilter !== '';
+
         $summaryCards = [
             ['label' => 'Projects', 'value' => $number($projectCount)],
             ['label' => 'Target Benefs', 'value' => $number($totals['target_beneficiaries'])],
@@ -24,6 +27,14 @@
             title="NGA Target Accomplishment"
             description="Agency, Program, Target, Accomplished, and Balance figures per project."
         />
+
+        <div class="flex shrink-0 flex-wrap gap-2">
+            <a href="{{ route('reports.workspace.nga-targets.print', array_filter(['agency' => $agencyFilter, 'program' => $programFilter, 'q' => $search], static fn (string $value): bool => $value !== '')) }}"
+                target="_blank"
+                class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Print
+            </a>
+        </div>
     </div>
 
     @if (session('success'))
@@ -82,7 +93,7 @@
                 Apply
             </button>
 
-            @if($search !== '' || $agencyFilter !== '' || $programFilter !== '')
+            @if($showLocation)
                 <a href="{{ route('reports.workspace.nga-targets') }}"
                     class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     Reset
@@ -101,13 +112,15 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full min-w-max border-collapse text-[11px] text-slate-800">
+            <table class="tupad-report-table w-full min-w-max border-collapse text-[11px] text-slate-800">
                 <thead>
                     <tr>
                         <th rowspan="2" class="border border-slate-700 bg-[#f8d45b] px-3 py-2 text-left font-extrabold text-slate-900">AGENCY</th>
                         <th rowspan="2" class="border border-slate-700 bg-[#f8d45b] px-3 py-2 text-left font-extrabold text-slate-900">PROGRAM</th>
-                        <th rowspan="2" class="border border-slate-700 bg-[#f8d45b] px-3 py-2 text-left font-extrabold text-slate-900">MUNICIPALITY</th>
-                        <th rowspan="2" class="border border-slate-700 bg-[#f8d45b] px-3 py-2 text-left font-extrabold text-slate-900">PROVINCE</th>
+                        @if($showLocation)
+                            <th rowspan="2" class="border border-slate-700 bg-[#f8d45b] px-3 py-2 text-left font-extrabold text-slate-900">MUNICIPALITY</th>
+                            <th rowspan="2" class="border border-slate-700 bg-[#f8d45b] px-3 py-2 text-left font-extrabold text-slate-900">PROVINCE</th>
+                        @endif
                         <th rowspan="2" class="border border-slate-700 bg-[#f8d45b] px-3 py-2 text-center font-extrabold text-slate-900">NO. OF<br>DAYS</th>
                         <th colspan="2" class="border border-slate-700 bg-[#8fb8de] px-3 py-2 text-center font-extrabold text-slate-900">TARGET</th>
                         <th colspan="2" class="border border-slate-700 bg-[#e08070] px-3 py-2 text-center font-extrabold text-slate-900">ACCOMPLISHED</th>
@@ -125,10 +138,10 @@
 
                 <tbody>
                     @forelse($rows as $row)
-                        @include('reports.nga-targets._row', ['row' => $row, 'number' => $number, 'money' => $money])
+                        @include('reports.nga-targets._row', ['row' => $row, 'number' => $number, 'money' => $money, 'showLocation' => $showLocation])
                     @empty
                         <tr>
-                            <td colspan="11" class="border border-slate-200 px-5 py-12 text-center">
+                            <td colspan="{{ $showLocation ? 11 : 9 }}" class="border border-slate-200 px-5 py-12 text-center">
                                 <div class="text-sm font-semibold text-slate-700">No projects match this filter yet.</div>
                             </td>
                         </tr>
@@ -138,7 +151,7 @@
                 @if($rows->isNotEmpty())
                     <tfoot>
                         <tr class="bg-slate-900 font-extrabold text-white">
-                            <td colspan="5" class="border border-slate-700 px-3 py-2">TOTAL</td>
+                            <td colspan="{{ $showLocation ? 5 : 3 }}" class="border border-slate-700 px-3 py-2">TOTAL</td>
                             <td class="border border-slate-700 px-3 py-2 text-right">{{ $number($totals['target_beneficiaries']) }}</td>
                             <td class="border border-slate-700 px-3 py-2 text-right">{{ $money($totals['target_amount']) }}</td>
                             <td class="border border-slate-700 px-3 py-2 text-right">{{ $number($totals['accomplished_beneficiaries']) }}</td>

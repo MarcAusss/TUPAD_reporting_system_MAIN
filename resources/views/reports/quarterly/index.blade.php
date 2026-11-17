@@ -5,7 +5,9 @@
 @section('content')
     @php
         $money = static fn (mixed $cents): string => '₱' . number_format(((int) $cents) / 100, 2);
-        $quarterLabel = 'Q' . (int) $filters['quarter'] . ' ' . (int) $filters['fiscal_year'];
+        $quarterLabel = filled($filters['quarter'] ?? null)
+            ? 'Q' . (int) $filters['quarter'] . ' ' . (int) $filters['fiscal_year']
+            : 'Q1–Q4 ' . (int) $filters['fiscal_year'];
         $commonQuery = array_filter([
             'fiscal_year' => $filters['fiscal_year'] ?? null,
             'quarter' => $filters['quarter'] ?? null,
@@ -63,9 +65,12 @@
                 </div>
                 <div>
                     <label for="quarter" class="mb-2 block text-xs font-semibold text-slate-700">Quarter</label>
-                    <select id="quarter" name="quarter" required class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                    <select id="quarter" name="quarter" @required($viewKey === 'labor-market') class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                        @if ($viewKey === 'cqpr')
+                            <option value="">All quarters (Q1–Q4)</option>
+                        @endif
                         @foreach ([1,2,3,4] as $quarter)
-                            <option value="{{ $quarter }}" @selected((int) $filters['quarter'] === $quarter)>Quarter {{ $quarter }}</option>
+                            <option value="{{ $quarter }}" @selected((int) ($filters['quarter'] ?? 0) === $quarter)>Quarter {{ $quarter }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -134,24 +139,16 @@
         <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-5 py-4">
                 <h2 class="text-sm font-bold text-slate-900">Consolidated Quarterly Progress Report (CQPR) Project Cohort</h2>
-                <p class="mt-1 text-xs leading-5 text-slate-500">Only projects with a CQPR monitoring date inside {{ $quarterLabel }} are included. Official Print/PDF uses the approved government report layout.</p>
+                <p class="mt-1 text-xs leading-5 text-slate-500">
+                    @if (filled($filters['quarter'] ?? null))
+                        Only projects with a CQPR monitoring date inside {{ $quarterLabel }} are included.
+                    @else
+                        Projects are separated by the quarter of their CQPR monitoring date ({{ $quarterLabel }}). Choose a quarter to view only that quarter.
+                    @endif
+                    Official Print/PDF uses the approved government report layout.
+                </p>
             </div>
-            @if ($rows->isEmpty())
-                <div class="px-5 py-12 text-center text-sm font-semibold text-slate-600">No CQPR records matched the selected quarter.</div>
-            @else
-                <div class="overflow-x-auto">
-                    <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
-                        <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
-                            <tr><th class="px-4 py-3">CQPR Date</th><th class="px-4 py-3">Project Code</th><th class="min-w-64 px-4 py-3">Project</th><th class="px-4 py-3">Location</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Beneficiaries</th></tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 text-slate-700">
-                            @foreach ($rows as $row)
-                                <tr><td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-900">{{ $row['report_date']?->format('M d, Y') }}</td><td class="whitespace-nowrap px-4 py-3">{{ $row['project_code'] ?: 'Pending code' }}</td><td class="px-4 py-3 font-semibold text-slate-900">{{ $row['project_title'] }}</td><td class="px-4 py-3">{{ collect([$row['province'], $row['municipality']])->filter()->implode(' · ') }}</td><td class="whitespace-nowrap px-4 py-3">{{ $row['status']->label() }}</td><td class="whitespace-nowrap px-4 py-3">{{ number_format($row['beneficiaries_total']) }} <span class="text-slate-400">/ {{ number_format($row['beneficiaries_female']) }} female</span></td></tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
+            @include('reports.quarterly.partials.cqpr-table-screen', ['cqpr' => $cqpr])
         </section>
     @else
         <section class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -175,12 +172,12 @@
                     <p class="mt-1 text-xs text-slate-500">Quarterly totals are read directly from encoded referral records. Counts are not inferred from project beneficiaries.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <a href="{{ route('reports.export.excel', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700">Excel</a>
-                    <a href="{{ route('reports.export.csv', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700">CSV</a>
+                    <a href="{{ route('reports.print', $exportQuery) }}" target="_blank" class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Print</a>
+                    <a href="{{ route('reports.export.pdf', $exportQuery) }}" class="inline-flex h-9 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100">PDF</a>
                 </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
+                <table class="tupad-report-table tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                         <tr><th class="px-4 py-3">Program</th><th class="px-4 py-3 text-right">Records</th><th class="px-4 py-3 text-right">Projects</th><th class="px-4 py-3 text-right">Referred</th><th class="px-4 py-3 text-right">Female</th><th class="px-4 py-3 text-right">Provided Intervention</th><th class="px-4 py-3 text-right">Amount Released</th></tr>
                     </thead>

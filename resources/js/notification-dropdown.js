@@ -156,6 +156,16 @@ function createActions(item) {
 
         button.addEventListener('click', async (event) => {
             event.stopPropagation();
+
+            if (action.confirm && window.TupadConfirm && !(await window.TupadConfirm({
+                title: `${action.label} this request?`,
+                message: action.confirm,
+                confirmText: action.label,
+                tone: action.style === 'primary' ? 'primary' : 'danger',
+            }))) {
+                return;
+            }
+
             row.querySelectorAll('button').forEach((other) => { other.disabled = true; });
 
             try {

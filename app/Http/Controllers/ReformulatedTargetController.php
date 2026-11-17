@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ProjectTerm;
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
 use App\Models\Province;
@@ -72,23 +73,31 @@ class ReformulatedTargetController extends Controller
             $saved = $savedTargets->get($province->id);
             $matrixRow = $matrixRows->get($province->name, []);
 
-            $physical = $saved?->physical_target
-                ?? (int) data_get($matrixRow, 'target.physical', 0);
+            // Saved split wins; otherwise prefill each term from that term's projects.
+            $term = function (ProjectTerm $term) use ($saved, $matrixRow): array {
+                $values = $saved?->termTarget($term)
+                    ?? data_get($matrixRow, 'terms.'.$term->value.'.derived_target', []);
 
-            $financialCents = $saved?->financial_target_cents
-                ?? (int) data_get($matrixRow, 'target.financial_cents', 0);
+                return [
+                    'physical' => (int) ($values['physical'] ?? 0),
+                    'financial' => $this->centsToPeso((int) ($values['financial_cents'] ?? 0)),
+                ];
+            };
 
             return [
                 'province_id' => $province->id,
                 'province' => $province->name,
-                'physical_target' => $physical,
-                'financial_target' => number_format(
-                    $financialCents / 100,
-                    2,
-                    '.',
-                    '',
-                ),
+                'short_term' => $term(ProjectTerm::SHORT_TERM),
+                'long_term' => $term(ProjectTerm::LONG_TERM),
                 'saved' => $saved !== null,
+                'split' => (bool) $saved?->hasTermSplit(),
+                // Combined total saved before the term split existed, shown for reference.
+                'legacy_total' => $saved !== null && ! $saved->hasTermSplit()
+                    ? [
+                        'physical' => $saved->physical_target,
+                        'financial' => $this->centsToPeso($saved->financial_target_cents),
+                    ]
+                    : null,
                 'updated_at' => $saved?->updated_at,
             ];
         });
@@ -117,20 +126,15 @@ class ReformulatedTargetController extends Controller
                 'distinct',
                 Rule::in($allowedProvinceIds),
             ],
-            'targets.*.physical_target' => [
-                'required',
-                'integer',
-                'min:0',
-                'max:100000000',
-            ],
-            'targets.*.financial_target' => [
-                'required',
-                'string',
-                'regex:/^\d{1,12}(?:\.\d{1,2})?$/',
-            ],
+            'targets.*.short_term_physical_target' => ['required', 'integer', 'min:0', 'max:100000000'],
+            'targets.*.long_term_physical_target' => ['required', 'integer', 'min:0', 'max:100000000'],
+            'targets.*.short_term_financial_target' => ['required', 'string', 'regex:/^\d{1,12}(?:\.\d{1,2})?$/'],
+            'targets.*.long_term_financial_target' => ['required', 'string', 'regex:/^\d{1,12}(?:\.\d{1,2})?$/'],
         ], [
-            'targets.*.financial_target.regex' =>
-                'Financial target must be a valid peso amount with up to two decimal places and no commas.',
+            'targets.*.short_term_financial_target.regex' =>
+                'Short-Term financial target must be a valid peso amount with up to two decimal places and no commas.',
+            'targets.*.long_term_financial_target.regex' =>
+                'Long-Term financial target must be a valid peso amount with up to two decimal places and no commas.',
         ]);
 
         $fiscalYear = (int) $validated['fiscal_year'];
@@ -138,16 +142,24 @@ class ReformulatedTargetController extends Controller
 
         DB::transaction(function () use ($validated, $fiscalYear, $userId): void {
             foreach ($validated['targets'] as $target) {
+                $shortPhysical = (int) $target['short_term_physical_target'];
+                $longPhysical = (int) $target['long_term_physical_target'];
+                $shortCents = $this->pesoToCents((string) $target['short_term_financial_target']);
+                $longCents = $this->pesoToCents((string) $target['long_term_financial_target']);
+
                 ReformulatedTarget::query()->updateOrCreate(
                     [
                         'province_id' => (int) $target['province_id'],
                         'fiscal_year' => $fiscalYear,
                     ],
                     [
-                        'physical_target' => (int) $target['physical_target'],
-                        'financial_target_cents' => $this->pesoToCents(
-                            (string) $target['financial_target']
-                        ),
+                        // The combined target always equals short + long.
+                        'physical_target' => $shortPhysical + $longPhysical,
+                        'financial_target_cents' => $shortCents + $longCents,
+                        'short_term_physical_target' => $shortPhysical,
+                        'short_term_financial_target_cents' => $shortCents,
+                        'long_term_physical_target' => $longPhysical,
+                        'long_term_financial_target_cents' => $longCents,
                         'updated_by' => $userId,
                     ],
                 );
@@ -175,5 +187,10 @@ class ReformulatedTargetController extends Controller
         $fraction = str_pad(substr($fraction, 0, 2), 2, '0');
 
         return ((int) $whole * 100) + (int) $fraction;
+    }
+
+    private function centsToPeso(int $cents): string
+    {
+        return number_format($cents / 100, 2, '.', '');
     }
 }

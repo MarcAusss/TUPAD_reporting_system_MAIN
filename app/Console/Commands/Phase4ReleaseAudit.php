@@ -209,8 +209,6 @@ class Phase4ReleaseAudit extends Command
             'acp-workflow.payment' => ['auth', 'password.changed', 'province.scope', 'role:admin,focal'],
             'reports.index' => ['auth', 'password.changed', 'province.scope', 'role:admin,tc,focal'],
             'reports.export.pdf' => ['auth', 'password.changed', 'province.scope', 'role:admin,tc,focal'],
-            'reports.export.excel' => ['auth', 'password.changed', 'province.scope', 'role:admin,tc,focal'],
-            'reports.export.csv' => ['auth', 'password.changed', 'province.scope', 'role:admin,tc,focal'],
         ];
 
         foreach ($matrix as $routeName => $requiredMiddleware) {

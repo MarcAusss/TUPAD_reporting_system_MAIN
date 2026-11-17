@@ -350,14 +350,6 @@
                     class="inline-flex h-9 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100">
                     PDF
                 </a>
-                <a href="{{ route('reports.export.excel', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
-                    Excel
-                </a>
-                <a href="{{ route('reports.export.csv', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                    CSV
-                </a>
             </div>
         </div>
 
@@ -387,7 +379,7 @@
         </div>
 
         <div class="tupad-data-scroll overflow-x-auto">
-            <table class="tupad-system-table tupad-report-screen-table min-w-full">
+            <table class="tupad-report-table tupad-system-table tupad-report-screen-table min-w-full">
                 <thead class="bg-slate-50">
                     <tr>
                         @foreach ($report['columns'] as $column)

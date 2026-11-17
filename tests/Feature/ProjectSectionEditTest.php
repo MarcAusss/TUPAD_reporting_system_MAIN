@@ -62,6 +62,18 @@ class ProjectSectionEditTest extends TestCase
             ->assertDontSee('Save Section Changes');
     }
 
+    public function test_tranche_editor_auto_calculates_wages_but_has_no_insurance_or_ppe_inputs(): void
+    {
+        // ₱455 wage rate × 20 days = ₱9,100 per beneficiary.
+        $this->actingAs($this->focal)
+            ->get(route('projects.show', ['project' => $this->project, 'workspace' => 'overview']))
+            ->assertOk()
+            ->assertSee('data-wage-per-beneficiary-cents="910000"', false)
+            ->assertSee('Auto: beneficiaries × wage rate × days. You can still edit it.')
+            ->assertDontSee('name="insurance_amount"', false)
+            ->assertDontSee('name="ppe_amount"', false);
+    }
+
     public function test_focal_edits_a_section_directly_and_the_overview_notes_the_change(): void
     {
         $this->actingAs($this->focal)
@@ -196,8 +208,6 @@ class ProjectSectionEditTest extends TestCase
             'beneficiaries_total' => 10,
             'beneficiaries_female' => 6,
             'wages_amount' => '800.00',
-            'insurance_amount' => '50.00',
-            'ppe_amount' => '150.00',
             'obligation_date' => '2026-09-01',
             'payee' => 'TUPAD Beneficiaries',
         ];
@@ -207,7 +217,7 @@ class ProjectSectionEditTest extends TestCase
             ->assertSessionHasErrors('wages_amount', null, $bag);
 
         $this->actingAs($this->focal)
-            ->put($this->sectionUrl('obligation', $this->obligation->id), ['wages_amount' => '100.00', 'insurance_amount' => '0', 'ppe_amount' => '0'] + $payload)
+            ->put($this->sectionUrl('obligation', $this->obligation->id), ['wages_amount' => '100.00'] + $payload)
             ->assertSessionHasErrors('wages_amount', null, $bag);
 
         $this->actingAs($this->focal)
@@ -216,7 +226,10 @@ class ProjectSectionEditTest extends TestCase
 
         $obligation = $this->obligation->fresh();
         $this->assertSame('Corrected Payee', $obligation->payee);
-        $this->assertEquals(900.0, (float) $obligation->amount);
+        // Tranches are wages only: the old insurance/PPE on this tranche is cleared.
+        $this->assertEquals(700.0, (float) $obligation->amount);
+        $this->assertEquals(0.0, (float) $obligation->insurance_amount);
+        $this->assertEquals(0.0, (float) $obligation->ppe_amount);
     }
 
     public function test_a_released_tranche_is_corrected_through_the_overview_not_the_release_form(): void

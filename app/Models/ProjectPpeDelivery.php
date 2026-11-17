@@ -14,6 +14,7 @@ class ProjectPpeDelivery extends Model
     protected $fillable = [
         'project_id',
         'delivery_receipt_date',
+        'delivery_receipt_number',
         'ppe_provided',
         'inventory_reference',
         'remarks',

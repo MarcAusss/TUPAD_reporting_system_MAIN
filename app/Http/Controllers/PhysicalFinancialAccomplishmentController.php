@@ -60,11 +60,13 @@ class PhysicalFinancialAccomplishmentController extends Controller
         $view = self::VIEWS[$viewKey];
         $input = $request->query();
 
-        unset(
-            $input['term'],
-            $input['quarter'],
-            $input['month'],
-        );
+        // Single-period selection (semester/quarter/month) is a print choice only.
+        unset($input['term'], $input['quarter'], $input['semester']);
+
+        // Only the per-month table can be narrowed to a single month.
+        if ($viewKey !== 'month') {
+            unset($input['month']);
+        }
 
         if (
             in_array($viewKey, ['semester', 'quarter', 'month'], true)
@@ -75,6 +77,7 @@ class PhysicalFinancialAccomplishmentController extends Controller
 
         $validated = validator($input, [
             'fiscal_year' => ['nullable', 'integer', 'between:2000,2100'],
+            'month' => ['nullable', 'integer', 'between:1,12'],
             'status' => ['nullable', Rule::enum(ProjectStatus::class)],
             'implementation_mode' => [
                 'nullable',
@@ -132,6 +135,7 @@ class PhysicalFinancialAccomplishmentController extends Controller
             'report_type' => ReportType::PHYSICAL_FINANCIAL->value,
             'group_by' => $view['dimension']->value,
             'fiscal_year' => $validated['fiscal_year'] ?? null,
+            'month' => $validated['month'] ?? null,
             'status' => $validated['status'] ?? null,
             'implementation_mode' =>
                 $validated['implementation_mode'] ?? null,
@@ -170,6 +174,11 @@ class PhysicalFinancialAccomplishmentController extends Controller
                     ->get(['id', 'name']),
             ],
             'provinceLocked' => $user->isTc(),
+            'monthOptions' => collect(range(1, 12))
+                ->mapWithKeys(fn (int $month): array => [$month => now()->setDate(2000, $month, 1)->format('F')])
+                ->all(),
+            'semesterOptions' => [1 => '1st Semester', 2 => '2nd Semester'],
+            'quarterOptions' => [1 => '1st Quarter', 2 => '2nd Quarter', 3 => '3rd Quarter', 4 => '4th Quarter'],
         ]);
     }
 }

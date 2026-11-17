@@ -23,7 +23,7 @@ class ProvinceSummaryExactMockupUxTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'Total Amount Assisted',
+            'Approved Amount',
             $view
         );
 

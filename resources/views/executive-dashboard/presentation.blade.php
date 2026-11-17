@@ -13,7 +13,7 @@
 <body class="min-h-screen bg-[#eef3f9] text-[#0f2347] antialiased">
     @php
         $kpi = $dashboard['kpis'];
-        $money = fn (?int $cents) => $cents === null ? 'Not available' : 'â‚±'.number_format($cents / 100, 2);
+        $money = fn (?int $cents) => $cents === null ? 'Not available' : '₱'.number_format($cents / 100, 2);
         $percent = fn ($value) => number_format((float) ($value ?? 0), 1).'%';
         $maxStatus = max(1, collect($dashboard['projects_by_status'])->max('project_count'));
         $maxTrend = max(1, collect($dashboard['physical_trend'])->max('project_count'));
@@ -37,7 +37,7 @@
                     <div>
                         <div class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-blue-700">Department of Labor and Employment</div>
                         <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-[#071d44] lg:text-3xl">TUPAD Executive Presentation</h1>
-                        <p class="mt-1 text-xs text-slate-500 lg:text-sm">Read-only briefing view Â· Generated {{ $dashboard['generated_at']->format('M d, Y g:i A') }} Â· Asia/Manila</p>
+                        <p class="mt-1 text-xs text-slate-500 lg:text-sm">Read-only briefing view · Generated {{ $dashboard['generated_at']->format('M d, Y g:i A') }} · Asia/Manila</p>
                     </div>
                 </div>
 
@@ -79,6 +79,7 @@
                         ['For Liquidation', number_format($kpi['for_liquidation'])],
                         ['Total Beneficiaries', number_format($kpi['beneficiaries_total'])],
                         ['Female Beneficiaries', number_format($kpi['beneficiaries_female'])],
+                        ['Project Amount (Actual)', $money($kpi['project_cost_cents'])],
                         ['Physical Accomplishment', $percent($kpi['physical_accomplishment_percent'])],
                         ['Financial Accomplishment', $kpi['financial_accomplishment_percent'] === null ? 'Not available' : $percent($kpi['financial_accomplishment_percent'])],
                     ] as [$label, $value])
@@ -166,6 +167,67 @@
                 @endif
             </section>
 
+            @php
+                $comparison = $dashboard['approved_vs_actual'];
+                $comparisonCards = [
+                    ['label' => 'Beneficiaries', 'approved' => $comparison['approved_beneficiaries'], 'actual' => $comparison['actual_beneficiaries'], 'money' => false],
+                    ['label' => 'Female Beneficiaries', 'approved' => $comparison['approved_female'], 'actual' => $comparison['actual_female'], 'money' => false],
+                    ['label' => 'Project Amount', 'approved' => $comparison['approved_amount_cents'], 'actual' => $comparison['actual_amount_cents'], 'money' => true],
+                ];
+            @endphp
+            <section data-presentation-slide data-presentation-approved-actual tabindex="-1" hidden class="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-8">
+                <div class="mb-6">
+                    <div class="text-xs font-extrabold uppercase tracking-[0.15em] text-blue-700">Section 3B</div>
+                    <h2 class="mt-1 text-3xl font-extrabold tracking-tight text-slate-900 lg:text-4xl">Approved vs Actual</h2>
+                    <p class="mt-2 max-w-4xl text-sm leading-6 text-slate-500 lg:text-base">
+                        Approved = encoded when the project was created. Actual = the completed obligation tranches (net of beneficiaries not included) or the ACP payment.
+                    </p>
+                </div>
+
+                <div class="grid gap-5 lg:grid-cols-3">
+                    @foreach ($comparisonCards as $card)
+                        @php
+                            $available = $card['approved'] !== null && $card['actual'] !== null;
+                            $format = fn ($value) => $card['money'] ? $money($value === null ? null : (int) $value) : number_format((int) $value);
+                            $share = $available && $card['approved'] > 0 ? round($card['actual'] / $card['approved'] * 100, 1) : 0;
+                            $gap = $available ? $card['approved'] - $card['actual'] : 0;
+                        @endphp
+                        <article class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                            <div class="text-xs font-extrabold uppercase tracking-wider text-slate-500">{{ $card['label'] }}</div>
+                            @if ($available)
+                                <div class="mt-4 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div class="text-xs font-bold uppercase tracking-wide text-slate-400">Approved</div>
+                                        <div class="mt-1 text-2xl font-extrabold tracking-tight text-slate-800 xl:text-3xl">{{ $format($card['approved']) }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs font-bold uppercase tracking-wide text-emerald-600">Actual</div>
+                                        <div class="mt-1 text-2xl font-extrabold tracking-tight text-emerald-800 xl:text-3xl">{{ $format($card['actual']) }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-6 h-4 overflow-hidden rounded-full bg-slate-200"><div class="h-full bg-emerald-500" style="width: {{ min(100, $share) }}%"></div></div>
+                                <div class="mt-2 flex items-center justify-between text-sm">
+                                    <span class="font-semibold text-slate-600">{{ $percent($share) }} of approved</span>
+                                    @if (abs($gap) >= 1)
+                                        <span class="font-extrabold text-amber-700">{{ $gap > 0 ? '−' : '+' }}{{ $format(abs($gap)) }}</span>
+                                    @else
+                                        <span class="font-bold text-emerald-700">No difference</span>
+                                    @endif
+                                </div>
+                            @else
+                                <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                                    Project amounts are not split below the province level.
+                                </div>
+                            @endif
+                        </article>
+                    @endforeach
+                </div>
+
+                <p class="mt-6 text-sm leading-6 text-slate-500">
+                    {{ number_format($comparison['final_project_count']) }} of {{ number_format($comparison['project_count']) }} project(s) have final actual figures;
+                    projects whose obligations are not yet completed count at their approved values.
+                </p>
+            </section>
             <section data-presentation-slide tabindex="-1" hidden class="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-8">
                 <div class="mb-6">
                     <div class="text-xs font-extrabold uppercase tracking-[0.15em] text-blue-700">Section 4</div>
@@ -233,7 +295,7 @@
                         <article class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
                             <h3 class="min-h-14 text-lg font-bold leading-7 text-slate-800">{{ $row['intervention_focus_label'] }}</h3>
                             <div class="mt-4 text-5xl font-extrabold text-[#063b86]">{{ number_format($row['project_count']) }}</div>
-                            <div class="mt-1 text-sm text-slate-500">projects Â· {{ number_format($row['beneficiaries_total']) }} beneficiaries</div>
+                            <div class="mt-1 text-sm text-slate-500">projects · {{ number_format($row['beneficiaries_total']) }} beneficiaries</div>
                             <div class="mt-5 h-4 overflow-hidden rounded-full bg-slate-200"><div class="h-full bg-blue-600" style="width:{{ min(100, ($row['project_count'] / $maxIntervention) * 100) }}%"></div></div>
                         </article>
                     @endforeach
@@ -255,7 +317,7 @@
                     @foreach ($dashboard['labor_market_programs'] as $row)
                         <article class="rounded-xl border border-slate-200 p-4">
                             <div class="flex items-start justify-between gap-4"><h3 class="font-bold text-slate-800">{{ $row['label'] }}</h3><span class="text-xl font-extrabold text-[#063b86]">{{ number_format($row['interested_referred_total']) }}</span></div>
-                            <div class="mt-2 text-xs text-slate-500">{{ number_format($row['provided_intervention_total']) }} provided intervention Â· {{ $money((int) $row['amount_released_cents']) }} released</div>
+                            <div class="mt-2 text-xs text-slate-500">{{ number_format($row['provided_intervention_total']) }} provided intervention · {{ $money((int) $row['amount_released_cents']) }} released</div>
                             <div class="mt-3 h-3 overflow-hidden rounded-full bg-slate-100"><div class="h-full bg-[#063b86]" style="width:{{ min(100, ($row['interested_referred_total'] / $maxLabor) * 100) }}%"></div></div>
                         </article>
                     @endforeach
@@ -264,7 +326,7 @@
         </div>
 
         <footer class="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div class="text-xs font-semibold text-slate-500">Manual navigation only Â· Arrow keys supported Â· No automatic advancement</div>
+            <div class="text-xs font-semibold text-slate-500">Manual navigation only · Arrow keys supported · No automatic advancement</div>
             <div class="flex items-center gap-3">
                 <button type="button" data-presentation-previous class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
                 <span data-presentation-counter class="min-w-16 text-center text-sm font-extrabold text-slate-700">1 / 7</span>

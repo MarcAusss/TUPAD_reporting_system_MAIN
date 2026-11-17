@@ -9,6 +9,7 @@
 
 <x-page-header
     eyebrow="Payment of Wages"
+    :breadcrumbs="\App\Support\Breadcrumbs::forProject($project, 'Payment of Wages')"
     :title="$project->project_title"
     description="Manage obligation tranches and record the corresponding wage disbursements."
 >
@@ -99,12 +100,22 @@
 
 <section class="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        @php
+            // Payment covers wages only; insurance and PPE were paid at Preparation.
+            $wagesPayableCents = (int) $obligationLimits['wages'];
+            $wagesBasisCents = $summary['obligations_completed']
+                ? $summary['obligated_cents']
+                : max($wagesPayableCents, $summary['obligated_cents']);
+            $wagesProgressPercent = $wagesBasisCents > 0
+                ? min(100, intdiv($summary['disbursed_cents'] * 100, $wagesBasisCents))
+                : 0;
+        @endphp
         @foreach([
-            ['Total Project Cost', $summary['payable_cents'], 'text-slate-900'],
+            ['Wages Payable', $wagesPayableCents, 'text-slate-900'],
             ['Total Obligated', $summary['obligated_cents'], 'text-blue-800'],
             ['Total Disbursed', $summary['disbursed_cents'], 'text-emerald-700'],
-            ['Unobligated', $summary['unobligated_cents'], 'text-amber-700'],
-            ['Remaining Balance', $summary['remaining_cents'], 'text-rose-700'],
+            ['Unobligated Wages', max(0, $wagesPayableCents - (int) $obligatedTotals['wages']), 'text-amber-700'],
+            ['Remaining Balance', max(0, $wagesBasisCents - $summary['disbursed_cents']), 'text-rose-700'],
         ] as [$label, $amount, $tone])
             <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
@@ -120,12 +131,12 @@
     <div class="mt-5">
         <div class="mb-2 flex items-center justify-between gap-4 text-xs">
             <span class="font-semibold text-slate-700">Disbursement Progress</span>
-            <span class="font-bold text-[#063b86]">{{ $summary['progress_percent'] }}%</span>
+            <span class="font-bold text-[#063b86]">{{ $wagesProgressPercent }}%</span>
         </div>
         <div class="h-2.5 overflow-hidden rounded-full bg-slate-100">
             <div
                 class="h-full rounded-full bg-[#063b86] transition-all"
-                style="width: {{ $summary['progress_percent'] }}%"
+                style="width: {{ $wagesProgressPercent }}%"
             ></div>
         </div>
     </div>
@@ -146,12 +157,10 @@
 
 @if($canEditTranches)
     @php
-        $initialTranches = old('tranches') ?: ($summary['unobligated_cents'] <= 0 ? [] : [[
+        $initialTranches = old('tranches') ?: (($remainingDefaults['beneficiaries_total'] <= 0 || (float) $remainingDefaults['wages_amount'] <= 0) ? [] : [[
             'beneficiaries_total' => $remainingDefaults['beneficiaries_total'] ?: '',
             'beneficiaries_female' => $remainingDefaults['beneficiaries_female'],
             'wages_amount' => $remainingDefaults['wages_amount'],
-            'insurance_amount' => $remainingDefaults['insurance_amount'],
-            'ppe_amount' => $remainingDefaults['ppe_amount'],
             'obligation_date' => now()->toDateString(),
             'payee' => '',
             'remarks' => '',
@@ -165,8 +174,9 @@
         class="mt-5 overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm"
         data-next-tranche="{{ $nextTranche }}"
         data-wage-per-beneficiary-cents="{{ $wagePerBeneficiaryCents }}"
-        data-insurance-per-beneficiary-cents="{{ $insurancePerBeneficiaryCents }}"
         data-today="{{ now()->toDateString() }}"
+        data-saved-tranches="{{ $project->obligations->count() }}"
+        data-warn-unsaved
     >
         @csrf
 
@@ -175,8 +185,9 @@
                 <h2 class="text-sm font-semibold text-blue-950">Obligation Tranches</h2>
                 <p class="mt-1 text-xs text-blue-700">
                     Wages fill in automatically as beneficiaries × ₱{{ $money($wagePerBeneficiaryCents) }}
-                    (₱{{ number_format((float) $project->wage_rate, 2) }} wage rate × {{ number_format((int) $project->number_of_days) }} days),
-                    and Insurance as beneficiaries × ₱{{ $money($insurancePerBeneficiaryCents) }} insurance rate. Both can be adjusted.
+                    (₱{{ number_format((float) $project->wage_rate, 2) }} wage rate × {{ number_format((int) $project->number_of_days) }} days)
+                    and recalculate when you deduct beneficiaries.
+                    Insurance and PPE are not included here: they were paid at Preparation (GSIS enrollment and PPE delivery).
                     Tranches may total less than the project data, but not more.
                 </p>
             </div>
@@ -194,7 +205,7 @@
             <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
                 Project Data vs Obligated (saved + entered)
             </div>
-            <div data-limit-summary class="mt-2 grid gap-2 sm:grid-cols-3 xl:grid-cols-6"></div>
+            <div data-limit-summary class="mt-2 grid gap-2 sm:grid-cols-3"></div>
         </div>
 
         <div data-tranche-list class="space-y-4 p-5"></div>
@@ -270,17 +281,18 @@
                 </div>
 
                 <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                    @foreach([
+                    @foreach(array_filter([
                         'Beneficiaries' => number_format($obligation->beneficiaries_total).' ('.number_format($obligation->beneficiaries_female).' female)',
                         'Wages' => '₱'.number_format((float) $obligation->wages_amount, 2),
-                        'Insurance' => '₱'.number_format((float) $obligation->insurance_amount, 2),
-                        'PPE' => '₱'.number_format((float) $obligation->ppe_amount, 2),
+                        // Older tranches may still carry insurance/PPE amounts.
+                        'Insurance' => (float) $obligation->insurance_amount > 0 ? '₱'.number_format((float) $obligation->insurance_amount, 2) : null,
+                        'PPE' => (float) $obligation->ppe_amount > 0 ? '₱'.number_format((float) $obligation->ppe_amount, 2) : null,
                         'Obligation Date' => $obligation->obligation_date->format('F d, Y'),
                         'Payee' => $obligation->payee,
                         'Obligation Status' => $summary['obligations_completed'] ? 'Completed' : 'Recorded',
                         'Disbursed' => '₱'.$money($trancheDisbursed),
                         'Tranche Balance' => '₱'.$money($trancheRemaining),
-                    ] as $label => $value)
+                    ], fn ($value) => $value !== null) as $label => $value)
                         <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
                             <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                                 {{ $label }}
@@ -420,6 +432,8 @@
             <x-empty-state
                 title="No obligation tranches recorded"
                 message="Add the first obligation to begin Payment of Wages processing."
+                action-label="Add First Tranche"
+                action-click="[data-add-tranche]"
             />
         @endforelse
     </div>
@@ -437,7 +451,6 @@
         const completeHint = form.querySelector('[data-complete-hint]');
         const nextTranche = Number(form.dataset.nextTranche || 1);
         const wagePerBeneficiaryCents = Number(form.dataset.wagePerBeneficiaryCents || 0);
-        const insurancePerBeneficiaryCents = Number(form.dataset.insurancePerBeneficiaryCents || 0);
         const today = form.dataset.today;
 
         const readJson = (id, fallback) => {
@@ -452,15 +465,12 @@
         const errors = readJson('obligationTrancheErrors', {});
         const { limits, obligated } = readJson('obligationTrancheLimits', { limits: {}, obligated: {} });
 
-        // Each project figure a tranche is checked against. `input` is the
-        // card field that shows the warning (Total Overall for the total).
+        // Each project figure a tranche is checked against. Tranches are
+        // wages only (insurance and PPE were paid at Preparation).
         const LIMIT_FIELDS = [
             { key: 'beneficiaries_total', label: 'Beneficiaries', input: 'beneficiaries_total', money: false },
             { key: 'beneficiaries_female', label: 'Female', input: 'beneficiaries_female', money: false },
             { key: 'wages', label: 'Wages', input: 'wages_amount', money: true },
-            { key: 'insurance', label: 'Insurance', input: 'insurance_amount', money: true },
-            { key: 'ppe', label: 'PPE', input: 'ppe_amount', money: true },
-            { key: 'total', label: 'Total Project Cost', input: 'total', money: true },
         ];
 
         const peso = (cents) => '₱' + (cents / 100).toLocaleString('en-PH', {
@@ -512,18 +522,10 @@
                     </button>
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                <div class="grid gap-3 sm:grid-cols-3">
                     ${field(index, 'beneficiaries_total', 'No. of Beneficiaries', values.beneficiaries_total ?? '', 'type="number" min="1" step="1"')}
                     ${field(index, 'beneficiaries_female', 'Female', values.beneficiaries_female ?? '', 'type="number" min="0" step="1"')}
                     ${field(index, 'wages_amount', 'Wages <span class="font-normal text-slate-400">(auto)</span>', values.wages_amount ?? '', 'type="number" min="0" step="0.01" data-money-input')}
-                    ${field(index, 'insurance_amount', 'Insurance <span class="font-normal text-slate-400">(auto)</span>', values.insurance_amount ?? '', 'type="number" min="0" step="0.01" data-money-input')}
-                    ${field(index, 'ppe_amount', 'PPE (Total Amount)', values.ppe_amount ?? '', 'type="number" min="0" step="0.01" data-money-input')}
-                    <label class="block min-w-0">
-                        <span class="${labelClass}">Total Overall</span>
-                        <input readonly tabindex="-1" data-tranche-total value="₱0.00"
-                            class="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-bold text-slate-900">
-                        <p data-live-warning="total" class="mt-1 hidden text-xs font-semibold text-rose-600"></p>
-                    </label>
                 </div>
 
                 <div class="mt-3 grid gap-3 border-t border-slate-200 pt-3 md:grid-cols-[200px_minmax(0,1fr)_minmax(0,1fr)]">
@@ -537,25 +539,28 @@
             window.TupadMoney?.initialize(card);
 
             const beneficiariesInput = card.querySelector('[data-field="beneficiaries_total"]');
+            const femaleInput = card.querySelector('[data-field="beneficiaries_female"]');
             const wagesInput = card.querySelector('[data-field="wages_amount"]');
-            const insuranceInput = card.querySelector('[data-field="insurance_amount"]');
             const setMoney = (input, cents) => {
                 const decimal = (cents / 100).toFixed(2);
                 input.value = window.TupadMoney ? window.TupadMoney.format(decimal) : decimal;
             };
 
-            // Wages = beneficiaries × wage rate × number of days, and
-            // Insurance = beneficiaries × insurance rate. Recomputed whenever
-            // beneficiaries change; the user may still adjust either one.
-            // Auto-filled values are capped at what the project has left so
-            // the auto-fill itself never causes an "exceeds" block.
+            // Wages = beneficiaries × wage rate × number of days, recomputed
+            // whenever beneficiaries change (e.g. a beneficiary is deducted);
+            // the user may still adjust it. Capped at what the project has
+            // left so the auto-fill itself never causes an "exceeds" block.
+            // Female is lowered too when it would exceed the new total.
             beneficiariesInput.addEventListener('input', () => {
                 const beneficiaries = toInt(beneficiariesInput.value);
                 const before = obligatedBefore(card);
                 const cap = (key, cents) => Math.max(0, Math.min(cents, Number(limits[key] || 0) - before[key]));
 
                 setMoney(wagesInput, cap('wages', beneficiaries * wagePerBeneficiaryCents));
-                setMoney(insuranceInput, cap('insurance', beneficiaries * insurancePerBeneficiaryCents));
+
+                if (beneficiariesInput.value.trim() !== '' && toInt(femaleInput.value) > beneficiaries) {
+                    femaleInput.value = beneficiaries;
+                }
             });
 
             card.querySelectorAll('input[data-field]').forEach((input) => {
@@ -589,7 +594,7 @@
         // A card counts as blank when nothing but the prefilled date is set;
         // blank cards are skipped by Complete.
         function isBlankCard(card) {
-            return ['beneficiaries_total', 'beneficiaries_female', 'wages_amount', 'insurance_amount', 'ppe_amount', 'payee']
+            return ['beneficiaries_total', 'beneficiaries_female', 'wages_amount', 'payee']
                 .every((name) => (card.querySelector(`[data-field="${name}"]`)?.value ?? '').trim() === '');
         }
 
@@ -599,7 +604,7 @@
             const missing = [];
 
             if (values.beneficiaries_total < 1) missing.push('no. of beneficiaries');
-            if (values.wages <= 0 && values.insurance <= 0 && values.ppe <= 0) missing.push('at least one of wages, insurance, or PPE');
+            if (values.wages <= 0) missing.push('wages');
             if (value('obligation_date') === '') missing.push('obligation date');
             if (value('payee') === '') missing.push('payee');
 
@@ -609,24 +614,20 @@
         function cardValues(card) {
             const value = (name) => card.querySelector(`[data-field="${name}"]`)?.value ?? '';
             const wages = toCents(value('wages_amount'));
-            const insurance = toCents(value('insurance_amount'));
-            const ppe = toCents(value('ppe_amount'));
 
             return {
                 beneficiaries_total: toInt(value('beneficiaries_total')),
                 beneficiaries_female: toInt(value('beneficiaries_female')),
                 wages,
-                insurance,
-                ppe,
-                total: wages + insurance + ppe,
+                insurance: 0,
+                ppe: 0,
+                total: wages,
             };
         }
 
         function setWarning(card, name, message) {
             const warning = card.querySelector(`[data-live-warning="${name}"]`);
-            const input = name === 'total'
-                ? card.querySelector('[data-tranche-total]')
-                : card.querySelector(`[data-field="${name}"]`);
+            const input = card.querySelector(`[data-field="${name}"]`);
 
             warning?.classList.toggle('hidden', !message);
             if (warning) warning.textContent = message || '';
@@ -666,7 +667,6 @@
                 card.querySelector('[data-remove-tranche]').classList.toggle('hidden', cards.length === 1 && position === 0);
 
                 const values = cardValues(card);
-                card.querySelector('[data-tranche-total]').value = peso(values.total);
 
                 LIMIT_FIELDS.forEach(({ key, label, input, money }) => {
                     const limit = Number(limits[key] || 0);
@@ -707,17 +707,17 @@
 
             renderLimitSummary(running);
 
-            const below = Number(limits.total || 0) - running.total;
+            const below = Number(limits.wages || 0) - running.wages;
 
             if (exceededMessages.length > 0) {
                 completeHint.className = 'text-xs font-semibold text-rose-700';
                 completeHint.textContent = 'Some entries exceed the project data. Adjust them before saving.';
             } else if (below > 0) {
                 completeHint.className = 'text-xs text-amber-700';
-                completeHint.textContent = `Tranches total ${peso(running.total)}, ${peso(below)} below the Total Project Cost. You can still save or complete.`;
+                completeHint.textContent = `Tranche wages total ${peso(running.wages)}, ${peso(below)} below the project's wages. You can still save or complete.`;
             } else {
                 completeHint.className = 'text-xs font-semibold text-emerald-700';
-                completeHint.textContent = `Tranches equal the Total Project Cost (${peso(Number(limits.total || 0))}).`;
+                completeHint.textContent = `Tranche wages equal the project's wages (${peso(Number(limits.wages || 0))}).`;
             }
 
             return running;
@@ -745,17 +745,25 @@
 
             if (missing.length > 0) {
                 event.preventDefault();
-                window.alert('The tranches cannot be saved yet:\n\n' + missing.join('\n'));
+                window.TupadConfirm({
+                    title: 'The tranches cannot be saved yet',
+                    message: 'Complete the following before saving:',
+                    details: missing,
+                    tone: 'danger',
+                    cancelText: null,
+                });
                 return;
             }
 
             if (exceededMessages.length > 0) {
                 event.preventDefault();
-                window.alert(
-                    'The tranches exceed the project data and cannot be saved:\n\n'
-                    + exceededMessages.join('\n')
-                    + '\n\nTotals may be below the project data, but not above it.'
-                );
+                window.TupadConfirm({
+                    title: 'The tranches exceed the project data',
+                    message: 'Totals may be below the project data, but not above it. Adjust these entries:',
+                    details: exceededMessages,
+                    tone: 'danger',
+                    cancelText: null,
+                });
                 return;
             }
 
@@ -763,19 +771,31 @@
                 return;
             }
 
-            const below = Number(limits.total || 0) - running.total;
-            const confirmed = window.confirm(
-                'Complete the obligation tranches?\n\n'
-                + (below > 0
-                    ? `The tranches total ${peso(running.total)}, which is ${peso(below)} below the Total Project Cost.\n\n`
-                    : '')
-                + 'Any tranche entered on this form will be saved first. After completion the tranches are locked '
-                + 'and the project moves on to the Release of Assistance.'
-            );
-
-            if (!confirmed) {
-                event.preventDefault();
+            if (form.dataset.completeConfirmed === 'true') {
+                delete form.dataset.completeConfirmed;
+                return;
             }
+
+            event.preventDefault();
+
+            const submitter = event.submitter;
+            const below = Number(limits.total || 0) - running.total;
+
+            window.TupadConfirm({
+                title: 'Complete the obligation tranches?',
+                message: 'Any tranche entered on this form is saved first. After completion the tranches are locked '
+                    + 'and the project moves on to the Release of Assistance.',
+                details: [
+                    `Tranches: ${filledCards.length + Number(form.dataset.savedTranches || 0)}`,
+                    `Total obligated: ${peso(running.total)}`,
+                    below > 0 ? `${peso(below)} below the Total Project Cost` : 'Equal to the Total Project Cost',
+                ],
+                confirmText: 'Complete Tranches',
+            }).then((confirmed) => {
+                if (!confirmed) return;
+                form.dataset.completeConfirmed = 'true';
+                form.requestSubmit(submitter);
+            });
         });
 
         // The submit handler above checks required fields itself (and skips

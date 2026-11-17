@@ -487,11 +487,31 @@
                 </div>
 
                 <div class="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
-                    <div class="rounded-lg bg-slate-50 p-3" data-testid="executive-kpi-project-cost">
-                        <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Total Project Cost</div>
-                        <div class="mt-1 text-sm font-extrabold text-slate-900">{{ $money($kpi['project_cost_cents']) }}</div>
+                    @php $comparison = $dashboard['approved_vs_actual']; @endphp
+                    <div class="rounded-lg bg-slate-50 p-3 sm:col-span-2" data-testid="executive-kpi-project-cost" data-executive-approved-actual>
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400" title="Actual = completed obligation tranches (net of beneficiaries not included) or the ACP payment; approved values until final">Approved vs Actual</div>
+                            <div class="text-[10px] font-semibold text-slate-500">{{ number_format($comparison['final_project_count']) }} of {{ number_format($comparison['project_count']) }} projects final</div>
+                        </div>
+                        <div class="mt-2 grid gap-2 sm:grid-cols-3">
+                            @foreach ([
+                                ['Beneficiaries', $comparison['approved_beneficiaries'], $comparison['actual_beneficiaries'], false],
+                                ['Female', $comparison['approved_female'], $comparison['actual_female'], false],
+                                ['Project Amount', $comparison['approved_amount_cents'], $comparison['actual_amount_cents'], true],
+                            ] as [$label, $approved, $actual, $isMoney])
+                                <div class="rounded-md border border-slate-200 bg-white px-2.5 py-2">
+                                    <div class="text-[10px] font-semibold text-slate-500">{{ $label }}</div>
+                                    @if ($approved === null || $actual === null)
+                                        <div class="mt-0.5 text-[11px] text-slate-400">Not available</div>
+                                    @else
+                                        <div class="mt-0.5 text-[11px] text-slate-600">Approved <span class="font-bold text-slate-800">{{ $isMoney ? $money((int) $approved) : number_format($approved) }}</span></div>
+                                        <div class="text-[11px] text-emerald-700">Actual <span class="font-extrabold">{{ $isMoney ? $money((int) $actual) : number_format($actual) }}</span></div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
-                    <div class="rounded-lg bg-slate-50 p-3">
+                    <div class="rounded-lg bg-slate-50 p-3 sm:col-span-2">
                         <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Financial Basis</div>
                         <div class="mt-1 text-[11px] leading-5 text-slate-600">Allocation less disbursement; ACP liquidation remains separately tracked.</div>
                     </div>

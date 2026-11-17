@@ -162,7 +162,7 @@ class NotificationCenterService
                 'reason' => $editRequest->reason,
                 'actions' => $isDecision ? [] : [
                     ['label' => 'Approve', 'url' => route('edit-requests.approve', $editRequest), 'style' => 'primary'],
-                    ['label' => 'Decline', 'url' => route('edit-requests.decline', $editRequest), 'style' => 'secondary'],
+                    ['label' => 'Decline', 'url' => route('edit-requests.decline', $editRequest), 'style' => 'secondary', 'confirm' => 'The TUPAD Coordinator will be notified and can send a new request.'],
                 ],
                 'progress_percent' => (int) $progress['percent'],
                 'stage_label' => (string) $progress['stage_label'],

@@ -91,7 +91,7 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->assertDatabaseCount('project_disbursements', 0);
     }
 
-    public function test_tranche_saves_encoded_breakdown_and_calculated_total(): void
+    public function test_tranche_saves_wages_only_and_ignores_posted_insurance_and_ppe(): void
     {
         $project = $this->createForPaymentProject();
 
@@ -104,10 +104,11 @@ class MajorRevisionPhase5PaymentTest extends TestCase
             'tranche_number' => 1,
             'beneficiaries_total' => 4,
             'beneficiaries_female' => 3,
+            // Insurance and PPE are paid at Preparation, never in a payment tranche.
             'wages_amount' => 400,
-            'insurance_amount' => 20,
-            'ppe_amount' => 80,
-            'amount' => 500,
+            'insurance_amount' => 0,
+            'ppe_amount' => 0,
+            'amount' => 400,
             'payee' => 'TUPAD Beneficiaries',
             'recorded_by' => $this->focal->id,
         ]);
@@ -251,11 +252,8 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->recordTranches($project, [$this->trancheRow('100.00', beneficiaries: 7, female: 7)])
             ->assertSessionHasErrors('tranches.0.beneficiaries_female');
 
-        $this->recordTranches($project, [$this->trancheRow('100.00', insurance: '50.01')])
-            ->assertSessionHasErrors('tranches.0.insurance_amount');
-
-        $this->recordTranches($project, [$this->trancheRow('100.00', ppe: '150.01')])
-            ->assertSessionHasErrors('tranches.0.ppe_amount');
+        $this->recordTranches($project, [$this->trancheRow('800.01')])
+            ->assertSessionHasErrors('tranches.0.wages_amount');
 
         $this->recordTranches($project, [
             $this->trancheRow('100.00', beneficiaries: 6, female: 3),
@@ -271,7 +269,7 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->assertDatabaseCount('project_obligations', 1);
     }
 
-    public function test_tranche_saves_with_only_one_amount_beneficiaries_date_and_payee(): void
+    public function test_tranche_requires_wages_because_insurance_and_ppe_are_not_paid_here(): void
     {
         $project = $this->createForPaymentProject();
 
@@ -283,18 +281,9 @@ class MajorRevisionPhase5PaymentTest extends TestCase
             'ppe_amount' => '120.00',
             'obligation_date' => now()->toDateString(),
             'payee' => 'PPE Supplier',
-        ]])->assertSessionHasNoErrors();
+        ]])->assertSessionHasErrors('tranches.0.wages_amount');
 
-        $this->assertDatabaseHas('project_obligations', [
-            'project_id' => $project->id,
-            'beneficiaries_total' => 3,
-            'beneficiaries_female' => 0,
-            'wages_amount' => 0,
-            'insurance_amount' => 0,
-            'ppe_amount' => 120,
-            'amount' => 120,
-            'payee' => 'PPE Supplier',
-        ]);
+        $this->assertDatabaseCount('project_obligations', 0);
     }
 
     public function test_formatted_amounts_with_commas_are_accepted(): void
@@ -349,8 +338,8 @@ class MajorRevisionPhase5PaymentTest extends TestCase
             ->assertOk()
             ->assertSee('Project Data vs Obligated')
             ->assertSee('beneficiaries × ₱9,100.00', false)
-            ->assertSee('Insurance as beneficiaries × ₱50.00 insurance rate', false)
-            ->assertSee('data-insurance-per-beneficiary-cents="5000"', false)
+            ->assertSee('paid at Preparation', false)
+            ->assertDontSee('data-insurance-per-beneficiary-cents', false)
             ->assertSee('obligationTrancheLimits', false);
     }
 
@@ -428,7 +417,7 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $project = $this->createForPaymentProject();
 
         $this->completeTranches($project, [
-            $this->trancheRow('800.00', '50.00', '150.00'),
+            $this->trancheRow('800.00'),
         ]);
 
         $obligation = $project->obligations()->firstOrFail();
@@ -436,7 +425,7 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->recordDisbursement(
             $project,
             $obligation,
-            '1000.00',
+            '800.00',
             'LDAP-FULL'
         )->assertSessionHasNoErrors();
 
@@ -462,15 +451,16 @@ class MajorRevisionPhase5PaymentTest extends TestCase
         $this->actingAs($this->focal)
             ->get(route('payments.show', $project))
             ->assertOk()
-            ->assertSee('Total Project Cost')
-            ->assertSee('₱1,000.00')
+            // Payment covers wages only (₱800); insurance and PPE were paid at Preparation.
+            ->assertSee('Wages Payable')
+            ->assertSee('₱800.00')
             ->assertSee('Total Obligated')
             ->assertSee('₱600.00')
             ->assertSee('Total Disbursed')
             ->assertSee('₱250.00')
             ->assertSee('Remaining Balance')
-            ->assertSee('₱750.00')
-            ->assertSee('25%');
+            ->assertSee('₱550.00')
+            ->assertSee('31%');
     }
 
     public function test_disbursement_cannot_use_an_obligation_from_another_project(): void

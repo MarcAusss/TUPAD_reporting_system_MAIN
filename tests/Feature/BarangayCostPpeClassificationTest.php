@@ -447,12 +447,48 @@ class BarangayCostPpeClassificationTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    public function test_rule_a_rejects_recipients_not_summing_to_beneficiary_count(): void
+    public function test_rule_a_rejects_recipients_exceeding_the_planned_beneficiary_count(): void
     {
         $project = $this->createProject();
         $items = $this->addAcceptancePpeItems($project);
 
+        $this->updateAddresses($this->tc, $project, $this->gloveDistribution($items, rizalGloves: 6)) // 9 + 6 = 15 > 14
+            ->assertSessionHasErrors('beneficiary_addresses');
+
+        $this->assertSame(0, ProjectBarangayPpeProfile::query()->where('project_id', $project->id)->count());
+    }
+
+    public function test_rule_a_allows_fewer_recipients_than_the_planned_beneficiary_count(): void
+    {
+        $project = $this->createProject();
+        $items = $this->addAcceptancePpeItems($project);
+
+        $this->updateAddresses($this->tc, $project, $this->gloveDistribution($items, rizalGloves: 4)) // 9 + 4 = 13 < 14
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(2, ProjectBarangayPpeProfile::query()->where('project_id', $project->id)->count());
+    }
+
+    public function test_beneficiary_addresses_may_total_less_than_declared_but_never_more(): void
+    {
+        $project = $this->createProject(); // 50 declared (25 female), no PPE items
+
         $this->updateAddresses($this->tc, $project, [
+            ['barangay_id' => $this->mabini->id, 'beneficiaries_total' => 31, 'beneficiaries_female' => 15],
+            ['barangay_id' => $this->rizal->id, 'beneficiaries_total' => 20, 'beneficiaries_female' => 10],
+        ])->assertSessionHasErrors('beneficiary_addresses');
+
+        $this->updateAddresses($this->tc, $project, [
+            ['barangay_id' => $this->mabini->id, 'beneficiaries_total' => 26, 'beneficiaries_female' => 13],
+            ['barangay_id' => $this->rizal->id, 'beneficiaries_total' => 20, 'beneficiaries_female' => 10],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(46, (int) $project->beneficiaryAddresses()->sum('beneficiaries_total'));
+    }
+
+    private function gloveDistribution(array $items, int $rizalGloves): array
+    {
+        return [
             [
                 'barangay_id' => $this->mabini->id,
                 'beneficiaries_total' => 30,
@@ -471,15 +507,13 @@ class BarangayCostPpeClassificationTest extends TestCase
                 'beneficiaries_female' => 10,
                 'hazardous_workers' => 7,
                 'ppe_items' => [
-                    $items['gloves']->id => 4, // should be 5 to total 14
+                    $items['gloves']->id => $rizalGloves, // 14 gloves planned in total
                     $items['boots']->id => 3,
                     $items['mask']->id => 4,
                     $items['shirt']->id => 20,
                 ],
             ],
-        ])->assertSessionHasErrors('beneficiary_addresses');
-
-        $this->assertSame(0, ProjectBarangayPpeProfile::query()->where('project_id', $project->id)->count());
+        ];
     }
 
     public function test_rule_b_rejects_recipients_exceeding_barangay_total(): void

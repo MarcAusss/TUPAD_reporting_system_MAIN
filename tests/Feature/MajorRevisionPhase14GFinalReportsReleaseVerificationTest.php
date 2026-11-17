@@ -16,7 +16,6 @@ use App\Models\ProjectBeneficiarySector;
 use App\Models\Province;
 use App\Models\User;
 use App\Reports\ReportFilters;
-use App\Services\Exports\XlsxTableWriter;
 use App\Services\Reports\ReportGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -38,8 +37,6 @@ class MajorRevisionPhase14GFinalReportsReleaseVerificationTest extends TestCase
             'reports.workspace.geographic-mapping',
             'reports.print',
             'reports.export.pdf',
-            'reports.export.excel',
-            'reports.export.csv',
             'reports.periodic.print',
             'reports.periodic.export.pdf',
         ];
@@ -104,33 +101,6 @@ class MajorRevisionPhase14GFinalReportsReleaseVerificationTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
         $this->assertStringContainsString('Persons with Disabilities', $pdf->getContent());
         $this->assertStringNotContainsString('Transport Workers', $pdf->getContent());
-
-        $csv = $this->actingAs($admin)
-            ->get(route('reports.export.csv', $exportQuery))
-            ->assertOk()
-            ->assertHeader('content-type', 'text/csv; charset=UTF-8')
-            ->streamedContent();
-        $this->assertStringContainsString('Persons with Disabilities', $csv);
-        $this->assertStringNotContainsString('Transport Workers', $csv);
-
-        $report = app(ReportGenerationService::class)->generate(
-            ReportType::BENEFICIARY_SECTORS,
-            ReportDimension::SECTOR,
-            ReportFilters::fromArray([
-                'province_id' => $province->id,
-                'sector_group' => BeneficiarySectorCategory::GROUP_PRIORITY_VULNERABLE,
-            ]),
-        );
-        $path = app(XlsxTableWriter::class)->write($report);
-
-        try {
-            $xlsx = file_get_contents($path);
-            $this->assertIsString($xlsx);
-            $this->assertStringContainsString('Persons with Disabilities', $xlsx);
-            $this->assertStringNotContainsString('Transport Workers', $xlsx);
-        } finally {
-            @unlink($path);
-        }
     }
 
     public function test_sector_group_is_server_validated_and_cannot_conflict_with_selected_sector(): void
@@ -206,27 +176,6 @@ class MajorRevisionPhase14GFinalReportsReleaseVerificationTest extends TestCase
             ->assertOk();
         $this->assertStringContainsString('Mayor Phase 14G', $pdf->getContent());
 
-        $csv = $this->actingAs($admin)
-            ->get(route('reports.export.csv', $query))
-            ->assertOk()
-            ->streamedContent();
-        $this->assertStringContainsString('Mayor Phase 14G', $csv);
-
-        $report = app(ReportGenerationService::class)->generate(
-            ReportType::FUND_STATUS,
-            ReportDimension::LCE,
-            new ReportFilters(),
-        );
-        $path = app(XlsxTableWriter::class)->write($report);
-
-        try {
-            $xlsx = file_get_contents($path);
-            $this->assertIsString($xlsx);
-            $this->assertStringContainsString('Mayor Phase 14G', $xlsx);
-        } finally {
-            @unlink($path);
-        }
-
         $this->assertTrue(ReportType::FUND_STATUS->allows(ReportDimension::LCE));
         $this->assertFalse(ReportType::PHYSICAL_FINANCIAL->allows(ReportDimension::LCE));
     }
@@ -243,7 +192,7 @@ class MajorRevisionPhase14GFinalReportsReleaseVerificationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('reports.periodic.print', $query))
             ->assertOk()
-            ->assertSee('TUPAD Reporting System')
+            ->assertSee('DEPARTMENT OF LABOR AND EMPLOYMENT')
             ->assertSee('Statistical Performance Reporting System (SPRS)')
             ->assertSee('August 2026');
 

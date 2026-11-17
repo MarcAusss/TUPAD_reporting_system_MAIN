@@ -66,7 +66,7 @@
                     <form method="POST" action="{{ route('users.reset-password', $account) }}" class="mt-4">
                         @csrf
                         <button class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                            onclick="return confirm('Generate a new temporary password for this account? Existing remembered sessions will be invalidated and a password change will be required at the next sign-in.')">Reset Temporary Password</button>
+                            data-confirm-title="Reset temporary password?" data-confirm="Existing remembered sessions will be invalidated and a password change will be required at the next sign-in." data-confirm-button="Reset Password" data-confirm-tone="danger">Reset Temporary Password</button>
                     </form>
                 @endif
             </section>

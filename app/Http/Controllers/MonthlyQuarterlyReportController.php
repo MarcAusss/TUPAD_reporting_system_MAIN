@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Models\Province;
 use App\Reports\ReportFilters;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Reports\OfficialPeriodicReportService;
 use App\Services\Reports\ReportingDataService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -33,7 +34,7 @@ class MonthlyQuarterlyReportController extends Controller
     private const QUARTERLY_VIEWS = [
         'cqpr' => [
             'label' => 'Consolidated Quarterly Progress Report (CQPR)',
-            'description' => 'Quarterly project cohort using the recorded CQPR monitoring date as the reporting-period basis.',
+            'description' => 'Quarterly project cohort based on the SPRS: each project falls in the quarter of its SPRS reporting month.',
         ],
         'labor-market' => [
             'label' => 'Number of TUPAD Beneficiaries Referred to Active Labor Market',
@@ -44,6 +45,7 @@ class MonthlyQuarterlyReportController extends Controller
     public function __construct(
         private readonly ReportingDataService $data,
         private readonly ProvinceAccessService $provinceAccess,
+        private readonly OfficialPeriodicReportService $periodic,
     ) {}
 
     public function monthly(Request $request): View
@@ -55,27 +57,38 @@ class MonthlyQuarterlyReportController extends Controller
 
         $input = $request->query();
         $input['fiscal_year'] = $input['fiscal_year'] ?? $now->year;
-        $input['month'] = $input['month'] ?? $now->month;
         unset($input['quarter'], $input['labor_market_program']);
 
-        $validated = $this->validateFilters($input, monthly: true, allowLaborProgram: false);
+        // Orientations default to all months (the whole year, month by month).
+        if ($viewKey !== 'orientations') {
+            $input['month'] = $input['month'] ?? $now->month;
+        }
+
+        $validated = $this->validateFilters(
+            $input,
+            monthly: true,
+            allowLaborProgram: false,
+            monthRequired: $viewKey !== 'orientations',
+        );
         $filters = ReportFilters::fromArray($validated);
-        $projects = $this->baseProjects($filters);
 
         if ($viewKey === 'orientations') {
-            $cohort = $projects
-                ->filter(function (Project $project) use ($validated): bool {
+            // Orientations happen before obligation/payment, so every recorded
+            // orientation is listed, not only reportable projects.
+            $selectedMonth = filled($validated['month'] ?? null) ? (int) $validated['month'] : null;
+            $cohort = $this->baseProjects($filters->withAllProjects())
+                ->filter(function (Project $project) use ($validated, $selectedMonth): bool {
                     $date = $project->orientation?->orientation_date;
 
                     return $date !== null
                         && (int) $date->year === (int) $validated['fiscal_year']
-                        && (int) $date->month === (int) $validated['month'];
+                        && ($selectedMonth === null || (int) $date->month === $selectedMonth);
                 })
                 ->values();
         } else {
-            $cohort = $projects
+            $cohort = $this->baseProjects($filters)
                 ->filter(function (Project $project) use ($validated): bool {
-                    $date = $project->monitoringDetail?->sprs_date;
+                    $date = $project->periodicReportDate('sprs_date');
 
                     return $date !== null
                         && (int) $date->year === (int) $validated['fiscal_year']
@@ -99,6 +112,12 @@ class MonthlyQuarterlyReportController extends Controller
             'orientationCounts' => $viewKey === 'orientations'
                 ? $this->orientationCounts($cohort)
                 : null,
+            'orientationTable' => $viewKey === 'orientations'
+                ? $this->periodic->orientationTemplate($validated, $user)
+                : null,
+            'sprsMatrix' => $viewKey === 'sprs'
+                ? $this->periodic->sprsMatrix($validated, $user)
+                : null,
             'provinceLocked' => $user->isTc(),
             'options' => $this->options($user),
             'periodBasis' => $viewKey === 'orientations'
@@ -116,10 +135,12 @@ class MonthlyQuarterlyReportController extends Controller
 
         $input = $request->query();
         $input['fiscal_year'] = $input['fiscal_year'] ?? $now->year;
-        $input['quarter'] = $input['quarter'] ?? (int) ceil($now->month / 3);
         unset($input['month']);
 
-        if ($viewKey !== 'labor-market') {
+        if ($viewKey === 'labor-market') {
+            $input['quarter'] = $input['quarter'] ?? (int) ceil($now->month / 3);
+        } else {
+            // CQPR with no quarter selected shows Q1–Q4 as separate sections.
             unset($input['labor_market_program']);
         }
 
@@ -127,6 +148,7 @@ class MonthlyQuarterlyReportController extends Controller
             $input,
             monthly: false,
             allowLaborProgram: $viewKey === 'labor-market',
+            quarterRequired: $viewKey === 'labor-market',
         );
         $filters = ReportFilters::fromArray($validated);
         $user = $request->user();
@@ -179,14 +201,14 @@ class MonthlyQuarterlyReportController extends Controller
         }
 
         $projects = $this->baseProjects($filters);
-        $quarter = (int) $validated['quarter'];
+        $quarter = filled($validated['quarter'] ?? null) ? (int) $validated['quarter'] : null;
         $cohort = $projects
             ->filter(function (Project $project) use ($validated, $quarter): bool {
-                $date = $project->monitoringDetail?->cqpr_date;
+                $date = $project->periodicReportDate('sprs_date');
 
                 return $date !== null
                     && (int) $date->year === (int) $validated['fiscal_year']
-                    && (int) ceil($date->month / 3) === $quarter;
+                    && ($quarter === null || (int) ceil($date->month / 3) === $quarter);
             })
             ->values();
 
@@ -196,13 +218,14 @@ class MonthlyQuarterlyReportController extends Controller
             'views' => self::QUARTERLY_VIEWS,
             'filters' => $validated,
             'summary' => $this->cohortSummary($filters, $cohort),
-            'rows' => $this->monitoringRows($cohort, 'cqpr_date'),
+            'rows' => $this->monitoringRows($cohort, 'sprs_date'),
+            'cqpr' => $this->periodic->cqprTemplate($validated, $user),
             'laborRows' => collect(),
             'laborOverall' => null,
             'exportQuery' => [],
             'provinceLocked' => $user->isTc(),
             'options' => $this->options($user),
-            'periodBasis' => 'project_monitoring_details.cqpr_date',
+            'periodBasis' => 'project_monitoring_details.sprs_date',
         ]);
     }
 
@@ -210,6 +233,8 @@ class MonthlyQuarterlyReportController extends Controller
         array $input,
         bool $monthly,
         bool $allowLaborProgram,
+        bool $quarterRequired = true,
+        bool $monthRequired = true,
     ): array {
         $rules = [
             'fiscal_year' => ['required', 'integer', 'between:2000,2100'],
@@ -219,9 +244,9 @@ class MonthlyQuarterlyReportController extends Controller
         ];
 
         if ($monthly) {
-            $rules['month'] = ['required', 'integer', 'between:1,12'];
+            $rules['month'] = [$monthRequired ? 'required' : 'nullable', 'integer', 'between:1,12'];
         } else {
-            $rules['quarter'] = ['required', 'integer', 'between:1,4'];
+            $rules['quarter'] = [$quarterRequired ? 'required' : 'nullable', 'integer', 'between:1,4'];
         }
 
         if ($allowLaborProgram) {
@@ -304,6 +329,8 @@ class MonthlyQuarterlyReportController extends Controller
             'beneficiaries_total' => (int) ($physical['beneficiaries_total'] ?? 0),
             'beneficiaries_female' => (int) ($physical['beneficiaries_female'] ?? 0),
             'project_cost_cents' => (int) ($physical['project_cost_cents'] ?? 0),
+            'proposed_cost_cents' => (int) ($physical['proposed_cost_cents'] ?? 0),
+            'actual_cost_cents' => (int) ($physical['actual_cost_cents'] ?? 0),
             'allocation_cents' => (int) ($fund['allocation_cents'] ?? 0),
             'obligated_cents' => (int) ($fund['obligated_cents'] ?? 0),
             'disbursed_cents' => (int) ($fund['disbursed_cents'] ?? 0),
@@ -320,7 +347,7 @@ class MonthlyQuarterlyReportController extends Controller
     {
         return $projects
             ->map(function (Project $project) use ($dateField): array {
-                $monitoringDate = $project->monitoringDetail?->{$dateField};
+                $monitoringDate = $project->periodicReportDate($dateField);
 
                 return [
                     'project_id' => $project->id,
@@ -330,8 +357,8 @@ class MonthlyQuarterlyReportController extends Controller
                     'municipality' => $project->municipalityReference?->name ?: $project->municipality,
                     'status' => $project->status,
                     'implementation_mode' => $project->implementation_mode,
-                    'beneficiaries_total' => (int) $project->beneficiaries_total,
-                    'beneficiaries_female' => (int) $project->beneficiaries_female,
+                    'beneficiaries_total' => $project->reportBeneficiaries(),
+                    'beneficiaries_female' => $project->reportFemaleBeneficiaries(),
                     'report_date' => $monitoringDate,
                 ];
             })
@@ -359,8 +386,8 @@ class MonthlyQuarterlyReportController extends Controller
                     'project_title' => $project->project_title,
                     'province' => $project->provinceReference?->name ?: $project->province,
                     'municipality' => $project->municipalityReference?->name ?: $project->municipality,
-                    'beneficiaries_total' => (int) $project->beneficiaries_total,
-                    'beneficiaries_female' => (int) $project->beneficiaries_female,
+                    'beneficiaries_total' => $project->reportBeneficiaries(),
+                    'beneficiaries_female' => $project->reportFemaleBeneficiaries(),
                     'orientation_date' => $orientation?->orientation_date,
                     'alkansssya_conducted' => (bool) $orientation?->alkansssya_conducted,
                     'yakap_conducted' => (bool) $orientation?->yakap_conducted,

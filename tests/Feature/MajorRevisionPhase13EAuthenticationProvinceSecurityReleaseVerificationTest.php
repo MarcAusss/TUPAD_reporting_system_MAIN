@@ -222,8 +222,6 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
             'projects.index',
             'search.index',
             'reports.index',
-            'reports.export.csv',
-            'reports.export.excel',
             'reports.export.pdf',
             'reports.print',
             'executive-dashboard.index',

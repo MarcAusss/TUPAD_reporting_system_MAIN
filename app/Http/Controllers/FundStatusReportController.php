@@ -6,6 +6,7 @@ use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
 use App\Enums\ReportDimension;
 use App\Enums\ReportType;
+use App\Models\DistrictRepresentative;
 use App\Models\Province;
 use App\Reports\ReportFilters;
 use App\Services\Auth\ProvinceAccessService;
@@ -49,7 +50,7 @@ class FundStatusReportController extends Controller
         ],
         'district' => [
             'label' => 'Report District',
-            'description' => 'District project cohort. Financial amounts are not fabricated where no exact district allocation exists.',
+            'description' => 'Allocation, GIP realignment, implementation, and balance per congressional district and representative, with province sub-totals.',
             'dimension' => ReportDimension::DISTRICT,
         ],
         'lce' => [
@@ -138,6 +139,9 @@ class FundStatusReportController extends Controller
             'exportQuery' => $exportQuery,
             'commonQuery' => $commonQuery,
             'provinceLocked' => $user->isTc(),
+            'districtRepresentatives' => $viewKey === 'district' && $user->isFocal()
+                ? DistrictRepresentative::query()->orderBy('sort_order')->orderBy('id')->get()
+                : collect(),
             'options' => [
                 'statuses' => ProjectStatus::cases(),
                 'implementation_modes' => ImplementationMode::cases(),

@@ -9,6 +9,8 @@ use App\Enums\ReportDimension;
 use App\Enums\UserRole;
 use App\Models\Adl;
 use App\Models\AdlAllocation;
+use App\Models\AdlRealignment;
+use App\Models\DistrictRepresentative;
 use App\Models\Project;
 use App\Models\ProjectDisbursement;
 use App\Models\ProjectObligation;
@@ -57,8 +59,8 @@ class MajorRevisionPhase14CFundStatusReportsTest extends TestCase
             ->assertSee('Detailed Generator')
             ->assertSee('Print')
             ->assertSee('PDF')
-            ->assertSee('Excel')
-            ->assertSee('CSV');
+            ->assertDontSee('reports/export/excel', false)
+            ->assertDontSee('reports/export/csv', false);
 
         $response->assertSee(route('reports.workspace.fund-status', ['view' => 'lce']), false);
     }
@@ -141,21 +143,78 @@ class MajorRevisionPhase14CFundStatusReportsTest extends TestCase
         $this->assertSame(0, (int) $row['project_count']);
     }
 
-    public function test_district_report_does_not_fabricate_financial_allocation(): void
+    public function test_district_report_lists_representatives_with_province_subtotals(): void
     {
-        $this->project($this->masbate, ['district' => '2nd District']);
+        [, $allocation] = $this->project($this->masbate, ['district' => '2nd District']);
+        $this->project($this->masbate, ['district' => '2nd District', 'allocation_amount' => '50000.00']);
+
+        AdlRealignment::query()->create([
+            'adl_id' => $allocation->adl_id,
+            'direction' => AdlRealignment::DIRECTION_TUPAD_TO_GIP,
+            'amount' => '-20000.50',
+            'realignment_date' => '2026-09-01',
+            'created_by' => $this->admin->id,
+        ]);
 
         $response = $this->actingAs($this->admin)
             ->get(route('reports.workspace.fund-status', ['view' => 'district']))
             ->assertOk()
-            ->assertSee('District financial integrity')
-            ->assertSee('do not divide or guess project money');
+            ->assertSeeInOrder([
+                'Representative', 'District', 'ADL No.', 'Original Allocation', 'Realigned to GIP',
+                'TUPAD Allocation', 'Implemented', 'Balance',
+                'Cielo Krisel Lagman', 'Albay',
+                'Olga T. Kho', 'Masbate', 'TOTAL',
+            ])
+            ->assertDontSee('Edit Representatives');
 
-        foreach ($response->viewData('report')['rows'] as $row) {
-            $this->assertNull($row['allocation_cents']);
-            $this->assertNull($row['obligated_cents']);
-            $this->assertNull($row['disbursed_cents']);
-        }
+        $template = $response->viewData('report')['fund_status_template'];
+        $masbate = collect($template['groups'])->firstWhere('label', 'Masbate');
+        $secondDistrict = collect($masbate['rows'])->firstWhere('representative', 'Olga T. Kho');
+
+        $realignedAdl = collect($secondDistrict['adls'])
+            ->firstWhere('adl_number', $allocation->adl->adl_number);
+
+        $this->assertSame('district', $template['kind']);
+        $this->assertSame('2nd', $secondDistrict['district_label']);
+        // Each ADL keeps its own row; only the province is sub-totalled.
+        $this->assertCount(2, $secondDistrict['adls']);
+        $this->assertSame(10000000, $realignedAdl['original_cents']);
+        $this->assertSame(2000050, $realignedAdl['realigned_cents']);
+        $this->assertSame(7999950, $realignedAdl['tupad_cents']);
+        $this->assertSame(12999950, $secondDistrict['subtotal']['tupad_cents']);
+        $this->assertSame(12999950, $masbate['subtotal']['tupad_cents']);
+        $this->assertSame(12999950, $template['totals']['tupad_cents']);
+    }
+
+    public function test_only_focal_can_edit_district_representatives(): void
+    {
+        $focal = User::factory()->create([
+            'role' => UserRole::FOCAL,
+            'is_active' => true,
+        ]);
+        $representative = DistrictRepresentative::query()
+            ->where('province', 'Albay')
+            ->where('district', '1st District')
+            ->firstOrFail();
+        $payload = ['representatives' => [
+            ['id' => $representative->id, 'representative' => 'Juan Dela Cruz'],
+        ]];
+
+        $this->actingAs($this->admin)
+            ->put(route('reports.district-representatives.update'), $payload)
+            ->assertForbidden();
+
+        $this->actingAs($focal)
+            ->get(route('reports.workspace.fund-status', ['view' => 'district']))
+            ->assertOk()
+            ->assertSee('Edit Representatives');
+
+        $this->actingAs($focal)
+            ->put(route('reports.district-representatives.update'), $payload)
+            ->assertRedirect(route('reports.workspace.fund-status', ['view' => 'district']));
+
+        $this->assertSame('Juan Dela Cruz', $representative->fresh()->representative);
+        $this->assertSame($focal->id, $representative->fresh()->updated_by);
     }
 
     public function test_generic_phase_nine_exports_accept_lce_only_for_fund_status(): void

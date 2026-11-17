@@ -64,8 +64,6 @@ class P4FinalReleaseReadinessTest extends TestCase
         foreach ([
             'reports.print',
             'reports.export.pdf',
-            'reports.export.excel',
-            'reports.export.csv',
             'reports.periodic.print',
             'reports.periodic.export.pdf',
         ] as $routeName) {

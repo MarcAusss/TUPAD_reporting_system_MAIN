@@ -213,10 +213,7 @@
 
                             <td class="px-5 py-4">
                                 @if ($project)
-                                    <span
-                                        class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                        {{ $project->status->label() }}
-                                    </span>
+                                    <x-project-status :project="$project" />
                                 @else
                                     <span class="text-xs text-slate-400">—</span>
                                 @endif
@@ -234,14 +231,8 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-5 py-12 text-center">
-                                <div class="text-sm font-semibold text-slate-700">
-                                    No compliance history found.
-                                </div>
-                                <p class="mt-1 text-xs text-slate-400">
-                                    Projects appear here automatically the moment a TSSD evaluation results in "For
-                                    Compliance."
-                                </p>
+                            <td colspan="8" class="p-0">
+                                <x-empty-state icon="history" title="No compliance history found." message="Projects appear here automatically the moment a TSSD evaluation results in &quot;For Compliance.&quot;" />
                             </td>
                         </tr>
                     @endforelse

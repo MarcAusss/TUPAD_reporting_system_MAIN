@@ -8,10 +8,12 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RequiredPasswordChangeController;
 use App\Http\Controllers\CoordinatorAccountController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DistrictRepresentativeController;
 use App\Http\Controllers\DashboardGeographicAnalyticsController;
 use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MunicipalityIncomeClassController;
 use App\Http\Controllers\MonthlyQuarterlyReportController;
 use App\Http\Controllers\NgaTargetController;
 use App\Http\Controllers\NgaTargetReportController;
@@ -125,6 +127,10 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
     Route::get('/search', [GlobalSearchController::class, 'index'])
         ->name('search.index');
 
+    Route::get('/search/suggest', [GlobalSearchController::class, 'suggest'])
+        ->middleware('throttle:120,1')
+        ->name('search.suggest');
+
 
     /*
 |--------------------------------------------------------------------------
@@ -209,6 +215,18 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
         Route::put('/reports/reformulated-targets', [ReformulatedTargetController::class, 'update'])
             ->name('reports.reformulated-targets.update');
+
+        Route::get('/reports/district-representatives', [DistrictRepresentativeController::class, 'edit'])
+            ->name('reports.district-representatives.edit');
+
+        Route::put('/reports/district-representatives', [DistrictRepresentativeController::class, 'update'])
+            ->name('reports.district-representatives.update');
+
+        Route::get('/locations/income-classes', [MunicipalityIncomeClassController::class, 'edit'])
+            ->name('locations.income-classes.edit');
+
+        Route::put('/locations/income-classes', [MunicipalityIncomeClassController::class, 'update'])
+            ->name('locations.income-classes.update');
     });
 
     Route::middleware('role:admin,tc,focal')->group(function () {
@@ -218,6 +236,9 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
         Route::get('/reports/nga-targets', [NgaTargetReportController::class, 'index'])
             ->name('reports.workspace.nga-targets');
+
+        Route::get('/reports/nga-targets/print', [NgaTargetReportController::class, 'print'])
+            ->name('reports.workspace.nga-targets.print');
 
         Route::get('/reports/fund-status', [FundStatusReportController::class, 'index'])
             ->name('reports.workspace.fund-status');
@@ -242,15 +263,7 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
             [ReportController::class, 'index']
         )->name('reports.index');
 
-        Route::get(
-            '/reports/export/csv',
-            [ReportController::class, 'exportCsv']
-        )->name('reports.export.csv');
 
-        Route::get(
-            '/reports/export/excel',
-            [ReportController::class, 'exportExcel']
-        )->name('reports.export.excel');
 
         Route::get(
             '/reports/export/pdf',
@@ -669,15 +682,11 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
     /*
     |--------------------------------------------------------------------------
-    | Secure Post-Document Download
+    | Secure Attachment Downloads
     |--------------------------------------------------------------------------
     */
 
     Route::middleware('role:admin,tc,focal')->group(function () {
-        Route::get(
-            '/projects/{project}/post-documents/{projectPostDocument}/download',
-            [ProjectPostDocumentController::class, 'download']
-        )->name('projects.post-documents.download');
 
         Route::get(
             '/projects/{project}/compliance/attachments/{attachment}',

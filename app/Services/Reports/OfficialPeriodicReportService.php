@@ -2,23 +2,39 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\ImplementationMode;
 use App\Enums\LaborMarketProgram;
+use App\Enums\ProjectTerm;
 use App\Enums\ReportDimension;
 use App\Models\Project;
 use App\Models\Province;
 use App\Models\User;
 use App\Reports\ReportFilters;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Payments\ProjectPaymentService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 final class OfficialPeriodicReportService
 {
+    private const CQPR_PROVINCES = [
+        'Albay',
+        'Camarines Norte',
+        'Camarines Sur',
+        'Catanduanes',
+        'Masbate',
+        'Sorsogon',
+    ];
+
+    /** CQPR group for projects outside the six provinces (Regional Office). */
+    private const CQPR_REGIONAL_OFFICE = 'RO';
+
     public function __construct(
         private readonly ProvinceAccessService $provinceAccess,
         private readonly ReportingDataService $data,
         private readonly ReportGenerationService $formatter,
+        private readonly ProjectPaymentService $payments,
     ) {}
 
     public function build(string $form, array $filters, User $user): array
@@ -38,19 +54,22 @@ final class OfficialPeriodicReportService
         $month = (int) $filters['month'];
 
         $projects = $this->projectQuery($filters, $user)
-            ->whereHas('monitoringDetail', fn (Builder $query): Builder => $query
-                ->whereYear('sprs_date', $year)
-                ->whereMonth('sprs_date', $month))
-            ->with(['monitoringDetail', 'provinceReference'])
-            ->get();
+            ->with(['monitoringDetail', 'provinceReference', 'acpPayment'])
+            ->get()
+            ->filter(function (Project $project) use ($year, $month): bool {
+                $date = $project->periodicReportDate('sprs_date');
+
+                return $date !== null && (int) $date->year === $year && (int) $date->month === $month;
+            })
+            ->values();
 
         $rows = $projects
             ->groupBy(fn (Project $project): string => $project->provinceReference?->name ?: $project->province ?: 'Unspecified Province')
             ->map(fn (Collection $group, string $province): array => [
                 'province' => $province,
                 'projects' => $group->count(),
-                'total' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_total),
-                'female' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_female),
+                'total' => $group->sum(fn (Project $project): int => $project->reportBeneficiaries()),
+                'female' => $group->sum(fn (Project $project): int => $project->reportFemaleBeneficiaries()),
             ])
             ->sortBy('province', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
@@ -69,18 +88,6 @@ final class OfficialPeriodicReportService
         | monthly workspace and PDF export continue to use the established cohort.
         |
         */
-        $matrixProjects = $this->projectQuery($filters, $user)
-            ->with(['monitoringDetail', 'provinceReference'])
-            ->get()
-            ->filter(function (Project $project) use ($year, $month): bool {
-                $reportingDate = $this->sprsMatrixReportingDate($project);
-
-                return $reportingDate !== null
-                    && (int) $reportingDate->year === $year
-                    && (int) $reportingDate->month <= $month;
-            })
-            ->values();
-
         $report = $this->report(
             'Statistical Performance Reporting System (SPRS)',
             'MONTHLY REPORT · SPRS',
@@ -93,115 +100,316 @@ final class OfficialPeriodicReportService
                 $this->column('female', 'Female', 'integer'),
             ],
             $rows,
-            'The normal monthly SPRS cohort uses the encoded SPRS monitoring date. For the official print matrix, an encoded SPRS date is preferred; legacy/imported rows without one fall back to monitoring receipt datetime, then project Date Received, so existing project data can still populate the matrix without inventing beneficiary counts.',
+            'SPRS includes projects with completed obligations or a recorded ACP payment. The reporting month is the encoded SPRS date, otherwise the obligation completion / ACP payment date.',
         );
 
-        $report['sprs_print_matrix'] = $this->buildSprsPrintMatrix(
-            $matrixProjects,
-            $year,
-            $month,
-        );
+        $report['sprs_print_matrix'] = $this->sprsMatrix($filters, $user);
 
         return $report;
+    }
+
+    /**
+     * Year-to-date SPRS matrix (months, quarter sub-totals, grand total per
+     * province) up to the selected month; shared by the screen and print.
+     */
+    public function sprsMatrix(array $filters, User $user): array
+    {
+        $year = (int) $filters['fiscal_year'];
+        $month = (int) $filters['month'];
+
+        $projects = $this->projectQuery($filters, $user)
+            ->with(['monitoringDetail', 'provinceReference', 'acpPayment'])
+            ->get()
+            ->filter(function (Project $project) use ($year, $month): bool {
+                $reportingDate = $this->sprsMatrixReportingDate($project);
+
+                return $reportingDate !== null
+                    && (int) $reportingDate->year === $year
+                    && (int) $reportingDate->month <= $month;
+            })
+            ->values();
+
+        return $this->buildSprsPrintMatrix($projects, $year, $month);
     }
 
     private function orientations(array $filters, User $user): array
     {
         $year = (int) $filters['fiscal_year'];
-        $month = (int) $filters['month'];
-        $projects = $this->projectQuery($filters, $user)
-            ->whereHas('orientation', fn (Builder $query): Builder => $query
-                ->whereYear('orientation_date', $year)
-                ->whereMonth('orientation_date', $month))
-            ->with(['orientation', 'provinceReference', 'municipalityReference'])
-            ->get();
+        $month = filled($filters['month'] ?? null) ? (int) $filters['month'] : null;
+        $template = $this->orientationTemplate($filters, $user);
 
-        $rows = $projects->map(function (Project $project): array {
-            $orientation = $project->orientation;
-            $programs = collect([
-                $orientation?->alkansssya_conducted ? 'AlkanSSSya' : null,
-                $orientation?->yakap_conducted ? 'YAKAP Program for TUPAD Beneficiaries' : null,
-            ])->filter()->implode('; ');
-
-            return [
-                'date' => $orientation?->orientation_date?->format('M d, Y') ?: '—',
-                'project' => $project->project_title,
-                'province' => $project->provinceReference?->name ?: $project->province ?: '—',
-                'municipality' => $project->municipalityReference?->name ?: $project->municipality ?: '—',
-                'beneficiaries' => (int) $project->beneficiaries_total,
-                'programs' => $programs !== '' ? $programs : 'Program coverage not specified',
-            ];
-        })->sortBy('date')->values();
-
-        return $this->report(
+        $report = $this->report(
             'List of Orientations Conducted',
             'MONTHLY REPORT · ORIENTATIONS',
-            CarbonImmutable::create($year, $month, 1)->format('F Y'),
+            $month !== null ? CarbonImmutable::create($year, $month, 1)->format('F Y') : 'January – December '.$year,
             $this->criteria($filters, 'project_orientations.orientation_date'),
             [
-                $this->column('date', 'Orientation Date'),
-                $this->column('project', 'Project'),
-                $this->column('province', 'Province'),
-                $this->column('municipality', 'City / Municipality'),
-                $this->column('beneficiaries', 'Beneficiaries', 'integer'),
-                $this->column('programs', 'Program Coverage'),
+                $this->column('no', 'No.', 'integer'),
+                $this->column('date', 'Date of Activity'),
+                $this->column('venue', 'Venue'),
+                $this->column('modality', 'Learning Modality'),
+                $this->column('total', 'Beneficiaries Oriented', 'integer'),
+                $this->column('female', 'Female', 'integer'),
+                $this->column('alkansssya_mark', 'AlkanSSSya Program'),
+                $this->column('yakap_mark', 'YAKAP Program'),
+                $this->column('facilitator', 'Name of Facilitator/s'),
             ],
-            $rows,
+            $template['rows']->map(fn (array $row): array => $row + [
+                'alkansssya_mark' => $row['alkansssya'] ? '✓' : '',
+                'yakap_mark' => $row['yakap'] ? '✓' : '',
+            ]),
             'AlkanSSSya and YAKAP coverage is printed only when explicitly encoded. Legacy remarks are not parsed to infer a program.',
         );
+
+        return $report + ['orientation_template' => $template];
+    }
+
+    /**
+     * List of Orientations Conducted in the approved template layout, laid
+     * out like the SPRS matrix: a heading per month with its numbered
+     * orientations, a sub-total after each quarter, and a grand total. With a
+     * month selected only that month is shown.
+     *
+     * Orientations happen before obligation/payment, so this report lists
+     * every recorded orientation rather than only reportable projects.
+     *
+     * @return array{sections: array<int, array<string, mixed>>, rows: Collection<int, array<string, mixed>>, totals: array{total: int, female: int}}
+     */
+    public function orientationTemplate(array $filters, User $user): array
+    {
+        $year = (int) $filters['fiscal_year'];
+        $selectedMonth = filled($filters['month'] ?? null) ? (int) $filters['month'] : null;
+
+        $rows = $this->projectQuery($filters, $user, reportableOnly: false)
+            ->whereHas('orientation', fn (Builder $query): Builder => $query
+                ->whereYear('orientation_date', $year)
+                ->when($selectedMonth !== null, fn (Builder $month): Builder => $month->whereMonth('orientation_date', $selectedMonth)))
+            ->with(['orientation', 'obligations'])
+            ->get()
+            ->sortBy(fn (Project $project): string => $project->orientation->orientation_date->toDateString().'|'.$project->id)
+            ->values()
+            ->map(function (Project $project, int $index): array {
+                $orientation = $project->orientation;
+                $total = $orientation->beneficiaries_oriented ?? $project->reportBeneficiaries();
+
+                return [
+                    'no' => $index + 1,
+                    'month' => (int) $orientation->orientation_date->month,
+                    'date' => $orientation->orientation_date->format('M d, Y'),
+                    'project' => $project->project_title,
+                    'venue' => $orientation->venue ?: '—',
+                    // Learning modality is not encoded on orientation records yet.
+                    'modality' => '—',
+                    'total' => (int) $total,
+                    // Female oriented is not encoded separately; use the
+                    // project's female beneficiaries, never more than oriented.
+                    'female' => min((int) $total, $project->reportFemaleBeneficiaries()),
+                    'alkansssya' => (bool) $orientation->alkansssya_conducted,
+                    'yakap' => (bool) $orientation->yakap_conducted,
+                    'facilitator' => $orientation->oriented_by ?: '—',
+                ];
+            });
+
+        $totals = static fn (Collection $group): array => [
+            'total' => (int) $group->sum('total'),
+            'female' => (int) $group->sum('female'),
+        ];
+        $sections = [];
+
+        foreach ($selectedMonth !== null ? [$selectedMonth] : range(1, 12) as $month) {
+            $monthStart = CarbonImmutable::create($year, $month, 1);
+            $sections[] = [
+                'type' => 'month',
+                'label' => strtoupper($monthStart->format('F')),
+                'rows' => $rows->where('month', $month)->values(),
+                // A month that has fully ended prints 0 when nothing was conducted;
+                // the current and future months stay blank.
+                'elapsed' => $monthStart->endOfMonth()->isPast(),
+            ];
+
+            if ($selectedMonth === null && $month % 3 === 0) {
+                $sections[] = [
+                    'type' => 'quarter',
+                    'label' => $this->ordinal((int) ($month / 3)).' QUARTER',
+                    'rows' => collect(),
+                    'totals' => $totals($rows->whereBetween('month', [$month - 2, $month])),
+                    // A quarter that has not started yet stays blank.
+                    'elapsed' => CarbonImmutable::create($year, $month - 2, 1)->isPast(),
+                ];
+            }
+        }
+
+        return [
+            'sections' => $sections,
+            'rows' => $rows,
+            'totals' => $totals($rows),
+        ];
     }
 
     private function cqpr(array $filters, User $user): array
     {
         $year = (int) $filters['fiscal_year'];
-        $quarter = (int) $filters['quarter'];
-        $months = range((($quarter - 1) * 3) + 1, (($quarter - 1) * 3) + 3);
-        $projects = $this->projectQuery($filters, $user)
-            ->whereHas('monitoringDetail', fn (Builder $query): Builder => $query->whereYear('cqpr_date', $year))
-            ->with(['monitoringDetail', 'provinceReference', 'municipalityReference', 'approval'])
-            ->get()
-            ->filter(fn (Project $project): bool => in_array((int) $project->monitoringDetail?->cqpr_date?->month, $months, true))
+        $quarter = filled($filters['quarter'] ?? null) ? (int) $filters['quarter'] : null;
+        $template = $this->cqprTemplate($filters, $user);
+        $rows = collect($template['sections'])
+            ->flatMap(fn (array $section): Collection => collect($section['groups'])
+                ->flatMap(fn (array $group): Collection => $group['rows']))
+            ->map(fn (array $row): array => $row + [
+                'term' => $row['short_term'] ? 'Short-term' : ($row['long_term'] ? 'Long-term' : '—'),
+                'amount' => 'PHP '.number_format($row['amount_cents'] / 100, 2),
+            ])
             ->values();
 
-        $rows = $projects->map(fn (Project $project): array => [
-            'project' => $project->project_title,
-            'proponent' => $project->monitoringDetail?->proponent ?: '—',
-            'barangay' => $project->barangay ?: '—',
-            'municipality' => $project->municipalityReference?->name ?: $project->municipality ?: '—',
-            'province' => $project->provinceReference?->name ?: $project->province ?: '—',
-            'district' => $project->district ?: '—',
-            'term' => $project->term?->label() ?: '—',
-            'beneficiaries' => (int) $project->beneficiaries_total,
-            'female' => (int) $project->beneficiaries_female,
-            'amount' => 'PHP '.number_format((float) $project->total_project_cost, 2),
-            'fund_source' => $project->fund_sponsor ?: '—',
-            'convergence' => $project->partner ?: '—',
-            'status' => $project->status?->label() ?: '—',
-        ])->values();
-
-        return $this->report(
+        $report = $this->report(
             'Consolidated Quarterly Progress Report (CQPR)',
             'QUARTERLY REPORT · CQPR',
-            'Q'.$quarter.' '.$year,
-            $this->criteria($filters, 'project_monitoring_details.cqpr_date'),
+            $quarter !== null ? 'Q'.$quarter.' '.$year : 'Q1–Q4 '.$year,
+            $this->criteria($filters, 'project_monitoring_details.sprs_date'),
             [
                 $this->column('project', 'Name & Nature of Project'),
-                $this->column('proponent', 'Implementer / Proponent'),
+                $this->column('implementer', 'Name of Implementer'),
                 $this->column('barangay', 'Barangay'),
                 $this->column('municipality', 'City / Municipality'),
                 $this->column('province', 'Province'),
                 $this->column('district', 'District'),
+                $this->column('income_class', 'Income Class'),
                 $this->column('term', 'Work Period'),
                 $this->column('beneficiaries', 'Beneficiaries', 'integer'),
                 $this->column('female', 'Female', 'integer'),
-                $this->column('amount', 'Amount'),
+                $this->column('amount', 'Amount Released'),
+                $this->column('date_released', 'Date Released'),
                 $this->column('fund_source', 'Fund Source'),
-                $this->column('convergence', 'Convergence / Partner'),
-                $this->column('status', 'Project Status'),
+                $this->column('convergence', 'Convergence Project / Partner'),
+                $this->column('status', 'Status'),
             ],
             $rows,
-            'CQPR membership uses the recorded CQPR monitoring date. Columns print only values already encoded in the TUPAD Reporting System.',
+            'CQPR follows the SPRS: a project falls in the quarter of its SPRS reporting month (the encoded SPRS date, otherwise the obligation completion / ACP payment date). Columns print only values already encoded in the TUPAD Reporting System.',
         );
+
+        return $report + ['cqpr_template' => $template];
+    }
+
+    /**
+     * CQPR table in the approved template layout: a single table for the
+     * selected quarter, or one table for the whole year when no quarter is
+     * selected, with the six Bicol provinces and the Regional Office (RO)
+     * sub-totalled, then a total.
+     *
+     * @return array{sections: array<int, array<string, mixed>>, totals: array<string, int>}
+     */
+    public function cqprTemplate(array $filters, User $user): array
+    {
+        $year = (int) $filters['fiscal_year'];
+        $selectedQuarter = filled($filters['quarter'] ?? null) ? (int) $filters['quarter'] : null;
+        $selectedProvince = filled($filters['province_id'] ?? null)
+            ? Province::query()->find((int) $filters['province_id'])?->name
+            : null;
+
+        $projects = $this->projectQuery($filters, $user)
+            ->with([
+                'monitoringDetail',
+                'provinceReference',
+                'municipalityReference',
+                'obligations.disbursements',
+                'acpCheckRelease',
+                'acpPayment',
+            ])
+            ->get()
+            ->filter(fn (Project $project): bool => (int) $project->periodicReportDate('sprs_date')?->year === $year)
+            ->values();
+
+        $groupLabels = $selectedProvince !== null
+            ? [$selectedProvince]
+            : [...self::CQPR_PROVINCES, self::CQPR_REGIONAL_OFFICE];
+
+        $quarterOf = fn (Project $project): int => (int) ceil(((int) $project->periodicReportDate('sprs_date')?->month) / 3);
+
+        // A selected quarter gets its own section; "All quarters" is one table for
+        // the whole year (still sub-totalled per province, rows ordered by quarter).
+        $sectionQuarters = $selectedQuarter !== null ? [[$selectedQuarter]] : [[1, 2, 3, 4]];
+
+        $sections = collect($sectionQuarters)
+            ->map(function (array $quarters) use ($projects, $groupLabels, $year, $quarterOf): array {
+                $rows = $projects
+                    ->filter(fn (Project $project): bool => in_array($quarterOf($project), $quarters, true))
+                    ->map(fn (Project $project): array => [...$this->cqprRow($project), 'quarter' => $quarterOf($project)])
+                    ->sortBy(fn (array $row): string => $row['quarter'].'|'.strtolower($row['municipality'].'|'.$row['project']))
+                    ->groupBy('group');
+
+                $groups = collect($groupLabels)->map(fn (string $label): array => [
+                    'label' => $label,
+                    'rows' => $rows->get($label, collect())->values(),
+                    'subtotal' => $this->cqprTotals($rows->get($label, collect())),
+                ])->values();
+
+                $single = count($quarters) === 1;
+
+                return [
+                    'quarter' => $single ? $quarters[0] : null,
+                    'label' => $single ? 'Q'.$quarters[0].' '.$year : 'Q1–Q4 '.$year,
+                    'groups' => $groups,
+                    'totals' => $this->cqprTotals($rows->flatten(1)),
+                ];
+            })
+            ->values();
+
+        return [
+            'sections' => $sections->all(),
+            'totals' => $this->cqprTotals(
+                $sections->flatMap(fn (array $section): Collection => $section['groups']->flatMap(fn (array $group): Collection => $group['rows']))
+            ),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function cqprRow(Project $project): array
+    {
+        $province = $project->provinceReference?->name ?: $project->province ?: '';
+
+        // Released money: Direct Administration disbursements, or the
+        // released ACP check for Through ACP projects.
+        if ($project->implementation_mode === ImplementationMode::THROUGH_ACP) {
+            $release = $project->acpCheckRelease;
+            $amountCents = $release?->released_date ? $this->payments->amountToCents($release->amount) : 0;
+            $dateReleased = $release?->released_date ?? $project->acpPayment?->payment_date;
+        } else {
+            $disbursements = $project->obligations->flatMap(fn ($obligation) => $obligation->disbursements);
+            $amountCents = (int) $disbursements->sum(fn ($disbursement): int => $this->payments->amountToCents($disbursement->amount));
+            $dateReleased = $disbursements->pluck('date_disbursed')->filter()->max();
+        }
+
+        return [
+            'group' => in_array($province, self::CQPR_PROVINCES, true) ? $province : self::CQPR_REGIONAL_OFFICE,
+            'project' => $project->project_title,
+            'nature' => $project->nature_of_work,
+            'implementer' => $project->monitoringDetail?->proponent ?: '—',
+            'barangay' => $project->barangay ?: '—',
+            'municipality' => $project->municipalityReference?->name ?: $project->municipality ?: '—',
+            'province' => $province ?: '—',
+            'district' => $project->district ?: '—',
+            'income_class' => $project->income_class ?: $project->municipalityReference?->income_class ?: '—',
+            'short_term' => $project->term === ProjectTerm::SHORT_TERM,
+            'long_term' => $project->term === ProjectTerm::LONG_TERM,
+            'beneficiaries' => $project->reportBeneficiaries(),
+            'female' => $project->reportFemaleBeneficiaries(),
+            // No beneficiary "type" is encoded in the system yet.
+            'type' => '—',
+            'amount_cents' => $amountCents,
+            'date_released' => $dateReleased ? CarbonImmutable::parse($dateReleased)->format('M d, Y') : '—',
+            'fund_source' => $project->fund_sponsor ?: '—',
+            'convergence' => $project->partner ?: '—',
+            'status' => $project->status?->label() ?: '—',
+        ];
+    }
+
+    /** @return array{beneficiaries: int, female: int, amount_cents: int} */
+    private function cqprTotals(Collection $rows): array
+    {
+        return [
+            'beneficiaries' => (int) $rows->sum('beneficiaries'),
+            'female' => (int) $rows->sum('female'),
+            'amount_cents' => (int) $rows->sum('amount_cents'),
+        ];
     }
 
     private function laborMarket(array $filters, User $user): array
@@ -351,14 +559,20 @@ final class OfficialPeriodicReportService
                 ? collect($projectsByMonth->get($month, []))->values()
                 : collect();
 
+            $monthStart = CarbonImmutable::create($year, $month, 1);
+
             return [
-                $month => $this->sprsMatrixRow(
-                    CarbonImmutable::create($year, $month, 1)->format('F'),
-                    $group,
-                    $provinceHeaders,
-                    $included,
-                    'month',
-                ),
+                $month => [
+                    ...$this->sprsMatrixRow(
+                        $monthStart->format('F'),
+                        $group,
+                        $provinceHeaders,
+                        $included,
+                        'month',
+                    ),
+                    // A month that has fully ended shows 0 instead of a blank cell.
+                    'elapsed' => $included && $monthStart->endOfMonth()->isPast(),
+                ],
             ];
         });
 
@@ -407,7 +621,7 @@ final class OfficialPeriodicReportService
             'year' => $year,
             'cutoff_month' => $cutoffMonth,
             'cutoff_label' => CarbonImmutable::create($year, $cutoffMonth, 1)->format('F Y'),
-            'basis_note' => 'Counts use the project\'s encoded beneficiary totals. Reporting month uses SPRS Date when encoded. For legacy/imported records without SPRS Date, the official print matrix falls back to monitoring Receipt Date/Time, then Project Date Received. Date Accomplished is still shown only from an explicitly encoded SPRS Date. Future months remain blank.',
+            'basis_note' => 'Counts use the project\'s report beneficiary totals. Only projects with completed obligations (Direct Administration) or a recorded ACP payment (Through ACP) are included. Reporting month uses SPRS Date when encoded, otherwise the obligation completion / ACP payment date. Date Accomplished is still shown only from an explicitly encoded SPRS Date. Future months remain blank.',
         ];
     }
 
@@ -431,8 +645,8 @@ final class OfficialPeriodicReportService
 
                 return [
                     $provinceKey => [
-                        'total' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_total),
-                        'female' => $group->sum(fn (Project $project): int => (int) $project->beneficiaries_female),
+                        'total' => $group->sum(fn (Project $project): int => $project->reportBeneficiaries()),
+                        'female' => $group->sum(fn (Project $project): int => $project->reportFemaleBeneficiaries()),
                     ],
                 ];
             })
@@ -452,8 +666,8 @@ final class OfficialPeriodicReportService
             'included' => $included,
             'row_type' => $rowType,
             'overall' => [
-                'total' => $projects->sum(fn (Project $project): int => (int) $project->beneficiaries_total),
-                'female' => $projects->sum(fn (Project $project): int => (int) $project->beneficiaries_female),
+                'total' => $projects->sum(fn (Project $project): int => $project->reportBeneficiaries()),
+                'female' => $projects->sum(fn (Project $project): int => $project->reportFemaleBeneficiaries()),
             ],
             'provinces' => $provinceValues,
             'date_accomplished' => $included ? $this->sprsDateRangeLabel($projects) : '',
@@ -465,25 +679,9 @@ final class OfficialPeriodicReportService
 
     private function sprsMatrixReportingDate(Project $project): ?CarbonImmutable
     {
-        $sprsDate = $project->monitoringDetail?->sprs_date;
+        $date = $project->periodicReportDate('sprs_date');
 
-        if ($sprsDate !== null) {
-            return CarbonImmutable::parse($sprsDate->toDateString());
-        }
-
-        $receiptDateTime = $project->monitoringDetail?->receipt_datetime;
-
-        if ($receiptDateTime !== null) {
-            return CarbonImmutable::parse($receiptDateTime->toDateTimeString());
-        }
-
-        $dateReceived = $project->date_received;
-
-        if ($dateReceived !== null) {
-            return CarbonImmutable::parse($dateReceived->toDateString());
-        }
-
-        return null;
+        return $date !== null ? CarbonImmutable::parse($date->toDateString()) : null;
     }
 
     private function sprsProvinceKey(Project $project): ?string
@@ -508,7 +706,7 @@ final class OfficialPeriodicReportService
     private function sprsDateRangeLabel(Collection $projects): string
     {
         $dates = $projects
-            ->map(fn (Project $project) => $project->monitoringDetail?->sprs_date)
+            ->map(fn (Project $project) => $project->periodicReportDate('sprs_date'))
             ->filter()
             ->sortBy(fn ($date): int => $date->getTimestamp())
             ->values();
@@ -541,10 +739,10 @@ final class OfficialPeriodicReportService
         };
     }
 
-    private function projectQuery(array $filters, User $user): Builder
+    private function projectQuery(array $filters, User $user, bool $reportableOnly = true): Builder
     {
         return $this->provinceAccess
-            ->scopeProjects(Project::query(), $user)
+            ->scopeProjects(Project::query()->when($reportableOnly, fn (Builder $query): Builder => $query->reportable()), $user)
             ->when(filled($filters['province_id'] ?? null), fn (Builder $query): Builder => $query->where('province_id', (int) $filters['province_id']))
             ->when(filled($filters['status'] ?? null), fn (Builder $query): Builder => $query->where('status', (string) $filters['status']))
             ->when(filled($filters['implementation_mode'] ?? null), fn (Builder $query): Builder => $query->where('implementation_mode', (string) $filters['implementation_mode']));

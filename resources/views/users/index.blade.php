@@ -157,14 +157,14 @@
                                             @csrf
                                             @method('PATCH')
                                             <button class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold {{ $account->is_active ? 'text-amber-700' : 'text-emerald-700' }} hover:bg-slate-50"
-                                                onclick="return confirm('{{ $account->is_active ? 'Deactivate' : 'Activate' }} this {{ $account->role->label() }} account?')">
+                                                data-confirm-title="{{ $account->is_active ? 'Deactivate' : 'Activate' }} this {{ $account->role->label() }} account?" data-confirm="{{ $account->is_active ? 'The user will no longer be able to sign in until the account is activated again.' : 'The user will be able to sign in again.' }}" data-confirm-button="{{ $account->is_active ? 'Deactivate' : 'Activate' }}" data-confirm-tone="{{ $account->is_active ? 'danger' : 'primary' }}">
                                                 {{ $account->is_active ? 'Deactivate' : 'Activate' }}
                                             </button>
                                         </form>
                                         <form method="POST" action="{{ route('users.reset-password', $account) }}">
                                             @csrf
                                             <button class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                                                onclick="return confirm('Generate a new temporary password for this account? Existing remembered sessions will be invalidated and a password change will be required at the next sign-in.')">Reset Password</button>
+                                                data-confirm-title="Reset temporary password?" data-confirm="Existing remembered sessions will be invalidated and a password change will be required at the next sign-in." data-confirm-button="Reset Password" data-confirm-tone="danger">Reset Password</button>
                                         </form>
                                     @else
                                         <span class="inline-flex h-9 items-center rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-500">Signed in</span>

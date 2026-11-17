@@ -128,15 +128,15 @@ class ProjectBarangayPpeDistributionService
             }
         }
 
-        // Rule (a): every item's recipients must sum to exactly its
-        // declared beneficiary_count across all barangays.
+        // Rule (a): an item's recipients across all barangays may be fewer
+        // than its declared beneficiary_count, but never more.
         foreach ($ppeItems as $item) {
             $sum = $rows->sum(fn (array $row): int => $recipientsFor($item->id, $row['barangay_id']));
 
-            if ($sum !== (int) $item->beneficiary_count) {
+            if ($sum > (int) $item->beneficiary_count) {
                 throw ValidationException::withMessages([
                     'beneficiary_addresses' => sprintf(
-                        '%s recipients must total %d across all barangays (currently %d).',
+                        '%s recipients cannot exceed %d across all barangays (currently %d).',
                         $item->product,
                         (int) $item->beneficiary_count,
                         $sum,

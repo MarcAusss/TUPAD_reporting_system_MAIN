@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ImplementationMode;
 use App\Enums\LaborMarketProgram;
 use App\Enums\ProjectStatus;
-use App\Services\Exports\PdfTableWriter;
+use App\Services\Exports\ReportPdfExporter;
 use App\Services\Reports\OfficialPeriodicReportService;
 use App\Services\Reports\ReportDocumentControlService;
 use Illuminate\Http\Request;
@@ -18,7 +18,7 @@ class OfficialPeriodicReportController extends Controller
     public function __construct(
         private readonly OfficialPeriodicReportService $reports,
         private readonly ReportDocumentControlService $documentControl,
-        private readonly PdfTableWriter $pdf,
+        private readonly ReportPdfExporter $pdf,
     ) {}
 
     public function print(Request $request): View
@@ -51,8 +51,10 @@ class OfficialPeriodicReportController extends Controller
             'implementation_mode' => ['nullable', Rule::enum(ImplementationMode::class)],
             'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
         ];
-        if ($monthly) $rules['month'] = ['required', 'integer', 'between:1,12'];
-        if ($quarterly) $rules['quarter'] = ['required', 'integer', 'between:1,4'];
+        // Orientations without a month print the whole year, month by month.
+        if ($monthly) $rules['month'] = [$form === 'orientations' ? 'nullable' : 'required', 'integer', 'between:1,12'];
+        // CQPR without a quarter prints all four quarters as separate sections.
+        if ($quarterly) $rules['quarter'] = [$form === 'cqpr' ? 'nullable' : 'required', 'integer', 'between:1,4'];
         if ($form === 'labor-market') $rules['labor_market_program'] = ['nullable', Rule::enum(LaborMarketProgram::class)];
 
         $validated = validator($request->query(), $rules)

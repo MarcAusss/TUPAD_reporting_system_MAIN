@@ -53,8 +53,9 @@ class PhysicalFinancialTableFirstReportTest extends TestCase
             ->assertSee('CY2026')
             ->assertSee('1st Semester')
             ->assertSee('2nd Semester')
-            ->assertDontSee('Short-Term')
-            ->assertDontSee('Long-Term');
+            // Combined table is the default; the Short/Long-Term split is the optional "By Term" toggle.
+            ->assertSee('data-pf-panel="combined"', false)
+            ->assertSee('By Term (Short / Long)');
 
         $this->actingAs($admin)
             ->get(route('reports.print', [
@@ -63,7 +64,7 @@ class PhysicalFinancialTableFirstReportTest extends TestCase
                 'fiscal_year' => 2026,
             ]))
             ->assertOk()
-            ->assertSee('Letter-size portrait')
+            ->assertSee('@page { size: Letter portrait;', false)
             ->assertSee('1st Semester')
             ->assertSee('2nd Semester')
             ->assertDontSee('Short-Term')

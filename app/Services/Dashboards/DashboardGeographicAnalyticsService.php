@@ -145,6 +145,9 @@ final class DashboardGeographicAnalyticsService
         ?int $municipalityId,
         array $filters,
     ): array {
+        // Dashboards track the whole pipeline, not only reportable projects.
+        $filters['all_projects'] = true;
+
         return match (true) {
             $provinceId !== null && $municipalityId !== null => $this->mapping->municipalityPayload(
                 $user,

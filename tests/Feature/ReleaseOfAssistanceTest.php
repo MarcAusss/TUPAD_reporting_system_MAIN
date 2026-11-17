@@ -46,14 +46,14 @@ class ReleaseOfAssistanceTest extends TestCase
     public function test_release_is_blocked_until_the_tranche_is_fully_disbursed(): void
     {
         $project = $this->createProject();
-        $tranche = $this->saveTranche($project, '800.00', '50.00', '150.00');
+        $tranche = $this->saveTranche($project, '800.00');
 
         $this->release($project, $tranche, now())->assertForbidden();
 
         $this->disburse($project, $tranche, '400.00');
         $this->release($project, $tranche, now())->assertForbidden();
 
-        $this->disburse($project, $tranche, '600.00');
+        $this->disburse($project, $tranche, '400.00');
         $this->release($project, $tranche, now()->addDays(3))->assertSessionHasNoErrors();
 
         $tranche->refresh();
@@ -183,17 +183,17 @@ class ReleaseOfAssistanceTest extends TestCase
     public function test_every_tranche_needs_a_release_and_reached_payout_date_before_completion(): void
     {
         $project = $this->createProject();
-        $this->saveTranche($project, '400.00', '25.00', '75.00', beneficiaries: 5, female: 3);
-        $this->saveTranche($project, '400.00', '25.00', '75.00', beneficiaries: 5, female: 3, intent: 'complete');
+        $this->saveTranche($project, '400.00', beneficiaries: 5, female: 3);
+        $this->saveTranche($project, '400.00', beneficiaries: 5, female: 3, intent: 'complete');
 
         [$first, $second] = $project->obligations()->orderBy('tranche_number')->get()->all();
 
-        $this->disburse($project, $first, '500.00');
+        $this->disburse($project, $first, '400.00');
         $this->release($project, $first, now()->subDay());
 
         $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
 
-        $this->disburse($project, $second, '500.00');
+        $this->disburse($project, $second, '400.00');
         $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
 
         $lastPayout = CarbonImmutable::now('Asia/Manila')->addDays(4)->startOfDay();
@@ -221,9 +221,9 @@ class ReleaseOfAssistanceTest extends TestCase
     public function test_project_does_not_complete_before_the_focal_completes_the_tranches(): void
     {
         $project = $this->createProject();
-        $tranche = $this->saveTranche($project, '800.00', '50.00', '150.00');
+        $tranche = $this->saveTranche($project, '800.00');
 
-        $this->disburse($project, $tranche, '1000.00');
+        $this->disburse($project, $tranche, '800.00');
         $this->release($project, $tranche, now()->subDay())->assertSessionHasNoErrors();
 
         $this->assertSame(ProjectStatus::FOR_PAYMENT, $project->fresh()->status);
@@ -232,9 +232,9 @@ class ReleaseOfAssistanceTest extends TestCase
     public function test_tranches_completed_below_project_cost_complete_once_released(): void
     {
         $project = $this->createProject();
-        $tranche = $this->saveTranche($project, '640.00', '40.00', '120.00', beneficiaries: 8, female: 5, intent: 'complete');
+        $tranche = $this->saveTranche($project, '640.00', beneficiaries: 8, female: 5, intent: 'complete');
 
-        $this->disburse($project, $tranche, '800.00');
+        $this->disburse($project, $tranche, '640.00');
         $this->release($project, $tranche, now()->subDay());
 
         $this->assertSame(ProjectStatus::COMPLETED, $project->fresh()->status);
@@ -321,8 +321,6 @@ class ReleaseOfAssistanceTest extends TestCase
     private function saveTranche(
         Project $project,
         string $wages,
-        string $insurance = '0.00',
-        string $ppe = '0.00',
         int $beneficiaries = 10,
         int $female = 6,
         string $intent = 'save',
@@ -334,8 +332,6 @@ class ReleaseOfAssistanceTest extends TestCase
                     'beneficiaries_total' => $beneficiaries,
                     'beneficiaries_female' => $female,
                     'wages_amount' => $wages,
-                    'insurance_amount' => $insurance,
-                    'ppe_amount' => $ppe,
                     'obligation_date' => now()->toDateString(),
                     'payee' => 'TUPAD Beneficiaries',
                 ]],
@@ -357,8 +353,8 @@ class ReleaseOfAssistanceTest extends TestCase
 
     private function completeAndDisburseSingleTranche(Project $project): ProjectObligation
     {
-        $tranche = $this->saveTranche($project, '800.00', '50.00', '150.00', intent: 'complete');
-        $this->disburse($project, $tranche, '1000.00')->assertSessionHasNoErrors();
+        $tranche = $this->saveTranche($project, '800.00', intent: 'complete');
+        $this->disburse($project, $tranche, '800.00')->assertSessionHasNoErrors();
 
         return $tranche->fresh();
     }

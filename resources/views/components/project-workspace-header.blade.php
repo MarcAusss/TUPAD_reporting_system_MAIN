@@ -38,9 +38,7 @@
         <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                    <x-status-badge :tone="$workspace['status_tone']">
-                        {{ $project->status->label() }}
-                    </x-status-badge>
+                    <x-project-status :project="$project" />
 
                     <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
                         {{ $project->implementation_mode->label() }}
@@ -84,7 +82,7 @@
                 </div>
             </div>
 
-            <div class="w-full rounded-xl border border-blue-200 bg-blue-50 p-4 xl:max-w-md">
+            <div class="w-full rounded-xl border border-blue-200 bg-blue-50 p-4 xl:max-w-md" data-next-action-sentinel>
                 <div class="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
                     {{ $workspace['action']['eyebrow'] }}
                 </div>

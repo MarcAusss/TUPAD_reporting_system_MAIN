@@ -3,6 +3,7 @@
 @section('content')
 <x-page-header
     eyebrow="Fund Management"
+    :breadcrumbs="[['label' => 'ADL Management', 'url' => route('adl.index')], ['label' => 'ADL '.$adl->adl_number]]"
     :title="$adl->adl_number"
     description="Review the ADL fund position, allocation records, re-alignments, and current PER ADL monitoring breakdown."
 >

@@ -62,19 +62,13 @@
                     Official report rows for the selected {{ strtolower($family['label']) }} and reporting filters.
                 </p>
             </div>
-            <div class="flex gap-2">
-                <a href="{{ route('reports.export.excel', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Excel</a>
-                <a href="{{ route('reports.export.csv', $exportQuery) }}"
-                    class="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">CSV</a>
-            </div>
         </div>
 
         @if ($rows->isEmpty())
             <div class="px-5 py-12 text-center text-sm text-slate-500">No mapping rows available.</div>
         @else
             <div class="overflow-x-auto">
-                <table class="tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
+                <table class="tupad-report-table tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-50">
                         <tr>
                             @foreach ($report['columns'] as $column)

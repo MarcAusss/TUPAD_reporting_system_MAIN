@@ -546,29 +546,10 @@ final class BicolMapDataService
                 : collect();
         }
 
-        $statusFilters = new ReportFilters(
-            dateFrom: $filters->dateFrom,
-            dateTo: $filters->dateTo,
-            fiscalYear: $filters->fiscalYear,
-            quarter: $filters->quarter,
-            month: $filters->month,
-            term: $filters->term,
-            status: $status,
-            implementationMode: $filters->implementationMode,
-            adlId: $filters->adlId,
-            provinceId: $filters->provinceId,
-            district: $filters->district,
-            municipalityId: $filters->municipalityId,
-            barangayId: $filters->barangayId,
-            sponsor: $filters->sponsor,
-            partner: $filters->partner,
-            projectCode: $filters->projectCode,
-            sectorGroup: $filters->sectorGroup,
-            sector: $filters->sector,
-            interventionFocus: $filters->interventionFocus,
-            laborMarketProgram: $filters->laborMarketProgram,
-            actualBeneficiaries: $filters->actualBeneficiaries,
-        );
+        $statusFilters = new ReportFilters(...[
+            ...get_object_vars($filters),
+            'status' => $status,
+        ]);
 
         return $this->reporting
             ->beneficiaryGeography($statusFilters, $dimension)

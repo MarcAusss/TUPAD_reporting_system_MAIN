@@ -145,8 +145,6 @@ class MajorRevisionPhase14AReportsNavigationArchitectureTest extends TestCase
             'reports.index',
             'reports.print',
             'reports.export.pdf',
-            'reports.export.excel',
-            'reports.export.csv',
         ] as $routeName) {
             $this->assertNotNull(Route::getRoutes()->getByName($routeName));
         }

@@ -9,6 +9,7 @@
 
 <x-page-header
     eyebrow="Through ACP"
+    :breadcrumbs="\App\Support\Breadcrumbs::forProject($project, 'ACP Implementation')"
     :title="$project->project_title"
     description="Schedule and monitor the implementation period after the check has been released to the proponent."
 >

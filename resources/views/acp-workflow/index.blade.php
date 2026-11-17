@@ -3,7 +3,7 @@
 @section('title', $queueTitle)
 
 @section('content')
-    <x-page-header eyebrow="Through ACP Workflow" :title="$queueTitle" :description="$queueDescription">
+    <x-page-header eyebrow="Through ACP Workflow" :title="$queueTitle" :breadcrumbs="[['label' => 'Through ACP', 'url' => null], ['label' => $queueTitle]]" :description="$queueDescription">
         <x-slot:actions>
             <a href="{{ route('projects.index') }}"
                 class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -20,7 +20,8 @@
         </p>
     </section>
 
-    <form method="GET" class="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <form data-remember-filters method="GET" class="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <x-quick-filters :inputs="true" />
         <div class="flex flex-col gap-3 sm:flex-row">
             <label class="sr-only" for="acp-workflow-search">Search Through ACP projects</label>
             <input id="acp-workflow-search" name="q" value="{{ request('q') }}"
@@ -30,13 +31,15 @@
                 Search
             </button>
             @if (request()->filled('q'))
-                <a href="{{ url()->current() }}"
+                <a href="{{ url()->current() }}" data-clear-filters
                     class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     Clear
                 </a>
             @endif
         </div>
     </form>
+
+    <x-quick-filters />
 
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
@@ -78,9 +81,7 @@
                                 {{ collect([$project->barangay, $project->municipality, $project->province])->filter()->implode(', ') ?: '—' }}
                             </td>
                             <td class="px-5 py-4 align-top">
-                                <span class="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
-                                    {{ $project->status->label() }}
-                                </span>
+                                <x-project-status :project="$project" />
                             </td>
                             <td class="px-5 py-4 text-right align-top text-sm font-semibold text-slate-800">
                                 {{ $money($project->total_project_cost) }}
@@ -103,7 +104,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-12 text-center text-sm text-slate-400">{{ $emptyMessage }}</td>
+                            <td colspan="6" class="p-0"><x-empty-state size="sm" icon="check" :title="$emptyMessage" message="Projects appear here automatically when they reach this step." /></td>
                         </tr>
                     @endforelse
                 </tbody>

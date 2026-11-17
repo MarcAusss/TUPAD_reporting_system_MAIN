@@ -9,6 +9,7 @@
 
 <x-page-header
     eyebrow="Through ACP"
+    :breadcrumbs="\App\Support\Breadcrumbs::forProject($project, 'Liquidation')"
     :title="$project->project_title"
     description="Record audited liquidation submissions against the amount released to the ACP proponent."
 >
@@ -82,7 +83,7 @@
             </p>
         </div>
 
-        <form method="POST" action="{{ route('projects.acp-liquidations.store', $project) }}" enctype="multipart/form-data" class="p-5">
+        <form id="liquidation-form" method="POST" action="{{ route('projects.acp-liquidations.store', $project) }}" enctype="multipart/form-data" class="p-5">
             @csrf
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
@@ -175,7 +176,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-5 py-10 text-center text-sm text-slate-400">No Through ACP liquidation has been recorded.</td>
+                        <td colspan="5" class="p-0"><x-empty-state size="sm" icon="money" title="No Through ACP liquidation has been recorded." action-label="Record Liquidation" action-target="liquidation-form" message="Liquidation reports appear here once the Focal records them." /></td>
                     </tr>
                 @endforelse
             </tbody>
