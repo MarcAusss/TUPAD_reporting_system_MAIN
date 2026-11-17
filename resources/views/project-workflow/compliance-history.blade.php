@@ -232,7 +232,7 @@
                     @empty
                         <tr>
                             <td colspan="8" class="p-0">
-                                <x-empty-state icon="history" title="No compliance history found." message="Projects appear here automatically the moment a TSSD evaluation results in &quot;For Compliance.&quot;" />
+                                <x-empty-state icon="history" title="No compliance history found." message="Projects appear here automatically the moment a TSSD evaluation results in For Compliance." />
                             </td>
                         </tr>
                     @endforelse

@@ -40,7 +40,7 @@ class ProjectActualAmountTest extends TestCase
         $this->assertSame(457500.0, $project->fresh()->reportAmount());
     }
 
-    public function test_direct_administration_uses_total_of_all_tranches_after_completion(): void
+    public function test_direct_administration_uses_tranche_wages_plus_ppe_and_insurance_after_completion(): void
     {
         $project = $this->createProject(ImplementationMode::DIRECT_ADMINISTRATION);
         $this->addObligation($project, 1, '200000.50');
@@ -49,9 +49,11 @@ class ProjectActualAmountTest extends TestCase
 
         $fresh = $project->fresh();
 
+        // Tranches carry wages only; PPE (0) and insurance (2,500) were settled
+        // at Preparation, so they count in full: 350,000.75 + 2,500.
         $this->assertSame(457500.0, $fresh->proposedAmount());
-        $this->assertSame(350000.75, $fresh->actualAmount());
-        $this->assertSame(350000.75, $fresh->reportAmount());
+        $this->assertSame(352500.75, $fresh->actualAmount());
+        $this->assertSame(352500.75, $fresh->reportAmount());
 
         // Beneficiaries follow the tranches too (2 tranches × 10 / 5 female).
         $this->assertSame(20, $fresh->actualBeneficiaries());

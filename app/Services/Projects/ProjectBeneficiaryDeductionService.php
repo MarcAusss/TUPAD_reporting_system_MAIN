@@ -32,9 +32,15 @@ class ProjectBeneficiaryDeductionService
     public const SOURCE_PROJECT_LOCATIONS = 'project_locations';
 
     /**
-     * Beneficiaries (and female beneficiaries) declared on the project but
-     * not covered by the completed obligation tranches. Null until the
-     * Focal completes the tranches.
+     * Mapped beneficiaries (and female beneficiaries) not covered by the
+     * completed obligation tranches — i.e. how many must be deducted from the
+     * Beneficiary Mapping to reach the paid count. Null until the Focal
+     * completes the tranches.
+     *
+     * The baseline is the encoded Beneficiary Mapping Source, not the declared
+     * total: if the TC already mapped only the paid beneficiaries (e.g. 25 of a
+     * declared 30), nothing is left to deduct. Projects without a mapping fall
+     * back to the declared counts.
      *
      * @return array{total:int,female:int}|null
      */
@@ -47,12 +53,47 @@ class ProjectBeneficiaryDeductionService
             return null;
         }
 
-        $project->loadMissing('obligations');
+        $project->loadMissing(['obligations', 'beneficiaryAddresses']);
+
+        [$mappedTotal, $mappedFemale] = $this->mappedCounts($project);
 
         return [
-            'total' => max(0, (int) $project->beneficiaries_total - (int) $project->obligations->sum('beneficiaries_total')),
-            'female' => max(0, (int) $project->beneficiaries_female - (int) $project->obligations->sum('beneficiaries_female')),
+            'total' => max(0, $mappedTotal - (int) $project->obligations->sum('beneficiaries_total')),
+            'female' => max(0, $mappedFemale - (int) $project->obligations->sum('beneficiaries_female')),
         ];
+    }
+
+    /**
+     * Encoded Beneficiary Mapping Source totals, or the declared counts when
+     * the project has no mapping yet.
+     *
+     * @return array{0:int,1:int}
+     */
+    public function mappedCounts(Project $project): array
+    {
+        $project->loadMissing('beneficiaryAddresses');
+
+        if ($project->beneficiaryAddresses->isEmpty()) {
+            return [(int) $project->beneficiaries_total, (int) $project->beneficiaries_female];
+        }
+
+        return [
+            (int) $project->beneficiaryAddresses->sum('beneficiaries_total'),
+            (int) $project->beneficiaryAddresses->sum('beneficiaries_female'),
+        ];
+    }
+
+    /**
+     * SQL condition (on `projects`) matching the shortfall() rule, for queue
+     * queries: the mapping (or declared count) exceeds the paid count.
+     */
+    public static function shortfallSql(string $column): string
+    {
+        $mapped = "(case when exists (select 1 from project_beneficiary_addresses pba where pba.project_id = projects.id)
+            then (select coalesce(sum(pba.beneficiaries_{$column}), 0) from project_beneficiary_addresses pba where pba.project_id = projects.id)
+            else projects.beneficiaries_{$column} end)";
+
+        return "{$mapped} > (select coalesce(sum(project_obligations.beneficiaries_{$column}), 0) from project_obligations where project_obligations.project_id = projects.id)";
     }
 
     public function needsDeduction(Project $project): bool

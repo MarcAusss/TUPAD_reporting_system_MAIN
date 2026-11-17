@@ -624,10 +624,23 @@ class ProjectController extends Controller
                                 ]);
                             }
 
+                            // Older clients may omit the per-barangay female count.
+                            $allocatedFemale = isset($allocation['beneficiaries_female']) && $allocation['beneficiaries_female'] !== ''
+                                ? (int) $allocation['beneficiaries_female']
+                                : null;
+
+                            if ($allocatedFemale !== null && $allocatedFemale > $allocatedTotal) {
+                                throw ValidationException::withMessages([
+                                    "project_locations.{$index}.barangay_allocations.{$barangay->id}" =>
+                                        "{$barangay->name}: female beneficiaries cannot exceed the barangay total.",
+                                ]);
+                            }
+
                             $beneficiaryAllocations->put(
                                 $barangay->id,
                                 [
                                     'beneficiaries_total' => $allocatedTotal,
+                                    'beneficiaries_female' => $allocatedFemale,
                                 ]
                             );
                         }
@@ -709,6 +722,26 @@ class ProjectController extends Controller
                         ),
                     ]);
                 }
+
+                // When every barangay carries a female count, they must add up
+                // to the project's Female Beneficiaries.
+                $femaleAllocations = $resolvedLocations->flatMap(
+                    fn (array $location) => $location['beneficiary_allocations']->pluck('beneficiaries_female')
+                );
+
+                if ($femaleAllocations->doesntContain(null)) {
+                    $allocatedFemale = (int) $femaleAllocations->sum();
+
+                    if ($allocatedFemale !== $femaleBeneficiaries) {
+                        throw ValidationException::withMessages([
+                            'project_locations' => sprintf(
+                                'Barangay female allocations must total %s. The current female allocation totals %s.',
+                                number_format($femaleBeneficiaries),
+                                number_format($allocatedFemale),
+                            ),
+                        ]);
+                    }
+                }
             } elseif (
                 $resolvedLocations
                     ->sum(
@@ -723,12 +756,13 @@ class ProjectController extends Controller
                  */
 
                 $resolvedLocations = $resolvedLocations
-                    ->map(function (array $location) use ($beneficiaries) {
+                    ->map(function (array $location) use ($beneficiaries, $femaleBeneficiaries) {
                         $barangay = $location['barangays']->first();
 
                         $location['beneficiary_allocations'] = collect([
                             $barangay->id => [
                                 'beneficiaries_total' => $beneficiaries,
+                                'beneficiaries_female' => $femaleBeneficiaries,
                             ],
                         ]);
 
@@ -1067,12 +1101,8 @@ class ProjectController extends Controller
                                 'beneficiaries_total' =>
                                     $allocation['beneficiaries_total'] ?? null,
 
-                                /*
-                                 * Female beneficiaries are no longer collected per
-                                 * barangay — only the project-level total/female
-                                 * counts are encoded (see Beneficiaries & Wage).
-                                 */
-                                'beneficiaries_female' => null,
+                                'beneficiaries_female' =>
+                                    $allocation['beneficiaries_female'] ?? null,
                             ],
                         ];
                     })
@@ -1416,6 +1446,12 @@ class ProjectController extends Controller
             ],
 
             'project_locations.*.barangay_allocations.*.beneficiaries_total' => [
+                'nullable',
+                'integer',
+                'min:0',
+            ],
+
+            'project_locations.*.barangay_allocations.*.beneficiaries_female' => [
                 'nullable',
                 'integer',
                 'min:0',

@@ -61,6 +61,13 @@ class DashboardActionQueueService
                 'obligated_female' => ProjectObligation::query()
                     ->selectRaw('coalesce(sum(beneficiaries_female), 0)')
                     ->whereColumn('project_obligations.project_id', 'projects.id'),
+                // Beneficiary Mapping Source totals (null when nothing is mapped).
+                'mapped_beneficiaries' => \App\Models\ProjectBeneficiaryAddress::query()
+                    ->selectRaw('sum(beneficiaries_total)')
+                    ->whereColumn('project_beneficiary_addresses.project_id', 'projects.id'),
+                'mapped_female' => \App\Models\ProjectBeneficiaryAddress::query()
+                    ->selectRaw('sum(beneficiaries_female)')
+                    ->whereColumn('project_beneficiary_addresses.project_id', 'projects.id'),
                 'current_status_changed_at' => ProjectStatusHistory::query()
                     ->select('changed_at')
                     ->whereColumn('project_status_histories.project_id', 'projects.id')
@@ -207,8 +214,10 @@ class DashboardActionQueueService
                     $project->obligations_completed_at !== null
                     && $project->beneficiary_deductions_recorded_at === null
                     && (
-                        (int) $project->beneficiaries_total > (int) $project->obligated_beneficiaries
-                        || (int) $project->beneficiaries_female > (int) $project->obligated_female
+                        // Same rule as ProjectBeneficiaryDeductionService::shortfall():
+                        // the mapping (or declared count, if unmapped) exceeds the paid count.
+                        (int) ($project->mapped_beneficiaries ?? $project->beneficiaries_total) > (int) $project->obligated_beneficiaries
+                        || (int) ($project->mapped_beneficiaries !== null ? $project->mapped_female : $project->beneficiaries_female) > (int) $project->obligated_female
                     ),
                 'started_at_attribute' => 'obligations_completed_at',
                 'action_label' => 'Beneficiary Deduction',

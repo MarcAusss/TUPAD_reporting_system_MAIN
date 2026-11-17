@@ -313,8 +313,12 @@ class Project extends Model
 
     /**
      * Actual amount, once it is final:
-     * - Direct Administration: total of all obligation tranches after the Focal
-     *   completes them (this already excludes deducted beneficiaries);
+     * - Direct Administration: the wages on all obligation tranches after the
+     *   Focal completes them (already net of the beneficiaries not included),
+     *   plus the project's PPE and insurance. Tranches carry wages only: PPE
+     *   and insurance are settled at Preparation outside the system (proven
+     *   by their OR number / distribution date), so they count in full and
+     *   only the excluded beneficiaries' wages reduce the amount;
      * - Through ACP: the recorded ACP payment amount.
      * Null while it is not yet final.
      */
@@ -333,7 +337,10 @@ class Project extends Model
         $obligations = $this->relationLoaded('obligations') ? $this->obligations : $this->obligations()->get();
 
         // Sum in cents to avoid floating-point drift across tranches.
-        $cents = $obligations->sum(fn ($obligation): int => (int) round(((float) $obligation->amount) * 100));
+        $toCents = fn ($value): int => (int) round(((float) $value) * 100);
+        $cents = $obligations->sum(fn ($obligation): int => $toCents($obligation->wages_amount))
+            + $toCents($this->ppe_total)
+            + $toCents($this->insurance_total);
 
         return $cents / 100;
     }

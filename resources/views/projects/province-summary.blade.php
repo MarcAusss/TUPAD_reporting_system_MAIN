@@ -331,7 +331,7 @@
             <div>
                 <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-[#063b86]">Approved vs Actual</div>
                 <p class="mt-1 text-xs leading-5 text-slate-500">
-                    Approved = encoded when the project was created. Actual = the completed obligation tranches (net of beneficiaries not included) or the ACP payment.
+                    Approved = encoded when the project was created. Actual = the wages on the completed obligation tranches (net of beneficiaries not included) plus the PPE and insurance settled at Preparation, or the ACP payment.
                     Projects whose obligations are not yet final count at their approved values.
                 </p>
             </div>

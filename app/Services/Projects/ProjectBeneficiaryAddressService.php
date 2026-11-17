@@ -289,6 +289,24 @@ class ProjectBeneficiaryAddressService
                 ]);
             }
 
+            // The shortfall is measured against this mapping, so re-encoding it
+            // can change how much must be deducted (e.g. mapping only the 25
+            // paid beneficiaries of a declared 30 leaves nothing to deduct).
+            // Carried-over deductions that no longer add up to the new
+            // shortfall would double-count, so drop them; the TC re-records
+            // them if a shortfall remains.
+            $project->unsetRelation('beneficiaryAddresses');
+            $carried = ProjectBeneficiaryDeduction::query()->where('project_id', $project->id);
+            $shortfall = app(ProjectBeneficiaryDeductionService::class)->shortfall($project) ?? ['total' => 0, 'female' => 0];
+
+            if (
+                (int) (clone $carried)->sum('beneficiaries_deducted') !== $shortfall['total']
+                || (int) (clone $carried)->sum('female_deducted') !== $shortfall['female']
+            ) {
+                $carried->delete();
+                $deductionsIntact = false;
+            }
+
             // A deduction whose barangay was removed (or no longer fits) no
             // longer adds up to the shortfall, so the TC must record it again.
             if ((! $deductionsIntact || $previousDeductions->isNotEmpty()) && $project->beneficiary_deductions_recorded_at !== null) {

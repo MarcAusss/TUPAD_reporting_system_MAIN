@@ -688,9 +688,12 @@
                                 </label>
 
                                 <input id="beneficiariesFemale" name="beneficiaries_female" type="number"
-                                    min="0" value="{{ old('beneficiaries_female', 0) }}" required
-                                    class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
-                                <p id="femaleBeneficiaryLimit" class="mt-1 text-[11px] text-slate-500">Maximum: enter
+                                    min="0" value="{{ old('beneficiaries_female', 0) }}" readonly required
+                                    class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold">
+                                <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                    Automatically totaled from the barangay Female allocations encoded in Project Location.
+                                </p>
+                                <p id="femaleBeneficiaryLimit" class="hidden">Maximum: enter
                                     Total Beneficiaries first.</p>
 
                             </div>
@@ -1343,6 +1346,8 @@
                             row.dataset.barangayId, {
                                 total: row.querySelector('.barangay-beneficiaries-total')?.value ??
                                     '',
+                                female: row.querySelector('.barangay-beneficiaries-female')?.value ??
+                                    '',
                             }
                         );
                     });
@@ -1370,16 +1375,17 @@
                     const barangayId = String(checkbox.value);
                     const current = existingValues.get(barangayId) ?? {
                         total: '',
+                        female: '',
                     };
 
                     const row = document.createElement('div');
                     row.className =
-                        'barangay-allocation-row grid gap-2 rounded-lg border border-blue-100 bg-blue-50/50 p-3 sm:grid-cols-[minmax(0,1fr)_105px] sm:items-center';
+                        'barangay-allocation-row grid grid-cols-2 gap-2 rounded-lg border border-blue-100 bg-blue-50/50 p-3 sm:grid-cols-[minmax(0,1fr)_95px_95px] sm:items-center';
                     row.dataset.barangayId = barangayId;
                     row.dataset.barangayName = checkbox.dataset.name;
 
                     row.innerHTML = `
-                        <div class="min-w-0">
+                        <div class="col-span-2 min-w-0 sm:col-span-1">
                             <div class="truncate text-[11px] font-semibold text-blue-900">
                                 ${escapeHtml(checkbox.dataset.name)}
                             </div>
@@ -1401,6 +1407,22 @@
                                 value="${escapeHtml(current.total)}"
                                 data-barangay-id="${barangayId}"
                                 class="barangay-beneficiaries-total h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs"
+                            >
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                                Female
+                            </span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                required
+                                name="project_locations[${card.dataset.index}][barangay_allocations][${barangayId}][beneficiaries_female]"
+                                value="${escapeHtml(current.female)}"
+                                data-barangay-id="${barangayId}"
+                                class="barangay-beneficiaries-female h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs"
                             >
                         </label>
                     `;
@@ -1437,19 +1459,37 @@
                 );
 
                 let allocatedTotal = 0;
+                let allocatedFemale = 0;
                 let incomplete = false;
+                let femaleExceeds = false;
 
                 allocationRows.forEach(row => {
                     const totalInput = row.querySelector(
                         '.barangay-beneficiaries-total'
                     );
+                    const femaleInput = row.querySelector(
+                        '.barangay-beneficiaries-female'
+                    );
 
-                    if (totalInput?.value === '') {
-                        incomplete = true;
-                        return;
+                    const rowFemaleExceeds = totalInput?.value !== '' &&
+                        femaleInput?.value !== '' &&
+                        Number(femaleInput.value) > Number(totalInput.value);
+
+                    femaleInput?.setCustomValidity(
+                        rowFemaleExceeds ? 'Female cannot exceed this barangay\'s Total.' : ''
+                    );
+                    femaleInput?.classList.toggle('border-red-400', rowFemaleExceeds);
+
+                    if (rowFemaleExceeds) {
+                        femaleExceeds = true;
                     }
 
-                    allocatedTotal += Number(totalInput.value);
+                    if (totalInput?.value === '' || femaleInput?.value === '') {
+                        incomplete = true;
+                    }
+
+                    allocatedTotal += Number(totalInput?.value || 0);
+                    allocatedFemale += Number(femaleInput?.value || 0);
                 });
 
                 /*
@@ -1462,23 +1502,48 @@
                 const beneficiariesTotalInput =
                     document.getElementById('beneficiariesTotal');
 
+                const beneficiariesFemaleInput =
+                    document.getElementById('beneficiariesFemale');
+
+                let totalsChanged = false;
+
                 if (
                     beneficiariesTotalInput &&
                     beneficiariesTotalInput.value !== String(allocatedTotal)
                 ) {
                     beneficiariesTotalInput.value = String(allocatedTotal);
+                    totalsChanged = true;
+                }
+
+                if (
+                    beneficiariesFemaleInput &&
+                    beneficiariesFemaleInput.value !== String(allocatedFemale)
+                ) {
+                    beneficiariesFemaleInput.value = String(allocatedFemale);
+                    totalsChanged = true;
+                }
+
+                if (totalsChanged) {
                     calculate();
                 }
 
                 if (!locationAllocationStatus) {
-                    return allocationRows.length > 0 && !incomplete && allocatedTotal > 0;
+                    return allocationRows.length > 0 && !incomplete && !femaleExceeds && allocatedTotal > 0;
                 }
 
                 if (allocationRows.length === 0) {
                     locationAllocationStatus.className =
                         'mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
                     locationAllocationStatus.textContent =
-                        'Select barangays and encode their Total beneficiary allocation.';
+                        'Select barangays and encode their Total and Female beneficiary allocation.';
+                    return false;
+                }
+
+                if (femaleExceeds) {
+                    locationAllocationStatus.className =
+                        'mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-[11px] font-medium leading-5 text-red-700';
+                    locationAllocationStatus.textContent =
+                        'A barangay Female count cannot exceed that barangay\'s Total count.';
                     return false;
                 }
 
@@ -1486,7 +1551,7 @@
                     locationAllocationStatus.className =
                         'mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-[11px] font-medium leading-5 text-amber-800';
                     locationAllocationStatus.textContent =
-                        `Allocated so far: ${allocatedTotal.toLocaleString()} total. Complete every selected barangay's Total allocation.`;
+                        `Allocated so far: ${allocatedTotal.toLocaleString()} total, ${allocatedFemale.toLocaleString()} female. Complete every selected barangay's Total and Female allocation.`;
                     return false;
                 }
 
@@ -1501,7 +1566,7 @@
                 locationAllocationStatus.className =
                     'mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-[11px] font-semibold leading-5 text-emerald-700';
                 locationAllocationStatus.textContent =
-                    `Total Beneficiaries automatically set to ${allocatedTotal.toLocaleString()} from the barangay allocations.`;
+                    `Total Beneficiaries automatically set to ${allocatedTotal.toLocaleString()} (${allocatedFemale.toLocaleString()} female) from the barangay allocations.`;
 
                 return true;
             }
@@ -1540,6 +1605,10 @@
                                 name: input.dataset.name,
                                 total: allocationRow?.querySelector(
                                         '.barangay-beneficiaries-total'
+                                    )?.value ??
+                                    '',
+                                female: allocationRow?.querySelector(
+                                        '.barangay-beneficiaries-female'
                                     )?.value ??
                                     '',
                             };
@@ -1608,7 +1677,8 @@
                                                                     ${escapeHtml(barangay.name)}
                                                                 </span>
                                                                 <span class="shrink-0 font-semibold text-blue-800">
-                                                                    ${barangay.total === '' ? '—' : Number(barangay.total).toLocaleString()} total
+                                                                    ${barangay.total === '' ? '—' : Number(barangay.total).toLocaleString()} total ·
+                                                                    ${barangay.female === '' ? '—' : Number(barangay.female).toLocaleString()} female
                                                                 </span>
                                                             </div>
                                                         `

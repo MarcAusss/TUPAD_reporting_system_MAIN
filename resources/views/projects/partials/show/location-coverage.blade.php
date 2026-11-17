@@ -52,6 +52,11 @@
                                         {{ number_format((int) $barangay->pivot->beneficiaries_total) }}
                                     </span>
                                 @endif
+                                @if ($barangay->pivot?->beneficiaries_female !== null)
+                                    <span class="rounded bg-white px-1.5 text-[10px] font-bold text-pink-700 ring-1 ring-pink-100" title="Female beneficiaries">
+                                        {{ number_format((int) $barangay->pivot->beneficiaries_female) }} F
+                                    </span>
+                                @endif
                             </span>
                         @endforeach
                     </div>

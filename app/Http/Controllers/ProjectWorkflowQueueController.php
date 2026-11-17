@@ -448,8 +448,8 @@ class ProjectWorkflowQueueController extends Controller
                     ->whereNotNull('obligations_completed_at')
                     ->whereNull('beneficiary_deductions_recorded_at')
                     ->where(fn (Builder $shortfall): Builder => $shortfall
-                        ->whereRaw('projects.beneficiaries_total > (select coalesce(sum(project_obligations.beneficiaries_total), 0) from project_obligations where project_obligations.project_id = projects.id)')
-                        ->orWhereRaw('projects.beneficiaries_female > (select coalesce(sum(project_obligations.beneficiaries_female), 0) from project_obligations where project_obligations.project_id = projects.id)')),
+                        ->whereRaw(\App\Services\Projects\ProjectBeneficiaryDeductionService::shortfallSql('total'))
+                        ->orWhereRaw(\App\Services\Projects\ProjectBeneficiaryDeductionService::shortfallSql('female'))),
                 'empty' =>
                     'No projects are currently waiting for beneficiary deductions.',
             ],
