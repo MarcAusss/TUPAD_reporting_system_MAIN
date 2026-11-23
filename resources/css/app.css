@@ -1252,6 +1252,305 @@ main .tupad-per-adl-table td.tupad-table-action > button {
     100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0); }
 }
 
+/* ---------------------------------------------------------------------------
+   Dashboard cards (resources/views/dashboard/partials/focal-overview.blade.php)
+--------------------------------------------------------------------------- */
+.tupad-kpi {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    overflow: hidden;
+    border: 1px solid var(--tupad-line);
+    border-radius: 16px;
+    background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
+    padding: 16px 18px;
+    box-shadow: 0 1px 2px rgba(15, 35, 71, .04);
+    transition: box-shadow .2s, transform .2s, border-color .2s;
+}
+
+.tupad-kpi::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--tupad-blue), var(--tupad-navy));
+    opacity: 0;
+    transition: opacity .2s;
+}
+
+.tupad-kpi:hover {
+    border-color: #c9d7ea;
+    box-shadow: 0 8px 24px -12px rgba(6, 59, 134, .25);
+    transform: translateY(-1px);
+}
+
+.tupad-kpi:hover::after { opacity: 1; }
+
+.tupad-kpi-icon {
+    display: inline-flex;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--tupad-blue) 0%, var(--tupad-navy) 100%);
+    color: #fff;
+    box-shadow: 0 6px 14px -6px rgba(6, 59, 134, .55);
+}
+
+.tupad-kpi-icon svg { width: 21px; height: 21px; }
+
+.tupad-kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--tupad-muted);
+}
+
+.tupad-kpi-value {
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: #0f2347;
+    font-variant-numeric: tabular-nums;
+}
+
+.tupad-kpi-note {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--tupad-muted);
+}
+
+.tupad-panel {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--tupad-line);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 35, 71, .04);
+}
+
+.tupad-panel-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid #eef2f7;
+    padding: 16px 20px 14px;
+}
+
+.tupad-panel-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--tupad-blue);
+}
+
+.tupad-panel-title {
+    margin-top: 2px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    color: #0f2347;
+}
+
+.tupad-panel-link {
+    flex-shrink: 0;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tupad-blue);
+    transition: background-color .15s;
+}
+
+.tupad-panel-link:hover { background: var(--tupad-blue-soft); color: var(--tupad-navy); }
+.tupad-panel-link:focus-visible { outline: 2px solid var(--tupad-blue); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .tupad-kpi, .tupad-kpi:hover { transition: none; transform: none; }
+}
+
+/* Cursor tooltip for CSS charts (resources/js/chart-tooltips.js) */
+.tupad-chart-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    max-width: 260px;
+    pointer-events: none;
+    border-radius: 10px;
+    background: rgba(15, 35, 71, .95);
+    padding: 8px 11px;
+    color: #fff;
+    box-shadow: 0 10px 28px -10px rgba(15, 35, 71, .55);
+    backdrop-filter: blur(4px);
+}
+
+.tupad-chart-tooltip[hidden] { display: none; }
+
+.tupad-chart-tooltip-swatch {
+    width: 10px;
+    height: 10px;
+    margin-top: 3px;
+    flex-shrink: 0;
+    border-radius: 3px;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .7);
+}
+
+.tupad-chart-tooltip-swatch[hidden] { display: none; }
+
+.tupad-chart-tooltip-body { display: flex; flex-direction: column; }
+.tupad-chart-tooltip-label { font-size: 11px; font-weight: 600; color: #c7d6ee; }
+.tupad-chart-tooltip-value { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+[data-chart-tip] { cursor: default; }
+[data-chart-tip]:hover { filter: brightness(1.08); }
+
+/* ---------------------------------------------------------------------------
+   Form wizard (resources/js/form-wizard.js)
+--------------------------------------------------------------------------- */
+.tupad-wizard-steps {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    counter-reset: none;
+}
+
+.tupad-wizard-steps::-webkit-scrollbar { display: none; }
+
+.tupad-wizard-steps > li {
+    flex: 1 1 0;
+    min-width: max-content;
+}
+
+.tupad-wizard-step {
+    position: relative;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    border-radius: 10px;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--tupad-muted);
+    transition: background-color .15s, color .15s;
+}
+
+.tupad-wizard-step:not(:disabled):hover { background: #f1f5f9; color: var(--tupad-text); }
+.tupad-wizard-step:disabled { cursor: not-allowed; opacity: .55; }
+.tupad-wizard-step:focus-visible { outline: 2px solid var(--tupad-blue); outline-offset: 2px; }
+
+.tupad-wizard-step-marker {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--tupad-line-strong);
+    border-radius: 999px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.tupad-wizard-step-marker svg { width: 14px; height: 14px; }
+
+.tupad-wizard-step[data-state="current"] { background: var(--tupad-blue-soft); color: var(--tupad-navy); }
+.tupad-wizard-step[data-state="current"] .tupad-wizard-step-marker {
+    border-color: var(--tupad-navy);
+    background: var(--tupad-navy);
+    color: #fff;
+}
+
+.tupad-wizard-step[data-state="complete"] { color: var(--tupad-text); }
+.tupad-wizard-step[data-state="complete"] .tupad-wizard-step-marker {
+    border-color: var(--tupad-green);
+    background: var(--tupad-green);
+    color: #fff;
+}
+
+.tupad-wizard-step[data-state="visited"] .tupad-wizard-step-marker { border-color: var(--tupad-navy); color: var(--tupad-navy); }
+
+/* Narrow screens: numbers only, plus the current step's name. */
+@media (max-width: 767px) {
+    .tupad-wizard-steps > li { flex: 0 0 auto; min-width: 0; }
+    .tupad-wizard-step:not([data-state="current"]) .tupad-wizard-step-label { display: none; }
+    .tupad-wizard-step { padding: 6px; }
+}
+
+.tupad-wizard-review-block {
+    border: 1px solid var(--tupad-line);
+    border-radius: 12px;
+    background: #fff;
+    padding: 14px 16px;
+}
+
+.tupad-wizard-review-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.tupad-wizard-review-header h3 { font-size: 13px; font-weight: 700; color: var(--tupad-text); }
+
+.tupad-wizard-review-edit {
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tupad-blue);
+}
+
+.tupad-wizard-review-edit:hover { background: var(--tupad-blue-soft); }
+.tupad-wizard-review-edit:focus-visible { outline: 2px solid var(--tupad-blue); outline-offset: 2px; }
+
+.tupad-wizard-review-block dl {
+    display: grid;
+    grid-template-columns: minmax(120px, 38%) minmax(0, 1fr);
+    gap: 6px 16px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.tupad-wizard-review-block dt { color: var(--tupad-muted); }
+.tupad-wizard-review-block dd { font-weight: 600; color: var(--tupad-text); overflow-wrap: anywhere; }
+.tupad-wizard-review-block dd.is-empty { font-weight: 400; color: #94a3b8; }
+
+[data-wizard-step] h2[tabindex="-1"]:focus,
+[data-wizard-step] h3[tabindex="-1"]:focus,
+[data-wizard-step][tabindex="-1"]:focus { outline: none; }
+
+/* Modal wizard: header and footer stay put, the steps scroll. */
+.tupad-wizard-dialog[open] {
+    display: flex;
+    flex-direction: column;
+    max-height: min(92vh, 860px);
+}
+
+.tupad-wizard-dialog > form {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .tupad-dialog[open],
     .tupad-spinner,

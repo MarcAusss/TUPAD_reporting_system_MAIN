@@ -7,6 +7,7 @@ enum UserRole: string
     case ADMIN = 'admin';
     case TC = 'tc';
     case FOCAL = 'focal';
+    case GSIS = 'gsis';
     case RETIRED = 'retired';
 
     public function label(): string
@@ -15,6 +16,7 @@ enum UserRole: string
             self::ADMIN => 'Administrator',
             self::TC => 'TUPAD Coordinator',
             self::FOCAL => 'Focal',
+            self::GSIS => 'GSIS Enrollment Officer',
             self::RETIRED => 'Retired Account',
         };
     }
@@ -25,6 +27,7 @@ enum UserRole: string
             self::ADMIN => 'Admin',
             self::TC => 'TC',
             self::FOCAL => 'Focal',
+            self::GSIS => 'GSIS',
             self::RETIRED => 'Retired',
         };
     }
@@ -32,6 +35,6 @@ enum UserRole: string
     /** @return array<int,self> */
     public static function assignable(): array
     {
-        return [self::ADMIN, self::FOCAL, self::TC];
+        return [self::ADMIN, self::FOCAL, self::TC, self::GSIS];
     }
 }

@@ -30,6 +30,11 @@
     <span>Provincial Summary</span>
 </a>
 
+<a href="{{ route('gpai-status.index') }}" class="{{ $navClass(request()->routeIs('gpai-status.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+    <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+    <span>GPAI Enrollment Status</span>
+</a>
+
 <details class="group/workflow-nav" @if ($workflowOpen) open @endif>
     <summary class="{{ $navClass($workflowOpen) }} flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition marker:content-none [&::-webkit-details-marker]:hidden">
         <svg class="h-[19px] w-[19px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16H5z"></path><path d="M8 8h8 M8 12h8 M8 16h5"></path></svg>

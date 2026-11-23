@@ -30,6 +30,7 @@ use Tests\TestCase;
 class MajorRevisionPhase8ReportingDataLayerTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     private ReportingDataService $reports;
     private User $encoder;
@@ -583,6 +584,7 @@ class MajorRevisionPhase8ReportingDataLayerTest extends TestCase
             'beneficiaries_total' => $project->beneficiaries_total,
             'beneficiaries_female' => $project->beneficiaries_female,
             'amount' => $amount,
+            'wages_amount' => $amount,
             'obligation_date' => $date,
             'month' => substr($date, 0, 7),
             'payee' => 'TUPAD Beneficiaries',

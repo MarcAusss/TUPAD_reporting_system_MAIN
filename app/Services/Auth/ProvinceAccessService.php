@@ -251,7 +251,7 @@ class ProvinceAccessService
     }
 
 
-    private function assignedProvinceName(User $user): ?string
+    public function assignedProvinceName(User $user): ?string
     {
         $province = $this->coordinatorAssignments->resolve(
             $user,

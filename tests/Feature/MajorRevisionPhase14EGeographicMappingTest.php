@@ -24,6 +24,7 @@ use Tests\TestCase;
 class MajorRevisionPhase14EGeographicMappingTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     private User $admin;
     private Province $masbate;

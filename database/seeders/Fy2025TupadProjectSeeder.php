@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\ImplementationMode;
+use App\Enums\PpeType;
 use App\Enums\ProjectStatus;
 use App\Enums\ProjectTerm;
 use App\Enums\UserRole;
@@ -13,9 +14,9 @@ use App\Models\Municipality;
 use App\Models\Project;
 use App\Models\ProjectLocation;
 use App\Models\ProjectMonitoringDetail;
+use App\Models\ProjectPpeItem;
 use App\Models\Province;
 use App\Models\User;
-use App\Services\Auth\TemporaryPasswordGenerator;
 use App\Services\Projects\ProjectLocationCanonicalService;
 use Carbon\CarbonImmutable; 
 use Illuminate\Database\Seeder;
@@ -34,6 +35,9 @@ final class Fy2025TupadProjectSeeder extends Seeder
 
     private const SEED_BATCH = 'FY2025-TUPAD-SHEET-SAMPLE';
 
+    /** Every development account signs in with this password. */
+    private const DEVELOPMENT_PASSWORD = 'password';
+
     private const SEED_MARKER = '[FY2025-TUPAD-SHEET-SEED]';
 
     private const REQUIRED_PROVINCES = [
@@ -48,10 +52,15 @@ final class Fy2025TupadProjectSeeder extends Seeder
     /**
      * Toggle just the ADL/Project sample rows. Bicol reference data (provinces
      * /municipalities/barangays) and development user accounts still seed
-     * normally either way — set this back to true to restore the sample
+     * normally either way — set this to false to skip the sample
      * ADLs/projects.
+     *
+     * Every sample project starts at TSSD Evaluation with its insurance budget
+     * (insurance beneficiaries x rate) already set, so once it is approved
+     * (Direct Administration) or reaches For Implementation (Through ACP) it
+     * shows up for the GSIS Enrollment Officer to enroll to GPAI.
      */
-    private const SEED_ADLS_AND_PROJECTS = false;
+    private const SEED_ADLS_AND_PROJECTS = true;
 
     public function run(): void
     {
@@ -64,7 +73,9 @@ final class Fy2025TupadProjectSeeder extends Seeder
         $this->seedBicolReferenceData();
         $this->seedDevelopmentUsers();
 
-        if (! self::SEED_ADLS_AND_PROJECTS) {
+        // The toggle only applies to development seeding; the automated test
+        // suite always needs the sample ADLs/projects to verify this seeder.
+        if (! self::SEED_ADLS_AND_PROJECTS && ! app()->environment('testing')) {
             $this->command?->warn(
                 'ADL/Project sample seeding is temporarily disabled (Fy2025TupadProjectSeeder::SEED_ADLS_AND_PROJECTS = false). Bicol reference data and development users were still seeded.'
             );
@@ -238,22 +249,22 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'is_active' => true,
                 'assigned_province_id' => null,
                 'password' => $this->temporaryDevelopmentPassword('admin'),
-                'must_change_password' => true,
+                'must_change_password' => false,
                 'password_changed_at' => null,
             ],
         );
 
         $coordinatorDefinitions = [
             ['username' => 'Orlan', 'email' => 'orlan.albay@example.com', 'province_code' => '050500000'],
-            ['username' => 'Salvs', 'email' => 'salvs.albay@example.com', 'province_code' => '050500000'],
+            ['username' => 'Salvs', 'email' => 'salvs.catanduanes@example.com', 'province_code' => '052000000'],
             ['username' => 'Nics', 'email' => 'nics.albay@example.com', 'province_code' => '050500000'],
             ['username' => 'Tay', 'email' => 'tay.camarinesnorte@example.com', 'province_code' => '051600000'],
             ['username' => 'Camz', 'email' => 'camz.camarinessur@example.com', 'province_code' => '051700000'],
             ['username' => 'Jho', 'email' => 'jho.camarinessur@example.com', 'province_code' => '051700000'],
             ['username' => 'Klint', 'email' => 'klint.camarinessur@example.com', 'province_code' => '051700000'],
-            ['username' => 'Pau', 'email' => 'pau.catanduanes@example.com', 'province_code' => '052000000'],
             ['username' => 'Julz', 'email' => 'julz.masbate@example.com', 'province_code' => '054100000'],
             ['username' => 'Yhen', 'email' => 'yhen.sorsogon@example.com', 'province_code' => '056200000'],
+            ['username' => 'Jhunlee', 'email' => 'jhunlee.albay@example.com', 'province_code' => '050500000'],
         ];
 
         /*
@@ -279,7 +290,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'is_active' => true,
                 'assigned_province_id' => $provinces['050500000']->id,
                 'password' => $this->temporaryDevelopmentPassword('Orlan'),
-                'must_change_password' => true,
+                'must_change_password' => false,
                 'password_changed_at' => null,
             ])->save();
         }
@@ -305,7 +316,7 @@ final class Fy2025TupadProjectSeeder extends Seeder
                     'is_active' => true,
                         'assigned_province_id' => $province->id,
                     'password' => $this->temporaryDevelopmentPassword($definition['username']),
-                    'must_change_password' => true,
+                    'must_change_password' => false,
                     'password_changed_at' => null,
                 ],
             );
@@ -323,33 +334,62 @@ final class Fy2025TupadProjectSeeder extends Seeder
                 'is_active' => true,
                 'assigned_province_id' => null,
                 'password' => $this->temporaryDevelopmentPassword('focal'),
-                'must_change_password' => true,
+                'must_change_password' => false,
+                'password_changed_at' => null,
+            ],
+        );
+
+        // Pau: a TUPAD Coordinator given the Focal access level (Focal role,
+        // labelled "TUPAD Coordinator (Focal Access)"), with regional access.
+        User::query()->updateOrCreate(
+            ['username' => 'Pau'],
+            [
+                'name' => 'Pau',
+                'email' => 'pau.catanduanes@example.com',
+                'position' => 'TUPAD Coordinator',
+                'role' => UserRole::FOCAL,
+                'is_active' => true,
+                'assigned_province_id' => null,
+                'password' => $this->temporaryDevelopmentPassword('Pau'),
+                'must_change_password' => false,
+                'password_changed_at' => null,
+            ],
+        )->forceFill(['has_focal_access' => true])->save();
+
+        // Annie: GSIS Enrollment Officer, enrolls TUPAD projects to GSIS GPAI in bulk.
+        User::query()->updateOrCreate(
+            ['username' => 'Annie'],
+            [
+                'name' => 'Annie',
+                'email' => 'annie.gsis@example.com',
+                'position' => 'GSIS Enrollment Officer',
+                'role' => UserRole::GSIS,
+                'is_active' => true,
+                'assigned_province_id' => null,
+                'password' => $this->temporaryDevelopmentPassword('Annie'),
+                'must_change_password' => false,
                 'password_changed_at' => null,
             ],
         );
 
         $this->command?->info(
-            'Development users ready: admin, focal, and 10 province-scoped TUPAD Coordinator accounts.'
+            'Development users ready: admin, focal, Pau (TUPAD Coordinator with Focal access), Annie (GSIS Enrollment Officer), and 10 province-scoped TUPAD Coordinator accounts.'
         );
 
         if ($this->command && $this->temporaryDevelopmentCredentials !== []) {
-            $this->command->warn('One-time development credentials (copy now; each account must change its password at first sign-in):');
-            $this->command->table(
-                ['Username', 'Temporary Password'],
-                collect($this->temporaryDevelopmentCredentials)
-                    ->map(fn (string $password, string $username): array => [$username, $password])
-                    ->values()
-                    ->all(),
-            );
+            $this->command->warn('All development accounts sign in with the password "'.self::DEVELOPMENT_PASSWORD.'": '.implode(', ', array_keys($this->temporaryDevelopmentCredentials)).'.');
         }
     }
 
+    /**
+     * Development-only shared password. This seeder refuses to run in
+     * production, so real accounts never get it.
+     */
     private function temporaryDevelopmentPassword(string $username): string
     {
-        $password = app(TemporaryPasswordGenerator::class)->generate();
-        $this->temporaryDevelopmentCredentials[$username] = $password;
+        $this->temporaryDevelopmentCredentials[$username] = self::DEVELOPMENT_PASSWORD;
 
-        return $password;
+        return self::DEVELOPMENT_PASSWORD;
     }
 
     private function readGeoJson(string $path): array
@@ -679,6 +719,8 @@ final class Fy2025TupadProjectSeeder extends Seeder
             'updated_by' => $actor->id,
         ]);
 
+        $this->seedPpeItems($project, $row);
+
         // Make the automatically-created initial status history auditable to the seeder actor.
         $history = $project->statusHistory()
             ->whereNull('from_status')
@@ -719,6 +761,112 @@ final class Fy2025TupadProjectSeeder extends Seeder
             'monitoring_remarks' => $sourceTag,
             'updated_by' => $actor->id,
         ]);
+    }
+
+    /**
+     * PPE Requirements lines that add up exactly to the sheet's PPE total,
+     * priced from the official TUPAD PPE list the Create Project form
+     * auto-fills:
+     *
+     *   every beneficiary  TUPAD Shirt ₱280 (2 for Long-Term) + Bucket Hat ₱70   (Non-Hazardous)
+     *   hazardous work     Mask ₱80, Gloves ₱70, Rubber Boots ₱350              (Hazardous)
+     *
+     * The hazardous items cover as many beneficiaries as the remaining amount
+     * pays for (e.g. ₱850 per head = full hazardous set; ₱47,500 for 60 =
+     * 53 with hazardous items). Anything the price list cannot express is
+     * kept as one "Other PPE" line so the total still reconciles.
+     */
+    private function seedPpeItems(Project $project, array $row): void
+    {
+        $beneficiaries = (int) $row['beneficiaries_total'];
+        $totalCents = $this->moneyToCents($row['ppe_total']);
+
+        if ($totalCents <= 0 || $beneficiaries < 1) {
+            return;
+        }
+
+        $longTerm = ProjectTerm::fromDays((int) $row['number_of_days']) === ProjectTerm::LONG_TERM;
+        $lines = [];
+        $add = function (PpeType $type, string $product, int $count, int $unitCents, int $quantity = 1) use (&$lines): void {
+            if ($count > 0) {
+                $lines[] = compact('type', 'product', 'count', 'unitCents', 'quantity');
+            }
+        };
+
+        // Non-Hazardous base set for every beneficiary.
+        $add(PpeType::NON_HAZARDOUS, 'TUPAD Shirt', $beneficiaries, 28000, $longTerm ? 2 : 1);
+        $add(PpeType::NON_HAZARDOUS, 'Bucket Hat', $beneficiaries, 7000);
+        $remaining = $totalCents - $beneficiaries * (28000 * ($longTerm ? 2 : 1) + 7000);
+
+        if ($remaining < 0) {
+            // Below the base set: one Non-Hazardous line at the sheet's amount.
+            $lines = [];
+            $remaining = $totalCents;
+        } elseif ($remaining > 0 && ($hazardous = $this->hazardousPpeCounts($remaining, $beneficiaries)) !== null) {
+            [$masks, $gloves, $boots] = $hazardous;
+            $add(PpeType::HAZARDOUS, 'Mask', $masks, 8000);
+            $add(PpeType::HAZARDOUS, 'Gloves', $gloves, 7000);
+            $add(PpeType::HAZARDOUS, 'Rubber Boots', $boots, 35000);
+            $remaining = 0;
+        }
+
+        if ($remaining > 0) {
+            $add($lines === [] ? PpeType::NON_HAZARDOUS : PpeType::HAZARDOUS, 'Other PPE', 1, $remaining);
+        }
+
+        foreach ($lines as $line) {
+            ProjectPpeItem::query()->create([
+                'project_id' => $project->id,
+                'ppe_type' => $line['type'],
+                'product' => $line['product'],
+                'beneficiary_count' => $line['count'],
+                'quantity' => $line['quantity'],
+                'unit_amount' => $this->centsToMoney($line['unitCents']),
+                'total_amount' => $this->centsToMoney($line['count'] * $line['unitCents'] * $line['quantity']),
+            ]);
+        }
+
+        $seeded = array_sum(array_map(fn (array $line): int => $line['count'] * $line['unitCents'] * $line['quantity'], $lines));
+
+        if ($seeded !== $totalCents) {
+            throw new RuntimeException($this->rowLabel($row).' PPE items do not add up to the PPE total.');
+        }
+    }
+
+    /**
+     * How many Masks (₱80), Gloves (₱70) and Rubber Boots (₱350) — each at
+     * most one per beneficiary — make up the amount exactly, preferring whole
+     * hazardous sets. Null when the price list cannot make the amount.
+     *
+     * @return array{0: int, 1: int, 2: int}|null
+     */
+    private function hazardousPpeCounts(int $cents, int $beneficiaries): ?array
+    {
+        // Preferred bundles: full set, Mask + Gloves, Boots + Gloves, Boots only.
+        foreach ([[1, 1, 1], [1, 1, 0], [0, 1, 1], [0, 0, 1]] as [$mask, $glove, $boot]) {
+            $perHead = $mask * 8000 + $glove * 7000 + $boot * 35000;
+
+            if ($cents % $perHead === 0 && intdiv($cents, $perHead) <= $beneficiaries) {
+                $count = intdiv($cents, $perHead);
+
+                return [$mask * $count, $glove * $count, $boot * $count];
+            }
+        }
+
+        // Any mix, most boots first (fewest lines).
+        for ($boots = min($beneficiaries, intdiv($cents, 35000)); $boots >= 0; $boots--) {
+            $afterBoots = $cents - $boots * 35000;
+
+            for ($gloves = min($beneficiaries, intdiv($afterBoots, 7000)); $gloves >= 0; $gloves--) {
+                $afterGloves = $afterBoots - $gloves * 7000;
+
+                if ($afterGloves % 8000 === 0 && intdiv($afterGloves, 8000) <= $beneficiaries) {
+                    return [intdiv($afterGloves, 8000), $gloves, $boots];
+                }
+            }
+        }
+
+        return null;
     }
 
     private function projectRemarks(array $row): string

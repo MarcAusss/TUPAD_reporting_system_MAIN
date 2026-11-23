@@ -30,7 +30,7 @@
                                 {{ $replacement->reason }}
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 text-[10px] font-semibold">
+                        <div class="flex items-center gap-2 text-[11px] font-semibold">
                             <span class="text-slate-400">
                                 By {{ $replacement->performer?->name ?? 'System' }}
                             </span>
@@ -45,7 +45,7 @@
                         <div class="grid gap-4 md:grid-cols-2">
 
                             <div class="rounded-lg border border-slate-200 bg-white p-3">
-                                <div class="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                                <div class="text-[11px] font-bold uppercase tracking-wide text-amber-700">
                                     Original Beneficiaries
                                 </div>
                                 <ul class="mt-2 space-y-1 text-xs text-slate-700">
@@ -58,7 +58,7 @@
                             </div>
 
                             <div class="rounded-lg border border-slate-200 bg-white p-3">
-                                <div class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                <div class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
                                     Replacement Beneficiaries
                                 </div>
                                 <ul class="mt-2 space-y-1 text-xs text-slate-700">
@@ -74,7 +74,7 @@
 
                         @if ($replacement->hasAnyDetailChange())
                             <div class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
-                                <div class="text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                                <div class="text-[11px] font-bold uppercase tracking-wide text-blue-700">
                                     Updated Details
                                 </div>
                                 <ul class="mt-2 space-y-1 text-xs text-blue-900">

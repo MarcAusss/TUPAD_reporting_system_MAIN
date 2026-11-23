@@ -27,7 +27,13 @@ class Municipality extends Model
             'is_city' => 'boolean',
             'is_active' => 'boolean',
             'income_class_updated_at' => 'datetime',
+            'mayor_updated_at' => 'datetime',
         ];
+    }
+
+    public function mayorUpdatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'mayor_updated_by');
     }
 
     public function incomeClassUpdatedBy(): BelongsTo

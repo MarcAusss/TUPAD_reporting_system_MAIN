@@ -63,19 +63,79 @@ class FocalDashboardGeographicAnalyticsTest extends TestCase
         }
     }
 
-    public function test_focal_dashboard_uses_interactive_geographic_chart_instead_of_snapshot_metric_boxes(): void
+    public function test_focal_dashboard_shows_province_pies_instead_of_geographic_bar_analytics(): void
     {
-        $this->actingAs($this->focal)
+        $response = $this->actingAs($this->focal)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Geographic Report Analytics')
-            ->assertSee('Bicol Geographic Performance')
-            ->assertSee('data-dashboard-geographic-analytics', false)
-            ->assertSee('Projects')
-            ->assertSee('Beneficiaries')
-            ->assertSee('Sectors')
-            ->assertSee('Intervention Focus')
+            ->assertSee('Beneficiary Distribution')
+            ->assertSee('data-beneficiary-distribution', false)
+            ->assertSee('data-bd-pie', false)
+            ->assertDontSee('Bicol Geographic Performance')
+            ->assertDontSee('data-dashboard-geographic-analytics', false)
             ->assertDontSee('Program Snapshot');
+
+        $provinces = collect($response->viewData('beneficiaryDistribution')['provinces']);
+
+        $this->assertCount(6, $provinces);
+        $this->assertSame('#1d4ed8', $provinces->firstWhere('name', 'Albay')['color']);
+    }
+
+    public function test_focal_beneficiary_distribution_drills_from_district_to_barangay(): void
+    {
+        $albay = $this->references['050500000'];
+        $project = $this->project($albay['province']);
+        $albay['municipality']->forceFill(['district' => '1st District'])->save();
+
+        \App\Models\ProjectBeneficiaryAddress::query()->create([
+            'project_id' => $project->id,
+            'province_id' => $albay['province']->id,
+            'municipality_id' => $albay['municipality']->id,
+            'barangay_id' => $albay['barangay']->id,
+            'beneficiaries_total' => 20,
+            'beneficiaries_female' => 12,
+            'encoded_by' => $this->focal->id,
+            'updated_by' => $this->focal->id,
+        ]);
+
+        $distribution = app(\App\Services\Dashboards\DashboardBeneficiaryDistributionService::class)->build();
+        $province = collect($distribution['provinces'])->firstWhere('name', 'Albay');
+
+        $this->assertSame(20, $province['total']);
+        $this->assertSame('1st District', $province['districts'][0]['name']);
+        $this->assertSame(20, $province['districts'][0]['total']);
+        $this->assertSame(20, collect($province['municipalities'])->firstWhere('id', $albay['municipality']->id)['total']);
+
+        $this->actingAs($this->focal)
+            ->getJson(route('dashboard.beneficiary-distribution.barangays', ['municipality_id' => $albay['municipality']->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 20)
+            ->assertJsonPath('female', 12)
+            ->assertJsonPath('municipality.district', '1st District');
+
+        $tc = User::factory()->create(['role' => \App\Enums\UserRole::TC, 'is_active' => true, 'assigned_province_id' => $albay['province']->id]);
+
+        // A TUPAD Coordinator drills into their own province only.
+        $this->actingAs($tc)
+            ->getJson(route('dashboard.beneficiary-distribution.barangays', ['municipality_id' => $albay['municipality']->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 20);
+
+        // The project distribution drills down the same way, with the same access.
+        $this->actingAs($tc)
+            ->getJson(route('dashboard.project-distribution.barangays', ['municipality_id' => $albay['municipality']->id]))
+            ->assertOk()
+            ->assertJsonPath('municipality.id', $albay['municipality']->id);
+
+        $otherProvince = collect($this->references)->first(fn (array $reference): bool => $reference['province']->id !== $albay['province']->id);
+        $otherTc = User::factory()->create(['role' => \App\Enums\UserRole::TC, 'is_active' => true, 'assigned_province_id' => $otherProvince['province']->id]);
+
+        $this->actingAs($otherTc)
+            ->getJson(route('dashboard.beneficiary-distribution.barangays', ['municipality_id' => $albay['municipality']->id]))
+            ->assertForbidden();
+        $this->actingAs($otherTc)
+            ->getJson(route('dashboard.project-distribution.barangays', ['municipality_id' => $albay['municipality']->id]))
+            ->assertForbidden();
     }
 
     public function test_focal_chart_drills_from_bicol_provinces_to_municipalities_and_barangays(): void

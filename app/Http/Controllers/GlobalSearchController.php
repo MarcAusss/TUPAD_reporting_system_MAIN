@@ -8,6 +8,7 @@ use App\Models\Adl;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Gsis\GsisSearchService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,9 +17,14 @@ use Illuminate\View\View;
 
 class GlobalSearchController extends Controller
 {
-    public function index(Request $request, ProvinceAccessService $provinceAccess): View
+    public function index(Request $request, ProvinceAccessService $provinceAccess, GsisSearchService $gsisSearch): View
     {
         $query = trim((string) $request->query('q', ''));
+
+        // The GSIS Enrollment Officer searches enrollment records instead.
+        if ($request->user()->isGsis()) {
+            return view('search.gsis', ['query' => $query, 'results' => $gsisSearch->search($query, 20)]);
+        }
         $user = $request->user();
 
         /** @var Collection<int, Project> $projects */
@@ -41,9 +47,13 @@ class GlobalSearchController extends Controller
     /**
      * Live suggestions for the top-bar search box.
      */
-    public function suggest(Request $request, ProvinceAccessService $provinceAccess): JsonResponse
+    public function suggest(Request $request, ProvinceAccessService $provinceAccess, GsisSearchService $gsisSearch): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
+
+        if ($request->user()->isGsis()) {
+            return response()->json($gsisSearch->search($query) + ['adls' => [], 'more_url' => route('search.index', ['q' => $query])]);
+        }
         $user = $request->user();
 
         if (mb_strlen($query) < 2) {

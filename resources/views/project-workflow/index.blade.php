@@ -74,7 +74,7 @@
             </div>
 
             <button type="submit"
-                class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
+                class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 Search
             </button>
 
@@ -152,7 +152,7 @@
 
                 </div>
 
-                <div class="mt-3 border-t border-amber-300 pt-2 text-[10px] italic leading-4 text-slate-500">
+                <div class="mt-3 border-t border-amber-300 pt-2 text-[11px] italic leading-4 text-slate-500">
                     No work period, preparation incomplete, or today is before Start Date.
                 </div>
             </div>
@@ -176,7 +176,7 @@
 
                 </div>
 
-                <div class="mt-3 border-t border-blue-300 pt-2 text-[10px] italic leading-4 text-slate-500">
+                <div class="mt-3 border-t border-blue-300 pt-2 text-[11px] italic leading-4 text-slate-500">
                     Start Date ≤ today &lt; End Date.
                 </div>
             </div>
@@ -200,7 +200,7 @@
 
                 </div>
 
-                <div class="mt-3 border-t border-emerald-300 pt-2 text-[10px] italic leading-4 text-slate-500">
+                <div class="mt-3 border-t border-emerald-300 pt-2 text-[11px] italic leading-4 text-slate-500">
                     Today is on or after the End Date.
                 </div>
             </div>
@@ -306,7 +306,7 @@
                                 </div>
 
                                 <span
-                                    class="inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[10px] font-bold {{ $columnMeta['count_bg'] }}">
+                                    class="inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[11px] font-bold {{ $columnMeta['count_bg'] }}">
                                     {{ $column['projects']->count() }}
                                 </span>
 
@@ -334,7 +334,7 @@
 
                                         <div class="mb-3">
                                             <span
-                                                class="inline-flex rounded-md px-2 py-1 text-[9px] font-bold uppercase tracking-wide {{ $columnMeta['status_badge'] }}">
+                                                class="inline-flex rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-wide {{ $columnMeta['status_badge'] }}">
                                                 {{ $statusLabel }}
                                             </span>
                                         </div>
@@ -378,7 +378,7 @@
                                                         Work Period:
                                                     </dt>
 
-                                                    <dd class="text-[10px] leading-4 text-slate-500">
+                                                    <dd class="text-[11px] leading-4 text-slate-500">
                                                         {{ $implementation->start_date?->format('M d, Y') }}
                                                         –
                                                         {{ $implementation->end_date?->format('M d, Y') }}
@@ -391,18 +391,18 @@
                                         <div class="mt-3 grid grid-cols-2 gap-2">
 
                                             <a href="{{ route('projects.show', $project) }}"
-                                                class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">
+                                                class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
                                                 View
                                             </a>
 
                                             @if (!$implementation && $project->status === \App\Enums\ProjectStatus::APPROVED)
                                                 <a href="{{ route('projects.show', $project) }}#implementation"
-                                                    class="inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-semibold {{ $columnMeta['primary_button'] }}">
+                                                    class="inline-flex h-8 items-center justify-center rounded-md px-2 text-[11px] font-semibold {{ $columnMeta['primary_button'] }}">
                                                     Complete Requirements
                                                 </a>
                                             @elseif(!$implementation && $project->status === \App\Enums\ProjectStatus::FOR_IMPLEMENTATION)
                                                 <button type="button"
-                                                    class="js-open-work-period-modal inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-semibold {{ $columnMeta['primary_button'] }}"
+                                                    class="js-open-work-period-modal inline-flex h-8 items-center justify-center rounded-md px-2 text-[11px] font-semibold {{ $columnMeta['primary_button'] }}"
                                                     data-project-title="{{ $project->project_title }}"
                                                     data-project-code="{{ $project->approval?->project_code ?: 'No project code yet' }}"
                                                     data-duration="{{ (int) $project->number_of_days }}"
@@ -411,12 +411,12 @@
                                                 </button>
                                             @elseif($project->implementation_board_stage === \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS->value)
                                                 <a href="{{ route('projects.show', $project) }}#post-documents"
-                                                    class="inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-semibold {{ $columnMeta['primary_button'] }}">
+                                                    class="inline-flex h-8 items-center justify-center rounded-md px-2 text-[11px] font-semibold {{ $columnMeta['primary_button'] }}">
                                                     Submit Post Documents
                                                 </a>
                                             @else
                                                 <a href="{{ route('projects.show', $project) }}#implementation"
-                                                    class="inline-flex h-8 items-center justify-center rounded-md px-2 text-[10px] font-semibold {{ $columnMeta['primary_button'] }}">
+                                                    class="inline-flex h-8 items-center justify-center rounded-md px-2 text-[11px] font-semibold {{ $columnMeta['primary_button'] }}">
                                                     Open
                                                 </a>
                                             @endif
@@ -478,7 +478,7 @@
                             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                                 <div class="grid gap-4 sm:grid-cols-2">
                                     <div>
-                                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                                        <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                                             Project
                                         </div>
 
@@ -493,7 +493,7 @@
                                     </div>
 
                                     <div>
-                                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                                        <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                                             Approved Duration
                                         </div>
 
@@ -503,7 +503,7 @@
                                             </span>
 
                                             <span
-                                                class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                                                class="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
                                                 Locked
                                             </span>
                                         </div>
@@ -684,7 +684,7 @@
                                             day(s)
                                         </div>
 
-                                        <div class="mt-1 text-[10px] text-slate-400">
+                                        <div class="mt-1 text-[11px] text-slate-400">
                                             Since TSSD finding
                                         </div>
                                     </td>
@@ -694,17 +694,17 @@
 
                                     @if ($queue === 'beneficiary-deduction')
                                         <a href="{{ route('projects.show', ['project' => $project, 'workspace' => 'overview']) }}#section-beneficiary-deduction-{{ $project->id }}"
-                                            class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800">
+                                            class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-3 text-xs font-semibold text-white hover:bg-[#052f6d]">
                                             Record Deduction
                                         </a>
                                     @elseif ($queue === 'release-of-assistance')
                                         <a href="{{ route('projects.show', ['project' => $project, 'workspace' => 'workflow']) }}#release-of-assistance"
-                                            class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800">
+                                            class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-3 text-xs font-semibold text-white hover:bg-[#052f6d]">
                                             Record Release
                                         </a>
                                     @else
                                         <a href="{{ route('projects.show', $project) }}"
-                                            class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800">
+                                            class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-3 text-xs font-semibold text-white hover:bg-[#052f6d]">
                                             Open Project
                                         </a>
                                     @endif

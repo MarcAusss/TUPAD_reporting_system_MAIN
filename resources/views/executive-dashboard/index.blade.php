@@ -52,7 +52,7 @@
         description="A concise regional view of program delivery, financial position, and geographic performance.">
         <x-slot:actions>
             <a href="{{ route('executive-dashboard.presentation', $query) }}"
-                class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 Presentation Mode
             </a>
             <a href="{{ route('reports.index', $query) }}"
@@ -65,15 +65,15 @@
     <details data-executive-scope-panel class="group tupad-card mb-5 overflow-hidden">
         <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
             <div class="min-w-0">
-                <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Dashboard Scope</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Dashboard Scope</div>
                 <div class="mt-1 flex flex-wrap items-center gap-2">
                     <h2 class="text-sm font-bold text-slate-900">Focus the executive view</h2>
                     @if (count($dashboard['active_filters']) > 0)
-                        <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-800">
+                        <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800">
                             {{ count($dashboard['active_filters']) }} active
                         </span>
                     @else
-                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
+                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
                             Regional view
                         </span>
                     @endif
@@ -82,7 +82,7 @@
             </div>
 
             <div class="flex shrink-0 items-center gap-3">
-                <span class="hidden text-right text-[10px] leading-4 text-slate-400 sm:block">
+                <span class="hidden text-right text-[11px] leading-4 text-slate-400 sm:block">
                     Generated {{ $dashboard['generated_at']->format('M d, Y g:i A') }}<br>
                     Asia/Manila
                 </span>
@@ -118,7 +118,7 @@
                             </button>
                         @endforeach
                     </div>
-                    <p class="mt-1.5 text-[10px] leading-4 text-slate-400">Choose a fiscal year before selecting a quarter.</p>
+                    <p class="mt-1.5 text-[11px] leading-4 text-slate-400">Choose a fiscal year before selecting a quarter.</p>
                 </div>
 
                 <label class="xl:col-span-3 text-xs font-semibold text-slate-700">
@@ -170,7 +170,7 @@
                         <svg class="h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"></path></svg>
                         More Filters
                         @if ($advancedFilterCount > 0)
-                            <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">{{ $advancedFilterCount }} active</span>
+                            <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-800">{{ $advancedFilterCount }} active</span>
                         @endif
                     </span>
                     <svg class="h-4 w-4 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"></path></svg>
@@ -345,7 +345,7 @@
     <section aria-labelledby="executive-snapshot-heading">
         <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Executive Snapshot</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Executive Snapshot</div>
                 <h2 id="executive-snapshot-heading" class="mt-1 text-base font-bold text-slate-900">Regional performance at a glance</h2>
             </div>
             <span class="text-[11px] text-slate-500">Project period basis: projects.date_received</span>
@@ -355,22 +355,22 @@
             <article class="tupad-card p-5" data-testid="executive-kpi-total-projects">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Total Projects</div>
+                        <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Total Projects</div>
                         <div class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($kpi['total_projects']) }}</div>
                     </div>
-                    <span class="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-800">{{ number_format($kpi['completed_projects']) }} completed</span>
+                    <span class="rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800">{{ number_format($kpi['completed_projects']) }} completed</span>
                 </div>
                 <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
                     <div class="h-full rounded-full bg-[#0f3b72]" style="width: {{ min(100, $completionRate) }}%"></div>
                 </div>
-                <div class="mt-2 flex justify-between text-[10px] text-slate-500">
+                <div class="mt-2 flex justify-between text-[11px] text-slate-500">
                     <span>Completion</span>
                     <span>{{ $percent($completionRate) }}</span>
                 </div>
             </article>
 
             <article class="tupad-card p-5" data-testid="executive-kpi-beneficiaries">
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Beneficiaries</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Beneficiaries</div>
                 <div class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($kpi['beneficiaries_total']) }}</div>
                 <div class="mt-3 flex items-center justify-between gap-3 text-xs">
                     <span class="text-slate-500">Female beneficiaries</span>
@@ -379,11 +379,11 @@
                 <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                     <div class="h-full rounded-full bg-blue-600" style="width: {{ min(100, $femaleShare) }}%"></div>
                 </div>
-                <div class="mt-2 text-right text-[10px] text-slate-500">{{ $percent($femaleShare) }} female share</div>
+                <div class="mt-2 text-right text-[11px] text-slate-500">{{ $percent($femaleShare) }} female share</div>
             </article>
 
             <article class="tupad-card p-5" data-testid="executive-kpi-physical-percent">
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Physical Accomplishment</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Physical Accomplishment</div>
                 <div class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{{ $percent($kpi['physical_accomplishment_percent']) }}</div>
                 <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
                     <div class="h-full rounded-full bg-[#0f3b72]" style="width: {{ min(100, (float) ($kpi['physical_accomplishment_percent'] ?? 0)) }}%"></div>
@@ -392,7 +392,7 @@
             </article>
 
             <article class="tupad-card p-5" data-testid="executive-kpi-financial-percent">
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Financial Accomplishment</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Financial Accomplishment</div>
                 <div class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
                     {{ $kpi['financial_accomplishment_percent'] === null ? 'Not available' : $percent($kpi['financial_accomplishment_percent']) }}
                 </div>
@@ -410,10 +410,10 @@
         <div class="border-b border-slate-200 px-5 py-4">
             <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Operational Pulse</div>
+                    <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Operational Pulse</div>
                     <h2 id="executive-pulse-heading" class="mt-1 text-sm font-bold text-slate-900">Items that need executive attention</h2>
                 </div>
-                <span class="text-[10px] text-slate-400">Compact status summary</span>
+                <span class="text-[11px] text-slate-400">Compact status summary</span>
             </div>
         </div>
 
@@ -427,7 +427,7 @@
                 ['Partial Liquidation', $kpi['partially_liquidated'], 'executive-kpi-partial-liquidation'],
             ] as [$label, $value, $testId])
                 <div class="px-4 py-4" data-testid="{{ $testId }}">
-                    <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">{{ $label }}</div>
+                    <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $label }}</div>
                     <div class="mt-1 text-xl font-extrabold text-slate-900">{{ number_format($value) }}</div>
                 </div>
             @endforeach
@@ -437,7 +437,7 @@
     <div class="mt-5 grid gap-5 xl:grid-cols-[1.05fr_.95fr]">
         <section class="tupad-card p-5">
             <div class="mb-5">
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Program Position</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Program Position</div>
                 <h2 class="mt-1 text-sm font-bold text-slate-900">Projects by Status</h2>
                 <p class="mt-1 text-xs text-slate-500">Current position from the consolidated project status engine.</p>
             </div>
@@ -459,11 +459,11 @@
         <section class="tupad-card p-5">
             <div class="mb-5 flex items-start justify-between gap-4">
                 <div>
-                    <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Fund Position</div>
+                    <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Fund Position</div>
                     <h2 class="mt-1 text-sm font-bold text-slate-900">Allocation and utilization</h2>
                     <p class="mt-1 text-xs text-slate-500">High-level financial position only. Detailed DA/ACP values are available below.</p>
                 </div>
-                <span class="text-right text-[10px] text-slate-400">Read-only</span>
+                <span class="text-right text-[11px] text-slate-400">Read-only</span>
             </div>
 
             @if ($dashboard['financial_position'])
@@ -490,8 +490,8 @@
                     @php $comparison = $dashboard['approved_vs_actual']; @endphp
                     <div class="rounded-lg bg-slate-50 p-3 sm:col-span-2" data-testid="executive-kpi-project-cost" data-executive-approved-actual>
                         <div class="flex items-center justify-between gap-2">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400" title="Actual = completed obligation tranches (net of beneficiaries not included) or the ACP payment; approved values until final">Approved vs Actual</div>
-                            <div class="text-[10px] font-semibold text-slate-500">{{ number_format($comparison['final_project_count']) }} of {{ number_format($comparison['project_count']) }} projects final</div>
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500" title="Actual = completed obligation tranches (net of beneficiaries not included) or the ACP payment; approved values until final">Approved vs Actual</div>
+                            <div class="text-[11px] font-semibold text-slate-500">{{ number_format($comparison['final_project_count']) }} of {{ number_format($comparison['project_count']) }} projects final</div>
                         </div>
                         <div class="mt-2 grid gap-2 sm:grid-cols-3">
                             @foreach ([
@@ -500,7 +500,7 @@
                                 ['Project Amount', $comparison['approved_amount_cents'], $comparison['actual_amount_cents'], true],
                             ] as [$label, $approved, $actual, $isMoney])
                                 <div class="rounded-md border border-slate-200 bg-white px-2.5 py-2">
-                                    <div class="text-[10px] font-semibold text-slate-500">{{ $label }}</div>
+                                    <div class="text-[11px] font-semibold text-slate-500">{{ $label }}</div>
                                     @if ($approved === null || $actual === null)
                                         <div class="mt-0.5 text-[11px] text-slate-400">Not available</div>
                                     @else
@@ -512,7 +512,7 @@
                         </div>
                     </div>
                     <div class="rounded-lg bg-slate-50 p-3 sm:col-span-2">
-                        <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Financial Basis</div>
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Financial Basis</div>
                         <div class="mt-1 text-[11px] leading-5 text-slate-600">Allocation less disbursement; ACP liquidation remains separately tracked.</div>
                     </div>
                 </div>
@@ -531,7 +531,7 @@
                             ['ACP Liquidation Progress', $kpi['acp_liquidation_percent'] === null ? 'Not available' : $percent($kpi['acp_liquidation_percent'])],
                         ] as [$label, $value])
                             <div class="rounded-lg border border-slate-200 bg-white p-3">
-                                <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">{{ $label }}</div>
+                                <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $label }}</div>
                                 <div class="mt-1 text-sm font-extrabold text-slate-900">{{ is_int($value) ? $money($value) : $value }}</div>
                             </div>
                         @endforeach
@@ -548,7 +548,7 @@
     <div class="mt-5 grid gap-5 xl:grid-cols-2">
         <section class="tupad-card p-5">
             <div class="mb-5">
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Delivery Trend</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Delivery Trend</div>
                 <h2 class="mt-1 text-sm font-bold text-slate-900">Physical Accomplishment by {{ $dashboard['physical_trend_dimension']->label() }}</h2>
                 <p class="mt-1 text-xs text-slate-500">Project counts for the selected reporting period.</p>
             </div>
@@ -571,7 +571,7 @@
 
         <section class="tupad-card p-5" data-testid="executive-geography">
             <div class="mb-5">
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Geographic Delivery</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Geographic Delivery</div>
                 <h2 class="mt-1 text-sm font-bold text-slate-900">Beneficiaries by Province</h2>
                 <p class="mt-1 text-xs text-slate-500">{{ $dashboard['geography_note'] }}</p>
             </div>
@@ -600,7 +600,7 @@
                     <p class="text-sm text-slate-500">No exact geographic beneficiary allocations match the selected filters.</p>
                 @endforelse
             </div>
-            <div class="mt-4 flex items-center gap-4 border-t border-slate-100 pt-3 text-[10px] text-slate-500">
+            <div class="mt-4 flex items-center gap-4 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
                 <span class="font-semibold text-slate-700">Total</span>
                 <span>Female shown as the thinner secondary bar</span>
             </div>
@@ -609,7 +609,7 @@
 
     <section class="tupad-card mt-5 overflow-hidden">
         <div class="border-b border-slate-200 px-5 py-4">
-            <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Project Mix</div>
+            <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Project Mix</div>
             <h2 class="mt-1 text-sm font-bold text-slate-900">Term and implementation mode</h2>
         </div>
         <div class="grid divide-y divide-slate-100 md:grid-cols-2 md:divide-x md:divide-y-0">
@@ -618,9 +618,9 @@
                 <div class="grid gap-3 sm:grid-cols-2">
                     @foreach ($dashboard['projects_by_term'] as $row)
                         <div class="rounded-lg bg-slate-50 p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">{{ $row['label'] }}</div>
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $row['label'] }}</div>
                             <div class="mt-1 text-xl font-extrabold text-slate-900">{{ number_format($row['project_count']) }}</div>
-                            <div class="mt-1 text-[10px] text-slate-500">{{ number_format($row['beneficiaries_total']) }} beneficiaries</div>
+                            <div class="mt-1 text-[11px] text-slate-500">{{ number_format($row['beneficiaries_total']) }} beneficiaries</div>
                         </div>
                     @endforeach
                 </div>
@@ -630,9 +630,9 @@
                 <div class="grid gap-3 sm:grid-cols-2">
                     @foreach ($dashboard['projects_by_implementation_mode'] as $row)
                         <div class="rounded-lg bg-slate-50 p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">{{ $row['label'] }}</div>
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $row['label'] }}</div>
                             <div class="mt-1 text-xl font-extrabold text-slate-900">{{ number_format($row['project_count']) }}</div>
-                            <div class="mt-1 text-[10px] text-slate-500">{{ number_format($row['beneficiaries_total']) }} beneficiaries</div>
+                            <div class="mt-1 text-[11px] text-slate-500">{{ number_format($row['beneficiaries_total']) }} beneficiaries</div>
                         </div>
                     @endforeach
                 </div>
@@ -643,7 +643,7 @@
     <details data-executive-analytics class="tupad-card mt-5 overflow-hidden">
         <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
             <div>
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Detailed Program Analytics</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Detailed Program Analytics</div>
                 <h2 class="mt-1 text-sm font-bold text-slate-900">Sectors, intervention focus, and labor market referrals</h2>
                 <p class="mt-1 text-xs text-slate-500">Collapsed by default to keep the executive view concise.</p>
             </div>
@@ -706,15 +706,15 @@
 
                 <div class="mb-5 grid gap-3 sm:grid-cols-3">
                     <div class="rounded-lg bg-slate-50 p-3">
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Interested / Referred</div>
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Interested / Referred</div>
                         <div class="mt-1 text-xl font-extrabold text-slate-900">{{ number_format($dashboard['labor_market_overall']['interested_referred_total']) }}</div>
                     </div>
                     <div class="rounded-lg bg-slate-50 p-3">
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Provided Intervention</div>
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Provided Intervention</div>
                         <div class="mt-1 text-xl font-extrabold text-slate-900">{{ number_format($dashboard['labor_market_overall']['provided_intervention_total']) }}</div>
                     </div>
                     <div class="rounded-lg bg-slate-50 p-3">
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount Released</div>
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Amount Released</div>
                         <div class="mt-1 text-xl font-extrabold text-slate-900">{{ $money((int) $dashboard['labor_market_overall']['amount_released_cents']) }}</div>
                     </div>
                 </div>

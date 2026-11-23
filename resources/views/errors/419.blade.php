@@ -7,7 +7,7 @@
         <h1 class="mt-5 text-2xl font-bold tracking-tight text-slate-900">Session Expired</h1>
         <p class="mt-2 text-sm leading-6 text-slate-500">Your session or form token has expired. Reload the page before submitting the form again.</p>
         <div class="mt-6 flex flex-wrap justify-center gap-3">
-            <button type="button" onclick="window.location.reload()" class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">Reload Page</button>
+            <button type="button" onclick="window.location.reload()" class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">Reload Page</button>
             @auth
                 <a href="{{ route('dashboard') }}" class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">Dashboard</a>
             @else

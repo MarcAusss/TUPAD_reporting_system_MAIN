@@ -8,8 +8,14 @@ use App\Models\AdlAllocation;
 use App\Models\AuditLog;
 use App\Models\Project;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Dashboards\AdlUtilizationService;
 use App\Services\Dashboards\DashboardActionQueueService;
-use App\Services\Dashboards\DashboardGeographicAnalyticsService;
+use App\Services\Dashboards\DashboardBeneficiaryDistributionService;
+use App\Services\Dashboards\DashboardProjectDistributionService;
+use App\Services\Dashboards\DashboardFilters;
+use App\Services\Dashboards\DashboardReportChartsService;
+use App\Services\Dashboards\FocalDashboardOverviewService;
+use App\Services\Dashboards\RecentProjectsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,21 +26,40 @@ class DashboardController extends Controller
         Request $request,
         ProvinceAccessService $provinceAccess,
         DashboardActionQueueService $actionQueues,
-        DashboardGeographicAnalyticsService $geographicAnalytics,
+        AdlUtilizationService $adlUtilization,
+        DashboardBeneficiaryDistributionService $beneficiaryDistribution,
     ): View
     {
         $user = $request->user();
-        return $this->officialDashboard($user, $provinceAccess, $actionQueues, $geographicAnalytics);
+
+        // The GSIS Enrollment Officer has its own GPAI enrollment dashboard.
+        if ($user->isGsis()) {
+            return app(GsisEnrollmentController::class)->dashboard($request);
+        }
+
+        return $this->officialDashboard($request, $user, $provinceAccess, $actionQueues, $adlUtilization, $beneficiaryDistribution);
     }
 
     private function officialDashboard(
+        Request $request,
         $user,
         ProvinceAccessService $provinceAccess,
         DashboardActionQueueService $actionQueues,
-        DashboardGeographicAnalyticsService $geographicAnalytics,
+        AdlUtilizationService $adlUtilization,
+        DashboardBeneficiaryDistributionService $beneficiaryDistribution,
     ): View
     {
+        $isFocal = $user->isFocal();
         $projects = $this->projectQuery($user, $provinceAccess);
+
+        // Focal dashboard filters (year, quarter, month, province, municipality,
+        // sponsor, partner, ADL, status); each one defaults to "All".
+        // TUPAD Coordinators get the same filters with their province locked.
+        $focalFilters = match (true) {
+            $isFocal => DashboardFilters::fromRequest($request),
+            $user->isTc() => DashboardFilters::fromRequest($request, $provinceAccess->assignedProvinceId($user) ?? 0),
+            default => null,
+        };
 
         $totalProjects =
             (clone $projects)->count();
@@ -134,16 +159,9 @@ class DashboardController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $recentProjects =
-            $this->projectQuery($user, $provinceAccess)
-                ->withStatusEnteredAt()
-                ->with([
-                    'approval',
-                    'allocation.adl',
-                ])
-                ->latest('updated_at')
-                ->limit(6)
-                ->get();
+        $recentProjects = $isFocal
+            ? collect()
+            : app(RecentProjectsService::class)->for($user);
 
         /*
         |--------------------------------------------------------------------------
@@ -154,8 +172,10 @@ class DashboardController extends Controller
         $currentYear =
             (int) now()->format('Y');
 
-        $monthlyTrend =
-            collect(range(1, 12))
+        // The Focal dashboard no longer shows the Project Cost Trend chart.
+        $monthlyTrend = $isFocal
+            ? collect(array_fill(0, 12, 0.0))
+            : collect(range(1, 12))
                 ->map(
                     fn (int $month) =>
                         (float) $this->projectQuery($user, $provinceAccess)
@@ -230,10 +250,10 @@ class DashboardController extends Controller
                 $cumulativeTrend,
 
             'adlUtilization' =>
-                $user->isTc() ? collect() : $this->adlUtilization($adls),
+                $user->isAdmin() ? $adlUtilization->rows($adls) : collect(),
 
             'recentActivity' =>
-                AuditLog::query()
+                $isFocal ? collect() : AuditLog::query()
                     ->when(
                         $user->isTc(),
                         fn ($query) => $query->where('user_id', $user->id),
@@ -242,10 +262,48 @@ class DashboardController extends Controller
                     ->limit(6)
                     ->get(),
 
-            'geographicAnalytics' =>
-                $user->isFocal()
-                    ? $geographicAnalytics->build($user, ['family' => DashboardGeographicAnalyticsService::PROJECTS])
+            // Focal and TUPAD Coordinators share one dashboard layout; a TUPAD
+            // Coordinator's charts cover only their assigned province.
+            'beneficiaryDistribution' => match (true) {
+                $isFocal => $beneficiaryDistribution->build($focalFilters->provinceId),
+                $user->isTc() => $beneficiaryDistribution->build($provinceAccess->assignedProvinceId($user) ?? 0),
+                default => null,
+            },
+
+            'projectDistribution' =>
+                $user->isTc()
+                    ? app(DashboardProjectDistributionService::class)->build($user, $provinceAccess->assignedProvinceId($user) ?? 0)
                     : null,
+
+            // Beneficiary targets are region-wide, so their balance counts every
+            // project of the year; a TUPAD Coordinator sees only their own activity.
+            'focalOverview' =>
+                $focalFilters
+                    ? app(FocalDashboardOverviewService::class)->build(
+                        $focalFilters->applyToProjects($this->projectQuery($user, $provinceAccess)),
+                        $focalFilters->fundPosition(),
+                        targetYear: $focalFilters->year ?? $currentYear,
+                        targetProjects: Project::query()
+                            ->whereYear('projects.date_received', $focalFilters->year ?? $currentYear),
+                        activityUserId: $isFocal ? null : $user->id,
+                    )
+                    : null,
+
+            'dashboardFilters' => $focalFilters,
+
+            'dashboardFilterOptions' => match (true) {
+                $isFocal => $focalFilters->options(),
+                $focalFilters !== null => $focalFilters->options($this->projectQuery($user, $provinceAccess)),
+                default => null,
+            },
+
+            'reportCharts' =>
+                $isFocal || $user->isTc()
+                    ? app(DashboardReportChartsService::class)->build($user, $focalFilters?->year ?? $currentYear)
+                    : null,
+
+            'assignedProvinceName' =>
+                $user->isTc() ? $provinceAccess->assignedProvinceName($user) : null,
 
             'roleMode' =>
                 match (true) {
@@ -260,43 +318,5 @@ class DashboardController extends Controller
     private function projectQuery($user, ProvinceAccessService $provinceAccess): Builder
     {
         return $provinceAccess->scopeProjects(Project::query(), $user);
-    }
-
-    /**
-     * Fund utilization per ADL: budget (adjusted grants) vs allocated vs
-     * proposed project cost vs actual amount (obligation tranches / ACP payment).
-     */
-    private function adlUtilization($adls)
-    {
-        $allocated = AdlAllocation::query()
-            ->selectRaw('adl_id, SUM(amount) as total')
-            ->groupBy('adl_id')
-            ->pluck('total', 'adl_id');
-
-        $projectCost = Project::query()
-            ->join('adl_allocations', 'adl_allocations.id', '=', 'projects.adl_allocation_id')
-            ->selectRaw('adl_allocations.adl_id, SUM(projects.total_project_cost) as total')
-            ->groupBy('adl_allocations.adl_id')
-            ->pluck('total', 'adl_id');
-
-        // Actual amount per ADL: obligation tranches (after completion) / ACP payment.
-        $actualCost = Project::query()
-            ->whereNotNull('adl_allocation_id')
-            ->with(['allocation:id,adl_id', 'obligations:id,project_id,amount', 'acpPayment:id,project_id,amount'])
-            ->get(['id', 'adl_allocation_id', 'implementation_mode', 'obligations_completed_at', 'total_project_cost'])
-            ->groupBy(fn (Project $project) => $project->allocation?->adl_id)
-            ->map(fn ($projects) => (float) $projects->sum(fn (Project $project) => $project->actualAmount() ?? 0));
-
-        return $adls
-            ->sortBy('adl_number')
-            ->map(fn (Adl $adl): array => [
-                'label' => (string) $adl->adl_number,
-                'budget' => (float) ($adl->adjusted_total_grants ?? $adl->adjusted_grants ?? $adl->grants ?? 0),
-                'allocated' => (float) ($allocated[$adl->id] ?? 0),
-                'project_cost' => (float) ($projectCost[$adl->id] ?? 0),
-                'actual_cost' => (float) ($actualCost[$adl->id] ?? 0),
-            ])
-            ->filter(fn (array $row): bool => $row['budget'] > 0 || $row['allocated'] > 0)
-            ->values();
     }
 }

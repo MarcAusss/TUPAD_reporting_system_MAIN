@@ -49,12 +49,12 @@
         <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#1765d8]">Interactive Geographic Mapping</span>
-                    <span class="rounded-md bg-blue-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#063b86]">
+                    <span class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#1765d8]">Interactive Geographic Mapping</span>
+                    <span class="rounded-md bg-blue-50 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#063b86]">
                         {{ $familyLabel }}
                     </span>
                     @if (($mapPayload['viewer_scope']['type'] ?? null) === 'province')
-                        <span class="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-600">
+                        <span class="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">
                             Assigned Province Scope
                         </span>
                     @endif
@@ -104,14 +104,14 @@
 
         <div class="grid gap-3 border-b border-slate-200 bg-[#f8fafc] p-4 sm:grid-cols-2 xl:grid-cols-5">
             <label class="block">
-                <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Fiscal Year</span>
+                <span class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Fiscal Year</span>
                 <input type="number" min="2000" max="2100" placeholder="All fiscal years"
                     wire:model.blur="fiscalYear"
                     class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
             </label>
 
             <label class="block">
-                <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Reporting Period</span>
+                <span class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Reporting Period</span>
                 <select wire:model.live="reportingPeriod"
                     class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
                     <option value="">All year / no period</option>
@@ -122,14 +122,14 @@
             </label>
 
             <div>
-                <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Province</span>
+                <span class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Province</span>
                 <div class="flex h-10 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
                     {{ $isProvinceScope ? ($selectedProvince['name'] ?? 'Selected Province') : 'All Bicol Provinces' }}
                 </div>
             </div>
 
             <label class="block">
-                <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Status</span>
+                <span class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Status</span>
                 <select wire:model.live="status" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
                     <option value="">All statuses</option>
                     @foreach ($statuses as $projectStatus)
@@ -139,7 +139,7 @@
             </label>
 
             <label class="block">
-                <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Implementation</span>
+                <span class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Implementation</span>
                 <select wire:model.live="implementationMode" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
                     <option value="">All modes</option>
                     @foreach ($implementationModes as $mode)
@@ -152,7 +152,7 @@
         @if ($familyKey === 'sectors')
             <div class="grid gap-3 border-b border-slate-200 bg-white px-4 py-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]">
                 <label class="block">
-                    <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Sector Family</span>
+                    <span class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Sector Family</span>
                     <select wire:model.live="sectorGroup" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
                         @foreach ($sectorGroups as $groupValue => $groupLabel)
                             <option value="{{ $groupValue }}">{{ $groupLabel }}</option>
@@ -161,7 +161,7 @@
                 </label>
 
                 <label class="block">
-                    <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Sector Category</span>
+                    <span class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Sector Category</span>
                     <select wire:model.live="sector" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
                         <option value="">All categories in selected family</option>
                         @foreach ($sectorOptions as $sectorOption)
@@ -180,7 +180,7 @@
         @elseif ($familyKey === 'interventions')
             <div class="grid gap-3 border-b border-slate-200 bg-white px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto]">
                 <label class="block">
-                    <span class="mb-1.5 block text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Intervention Focus</span>
+                    <span class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Intervention Focus</span>
                     <select wire:model.live="interventionFocus" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700">
                         <option value="">All intervention focuses</option>
                         @foreach ($interventionFocuses as $focus)
@@ -226,19 +226,19 @@
                     <div class="flex flex-wrap items-center gap-2">
                         @if ($isMunicipalityView)
                             <button type="button" wire:click="showProvince"
-                                class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50">
+                                class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50">
                                 <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"></path></svg>
                                 Back to Municipalities
                             </button>
                         @elseif ($isProvinceScope && ($mapPayload['viewer_scope']['can_view_region'] ?? false))
                             <button type="button" wire:click="showRegion"
-                                class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50">
+                                class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50">
                                 <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"></path></svg>
                                 Back to Region
                             </button>
                         @endif
 
-                        <div class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-[10px] font-bold">
+                        <div class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] font-bold">
                             @if ($isRegionView)
                                 <span class="rounded-md bg-[#063b86] px-2.5 py-1.5 text-white">Region View</span>
                                 <span class="px-2.5 py-1.5 text-slate-400">Province View</span>
@@ -286,7 +286,7 @@
                         <div data-map-canvas class="h-full w-full" aria-label="Interactive Bicol administrative map"></div>
                         <div data-map-error class="pointer-events-none absolute inset-x-5 top-5 z-[500] hidden rounded-lg border border-red-200 bg-white/95 px-4 py-3 text-xs font-semibold text-red-700 shadow-sm"></div>
                         <button type="button" data-map-home
-                            class="absolute bottom-4 right-4 z-[600] inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-[10px] font-bold text-slate-700 shadow-sm hover:bg-slate-50">
+                            class="absolute bottom-4 right-4 z-[600] inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold text-slate-700 shadow-sm hover:bg-slate-50">
                             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path></svg>
                             Fit {{ $isProvinceScope ? 'Province' : 'Region' }}
                         </button>
@@ -294,14 +294,14 @@
                 </div>
 
                 <div class="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="flex flex-wrap items-center gap-3 text-[10px] font-semibold text-slate-500">
+                    <div class="flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-500">
                         <span>LOW</span>
                         @foreach (['#eff6ff', '#dbeafe', '#93c5fd', '#3b82f6', '#063b86'] as $color)
                             <span class="h-3 w-8 rounded-sm border border-slate-200" style="background: {{ $color }}"></span>
                         @endforeach
                         <span>HIGH</span>
                     </div>
-                    <div class="text-[10px] text-slate-400">
+                    <div class="text-[11px] text-slate-400">
                         Color intensity = {{ strtolower($metricLabel) }} for the visible geographic level.
                     </div>
                 </div>
@@ -327,7 +327,7 @@
                     </div>
 
                     <div class="mt-5 border-t border-slate-100 pt-4">
-                        <div class="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
+                        <div class="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
                             <span>{{ $areaLabel }} ranking</span>
                             <span>{{ $mapPayload['metric_summary']['display'] ?? '0' }} total</span>
                         </div>
@@ -380,14 +380,14 @@
             @endphp
             @foreach ($cards as $card)
                 <article class="border-b border-slate-100 px-5 py-4 last:border-b-0 sm:border-r xl:border-b-0">
-                    <div class="text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-400">{{ $card['label'] }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{{ $card['label'] }}</div>
                     <div class="mt-1 text-xl font-extrabold tracking-tight text-[#0d2449]">{{ $card['value'] }}</div>
-                    <div class="mt-1 text-[10px] text-slate-400">{{ $card['hint'] }}</div>
+                    <div class="mt-1 text-[11px] text-slate-400">{{ $card['hint'] }}</div>
                 </article>
             @endforeach
         </div>
 
-        <div class="flex flex-col gap-2 border-t border-slate-200 bg-[#f8fafc] px-5 py-3 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-2 border-t border-slate-200 bg-[#f8fafc] px-5 py-3 text-[11px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <span>{{ $mapPayload['metric_note'] ?? $mapPayload['data_note'] }}</span>
 
             @if ($isBeneficiaryMetric)

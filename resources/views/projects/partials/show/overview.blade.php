@@ -6,6 +6,9 @@
     {{-- At-a-glance summary --}}
     @include('projects.partials.overview-summary')
 
+    {{-- Ask the GSIS Enrollment Officer to enroll this project (3 per 3 hours). --}}
+    @include('projects.partials.gpai-enrollment-request')
+
     @if ($project->status !== \App\Enums\ProjectStatus::COMPLETED)
         @php
             $isThroughAcp = $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP;
@@ -416,6 +419,7 @@
             ['Location', $project->full_location, true],
             ['District', $project->district ?: 'Not Assigned', false],
             ['Income Class', $project->income_class ?: 'Not yet assigned', false],
+            ['Local Chief Executive', $project->local_chief_executive ?: 'Not encoded', false],
             ['Implementation Mode', $project->implementation_mode->label(), false],
             ['Duration', $project->number_of_days.' days — '.$project->term->label(), false],
         ];

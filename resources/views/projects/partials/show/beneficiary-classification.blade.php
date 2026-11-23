@@ -106,7 +106,7 @@
             <div
                 class="flex flex-col gap-3 border-b border-blue-100 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700">
+                    <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-blue-700">
                         Beneficiary Mapping Source
                     </div>
                     <h3 class="mt-1 text-sm font-semibold text-slate-900">
@@ -120,24 +120,24 @@
 
                 <div class="grid grid-cols-2 gap-2 sm:min-w-67.5 {{ $mappingActualCounts !== null ? 'lg:grid-cols-4' : '' }}">
                     <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Declared Total
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Declared Total
                         </div>
                         <div class="mt-1 text-sm font-bold text-slate-900">
                             {{ number_format($project->beneficiaries_total) }}</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Declared Female
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Declared Female
                         </div>
                         <div class="mt-1 text-sm font-bold text-slate-900">
                             {{ number_format($project->beneficiaries_female) }}</div>
                     </div>
                     @if ($mappingActualCounts !== null)
                         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                            <div class="text-[9px] font-bold uppercase tracking-wide text-emerald-700">Actual Total (Payment)</div>
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Actual Total (Payment)</div>
                             <div class="mt-1 text-sm font-bold text-emerald-900">{{ number_format($mappingActualCounts[0]) }}</div>
                         </div>
                         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                            <div class="text-[9px] font-bold uppercase tracking-wide text-emerald-700">Actual Female (Payment)</div>
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Actual Female (Payment)</div>
                             <div class="mt-1 text-sm font-bold text-emerald-900">{{ number_format($mappingActualCounts[1]) }}</div>
                         </div>
                     @endif
@@ -222,14 +222,14 @@
                                     <div class="mt-3 grid grid-cols-2 gap-2">
                                         <div class="rounded-lg bg-white px-3 py-2.5 ring-1 ring-slate-200">
                                             <div
-                                                class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                                                class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                                 Allocated</div>
                                             <div id="beneficiaryAddressTotal"
                                                 class="mt-1 text-sm font-bold text-slate-900">0</div>
                                         </div>
                                         <div class="rounded-lg bg-white px-3 py-2.5 ring-1 ring-slate-200">
                                             <div
-                                                class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                                                class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                                 Female</div>
                                             <div id="beneficiaryAddressFemale"
                                                 class="mt-1 text-sm font-bold text-slate-900">0</div>
@@ -254,7 +254,7 @@
                                 <div class="mt-4 rounded-lg border border-slate-200 bg-white">
                                     <div class="border-b border-slate-200 px-3 py-2.5">
                                         <div class="text-xs font-semibold text-slate-800">Saved Beneficiary Addresses</div>
-                                        <div class="mt-0.5 text-[10px] text-slate-500">
+                                        <div class="mt-0.5 text-[11px] text-slate-500">
                                             Click an entry to jump to it above and edit its Total / Female.
                                         </div>
                                     </div>
@@ -273,16 +273,16 @@
                                                     <span class="block truncate text-xs font-semibold text-slate-800">
                                                         {{ $address->barangay?->name ?? '—' }}
                                                     </span>
-                                                    <span class="block truncate text-[10px] text-slate-400">
+                                                    <span class="block truncate text-[11px] text-slate-400">
                                                         {{ $address->municipality?->name ?? '—' }}
                                                     </span>
                                                     @if ($bcbProfile)
-                                                        <span class="mt-0.5 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+                                                        <span class="mt-0.5 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">
                                                             {{ number_format($bcbProfile->hazardous_workers) }} hazardous
                                                         </span>
                                                     @endif
                                                 </span>
-                                                <span class="shrink-0 text-right text-[10px] font-semibold text-slate-500">
+                                                <span class="shrink-0 text-right text-[11px] font-semibold text-slate-500">
                                                     @if ($mappingShowActual && ($address->actualTotal() !== (int) $address->beneficiaries_total || $address->actualFemale() !== (int) $address->beneficiaries_female))
                                                         <span class="line-through decoration-slate-300">{{ number_format($address->beneficiaries_total) }}</span>
                                                         <span class="text-emerald-700">→ {{ number_format($address->actualTotal()) }}</span> total
@@ -308,7 +308,7 @@
                                     <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl">
                                         <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
                                             <div>
-                                                <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Same Barangay</div>
+                                                <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Same Barangay</div>
                                                 <div id="beneficiaryAddressEditModalName" class="mt-0.5 text-sm font-semibold text-slate-900">&mdash;</div>
                                             </div>
                                             <button type="button" id="beneficiaryAddressEditModalClose" class="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">&times;</button>
@@ -320,11 +320,11 @@
                                             <div id="beneficiaryAddressEditModalFields">
                                                 <div class="grid grid-cols-2 gap-3">
                                                     <label>
-                                                        <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Total</span>
+                                                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Total</span>
                                                         <input type="number" min="0" step="1" id="beneficiaryAddressEditModalTotal" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-xs">
                                                     </label>
                                                     <label>
-                                                        <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Female</span>
+                                                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Female</span>
                                                         <input type="number" min="0" step="1" id="beneficiaryAddressEditModalFemale" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-xs">
                                                     </label>
                                                 </div>
@@ -333,20 +333,20 @@
 
                                                 <div class="mt-4 grid gap-3 sm:grid-cols-2">
                                                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                                        <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE summary</div>
+                                                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">PPE summary</div>
                                                         <div id="beneficiaryAddressEditModalSummary" class="mt-2 space-y-1 text-[11px] text-slate-600">&mdash;</div>
                                                     </div>
                                                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                                        <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Price of overall</div>
+                                                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Price of overall</div>
                                                         <div id="beneficiaryAddressEditModalOverall" class="mt-2 text-lg font-bold text-slate-900">&#8369;0.00</div>
-                                                        <div class="mt-0.5 text-[10px] text-slate-400">Total price of all PPE items for this barangay</div>
+                                                        <div class="mt-0.5 text-[11px] text-slate-400">Total price of all PPE items for this barangay</div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-4">
-                                            <p class="text-[10px] leading-4 text-slate-400">
+                                            <p class="text-[11px] leading-4 text-slate-400">
                                                 Saving here updates the fields above. Click "Save Beneficiary Addresses" to persist the change.
                                             </p>
                                             <div class="flex shrink-0 items-center gap-2">
@@ -392,14 +392,14 @@
                                 @endif
                             </div>
                         </div>
-                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">Expand
+                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">Expand
                             / Collapse</span>
                     </summary>
 
                     <div class="overflow-x-auto border-t border-slate-200">
                         <table class="tupad-system-table min-w-190 w-full">
                             <thead class="bg-slate-50">
-                                <tr class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                <tr class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                     <th class="px-4 py-3 text-left">Province</th>
                                     <th class="px-4 py-3 text-left">District</th>
                                     <th class="px-4 py-3 text-left">Municipality / City</th>
@@ -683,7 +683,7 @@
                     const hazardousField = ppeHasHazardous
                         ? `
                         <label>
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Hazardous workers</span>
+                            <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Hazardous workers</span>
                             <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][hazardous_workers]" value="${escapeHtml(values.hazardous_workers ?? '')}" class="beneficiary-hazardous-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
                         </label>`
                         : `<input type="hidden" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][hazardous_workers]" value="0">`;
@@ -691,7 +691,7 @@
                     const completeSetField = ppeHazardousCount >= 2
                         ? `
                         <label>
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Complete set <span class="font-normal normal-case text-slate-400">(optional)</span></span>
+                            <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Complete set <span class="font-normal normal-case text-slate-500">(optional)</span></span>
                             <input type="number" min="0" step="1" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][complete_set_workers]" value="${escapeHtml(values.complete_set_workers ?? '')}" class="beneficiary-complete-set-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
                         </label>`
                         : '';
@@ -699,15 +699,15 @@
                     const itemFields = ppeDistributable.map(item => `
                         <div class="rounded-lg border border-slate-200 bg-white p-2">
                             <div class="mb-1.5 flex items-start justify-between gap-1">
-                                <span class="truncate text-[9px] font-bold uppercase tracking-wide text-slate-500" title="${escapeHtml(item.product)} (${escapeHtml(item.type_label)})">${escapeHtml(item.product)}</span>
-                                <span class="shrink-0 text-[9px] font-bold text-emerald-700">₱${Number(item.unit_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span class="truncate text-[11px] font-bold uppercase tracking-wide text-slate-500" title="${escapeHtml(item.product)} (${escapeHtml(item.type_label)})">${escapeHtml(item.product)}</span>
+                                <span class="shrink-0 text-[11px] font-bold text-emerald-700">₱${Number(item.unit_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <input type="number" min="0" step="1" required data-ppe-item-id="${item.id}" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][ppe_items][${item.id}]" value="${escapeHtml(items[item.id] ?? '')}" class="beneficiary-ppe-item-input h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
                         </div>`).join('');
 
                     return `
                 <div class="mt-3 border-t border-slate-100 pt-3">
-                    <div class="mb-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE distribution for this barangay</div>
+                    <div class="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">PPE distribution for this barangay</div>
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         ${hazardousField}
                         ${completeSetField}
@@ -726,27 +726,27 @@
 
                     const hazardousField = ppeHasHazardous ? `
                         <label>
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Hazardous workers</span>
+                            <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Hazardous workers</span>
                             <input type="number" min="0" step="1" value="${escapeHtml(values.hazardous_workers ?? '')}" class="modal-hazardous-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
                         </label>` : '';
 
                     const completeSetField = ppeHazardousCount >= 2 ? `
                         <label>
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Complete set <span class="font-normal normal-case text-slate-400">(optional)</span></span>
+                            <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Complete set <span class="font-normal normal-case text-slate-500">(optional)</span></span>
                             <input type="number" min="0" step="1" value="${escapeHtml(values.complete_set_workers ?? '')}" class="modal-complete-set-workers h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
                         </label>` : '';
 
                     const itemBoxes = ppeDistributable.map(item => `
                         <div class="rounded-lg border border-slate-200 bg-white p-2">
                             <div class="mb-1.5 flex items-start justify-between gap-1">
-                                <span class="truncate text-[9px] font-bold uppercase tracking-wide text-slate-500" title="${escapeHtml(item.product)} (${escapeHtml(item.type_label)})">${escapeHtml(item.product)}</span>
-                                <span class="shrink-0 text-[9px] font-bold text-emerald-700">₱${Number(item.unit_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span class="truncate text-[11px] font-bold uppercase tracking-wide text-slate-500" title="${escapeHtml(item.product)} (${escapeHtml(item.type_label)})">${escapeHtml(item.product)}</span>
+                                <span class="shrink-0 text-[11px] font-bold text-emerald-700">₱${Number(item.unit_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <input type="number" min="0" step="1" data-modal-ppe-item-id="${item.id}" value="${escapeHtml(items[item.id] ?? '')}" class="modal-ppe-item-input h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
                         </div>`).join('');
 
                     return `
-                <div class="mb-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">PPE distribution for this barangay</div>
+                <div class="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">PPE distribution for this barangay</div>
                 <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     ${hazardousField}
                     ${completeSetField}
@@ -818,15 +818,15 @@
                     <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_110px_110px]">
                         <div class="min-w-0">
                             <div class="text-xs font-semibold text-slate-800">${escapeHtml(checkbox.dataset.name)}</div>
-                            <div class="mt-1 text-[10px] text-slate-400">Beneficiary home address allocation</div>
+                            <div class="mt-1 text-[11px] text-slate-400">Beneficiary home address allocation</div>
                             <input type="hidden" name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][barangay_id]" value="${escapeHtml(barangayId)}">
                         </div>
                         <label>
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Total</span>
+                            <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Total</span>
                             <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_total]" value="${escapeHtml(values.total)}" class="beneficiary-address-total h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
                         </label>
                         <label>
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">Female</span>
+                            <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Female</span>
                             <input type="number" min="0" step="1" required name="beneficiary_addresses[${groupIndex}][barangays][${barangayIndex}][beneficiaries_female]" value="${escapeHtml(values.female)}" class="beneficiary-address-female h-9 w-full rounded-md border border-slate-300 px-2 text-xs">
                         </label>
                     </div>
@@ -907,13 +907,13 @@
 
                 <div class="mt-4 grid gap-4 lg:grid-cols-2">
                     <div class="overflow-hidden rounded-lg border border-slate-200">
-                        <div class="border-b border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">Select Barangays</div>
+                        <div class="border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Select Barangays</div>
                         <div class="beneficiary-barangay-options max-h-52 overflow-y-auto p-2">
                             <div class="px-3 py-4 text-center text-[11px] text-slate-400">Select a municipality/city first.</div>
                         </div>
                     </div>
                     <div>
-                        <div class="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">Selected Barangay Allocation</div>
+                        <div class="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Selected Barangay Allocation</div>
                         <div class="beneficiary-selected-barangays space-y-2">
                             <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-[11px] text-slate-400">No barangay selected.</div>
                         </div>
@@ -1137,7 +1137,7 @@
 
     <div class="grid gap-px bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
         <div class="bg-white px-5 py-4 sm:col-span-2 xl:col-span-1">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Primary Intervention Focus
             </div>
             <div class="mt-1 text-sm font-semibold leading-5 text-slate-900">
@@ -1146,7 +1146,7 @@
         </div>
 
         <div class="bg-white px-5 py-4">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Referral Records
             </div>
             <div class="mt-1 text-lg font-bold text-slate-900">
@@ -1155,7 +1155,7 @@
         </div>
 
         <div class="bg-white px-5 py-4">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Referred / Provided
             </div>
             <div class="mt-1 text-lg font-bold text-slate-900">
@@ -1165,7 +1165,7 @@
         </div>
 
         <div class="bg-white px-5 py-4">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Intervention Amount Released
             </div>
             <div class="mt-1 text-lg font-bold text-emerald-700">
@@ -1185,7 +1185,7 @@
                 </div>
                 <table class="tupad-system-table w-full">
                     <thead>
-                        <tr class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        <tr class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                             <th class="px-4 py-2 text-left">Category</th>
                             <th class="px-4 py-2 text-right">Total</th>
                             <th class="px-4 py-2 text-right">Female</th>

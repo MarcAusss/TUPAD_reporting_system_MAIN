@@ -95,6 +95,9 @@ class AppServiceProvider extends ServiceProvider
             ReformulatedTarget::class,
             NgaTarget::class,
             DistrictRepresentative::class,
+            \App\Models\GpaiCashAdvance::class,
+            \App\Models\GpaiEnrollment::class,
+            \App\Models\GpaiEnrollmentItem::class,
         ];
 
         foreach ($auditedModels as $model) {

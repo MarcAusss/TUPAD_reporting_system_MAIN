@@ -117,7 +117,7 @@ function createNotificationRow(item) {
     meta.className = 'flex flex-wrap items-center gap-2';
 
     const category = document.createElement('span');
-    category.className = `inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${severityClasses(item.severity)}`;
+    category.className = `inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${severityClasses(item.severity)}`;
     category.textContent = item.category;
 
     const count = document.createElement('span');
@@ -203,7 +203,7 @@ function showToast(item) {
     body.className = 'min-w-0 flex-1';
 
     const eyebrow = document.createElement('div');
-    eyebrow.className = 'text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400';
+    eyebrow.className = 'text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500';
     eyebrow.textContent = 'New workflow update';
 
     const title = document.createElement('div');

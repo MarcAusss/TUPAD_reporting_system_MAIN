@@ -31,6 +31,7 @@ use Tests\TestCase;
 class MajorRevisionPhase9ReportGenerationTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     private User $admin;
     private User $tc;

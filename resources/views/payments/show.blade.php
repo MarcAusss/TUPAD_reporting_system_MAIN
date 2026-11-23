@@ -78,7 +78,7 @@
             'Female Beneficiaries' => number_format($project->beneficiaries_female),
         ] as $label => $value)
             <div class="bg-white px-5 py-4">
-                <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                     {{ $label }}
                 </div>
                 <div class="mt-1 text-sm font-semibold text-slate-900">
@@ -88,7 +88,7 @@
         @endforeach
 
         <div class="bg-white px-5 py-4 sm:col-span-2 xl:col-span-1">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Project Location
             </div>
             <div class="mt-1 text-sm font-semibold leading-5 text-slate-900">
@@ -118,7 +118,7 @@
             ['Remaining Balance', max(0, $wagesBasisCents - $summary['disbursed_cents']), 'text-rose-700'],
         ] as [$label, $amount, $tone])
             <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                     {{ $label }}
                 </div>
                 <div class="mt-2 text-lg font-bold {{ $tone }}">
@@ -187,7 +187,8 @@
                     Wages fill in automatically as beneficiaries × ₱{{ $money($wagePerBeneficiaryCents) }}
                     (₱{{ number_format((float) $project->wage_rate, 2) }} wage rate × {{ number_format((int) $project->number_of_days) }} days)
                     and recalculate when you deduct beneficiaries.
-                    Insurance and PPE are not included here: they were paid at Preparation (GSIS enrollment and PPE delivery).
+                    Insurance and PPE are not part of the tranches: they are computed from the tranche beneficiaries in the
+                    <a href="#insurance-ppe" class="font-semibold underline">Insurance and PPE</a> form below and saved separately.
                     Tranches may total less than the project data, but not more.
                 </p>
             </div>
@@ -202,7 +203,7 @@
         </div>
 
         <div class="border-b border-slate-200 px-5 py-4">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Project Data vs Obligated (saved + entered)
             </div>
             <div data-limit-summary class="mt-2 grid gap-2 sm:grid-cols-3"></div>
@@ -240,6 +241,8 @@
     <script type="application/json" id="obligationTrancheErrors">@json(collect($errors->getMessages())->filter(fn ($messages, $key) => str_starts_with($key, 'tranches.')))</script>
 @endif
 
+@include('payments.partials.insurance-ppe')
+
 <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
     <div class="border-b border-slate-200 px-5 py-4">
         <h2 class="text-sm font-semibold text-slate-900">Payment Tranches</h2>
@@ -268,7 +271,7 @@
             <article id="tranche-{{ $obligation->tranche_number }}" class="p-5">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-blue-700">
+                        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-blue-700">
                             Tranche {{ $obligation->tranche_number }}
                         </div>
                         <div class="mt-1 text-xl font-bold text-slate-900">
@@ -294,7 +297,7 @@
                         'Tranche Balance' => '₱'.$money($trancheRemaining),
                     ], fn ($value) => $value !== null) as $label => $value)
                         <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                 {{ $label }}
                             </div>
                             <div class="mt-1 text-xs font-semibold leading-5 text-slate-800">
@@ -649,7 +652,7 @@
 
                 return `
                     <div class="rounded-lg border px-3 py-2 ${tone}">
-                        <div class="text-[10px] font-bold uppercase tracking-wide opacity-70">${label}</div>
+                        <div class="text-[11px] font-bold uppercase tracking-wide opacity-70">${label}</div>
                         <div class="mt-0.5 text-xs font-semibold">${formatValue(used, money)} / ${formatValue(limit, money)}</div>
                         <div class="text-[11px]">${note}</div>
                     </div>`;
@@ -720,6 +723,11 @@
                 completeHint.textContent = `Tranche wages equal the project's wages (${peso(Number(limits.wages || 0))}).`;
             }
 
+            // Insurance and PPE recompute from the tranche beneficiaries
+            // (saved + entered) — see payments/partials/insurance-ppe.
+            window.paymentTranchesRunning = { beneficiaries_total: running.beneficiaries_total, wages: running.wages };
+            document.dispatchEvent(new CustomEvent('payment:tranches-changed', { detail: window.paymentTranchesRunning }));
+
             return running;
         }
 
@@ -789,6 +797,7 @@
                     `Tranches: ${filledCards.length + Number(form.dataset.savedTranches || 0)}`,
                     `Total obligated: ${peso(running.total)}`,
                     below > 0 ? `${peso(below)} below the Total Project Cost` : 'Equal to the Total Project Cost',
+                    `Insurance and PPE will be saved for ${running.beneficiaries_total.toLocaleString('en-PH')} beneficiaries.`,
                 ],
                 confirmText: 'Complete Tranches',
             }).then((confirmed) => {

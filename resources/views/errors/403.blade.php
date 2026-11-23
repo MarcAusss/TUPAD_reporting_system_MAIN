@@ -13,9 +13,9 @@
         @endif
         <div class="mt-6 flex flex-wrap justify-center gap-3">
             @auth
-                <a href="{{ route('dashboard') }}" class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">Return to Dashboard</a>
+                <a href="{{ route('dashboard') }}" class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">Return to Dashboard</a>
             @else
-                <a href="{{ route('login') }}" class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">Sign In</a>
+                <a href="{{ route('login') }}" class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">Sign In</a>
             @endauth
             <button type="button" onclick="history.back()" class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">Go Back</button>
         </div>

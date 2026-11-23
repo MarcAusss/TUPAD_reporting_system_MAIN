@@ -81,6 +81,172 @@ class ProjectPaymentService
     }
 
     /**
+     * Insurance and PPE once the beneficiaries not included in the payment
+     * are deducted. With a project of 100 beneficiaries paid for 90:
+     *   not included = 10
+     *   insurance    = planned − 10 × insurance rate
+     *   each PPE     = planned − 10 × quantity × unit amount
+     * (never deducting more beneficiaries than an item/insurance covers).
+     *
+     * @return array{beneficiaries_project:int,beneficiaries_paid:int,beneficiaries_deducted:int,insurance:array<string,int>,ppe_items:list<array<string,mixed>>,ppe:array<string,int>}
+     */
+    public function insurancePpeComputation(Project $project, int $beneficiariesPaid): array
+    {
+        $project->loadMissing('ppeItems');
+
+        $projectBeneficiaries = (int) $project->beneficiaries_total;
+        $paid = max(0, min($beneficiariesPaid, $projectBeneficiaries));
+        $deducted = $projectBeneficiaries - $paid;
+
+        $insuredPlanned = (int) ($project->insurance_beneficiaries ?? $projectBeneficiaries);
+        $insuredDeducted = min($deducted, $insuredPlanned);
+        $insuranceRate = $this->insurancePerBeneficiaryCents($project);
+        $insurancePlanned = $this->amountToCents($project->insurance_total);
+        $insuranceDeducted = min($insurancePlanned, $insuredDeducted * $insuranceRate);
+
+        $items = $project->ppeItems
+            ->map(function ($item) use ($deducted): array {
+                $count = (int) $item->beneficiary_count;
+                $quantity = max(1, (int) $item->quantity);
+                $unit = $this->amountToCents($item->unit_amount);
+                $planned = $this->amountToCents($item->total_amount);
+                $itemDeducted = min($deducted, $count);
+                $deductedCents = min($planned, $itemDeducted * $quantity * $unit);
+
+                return [
+                    'ppe_item_id' => (int) $item->id,
+                    'product' => (string) $item->product,
+                    'ppe_type' => $item->ppe_type?->label(),
+                    'beneficiary_count' => $count,
+                    'quantity' => $quantity,
+                    'unit_cents' => $unit,
+                    'planned_cents' => $planned,
+                    'beneficiaries_deducted' => $itemDeducted,
+                    'deducted_cents' => $deductedCents,
+                    'amount_cents' => $planned - $deductedCents,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $ppePlanned = array_sum(array_column($items, 'planned_cents'));
+        $ppeDeducted = array_sum(array_column($items, 'deducted_cents'));
+
+        return [
+            'beneficiaries_project' => $projectBeneficiaries,
+            'beneficiaries_paid' => $paid,
+            'beneficiaries_deducted' => $deducted,
+            'insurance' => [
+                'rate_cents' => $insuranceRate,
+                'beneficiaries_planned' => $insuredPlanned,
+                'beneficiaries_deducted' => $insuredDeducted,
+                'beneficiaries' => $insuredPlanned - $insuredDeducted,
+                'planned_cents' => $insurancePlanned,
+                'deducted_cents' => $insuranceDeducted,
+                'amount_cents' => $insurancePlanned - $insuranceDeducted,
+            ],
+            'ppe_items' => $items,
+            'ppe' => [
+                'planned_cents' => $ppePlanned,
+                'deducted_cents' => $ppeDeducted,
+                'amount_cents' => $ppePlanned - $ppeDeducted,
+            ],
+        ];
+    }
+
+    /**
+     * Save (or refresh) the project's Insurance and PPE record for the given
+     * number of paid beneficiaries. Remarks are kept unless new ones are given.
+     *
+     * The form auto-fills every value but the Focal may edit them; edited
+     * values arrive as $overrides (already validated against the plan):
+     *   ['insurance_beneficiaries' => int, 'insurance_amount_cents' => int,
+     *    'ppe' => [ppe_item_id => ['beneficiaries' => int, 'amount_cents' => int]]]
+     *
+     * @param  array<string,mixed>|null  $overrides
+     */
+    public function recordInsurancePpe(
+        Project $project,
+        int $beneficiariesPaid,
+        int $userId,
+        ?string $remarks = null,
+        bool $replaceRemarks = false,
+        ?array $overrides = null,
+    ): \App\Models\ProjectPaymentInsurancePpe {
+        $computed = $this->applyInsurancePpeOverrides(
+            $this->insurancePpeComputation($project, $beneficiariesPaid),
+            $overrides ?? [],
+        );
+
+        $values = [
+            'beneficiaries_paid' => $computed['beneficiaries_paid'],
+            'beneficiaries_deducted' => $computed['beneficiaries_deducted'],
+            'insurance_beneficiaries' => $computed['insurance']['beneficiaries'],
+            'insurance_deducted' => $this->centsToDecimal($computed['insurance']['deducted_cents']),
+            'insurance_amount' => $this->centsToDecimal($computed['insurance']['amount_cents']),
+            'ppe_deducted' => $this->centsToDecimal($computed['ppe']['deducted_cents']),
+            'ppe_amount' => $this->centsToDecimal($computed['ppe']['amount_cents']),
+            'ppe_breakdown' => $computed['ppe_items'],
+            'recorded_by' => $userId,
+        ];
+
+        if ($replaceRemarks) {
+            $values['remarks'] = $remarks;
+        }
+
+        return $project->paymentInsurancePpe()->updateOrCreate(
+            ['project_id' => $project->id],
+            $values,
+        );
+    }
+
+    /**
+     * @param  array<string,mixed>  $computed  insurancePpeComputation() result
+     * @param  array<string,mixed>  $overrides
+     * @return array<string,mixed>
+     */
+    private function applyInsurancePpeOverrides(array $computed, array $overrides): array
+    {
+        $insurance = &$computed['insurance'];
+
+        if (isset($overrides['insurance_beneficiaries'])) {
+            $insurance['beneficiaries'] = (int) $overrides['insurance_beneficiaries'];
+            $insurance['beneficiaries_deducted'] = $insurance['beneficiaries_planned'] - $insurance['beneficiaries'];
+        }
+
+        if (isset($overrides['insurance_amount_cents'])) {
+            $insurance['amount_cents'] = (int) $overrides['insurance_amount_cents'];
+            $insurance['deducted_cents'] = $insurance['planned_cents'] - $insurance['amount_cents'];
+        }
+
+        unset($insurance);
+
+        foreach ($computed['ppe_items'] as &$item) {
+            $edited = $overrides['ppe'][$item['ppe_item_id']] ?? null;
+
+            if (! is_array($edited)) {
+                continue;
+            }
+
+            if (isset($edited['beneficiaries'])) {
+                $item['beneficiaries_deducted'] = $item['beneficiary_count'] - (int) $edited['beneficiaries'];
+            }
+
+            if (isset($edited['amount_cents'])) {
+                $item['amount_cents'] = (int) $edited['amount_cents'];
+                $item['deducted_cents'] = $item['planned_cents'] - $item['amount_cents'];
+            }
+        }
+
+        unset($item);
+
+        $computed['ppe']['amount_cents'] = array_sum(array_column($computed['ppe_items'], 'amount_cents'));
+        $computed['ppe']['deducted_cents'] = $computed['ppe']['planned_cents'] - $computed['ppe']['amount_cents'];
+
+        return $computed;
+    }
+
+    /**
      * @param  iterable<ProjectObligation>  $obligations
      * @return array{beneficiaries_total:int,beneficiaries_female:int,wages:int,insurance:int,ppe:int,total:int}
      */

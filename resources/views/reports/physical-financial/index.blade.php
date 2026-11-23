@@ -61,7 +61,7 @@
             @foreach ($views as $key => $tab)
                 <a href="{{ route('reports.workspace.physical-financial', array_merge($commonQuery, ['view' => $key])) }}"
                     class="{{ $viewKey === $key ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} rounded-lg border px-4 py-3 transition">
-                    <div class="text-[10px] font-extrabold uppercase tracking-[0.15em] opacity-70">
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.15em] opacity-70">
                         Table {{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}
                     </div>
                     <div class="mt-1 text-sm font-bold leading-5">{{ $tab['label'] }}</div>
@@ -175,7 +175,7 @@
         <div class="grid sm:grid-cols-2 xl:grid-cols-7">
             @foreach ($summaryCards as $card)
                 <div class="border-b border-slate-200 px-4 py-3 last:border-b-0 sm:border-r xl:border-b-0">
-                    <div class="text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{{ $card['label'] }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{{ $card['label'] }}</div>
                     <div class="mt-1 text-base font-extrabold tracking-tight text-slate-900">{{ $card['value'] }}</div>
                 </div>
             @endforeach

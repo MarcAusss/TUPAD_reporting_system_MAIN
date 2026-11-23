@@ -12,7 +12,7 @@
         :title="$pageTitle"
         :description="$canManageAllRoles
             ? 'Create an Administrator, Focal, or TUPAD Coordinator account with the assignment required by that role.'
-            : 'Create a Coordinator account and assign the province the account will be responsible for.'"
+            : 'Create a Coordinator account and assign the province it is responsible for, or choose TUPAD Coordinator — Focal Access for a regional account with Focal access.'"
     >
         <x-slot:actions>
             <a href="{{ route('users.index') }}" class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back to Accounts</a>

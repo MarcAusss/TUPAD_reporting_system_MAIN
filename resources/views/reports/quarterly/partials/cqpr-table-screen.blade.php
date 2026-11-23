@@ -18,7 +18,7 @@
                 <thead>
                     <tr class="bg-[#071d44] text-white">
                         <th rowspan="2" class="min-w-56 border border-[#26456f] px-3 py-3 text-left font-bold">Name &amp; Nature of Project</th>
-                        <th rowspan="2" class="min-w-40 border border-[#26456f] px-3 py-3 text-left font-bold">Name of Implementer<br><span class="text-[10px] font-medium text-blue-200">(DOLE Office or Co-partner)</span></th>
+                        <th rowspan="2" class="min-w-40 border border-[#26456f] px-3 py-3 text-left font-bold">Name of Implementer<br><span class="text-[11px] font-medium text-blue-200">(DOLE Office or Co-partner)</span></th>
                         <th colspan="5" class="border border-[#26456f] px-3 py-2 text-center font-bold">Project Location</th>
                         <th colspan="2" class="border border-[#26456f] px-3 py-2 text-center font-bold">Work Period Category</th>
                         <th colspan="3" class="border border-[#26456f] px-3 py-2 text-center font-bold">Beneficiaries</th>

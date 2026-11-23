@@ -24,7 +24,7 @@ class UserManagementController extends Controller
 
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'role' => ['nullable', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::assignable()))],
+            'role' => ['nullable', Rule::in($canManageAllRoles ? $this->roleChoices() : $this->focalRoleChoices())],
             'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
         ]);
@@ -32,8 +32,8 @@ class UserManagementController extends Controller
         $accounts = User::query()
             ->whereIn('role', array_map(fn (UserRole $role) => $role->value, UserRole::assignable()))
             ->with('assignedProvince:id,name,code')
-            ->when(! $canManageAllRoles, fn ($query) => $query->where('role', UserRole::TC->value))
-            ->when($canManageAllRoles && filled($filters['role'] ?? null), fn ($query) => $query->where('role', $filters['role']))
+            ->when(! $canManageAllRoles, fn ($query) => $this->scopeFocalManageable($query)->whereKeyNot($actor->id))
+            ->when(filled($filters['role'] ?? null), fn ($query) => $this->applyRoleChoiceFilter($query, $filters['role']))
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $search = trim($search);
                 $query->where(function ($subQuery) use ($search): void {
@@ -56,9 +56,17 @@ class UserManagementController extends Controller
         if ($canManageAllRoles) {
             $roleCounts = User::query()
                 ->whereIn('role', array_map(fn (UserRole $role) => $role->value, UserRole::assignable()))
-                ->selectRaw('role, COUNT(*) as total')
-                ->groupBy('role')
-                ->pluck('total', 'role');
+                ->selectRaw('role, has_focal_access, COUNT(*) as total')
+                ->groupBy('role', 'has_focal_access')
+                ->get()
+                ->reduce(function ($counts, $row) {
+                    $role = $row->role instanceof UserRole ? $row->role->value : (string) $row->role;
+                    $key = $role === UserRole::FOCAL->value && (bool) $row->has_focal_access
+                        ? User::COORDINATOR_FOCAL_ACCESS_CHOICE
+                        : $role;
+
+                    return $counts->put($key, (int) $counts->get($key, 0) + (int) $row->total);
+                }, collect());
         }
 
         return view('users.index', [
@@ -84,7 +92,7 @@ class UserManagementController extends Controller
         $username = $this->normalizedUsername($data['username']);
         $temporaryPassword = $passwords->generate();
 
-        $account = User::create([
+        $account = new User([
             'name' => trim($data['name']),
             'username' => $username,
             'email' => $this->managedEmail($username),
@@ -96,10 +104,11 @@ class UserManagementController extends Controller
             'must_change_password' => true,
             'password_changed_at' => null,
         ]);
+        $account->forceFill(['has_focal_access' => $this->requestedFocalAccess($request, $actor, $role)])->save();
 
         return redirect()
             ->route('users.edit', $account)
-            ->with('success', $account->role->label().' account created. Copy the temporary password now; it will not be shown again after this request.')
+            ->with('success', $account->roleLabel().' account created. Copy the temporary password now; it will not be shown again after this request.')
             ->with('temporary_password', $temporaryPassword)
             ->with('temporary_password_username', $account->username);
     }
@@ -144,6 +153,7 @@ class UserManagementController extends Controller
             'is_active' => $actor->is($account) ? true : $request->boolean('is_active'),
             'role' => $role,
         ]);
+        $account->forceFill(['has_focal_access' => $this->requestedFocalAccess($request, $actor, $role, $account)]);
 
         if ($this->isManagedEmail($account->email)) {
             $account->email = $this->managedEmail($username);
@@ -167,8 +177,8 @@ class UserManagementController extends Controller
         return back()->with(
             'success',
             $account->is_active
-                ? $account->role->label().' account activated.'
-                : $account->role->label().' account deactivated.'
+                ? $account->roleLabel().' account activated.'
+                : $account->roleLabel().' account deactivated.'
         );
     }
 
@@ -220,7 +230,7 @@ class UserManagementController extends Controller
                 Rule::unique('users', 'username')->ignore($account?->id),
             ],
             'position' => ['nullable', 'string', 'max:255'],
-            'role' => ['nullable', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::assignable()))],
+            'role' => ['nullable', Rule::in($this->roleChoices())],
             'assigned_province_id' => $provinceRules,
             'is_active' => ['nullable', 'boolean'],
         ], [
@@ -232,12 +242,38 @@ class UserManagementController extends Controller
     private function requestedRole(Request $request, User $actor, ?User $account = null): UserRole
     {
         if (! $actor->isAdmin()) {
-            return UserRole::TC;
+            // Focal manages TUPAD Coordinators (plain, province-scoped, or with
+            // Focal access) and GSIS Enrollment Officers. Any other submitted role keeps the account's
+            // current type, and a new account defaults to a plain TC.
+            $value = $request->input('role');
+
+            if ($value === User::COORDINATOR_FOCAL_ACCESS_CHOICE) {
+                return UserRole::FOCAL;
+            }
+
+            if ($value === UserRole::GSIS->value) {
+                return UserRole::GSIS;
+            }
+
+            if ($value === UserRole::TC->value || $account === null) {
+                return UserRole::TC;
+            }
+
+            return match (true) {
+                $account->isCoordinatorWithFocalAccess() => UserRole::FOCAL,
+                $account->isGsis() => UserRole::GSIS,
+                default => UserRole::TC,
+            };
         }
 
-        $value = $request->input('role', $account?->role?->value);
+        $value = $request->input('role', $account?->roleChoice());
         if (! is_string($value) || $value === '') {
             throw ValidationException::withMessages(['role' => 'Select an account role.']);
+        }
+
+        // A TUPAD Coordinator with Focal access is a Focal-role account.
+        if ($value === User::COORDINATOR_FOCAL_ACCESS_CHOICE) {
+            return UserRole::FOCAL;
         }
 
         $role = UserRole::tryFrom($value);
@@ -248,6 +284,67 @@ class UserManagementController extends Controller
         return $role;
     }
 
+    /**
+     * Only an Administrator can grant the Focal access level. A Focal account
+     * keeps its current label when the request does not name the role.
+     */
+    private function requestedFocalAccess(Request $request, User $actor, UserRole $role, ?User $account = null): bool
+    {
+        if ($role !== UserRole::FOCAL) {
+            return false;
+        }
+
+        // For Focal, requestedRole() only returns FOCAL for a Coordinator with
+        // Focal access, so the flag always stays on.
+        if (! $actor->isAdmin()) {
+            return true;
+        }
+
+        $value = $request->input('role', $account?->roleChoice());
+
+        return $value === User::COORDINATOR_FOCAL_ACCESS_CHOICE;
+    }
+
+    /** @return array<int, string> */
+    private function roleChoices(): array
+    {
+        return [
+            ...array_map(fn (UserRole $role) => $role->value, UserRole::assignable()),
+            User::COORDINATOR_FOCAL_ACCESS_CHOICE,
+        ];
+    }
+
+    private function applyRoleChoiceFilter($query, string $choice)
+    {
+        return match ($choice) {
+            User::COORDINATOR_FOCAL_ACCESS_CHOICE => $query
+                ->where('role', UserRole::FOCAL->value)
+                ->where('has_focal_access', true),
+            UserRole::FOCAL->value => $query
+                ->where('role', UserRole::FOCAL->value)
+                ->where('has_focal_access', false),
+            default => $query->where('role', $choice),
+        };
+    }
+
+    /** Accounts a Focal user manages: TUPAD Coordinators (with or without Focal access) and GSIS Enrollment Officers. */
+    private function scopeFocalManageable($query)
+    {
+        return $query->where(function ($accounts): void {
+            $accounts
+                ->whereIn('role', [UserRole::TC->value, UserRole::GSIS->value])
+                ->orWhere(fn ($focalAccess) => $focalAccess
+                    ->where('role', UserRole::FOCAL->value)
+                    ->where('has_focal_access', true));
+        });
+    }
+
+    /** @return array<int, string> */
+    private function focalRoleChoices(): array
+    {
+        return [UserRole::TC->value, User::COORDINATOR_FOCAL_ACCESS_CHOICE, UserRole::GSIS->value];
+    }
+
     private function managedAccount(User $actor, User $user): User
     {
         if ($actor->isAdmin()) {
@@ -255,7 +352,11 @@ class UserManagementController extends Controller
             return $user;
         }
 
-        abort_unless($user->isTc(), 404);
+        abort_unless($user->isTc() || $user->isCoordinatorWithFocalAccess() || $user->isGsis(), 404);
+
+        // Focal-level accounts change their own details from My Account.
+        abort_if($actor->is($user), 404);
+
         return $user;
     }
 

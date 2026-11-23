@@ -52,7 +52,7 @@
         <aside class="space-y-4">
             <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Current Role</div>
-                <div class="mt-2 text-lg font-bold text-slate-900">{{ $account->role->label() }}</div>
+                <div class="mt-2 text-lg font-bold text-slate-900">{{ $account->roleLabel() }}</div>
                 <div class="mt-1 text-sm text-slate-500">{{ $assignmentLabel }}</div>
                 <div class="mt-1 font-mono text-xs text-slate-400">{{ $account->username }}</div>
             </section>

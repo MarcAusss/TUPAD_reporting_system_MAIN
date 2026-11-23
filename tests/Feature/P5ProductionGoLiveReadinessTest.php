@@ -24,7 +24,7 @@ class P5ProductionGoLiveReadinessTest extends TestCase
     public function test_live_role_and_workflow_baseline_is_the_three_role_model(): void
     {
         $this->assertSame(
-            ['admin', 'focal', 'tc'],
+            ['admin', 'focal', 'tc', 'gsis'],
             array_map(static fn (UserRole $role): string => $role->value, UserRole::assignable()),
         );
         $this->assertSame('TSSD Evaluation', ProjectStatus::TSSD_EVALUATION->label());

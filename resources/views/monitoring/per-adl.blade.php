@@ -22,7 +22,7 @@
                 </select>
             </div>
 
-            <button class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+            <button class="h-10 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 Apply Filter
             </button>
 
@@ -34,6 +34,9 @@
             @endif
         </form>
     </section>
+
+    @include('dashboard.partials.adl-utilization-chart', ['adlChartClass' => 'mb-5'])
+
     <section class="tupad-table-shell overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>

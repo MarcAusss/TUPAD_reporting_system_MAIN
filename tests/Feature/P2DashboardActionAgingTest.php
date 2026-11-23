@@ -61,11 +61,10 @@ class P2DashboardActionAgingTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Action Queue Aging')
-            ->assertSee('Oldest Pending Actions')
+            ->assertSee('Oldest Pending')
             ->assertSee('data-dashboard-queue="tssd"', false)
             ->assertSee('data-dashboard-queue="compliance"', false)
             ->assertSee('data-dashboard-queue="acp_implementation"', false)
-            ->assertSee('Critical Albay ACP')
             ->assertDontSee('Foreign Masbate TSSD');
 
         $data = $response->viewData('actionQueueData');
@@ -110,7 +109,14 @@ class P2DashboardActionAgingTest extends TestCase
         $response = $this->actingAs($focal)->get(route('dashboard'));
 
         $response->assertOk()
-            ->assertSee('Action Queue Aging')
+            ->assertDontSee('Focal Work Queue')
+            ->assertDontSee('Oldest Pending Actions')
+            ->assertDontSee('Recent Official Projects');
+
+        // The Focal's project list now lives on the Notifications page.
+        $this->actingAs($focal)->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee('Recent Official Projects')
             ->assertSee('DA Payment Action')
             ->assertSee('ACP Check Action');
 

@@ -12,7 +12,7 @@
         <x-slot:actions>
             <a
                 href="{{ route('targets.create') }}"
-                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]"
             >
                 <span class="text-base leading-none">+</span>
                 Create Target
@@ -31,7 +31,7 @@
                     class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
             </div>
 
-            <button type="submit" class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
+            <button type="submit" class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 Search
             </button>
 
@@ -115,7 +115,7 @@
                                     <x-slot:action>
                                         <a
                                             href="{{ route('targets.create') }}"
-                                            class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
+                                            class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6d]"
                                         >
                                             Create Target
                                         </a>

@@ -18,7 +18,7 @@ Fund trend and utilization
             </div>
 
             <div
-                class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500">
+                class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-500">
                 FY {{ $currentYear }}
             </div>
 
@@ -52,7 +52,7 @@ Fund trend and utilization
                 @endforeach
             </svg>
 
-            <div class="grid grid-cols-12 px-2 text-center text-[9px] font-medium text-slate-400">
+            <div class="grid grid-cols-12 px-2 text-center text-[11px] font-medium text-slate-400">
                 @foreach ($months as $month)
                     <span>{{ $month }}</span>
                 @endforeach
@@ -64,7 +64,7 @@ Fund trend and utilization
 
     <aside class="tupad-card p-5">
 
-        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+        <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500">
             Available Budget
         </div>
 
@@ -82,7 +82,7 @@ Fund trend and utilization
 
         </div>
 
-        <div class="mt-2 flex items-center justify-between text-[10px] font-semibold text-slate-500">
+        <div class="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
             <span>
                 {{ number_format($remainingPercent, 1) }}% remaining
             </span>
@@ -112,7 +112,7 @@ Fund trend and utilization
 
         @if ($user->isFocal() || $user->isAdmin())
             <a href="{{ route('adl.index') }}"
-                class="mt-5 flex h-10 items-center justify-center rounded-lg bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800">
+                class="mt-5 flex h-10 items-center justify-center rounded-lg bg-[#063b86] text-xs font-semibold text-white hover:bg-[#052f6d]">
                 View Budget Details
             </a>
         @else

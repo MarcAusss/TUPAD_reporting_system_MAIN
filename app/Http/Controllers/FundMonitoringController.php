@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Adl;
+use App\Services\Dashboards\AdlUtilizationService;
 use App\Services\Monitoring\PerAdlSummaryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -12,12 +13,19 @@ class FundMonitoringController extends Controller
 {
     public function __construct(private readonly PerAdlSummaryService $service) {}
 
-    public function perAdl(Request $request): View
+    public function perAdl(Request $request, AdlUtilizationService $adlUtilization): View
     {
         $rows = $this->filteredRows($request);
+
+        // Fund Utilization per ADL chart, following the ADL filter.
+        $chartAdls = Adl::query()
+            ->when($request->filled('adl_id'), fn ($query) => $query->whereKey($request->integer('adl_id')))
+            ->get();
+
         return view('monitoring.per-adl', [
             'rows' => $rows,
             'adls' => Adl::query()->orderBy('adl_number')->get(['id', 'adl_number']),
+            'adlUtilization' => $adlUtilization->rows($chartAdls),
         ]);
     }
 

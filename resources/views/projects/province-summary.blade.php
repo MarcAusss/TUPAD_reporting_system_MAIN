@@ -82,7 +82,7 @@
 
         <div class="overflow-x-auto">
 
-            <table class="tupad-system-table tupad-wide-table w-full min-w-375 table-fixed text-[10px] xl:min-w-0">
+            <table class="tupad-system-table tupad-wide-table w-full min-w-375 table-fixed text-[11px] xl:min-w-0">
 
                 <colgroup>
                     <col class="w-[8%]">
@@ -207,9 +207,9 @@
                                 data-sort-value="{{ $actualBenefs }}">
                                 {{ number_format($actualBenefs) }}
                                 @if ($actualIsFinal && $benefsGap !== 0)
-                                    <span class="block text-[9px] font-bold text-amber-700">{{ $benefsGap > 0 ? '−' : '+' }}{{ number_format(abs($benefsGap)) }}</span>
+                                    <span class="block text-[11px] font-bold text-amber-700">{{ $benefsGap > 0 ? '−' : '+' }}{{ number_format(abs($benefsGap)) }}</span>
                                 @elseif (! $actualIsFinal)
-                                    <span class="block text-[9px] font-medium">not final</span>
+                                    <span class="block text-[11px] font-medium">not final</span>
                                 @endif
                             </td>
 
@@ -221,9 +221,9 @@
                                 data-sort-value="{{ $actualAmount }}">
                                 ₱{{ number_format($actualAmount, 2) }}
                                 @if ($actualIsFinal && abs($amountGap) >= 0.01)
-                                    <span class="block text-[9px] font-bold text-amber-700">{{ $amountGap > 0 ? '−' : '+' }}₱{{ number_format(abs($amountGap), 2) }}</span>
+                                    <span class="block text-[11px] font-bold text-amber-700">{{ $amountGap > 0 ? '−' : '+' }}₱{{ number_format(abs($amountGap), 2) }}</span>
                                 @elseif (! $actualIsFinal)
-                                    <span class="block text-[9px] font-medium">not final</span>
+                                    <span class="block text-[11px] font-medium">not final</span>
                                 @endif
                             </td>
 
@@ -348,14 +348,14 @@
                     $percent = $row['approved'] > 0 ? round($row['actual'] / $row['approved'] * 100, 1) : 0;
                 @endphp
                 <div class="rounded-xl border border-slate-200 p-4">
-                    <div class="text-[10px] font-bold uppercase tracking-wide text-slate-500">{{ $row['label'] }}</div>
+                    <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $row['label'] }}</div>
                     <dl class="mt-3 grid grid-cols-2 gap-2">
                         <div>
-                            <dt class="text-[10px] font-semibold text-slate-400">Approved</dt>
+                            <dt class="text-[11px] font-semibold text-slate-400">Approved</dt>
                             <dd class="text-sm font-bold text-slate-800">{{ $format($row['approved']) }}</dd>
                         </div>
                         <div>
-                            <dt class="text-[10px] font-semibold text-emerald-600">Actual</dt>
+                            <dt class="text-[11px] font-semibold text-emerald-600">Actual</dt>
                             <dd class="text-sm font-bold text-emerald-800">{{ $format($row['actual']) }}</dd>
                         </div>
                     </dl>
@@ -412,7 +412,7 @@
                 <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
 
                     <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
-                        <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                             Districts
                         </div>
 
@@ -422,7 +422,7 @@
                     </div>
 
                     <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
-                        <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                             Municipalities
                         </div>
 
@@ -432,7 +432,7 @@
                     </div>
 
                     <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
-                        <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                             Barangays
                         </div>
 
@@ -442,7 +442,7 @@
                     </div>
 
                     <div class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center">
-                        <div class="text-[9px] font-bold uppercase tracking-wide text-blue-600">
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-blue-600">
                             Beneficiaries
                         </div>
 
@@ -548,7 +548,7 @@
                                         {{ $district['name'] }}
                                     </div>
 
-                                    <div class="mt-0.5 text-[10px] text-slate-400">
+                                    <div class="mt-0.5 text-[11px] text-slate-400">
                                         {{ number_format($district['municipality_count']) }}
                                         municipality/city ·
                                         {{ number_format($district['project_count']) }}
@@ -559,36 +559,36 @@
                             </div>
 
                             <div class="text-right">
-                                <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                                <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                     Beneficiaries
                                 </div>
 
                                 <div class="mt-0.5 text-xs font-bold text-slate-700">
                                     {{ number_format($district['beneficiaries']) }}
                                 </div>
-                                <div class="mt-0.5 text-[9px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual {{ number_format($district['actual_beneficiaries']) }}</div>
+                                <div class="mt-0.5 text-[11px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual {{ number_format($district['actual_beneficiaries']) }}</div>
                             </div>
 
                             <div class="text-right">
-                                <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                                <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                     Female
                                 </div>
 
                                 <div class="mt-0.5 text-xs font-bold text-slate-700">
                                     {{ number_format($district['female_beneficiaries']) }}
                                 </div>
-                                <div class="mt-0.5 text-[9px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual {{ number_format($district['actual_female_beneficiaries']) }}</div>
+                                <div class="mt-0.5 text-[11px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual {{ number_format($district['actual_female_beneficiaries']) }}</div>
                             </div>
 
                             <div class="text-right">
-                                <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                                <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                     Amount Assisted
                                 </div>
 
                                 <div class="mt-0.5 text-xs font-bold text-[#063b86]">
                                     ₱{{ number_format($district['amount_assisted'], 2) }}
                                 </div>
-                                <div class="mt-0.5 text-[9px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual ₱{{ number_format($district['actual_amount'], 2) }}</div>
+                                <div class="mt-0.5 text-[11px] font-semibold text-emerald-700" title="Actual (after obligations)">Actual ₱{{ number_format($district['actual_amount'], 2) }}</div>
                             </div>
 
                         </div>
@@ -634,13 +634,13 @@
 
                                                     @if ($municipality['is_city'])
                                                         <span
-                                                            class="ml-1 rounded bg-violet-50 px-1.5 py-0.5 text-[8px] font-bold uppercase text-violet-700">
+                                                            class="ml-1 rounded bg-violet-50 px-1.5 py-0.5 text-[11px] font-bold uppercase text-violet-700">
                                                             City
                                                         </span>
                                                     @endif
                                                 </div>
 
-                                                <div class="mt-0.5 text-[10px] text-slate-400">
+                                                <div class="mt-0.5 text-[11px] text-slate-400">
                                                     {{ number_format($municipality['project_count']) }}
                                                     project(s) ·
                                                     {{ number_format($municipality['barangay_count']) }}
@@ -652,17 +652,17 @@
 
                                         <div class="text-right text-xs font-semibold text-slate-700">
                                             {{ number_format($municipality['beneficiaries']) }}
-                                            <div class="text-[9px] font-semibold text-emerald-700">Actual {{ number_format($municipality['actual_beneficiaries']) }}</div>
+                                            <div class="text-[11px] font-semibold text-emerald-700">Actual {{ number_format($municipality['actual_beneficiaries']) }}</div>
                                         </div>
 
                                         <div class="text-right text-xs font-semibold text-slate-700">
                                             {{ number_format($municipality['female_beneficiaries']) }}
-                                            <div class="text-[9px] font-semibold text-emerald-700">Actual {{ number_format($municipality['actual_female_beneficiaries']) }}</div>
+                                            <div class="text-[11px] font-semibold text-emerald-700">Actual {{ number_format($municipality['actual_female_beneficiaries']) }}</div>
                                         </div>
 
                                         <div class="text-right text-xs font-bold text-[#063b86]">
                                             ₱{{ number_format($municipality['amount_assisted'], 2) }}
-                                            <div class="text-[9px] font-semibold text-emerald-700">Actual ₱{{ number_format($municipality['actual_amount'], 2) }}</div>
+                                            <div class="text-[11px] font-semibold text-emerald-700">Actual ₱{{ number_format($municipality['actual_amount'], 2) }}</div>
                                         </div>
 
                                     </div>
@@ -675,7 +675,7 @@
                                         <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
 
                                             <div
-                                                class="grid grid-cols-[minmax(180px,1fr)_90px_110px] gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                                                class="grid grid-cols-[minmax(180px,1fr)_90px_110px] gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                                 <div>Barangay</div>
                                                 <div class="text-right">Projects</div>
                                                 <div class="text-right">Beneficiaries</div>
@@ -699,19 +699,19 @@
                                                                     class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"></span>
 
                                                                 <span
-                                                                    class="truncate text-[10px] font-semibold text-slate-700">
+                                                                    class="truncate text-[11px] font-semibold text-slate-700">
                                                                     {{ $barangay['name'] }}
                                                                 </span>
                                                             </div>
 
-                                                            <div class="text-right text-[10px] text-slate-500">
+                                                            <div class="text-right text-[11px] text-slate-500">
                                                                 {{ number_format($barangay['project_count']) }}
                                                             </div>
 
-                                                            <div class="text-right text-[10px] font-bold text-slate-700">
+                                                            <div class="text-right text-[11px] font-bold text-slate-700">
                                                                 {{ number_format($barangay['beneficiaries']) }}
                                                                 @if ($barangay['actual_beneficiaries'] !== $barangay['beneficiaries'])
-                                                                    <div class="text-[9px] font-semibold text-emerald-700">Actual {{ number_format($barangay['actual_beneficiaries']) }}</div>
+                                                                    <div class="text-[11px] font-semibold text-emerald-700">Actual {{ number_format($barangay['actual_beneficiaries']) }}</div>
                                                                 @endif
                                                             </div>
 
@@ -730,21 +730,21 @@
                                                                 class="flex flex-col gap-2 border-b border-slate-100 py-2 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
 
                                                                 <div>
-                                                                    <div class="text-[10px] font-semibold text-slate-700">
+                                                                    <div class="text-[11px] font-semibold text-slate-700">
                                                                         {{ $coveredProject->approval?->project_code ?: '—' }}
                                                                         ·
                                                                         {{ $coveredProject->project_title }}
                                                                     </div>
 
                                                                     <div
-                                                                        class="mt-0.5 text-[9px] {{ $projectEntry['is_exact'] ? 'font-semibold text-emerald-600' : 'text-amber-600' }}">
+                                                                        class="mt-0.5 text-[11px] {{ $projectEntry['is_exact'] ? 'font-semibold text-emerald-600' : 'text-amber-600' }}">
                                                                         {{ $projectEntry['is_exact']
                                                                             ? 'Exact barangay beneficiary allocation'
                                                                             : 'Legacy project-level beneficiary coverage' }}
                                                                     </div>
                                                                 </div>
 
-                                                                <div class="flex gap-3 text-[10px]">
+                                                                <div class="flex gap-3 text-[11px]">
                                                                     <span class="font-semibold text-slate-700">
                                                                         {{ number_format($projectEntry['beneficiaries']) }}
                                                                         benef.
@@ -767,7 +767,7 @@
                                         </div>
                                     @else
                                         <div
-                                            class="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-[10px] text-slate-500">
+                                            class="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-[11px] text-slate-500">
                                             This municipality is represented by project data, but no barangay-level location
                                             was recorded.
                                         </div>
@@ -799,13 +799,13 @@
         </div>
 
         @if ($provinceStats['has_legacy_coverage'])
-            <div class="border-t border-amber-200 bg-amber-50 px-5 py-3 text-[10px] leading-5 text-amber-800">
+            <div class="border-t border-amber-200 bg-amber-50 px-5 py-3 text-[11px] leading-5 text-amber-800">
                 <b>Barangay beneficiary figures are coverage totals only for legacy projects without exact allocation.</b>
                 New projects use the saved Total beneficiary count per barangay. Legacy multi-barangay records remain
                 marked as coverage because their historical project total cannot be divided safely without source data.
             </div>
         @else
-            <div class="border-t border-emerald-200 bg-emerald-50 px-5 py-3 text-[10px] leading-5 text-emerald-800">
+            <div class="border-t border-emerald-200 bg-emerald-50 px-5 py-3 text-[11px] leading-5 text-emerald-800">
                 <b>Exact beneficiary allocation is complete.</b>
                 Barangay figures come from the saved project-location allocation, and municipality / district totals are
                 rolled up from those barangay values.

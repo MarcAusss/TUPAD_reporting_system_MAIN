@@ -428,6 +428,18 @@ class ProjectController extends Controller
                 'partnerOptions' => $partnerOptions,
                 'implementationModes' => ImplementationMode::cases(),
                 'ppeTypes' => PpeType::cases(),
+                // Income class and LCE auto-fill from the selected locations.
+                'locationReference' => [
+                    'municipalities' => \App\Models\Municipality::query()
+                        ->whereIn('province_id', $provinces->pluck('id'))
+                        ->get(['id', 'province_id', 'name', 'income_class', 'mayor'])
+                        ->mapWithKeys(fn ($municipality) => [(string) $municipality->id => [
+                            'name' => $municipality->name,
+                            'income_class' => $municipality->income_class,
+                            'mayor' => $municipality->mayor,
+                        ]]),
+                    'governors' => $provinces->mapWithKeys(fn ($province) => [(string) $province->id => $province->governor]),
+                ],
             ]
         );
     }
@@ -978,8 +990,16 @@ class ProjectController extends Controller
                 'barangay' =>
                     $barangay->name,
 
+                // Auto-filled from the locations on the form; the TC may edit it.
                 'income_class' =>
-                    $municipality->income_class,
+                    filled($validated['income_class'] ?? null)
+                        ? trim($validated['income_class'])
+                        : $municipality->income_class,
+
+                'local_chief_executive' =>
+                    filled($validated['local_chief_executive'] ?? null)
+                        ? trim($validated['local_chief_executive'])
+                        : null,
 
                 /*
                 |--------------------------------------------------------------------------
@@ -1158,6 +1178,9 @@ class ProjectController extends Controller
         | Project Viewing Authorization
         |--------------------------------------------------------------------------
         */
+
+        // The GSIS Enrollment Officer works from the GPAI enrollment pages only.
+        abort_if($user->isGsis(), 403);
 
         if ($user->isFocal()) {
             $allowedStatuses = $project->implementation_mode === ImplementationMode::THROUGH_ACP
@@ -1353,6 +1376,18 @@ class ProjectController extends Controller
             'partner_other' => [
                 'nullable',
                 'required_if:partner,__other__',
+                'string',
+                'max:255',
+            ],
+
+            'income_class' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+
+            'local_chief_executive' => [
+                'nullable',
                 'string',
                 'max:255',
             ],

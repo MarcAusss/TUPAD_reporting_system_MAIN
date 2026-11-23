@@ -23,6 +23,7 @@ use Tests\TestCase;
 class PhysicalFinancialOfficialPrintMatrixLayoutTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     public function test_print_uses_three_level_province_target_accomplishment_balance_header_with_real_data(): void
     {

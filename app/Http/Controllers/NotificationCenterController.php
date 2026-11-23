@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Dashboards\RecentProjectsService;
 use App\Services\Notifications\NotificationCenterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,10 +10,14 @@ use Illuminate\View\View;
 
 class NotificationCenterController extends Controller
 {
-    public function index(Request $request, NotificationCenterService $notifications): View
-    {
+    public function index(
+        Request $request,
+        NotificationCenterService $notifications,
+        RecentProjectsService $recentProjects,
+    ): View {
         return view('notifications.index', [
             'notificationData' => $notifications->build($request->user()),
+            'recentProjects' => $recentProjects->for($request->user()),
         ]);
     }
 

@@ -12,7 +12,7 @@
         <x-breadcrumbs :items="$breadcrumbs" />
 
         @if($eyebrow)
-            <div class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
                 {{ $eyebrow }}
             </div>
         @endif

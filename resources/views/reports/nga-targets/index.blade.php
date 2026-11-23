@@ -47,7 +47,7 @@
         <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             @foreach($summaryCards as $card)
                 <div class="rounded-lg border border-slate-200 px-4 py-3">
-                    <div class="text-[10px] font-extrabold uppercase tracking-[0.1em] text-slate-400">
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-500">
                         {{ $card['label'] }}
                     </div>
                     <div class="mt-1 text-lg font-bold text-slate-900">
@@ -89,7 +89,7 @@
         </div>
 
         <div class="mt-4 flex flex-wrap gap-2">
-            <button type="submit" class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
+            <button type="submit" class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 Apply
             </button>
 

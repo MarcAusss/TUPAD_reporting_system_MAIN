@@ -59,7 +59,7 @@
             'Implementation Mode' => $project->implementation_mode->label(),
         ] as $label => $value)
             <div class="bg-white p-4">
-                <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $label }}</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{{ $label }}</div>
                 <div class="mt-1 text-sm font-semibold leading-5 text-slate-900">{{ $value }}</div>
             </div>
         @endforeach

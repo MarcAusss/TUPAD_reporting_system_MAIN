@@ -16,7 +16,7 @@
 
             $roleDescription = match ($roleMode) {
                 'focal' => 'Monitor ADL funds, allocations, payments, and regional utilization.',
-                'tc' => 'Review project workflow queues and continue projects that require TC action.',
+                'tc' => 'Monitor funds, beneficiaries, reports, and workflow queues of '.($assignedProvinceName ?? 'your assigned province').'.',
                 'admin' => 'Review program-wide funds, projects, workflow queues, and administrative activity.',
                 default => 'Overview of TUPAD program funds and official project activity.',
             };
@@ -61,7 +61,7 @@
                 @if ($roleMode === 'focal')
 
                     <a href="{{ route('adl.index') }}"
-                        class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                        class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                         Manage ADL
                     </a>
 
@@ -73,7 +73,7 @@
                     @endif
                 @elseif($roleMode === 'tc')
                     <a href="{{ route('projects.create') }}"
-                        class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                        class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                         + Add Project
                     </a>
 
@@ -83,7 +83,7 @@
                     </a>
                 @elseif($roleMode === 'admin')
                     <a href="{{ route('projects.index') }}"
-                        class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                        class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                         View Projects
                     </a>
 
@@ -96,18 +96,36 @@
         Action queue aging summary
     ====================================================== --}}
         @if ($roleMode === 'focal')
-            @include('dashboard.partials.focal-operations-overview')
-
-            {{-- Charts first: the Focal role opens this dashboard mainly to read fund trend and geographic performance, not to browse queue boxes. --}}
-            @include('dashboard.partials.fund-trend-chart')
-            @include('dashboard.partials.adl-utilization-chart')
-            @include('dashboard.partials.geographic-analytics')
+            {{-- Fund position, status, beneficiaries, implementation, fund flow and activity,
+                 then the provincial resource mapping and the report pies. --}}
+            @include('dashboard.partials.focal-filters')
+            @include('dashboard.partials.focal-overview')
+            <div class="mt-5">
+                @include('dashboard.partials.focal-beneficiary-distribution')
+            </div>
+            @include('dashboard.partials.report-pie-charts')
         @elseif ($roleMode === 'tc')
-            @include('dashboard.partials.tc-operations-overview')
+            {{-- Same layout as the Focal dashboard, limited to the assigned province. --}}
+            @include('dashboard.partials.focal-filters')
+            @include('dashboard.partials.focal-overview')
 
-            {{-- Charts and program totals next, before the workflow queue tables. --}}
-            @include('dashboard.partials.program-snapshot')
-            @include('dashboard.partials.fund-trend-chart')
+            {{-- Beneficiaries (left) and projects (right), drawn the same way. --}}
+            <div class="mt-5 grid gap-5 xl:grid-cols-2" data-tc-distributions>
+                <div class="min-w-0">
+                    @include('dashboard.partials.focal-beneficiary-distribution', ['bdCompact' => true])
+                </div>
+                <div class="min-w-0">
+                    @include('dashboard.partials.focal-beneficiary-distribution', [
+                        'distribution' => $projectDistribution,
+                        'bdKind' => 'projects',
+                        'bdDataId' => 'tcProjectDistributionData',
+                        'bdCompact' => true,
+                    ])
+                </div>
+            </div>
+
+            @include('dashboard.partials.report-pie-charts')
+            <div class="mt-5"></div>
         @else
             <section class="mb-5" data-dashboard-aging-summary>
                 <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -117,7 +135,7 @@
                             Prioritize records that have remained in their current workflow status the longest.
                         </p>
                     </div>
-                    <p class="text-[10px] leading-4 text-slate-400 sm:max-w-md sm:text-right">
+                    <p class="text-[11px] leading-4 text-slate-400 sm:max-w-md sm:text-right">
                         Attention at {{ $actionQueueData['attention_days'] }}+ days; critical at
                         {{ $actionQueueData['critical_days'] }}+ days. These are internal dashboard indicators, not statutory deadlines.
                     </p>
@@ -131,7 +149,7 @@
                         ['Oldest Pending', $actionQueueData['oldest_days'].' days', 'Age of the oldest pending action visible to your account.'],
                     ] as [$label, $value, $description])
                         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $label }}</div>
+                            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{{ $label }}</div>
                             <div class="mt-2 text-2xl font-extrabold text-slate-900">
                                 {{ is_numeric($value) ? number_format($value) : $value }}
                             </div>
@@ -159,9 +177,9 @@
                             <a href="{{ $queue['url'] }}" data-dashboard-queue="{{ $queueKey }}"
                                 class="group rounded-xl border bg-white p-4 shadow-sm transition {{ $queue['critical_count'] > 0 ? 'border-rose-200 hover:bg-rose-50' : ($queue['aged_count'] > 0 ? 'border-amber-200 hover:bg-amber-50' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50') }}">
                                 <div class="flex items-center justify-between gap-3">
-                                    <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Pending Queue</div>
+                                    <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Pending Queue</div>
                                     @if ($queue['aged_count'] > 0)
-                                        <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-800">
+                                        <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">
                                             {{ number_format($queue['aged_count']) }} aged
                                         </span>
                                     @endif
@@ -170,7 +188,7 @@
                                     <div class="text-sm font-semibold text-slate-800">{{ $queue['label'] }}</div>
                                     <div class="text-2xl font-extrabold text-slate-900">{{ number_format($queue['count']) }}</div>
                                 </div>
-                                <div class="mt-2 flex items-center justify-between gap-3 text-[10px] text-slate-500">
+                                <div class="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
                                     <span>{{ $queue['description'] }}</span>
                                     <span class="shrink-0 font-semibold">Oldest {{ $queue['oldest_days'] }}d</span>
                                 </div>
@@ -194,12 +212,12 @@
                             @if ($queue)
                                 <a href="{{ $queue['url'] }}" data-dashboard-queue="{{ $queueKey }}"
                                     class="rounded-xl border bg-white p-4 shadow-sm {{ $queue['critical_count'] > 0 ? 'border-rose-200 hover:bg-rose-50' : ($queue['aged_count'] > 0 ? 'border-amber-200 hover:bg-amber-50' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50') }}">
-                                    <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Through ACP</div>
+                                    <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Through ACP</div>
                                     <div class="mt-2 flex items-end justify-between gap-3">
                                         <div class="text-sm font-semibold text-slate-900">{{ $queue['label'] }}</div>
                                         <div class="text-2xl font-extrabold text-slate-900">{{ number_format($queue['count']) }}</div>
                                     </div>
-                                    <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+                                    <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
                                         <span>{{ number_format($queue['aged_count']) }} aged</span>
                                         <span class="font-semibold">Oldest {{ $queue['oldest_days'] }}d</span>
                                     </div>
@@ -210,9 +228,8 @@
                 </section>
             @endif
         @elseif ($roleMode === 'tc')
+            <div class="mt-5">@include('dashboard.partials.tc-aging-strip')</div>
             @include('dashboard.partials.tc-work-queue')
-        @elseif($roleMode === 'focal')
-            @include('dashboard.partials.focal-work-queue')
         @endif
 
         @if ($roleMode === 'admin')
@@ -221,178 +238,54 @@
             @include('dashboard.partials.adl-utilization-chart')
         @endif
 
-        @if ($actionQueueData['oldest_items']->isNotEmpty())
-            <section class="tupad-table-shell mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-dashboard-oldest-actions>
-                <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-900">Oldest Pending Actions</h2>
-                        <p class="mt-1 text-xs text-slate-500">Oldest visible items across the queues assigned to your role.</p>
+        {{-- The Focal and TC dashboards leave Oldest Pending Actions to the work queue and show Recent Official Projects on Notifications. --}}
+        @if (! in_array($roleMode, ['focal', 'tc'], true))
+            @if ($actionQueueData['oldest_items']->isNotEmpty())
+                <section class="tupad-table-shell mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-dashboard-oldest-actions>
+                    <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-900">Oldest Pending Actions</h2>
+                            <p class="mt-1 text-xs text-slate-500">Oldest visible items across the queues assigned to your role.</p>
+                        </div>
+                        <span class="text-[11px] font-semibold text-slate-400">Age is measured from the latest recorded status transition.</span>
                     </div>
-                    <span class="text-[10px] font-semibold text-slate-400">Age is measured from the latest recorded status transition.</span>
-                </div>
 
-                <div class="overflow-x-auto">
-                    <table class="tupad-system-table min-w-full">
-                        <thead class="bg-slate-50">
-                            <tr>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Project</th>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Queue</th>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Status</th>
-                                <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Location</th>
-                                <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Age</th>
-                                <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @foreach ($actionQueueData['oldest_items'] as $item)
+                    <div class="overflow-x-auto">
+                        <table class="tupad-system-table min-w-full">
+                            <thead class="bg-slate-50">
                                 <tr>
-                                    <td class="px-5 py-3 text-sm font-semibold text-slate-900">{{ $item['project_title'] }}</td>
-                                    <td class="px-5 py-3 text-xs text-slate-600">{{ $item['queue_label'] }}</td>
-                                    <td class="px-5 py-3 text-xs text-slate-600">{{ $item['status_label'] }}</td>
-                                    <td class="px-5 py-3 text-xs text-slate-500">{{ $item['location'] ?: 'Location not available' }}</td>
-                                    <td class="px-5 py-3 text-right">
-                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold {{ $item['critical'] ? 'bg-rose-50 text-rose-700' : ($item['needs_attention'] ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600') }}">
-                                            {{ $item['age_days'] }} days
-                                        </span>
-                                    </td>
-                                    <td class="px-5 py-3 text-right">
-                                        <a href="{{ $item['queue_url'] }}" class="text-xs font-semibold text-blue-700 hover:text-blue-900">Open Queue →</a>
-                                    </td>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Project</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Queue</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Status</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Location</th>
+                                    <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Age</th>
+                                    <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Action</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach ($actionQueueData['oldest_items'] as $item)
+                                    <tr>
+                                        <td class="px-5 py-3 text-sm font-semibold text-slate-900">{{ $item['project_title'] }}</td>
+                                        <td class="px-5 py-3 text-xs text-slate-600">{{ $item['queue_label'] }}</td>
+                                        <td class="px-5 py-3 text-xs text-slate-600">{{ $item['status_label'] }}</td>
+                                        <td class="px-5 py-3 text-xs text-slate-500">{{ $item['location'] ?: 'Location not available' }}</td>
+                                        <td class="px-5 py-3 text-right">
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold {{ $item['critical'] ? 'bg-rose-50 text-rose-700' : ($item['needs_attention'] ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600') }}">
+                                                {{ $item['age_days'] }} days
+                                            </span>
+                                        </td>
+                                        <td class="px-5 py-3 text-right">
+                                            <a href="{{ $item['queue_url'] }}" class="text-xs font-semibold text-blue-700 hover:text-blue-900">Open Queue →</a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            @endif
+
+            @include('dashboard.partials.recent-official-projects')
         @endif
-
-        {{-- =====================================================
-        Recent projects
-    ====================================================== --}}
-        <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
-            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-
-                <div>
-                    <h2 class="text-sm font-semibold text-slate-900">
-                        Recent Official Projects
-                    </h2>
-
-                    <p class="mt-1 text-xs text-slate-500">
-                        Most recently updated projects across the official workflow.
-                    </p>
-                </div>
-
-                @if ($user->isTc() || $user->isAdmin())
-                    <a href="{{ route('projects.index') }}"
-                        class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                        View All Projects
-                    </a>
-                @endif
-
-            </div>
-
-            <div class="overflow-x-auto">
-
-                <table class="tupad-system-table min-w-full">
-
-                    <thead class="bg-slate-50">
-
-                        <tr>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
-                                Project
-                            </th>
-
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
-                                Location
-                            </th>
-
-                            <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
-                                Beneficiaries
-                            </th>
-
-                            <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
-                                Cost
-                            </th>
-
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">
-                                Status
-                            </th>
-
-                            <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">
-                                Action
-                            </th>
-                        </tr>
-
-                    </thead>
-
-                    <tbody class="divide-y divide-slate-100">
-
-                        @forelse($recentProjects as $project)
-                            <tr class="hover:bg-slate-50">
-
-                                <td class="px-5 py-4">
-
-                                    <div class="max-w-[320px] truncate text-sm font-semibold text-slate-900">
-                                        {{ $project->project_title }}
-                                    </div>
-
-                                    <div class="mt-1 text-xs text-slate-400">
-                                        {{ $project->approval?->project_code ?? 'Project code pending' }}
-                                    </div>
-
-                                </td>
-
-                                <td class="px-5 py-4 text-sm text-slate-600">
-                                    {{ collect([$project->municipality, $project->province])->filter()->implode(', ') }}
-                                </td>
-
-                                <td class="px-5 py-4 text-right text-sm font-semibold text-slate-700">
-                                    {{ number_format($project->beneficiaries_total) }}
-                                </td>
-
-                                <td class="px-5 py-4 text-right text-sm font-semibold text-slate-700">
-                                    ₱{{ number_format($project->total_project_cost, 2) }}
-                                </td>
-
-                                <td class="px-5 py-4">
-                                    <x-project-status :project="$project" />
-                                </td>
-
-                                <td class="px-5 py-4 text-right">
-
-                                    @if ($user->isTc() || $user->isAdmin())
-                                        <a href="{{ route('projects.show', $project) }}"
-                                            class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                                            Open Project
-                                        </a>
-                                    @else
-                                        <span class="text-xs font-medium text-slate-400">
-                                            View through monitoring
-                                        </span>
-                                    @endif
-
-                                </td>
-
-                            </tr>
-
-                        @empty
-
-                            <tr>
-                                <td colspan="6" class="p-0">
-                                    <x-empty-state title="No official projects yet"
-                                        message="Project activity will appear here when official projects are created." />
-                                </td>
-                            </tr>
-                        @endforelse
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </section>
-
 
 @endsection

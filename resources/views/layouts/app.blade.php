@@ -86,7 +86,9 @@
                     </a>
 
                     {{-- Role-specific navigation is kept in focused partials so the main shell remains stable. --}}
-                    @if ($user->isFocal())
+                    @if ($user->isGsis())
+                        @include('layouts.partials.sidebar-gsis')
+                    @elseif ($user->isFocal())
                         @include('layouts.partials.sidebar-focal')
                     @elseif ($user->isTc() || $user->isAdmin())
                         @include('layouts.partials.sidebar-project-operations')
@@ -151,11 +153,11 @@
                             </svg>
                             <input id="global-search" name="q" type="search"
                                 value="{{ request()->routeIs('search.index') ? request('q') : '' }}"
-                                placeholder="Search project, ADL, barangay, project code..." autocomplete="off"
+                                placeholder="{{ $user->isGsis() ? 'Search project, GPAI number, ADL, municipality...' : 'Search project, ADL, barangay, project code...' }}" autocomplete="off"
                                 role="combobox" aria-expanded="false" aria-controls="global-search-results" aria-autocomplete="list"
                                 data-global-search-input
                                 class="h-full w-full bg-transparent pl-3 text-[12px] text-[#233f67] outline-none placeholder:text-[#8290a5]">
-                            <kbd class="ml-2 hidden shrink-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold text-slate-500 lg:inline" title="Press / or Ctrl+K to search" data-global-search-hint>Ctrl K</kbd>
+                            <kbd class="ml-2 hidden shrink-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-500 lg:inline" title="Press / or Ctrl+K to search" data-global-search-hint>Ctrl K</kbd>
                         </div>
                         <div id="global-search-results" role="listbox" data-global-search-results
                             class="absolute inset-x-0 top-full z-60 mt-2 hidden max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl"></div>
@@ -164,7 +166,7 @@
 
                 <div class="ml-4 flex items-center gap-4">
                     <div class="hidden text-right xl:block">
-                        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                             Current Workspace
                         </div>
                         <div class="mt-0.5 text-[11px] font-semibold text-[#355378]">
@@ -185,7 +187,7 @@
                             <path d="M10 21h4"></path>
                         </svg>
                         <span data-notification-badge
-                            class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b42318] px-1.5 py-0.5 text-[9px] font-extrabold leading-4 text-white ring-2 ring-white {{ $notificationCount > 0 ? '' : 'hidden' }}">
+                            class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b42318] px-1.5 py-0.5 text-[11px] font-extrabold leading-4 text-white ring-2 ring-white {{ $notificationCount > 0 ? '' : 'hidden' }}">
                             {{ $notificationCount > 99 ? '99+' : $notificationCount }}
                         </span>
                         <span data-notification-live-label class="sr-only">
@@ -217,7 +219,7 @@
                         <div class="hidden min-w-0 md:block">
                             <div class="max-w-45 truncate text-[12px] font-bold text-[#10294f]">
                                 {{ $user->name }}</div>
-                            <div class="mt-0.5 text-[10px] text-[#6f7f98]">{{ $user->roleLabel() }}</div>
+                            <div class="mt-0.5 text-[11px] text-[#6f7f98]">{{ $user->roleLabel() }}</div>
                         </div>
                         {{-- <svg class="hidden h-4 w-4 text-[#48617f] md:block" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2">
@@ -244,7 +246,7 @@
 
                         <input id="global-search-mobile" name="q" type="search"
                             value="{{ request()->routeIs('search.index') ? request('q') : '' }}"
-                            placeholder="Search project, ADL, barangay..." autocomplete="off"
+                            placeholder="{{ $user->isGsis() ? 'Search project, GPAI number...' : 'Search project, ADL, barangay...' }}" autocomplete="off"
                             role="combobox" aria-expanded="false" aria-controls="global-search-results-mobile" aria-autocomplete="list"
                             data-global-search-input
                             class="h-full w-full bg-transparent pl-3 text-[12px] outline-none">
@@ -298,7 +300,7 @@
             </main>
 
             <footer
-                class="mx-auto flex w-full max-w-[1660px] flex-col gap-2 px-5 pb-6 pt-1 text-center text-[10px] text-[#8794a8] sm:flex-row sm:justify-between sm:text-left xl:px-6">
+                class="mx-auto flex w-full max-w-[1660px] flex-col gap-2 px-5 pb-6 pt-1 text-center text-[11px] text-[#8794a8] sm:flex-row sm:justify-between sm:text-left xl:px-6">
                 <span>Department of Labor and Employment · TUPAD Reporting System</span>
                 <span>{{ now()->format('Y') }} · Internal Government Information System</span>
             </footer>

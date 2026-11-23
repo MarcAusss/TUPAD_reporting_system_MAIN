@@ -5,7 +5,7 @@
     <div class="border-b border-slate-200 px-5 py-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Geographic Report Analytics</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Geographic Report Analytics</div>
                 <h2 class="mt-1 text-base font-bold text-slate-900">Bicol Geographic Performance</h2>
                 <p class="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
                     Select a report family, then select a bar to drill from Bicol provinces to municipalities/cities and barangays.
@@ -30,7 +30,7 @@
 
         <div class="mt-3 hidden grid-cols-1 gap-3 md:grid-cols-2" data-sector-controls>
             <div>
-                <label for="dashboard-sector-group" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Sector family</label>
+                <label for="dashboard-sector-group" class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Sector family</label>
                 <select id="dashboard-sector-group" data-sector-group
                     class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-700">
                     @foreach ($geographicAnalytics['controls']['sector_groups'] as $group)
@@ -39,7 +39,7 @@
                 </select>
             </div>
             <div>
-                <label for="dashboard-sector" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Sector category</label>
+                <label for="dashboard-sector" class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Sector category</label>
                 <select id="dashboard-sector" data-sector
                     class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-700">
                     <option value="">All categories in selected family</option>
@@ -48,7 +48,7 @@
         </div>
 
         <div class="mt-3 hidden" data-intervention-controls>
-            <label for="dashboard-intervention-focus" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Intervention focus</label>
+            <label for="dashboard-intervention-focus" class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Intervention focus</label>
             <select id="dashboard-intervention-focus" data-intervention-focus
                 class="h-10 w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-700">
                 <option value="">All intervention focuses</option>

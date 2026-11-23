@@ -81,9 +81,9 @@ final class ProjectWorkspacePresenter
         $definitions = $project->implementation_mode === ImplementationMode::THROUGH_ACP
             ? [
                 ['label' => 'Evaluation', 'tab' => 'workflow', 'anchor' => 'evaluation'],
-                ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
-                ['label' => 'ACP Payment', 'href' => route('acp-payments.show', $project)],
-                ['label' => 'Check Release', 'href' => route('acp-payments.show', $project)],
+                ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation-history'],
+                ['label' => 'ACP Payment', 'href' => route('acp-payments.show', $project).'#acp-payment'],
+                ['label' => 'Check Release', 'href' => route('acp-payments.show', $project).'#check-release'],
                 ['label' => 'Preparation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'insurance'],
                 ['label' => 'Implementation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'orientation'],
                 ['label' => 'Release of Assistance', 'tab' => 'workflow', 'anchor' => 'acp-release-of-assistance'],
@@ -92,7 +92,7 @@ final class ProjectWorkspacePresenter
             ]
             : [
                 ['label' => 'Evaluation', 'tab' => 'workflow', 'anchor' => 'evaluation'],
-                ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation'],
+                ['label' => 'Approval', 'tab' => 'workflow', 'anchor' => 'evaluation-history'],
                 ['label' => 'Preparation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'insurance'],
                 ['label' => 'Implementation', 'tab' => 'workflow', 'anchor' => 'implementation', 'step' => 'orientation'],
                 ['label' => 'Post Documents', 'tab' => 'workflow', 'anchor' => 'post-documents'],

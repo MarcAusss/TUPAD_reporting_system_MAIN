@@ -28,7 +28,7 @@
         </div>
 
         @if ($summaryActualCounts !== null)
-            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
                 Updated from Payment
             </span>
         @endif
@@ -44,12 +44,12 @@
                 @else
                     <div class="mt-2 flex flex-wrap items-end justify-between gap-3">
                         <div>
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Actual (Payment)</div>
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Actual (Payment)</div>
                             <div class="text-2xl font-bold text-slate-900">{{ number_format($actual) }}</div>
                         </div>
 
                         <div class="text-right">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Approved (Create Project)</div>
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Approved (Create Project)</div>
                             <div class="text-sm font-semibold text-slate-500 {{ $actual !== $approved ? 'line-through decoration-slate-300' : '' }}">
                                 {{ number_format($approved) }}
                             </div>

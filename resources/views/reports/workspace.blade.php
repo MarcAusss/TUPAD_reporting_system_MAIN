@@ -11,7 +11,7 @@
             @foreach ($sections as $key => $reportSection)
                 <a href="{{ route($reportSection['route']) }}"
                     class="{{ $activeKey === $key ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} rounded-lg border px-4 py-3 transition">
-                    <div class="text-[10px] font-extrabold uppercase tracking-[0.15em] opacity-70">
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.15em] opacity-70">
                         {{ $reportSection['number'] }}
                     </div>
                     <div class="mt-1 text-sm font-bold leading-5">{{ $reportSection['short_label'] }}</div>
@@ -47,11 +47,11 @@
                         </div>
 
                         @if ($item['status'] === 'available')
-                            <span class="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
+                            <span class="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700">
                                 Available
                             </span>
                         @else
-                            <span class="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                            <span class="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
                                 Unavailable
                             </span>
                         @endif

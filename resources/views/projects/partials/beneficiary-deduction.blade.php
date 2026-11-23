@@ -25,19 +25,19 @@
 
     <div class="grid gap-2 text-xs sm:grid-cols-3">
         <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Project Beneficiaries</div>
+            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Project Beneficiaries</div>
             <div class="mt-0.5 font-semibold text-slate-800">
                 {{ number_format((int) $deductionProject->beneficiaries_total) }} ({{ number_format((int) $deductionProject->beneficiaries_female) }} female)
             </div>
         </div>
         <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Obligated Beneficiaries</div>
+            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Obligated Beneficiaries</div>
             <div class="mt-0.5 font-semibold text-slate-800">
                 {{ number_format($obligatedBeneficiaries) }} ({{ number_format($obligatedFemale) }} female)
             </div>
         </div>
         <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-            <div class="text-[10px] font-bold uppercase tracking-wide text-amber-700">Not Included (to deduct)</div>
+            <div class="text-[11px] font-bold uppercase tracking-wide text-amber-700">Not Included (to deduct)</div>
             <div class="mt-0.5 font-semibold text-amber-900">
                 {{ number_format($deductionShortfall['total']) }} ({{ number_format($deductionShortfall['female']) }} female)
             </div>
@@ -302,7 +302,17 @@
 
                 if (messages.length > 0) {
                     event.preventDefault();
-                    window.alert('The deductions cannot be saved yet:\n\n' + messages.join('\n'));
+                    window.TupadConfirm({
+                        title: 'The deductions cannot be saved yet',
+                        message: 'Fix the following, then save again:',
+                        details: messages,
+                        confirmText: 'Review deductions',
+                        cancelText: null,
+                    }).then(() => {
+                        const firstOpen = Array.from(form.querySelectorAll('[data-deduction-total]:not([disabled]), [data-deduction-select]'))
+                            .find((input) => input.offsetParent !== null);
+                        firstOpen?.focus();
+                    });
                 }
             });
 

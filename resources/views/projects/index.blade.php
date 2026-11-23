@@ -30,7 +30,7 @@
         <x-slot:actions>
             @if (auth()->user()->isAdmin() || auth()->user()->isTc())
                 <a href="{{ route('projects.create') }}"
-                    class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                    class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                     <span class="text-base leading-none">+</span>
                     Add Project
                 </a>
@@ -365,7 +365,7 @@
                                         message="Adjust the search or filters, or reset the registry to view all projects in your authorized scope.">
                                         <x-slot:action>
                                             <a href="{{ route('projects.index') }}"
-                                                class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800">
+                                                class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6d]">
                                                 Reset Filters
                                             </a>
                                         </x-slot:action>
@@ -376,7 +376,7 @@
                                             message="Create the first official TUPAD project when an ADL allocation is ready.">
                                             <x-slot:action>
                                                 <a href="{{ route('projects.create') }}"
-                                                    class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800">
+                                                    class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6d]">
                                                     Add Project
                                                 </a>
                                             </x-slot:action>

@@ -65,12 +65,17 @@ class P1NavigationSimplificationTest extends TestCase
             ->assertSee('Implementation')
             ->assertSee('Post-Documents')
             ->assertSee('Through ACP')
-            ->assertSee('ACP Implementation')
-            ->assertDontSee('ACP Payment')
-            ->assertDontSee('Check Release')
-            ->assertDontSee('Liquidation')
-            ->assertDontSee('Payment of Wages')
-            ->assertDontSee('User Accounts');
+            ->assertSee('ACP Implementation');
+
+        // Checked on the sidebar only: the dashboard's status chart lists every
+        // workflow status (e.g. "For Liquidation") as a count, not as a link.
+        $html = $response->getContent();
+        $start = strpos($html, '<aside id="sidebar"');
+        $sidebar = substr($html, $start, strpos($html, '</aside>', $start) - $start);
+
+        foreach (['ACP Payment', 'Check Release', 'Liquidation', 'Payment of Wages', 'User Accounts'] as $hidden) {
+            $this->assertStringNotContainsString($hidden, $sidebar);
+        }
     }
 
     public function test_admin_navigation_keeps_fund_financial_reporting_and_administration_access(): void

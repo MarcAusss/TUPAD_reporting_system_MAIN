@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Adl;
+use App\Models\AdlAllocation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class AdlAllocationController extends Controller
 {
@@ -131,6 +133,108 @@ class AdlAllocationController extends Controller
 
             return redirect()->route('adl.show', $lockedAdl)->with('success', 'Fund allocation recorded successfully.');
         });
+    }
+
+    /**
+     * Edit an allocation from the modal on the ADL page. Fields arrive as
+     * edit[...] with their own error bag so the Add Allocation form keeps its
+     * own input. The grant may not exceed what the ADL can still give (its
+     * remaining balance plus this allocation's current grant) nor drop below
+     * the total cost of the projects already charged to it. Once a project
+     * uses the allocation, its province / district / municipality are locked
+     * so those projects stay inside the allocation's scope.
+     */
+    public function update(Request $request, Adl $adl, AdlAllocation $allocation): RedirectResponse
+    {
+        $scopeLocked = $allocation->projects()->exists();
+        $back = fn () => redirect()->to(route('adl.show', $adl).'#allocation-records')->withInput();
+
+        $validator = Validator::make($request->all(), [
+            'edit.fund_sponsor' => ['nullable', 'string', 'max:255'],
+            'edit.partner' => ['nullable', 'string', 'max:255'],
+            'edit.local_chief_executive_partylist' => ['nullable', 'string', 'max:255'],
+            'edit.province' => [$scopeLocked ? 'nullable' : 'required', 'string', 'max:150'],
+            'edit.district' => ['nullable', 'string', 'max:100'],
+            'edit.municipality' => ['nullable', 'string', 'max:150'],
+            'edit.grant_amount' => ['required', 'numeric', 'gt:0'],
+            'edit.admin_cost_amount' => ['nullable', 'numeric', 'min:0'],
+            'edit.remarks' => ['nullable', 'string', 'max:2000'],
+        ], [], [
+            'edit.province' => 'province',
+            'edit.grant_amount' => 'grant allocation',
+            'edit.admin_cost_amount' => 'admin cost allocation',
+        ]);
+
+        if ($validator->fails()) {
+            return $back()->withErrors($validator, 'allocationEdit');
+        }
+
+        $validated = $validator->validated()['edit'];
+        $grants = round((float) $validated['grant_amount'], 2);
+        $admin = round((float) ($validated['admin_cost_amount'] ?? 0), 2);
+
+        return DB::transaction(function () use ($request, $adl, $allocation, $validated, $grants, $admin, $scopeLocked, $back) {
+            Adl::query()->lockForUpdate()->findOrFail($adl->id);
+            $limits = self::limits($adl, $allocation);
+
+            if ($grants > $limits['max']) {
+                return $back()->withErrors([
+                    'edit.grant_amount' => sprintf('Grant allocation exceeds what this ADL can give. Maximum: ₱%s.', number_format($limits['max'], 2)),
+                ], 'allocationEdit');
+            }
+
+            if ($grants < $limits['min']) {
+                return $back()->withErrors([
+                    'edit.grant_amount' => sprintf('Grant allocation cannot be lower than the ₱%s already used by its projects.', number_format($limits['min'], 2)),
+                ], 'allocationEdit');
+            }
+
+            $scope = $scopeLocked
+                ? ['province' => $allocation->province, 'district' => $allocation->district, 'municipality' => $allocation->municipality]
+                : [
+                    'province' => trim($validated['province']),
+                    'district' => $this->nullableTrimmedString($validated['district'] ?? null),
+                    'municipality' => $this->nullableTrimmedString($validated['municipality'] ?? null),
+                ];
+
+            $allocation->update($scope + [
+                'fund_sponsor' => $this->nullableTrimmedString($validated['fund_sponsor'] ?? null),
+                'partner' => $this->nullableTrimmedString($validated['partner'] ?? null),
+                'local_chief_executive_partylist' => $this->nullableTrimmedString($validated['local_chief_executive_partylist'] ?? null),
+                'location' => collect([$scope['municipality'], $scope['district'], $scope['province']])->filter()->implode(', '),
+                'amount' => $grants,
+                'grant_amount' => $grants,
+                'admin_cost_amount' => $admin,
+                'total_amount' => $grants + $admin,
+                'remarks' => $this->nullableTrimmedString($validated['remarks'] ?? null),
+                'updated_by' => $request->user()->id,
+            ]);
+
+            return redirect()
+                ->to(route('adl.show', $adl).'#allocation-records')
+                ->with('success', 'Allocation updated successfully.');
+        });
+    }
+
+    /**
+     * Grant limits for editing $allocation: max = what the ADL can still give
+     * (adjusted grants less the other allocations), min = its projects' cost.
+     * Uses loaded relations when present (the ADL page loads them).
+     *
+     * @return array{max: float, min: float}
+     */
+    public static function limits(Adl $adl, AdlAllocation $allocation): array
+    {
+        $realignments = $adl->relationLoaded('realignments') ? $adl->realignments->sum('amount') : $adl->realignments()->sum('amount');
+        $allocated = $adl->relationLoaded('allocations')
+            ? $adl->allocations->where('id', '!=', $allocation->id)->sum('amount')
+            : $adl->allocations()->whereKeyNot($allocation->id)->sum('amount');
+        $used = $allocation->relationLoaded('projects') ? $allocation->projects->sum('total_project_cost') : $allocation->projects()->sum('total_project_cost');
+
+        return [
+            'max' => round((float) $adl->grants + (float) $realignments - (float) $allocated, 2),
+            'min' => round((float) $used, 2),
+        ];
     }
 
     private function nullableTrimmedString(mixed $value): ?string
