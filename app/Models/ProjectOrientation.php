@@ -22,6 +22,18 @@ class ProjectOrientation extends Model
         'recorded_by',
     ];
 
+    /**
+     * AlkanSSSya and the YAKAP Program are mandatory parts of every TUPAD
+     * beneficiary orientation, so every orientation record covers both.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (ProjectOrientation $orientation): void {
+            $orientation->alkansssya_conducted = true;
+            $orientation->yakap_conducted = true;
+        });
+    }
+
     protected function casts(): array
     {
         return [

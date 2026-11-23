@@ -19,6 +19,7 @@ use Tests\TestCase;
 class ActiveLaborMarketOfficialPrintMatrixLayoutTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     private User $admin;
     private Province $province;

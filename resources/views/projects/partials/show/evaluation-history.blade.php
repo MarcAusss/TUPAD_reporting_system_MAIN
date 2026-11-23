@@ -71,7 +71,7 @@
                                 </span>
 
                                 @if ($evaluation->result === 'for_compliance')
-                                    <div class="mt-2 text-[10px] leading-4 text-slate-500">
+                                    <div class="mt-2 text-[11px] leading-4 text-slate-500">
                                         @if ($evaluation->isComplied())
                                             Compliance:
                                             <span class="font-semibold text-slate-700">

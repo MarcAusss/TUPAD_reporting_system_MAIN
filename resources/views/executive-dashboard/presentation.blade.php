@@ -156,7 +156,7 @@
                             ['ACP Liquidated', $dashboard['financial_position']['acp_liquidated_cents'], true],
                         ] as [$label, $value, $isMoney])
                             <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
+                                <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
                                 <div class="mt-2 text-xl font-extrabold text-slate-900">{{ $isMoney ? $money((int) $value) : $value }}</div>
                             </article>
                         @endforeach

@@ -28,12 +28,9 @@ class RoleDashboardUxTest extends TestCase
             'Focal Fund Monitoring Dashboard'
         );
 
-        $response->assertSee(
+        // The Focal Work Queue section was removed from the Focal dashboard.
+        $response->assertDontSee(
             'Focal Work Queue'
-        );
-
-        $response->assertSee(
-            'Projects requiring obligation or disbursement action.'
         );
 
         $response->assertDontSee(

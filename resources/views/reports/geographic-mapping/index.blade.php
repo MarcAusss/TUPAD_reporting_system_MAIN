@@ -26,7 +26,7 @@
                 <a href="{{ route('reports.workspace.geographic-mapping', array_merge($commonQuery, ['view' => $key])) }}"
                     aria-current="{{ $familyKey === $key ? 'page' : 'false' }}"
                     class="{{ $familyKey === $key ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} rounded-lg border px-4 py-3 transition">
-                    <div class="text-[10px] font-extrabold uppercase tracking-[0.14em] opacity-70">
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">
                         Map {{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}
                     </div>
                     <div class="mt-1 text-sm font-bold leading-5">{{ $tab['label'] }}</div>

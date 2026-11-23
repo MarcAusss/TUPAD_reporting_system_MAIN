@@ -24,6 +24,7 @@ use Tests\TestCase;
 class MajorRevisionPhase14DMonthlyQuarterlyReportsTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     private User $admin;
     private Province $masbate;
@@ -72,7 +73,7 @@ class MajorRevisionPhase14DMonthlyQuarterlyReportsTest extends TestCase
         }
     }
 
-    public function test_orientation_program_coverage_is_explicitly_encoded_and_optional_for_legacy_compatibility(): void
+    public function test_orientation_program_coverage_is_mandatory_and_always_recorded(): void
     {
         $this->assertTrue(Schema::hasColumn('project_orientations', 'alkansssya_conducted'));
         $this->assertTrue(Schema::hasColumn('project_orientations', 'yakap_conducted'));
@@ -81,38 +82,36 @@ class MajorRevisionPhase14DMonthlyQuarterlyReportsTest extends TestCase
             'status' => ProjectStatus::FOR_IMPLEMENTATION,
         ]);
 
+        // Even with both boxes left out of the request, both programs are recorded.
         $this->actingAs($this->admin)
             ->post(route('projects.implementation.orientation', $project), [
                 'orientation_date' => '2026-08-12',
-                'alkansssya_conducted' => '1',
-                'yakap_conducted' => '1',
-                'remarks' => 'Both program topics were covered.',
+                'beneficiaries_oriented' => 1,
+                'venue' => 'Barangay Covered Court',
+                'oriented_by' => 'TUPAD Coordinator',
+                'alkansssya_conducted' => '0',
             ])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('project_orientations', [
             'project_id' => $project->id,
-            'orientation_date' => '2026-08-12 00:00:00',
             'alkansssya_conducted' => 1,
             'yakap_conducted' => 1,
         ]);
 
-        $legacy = $this->project($this->masbate, [
-            'project_title' => 'Legacy Orientation',
-            'status' => ProjectStatus::FOR_IMPLEMENTATION,
-        ]);
+        // Any other save path is held to the same rule.
+        $orientation = $project->fresh()->orientation;
+        $orientation->update(['alkansssya_conducted' => false, 'yakap_conducted' => false]);
+        $this->assertTrue($orientation->fresh()->alkansssya_conducted);
+        $this->assertTrue($orientation->fresh()->yakap_conducted);
 
+        // The form shows both programs checked and locked.
         $this->actingAs($this->admin)
-            ->post(route('projects.implementation.orientation', $legacy), [
-                'orientation_date' => '2026-08-13',
-            ])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('project_orientations', [
-            'project_id' => $legacy->id,
-            'alkansssya_conducted' => 0,
-            'yakap_conducted' => 0,
-        ]);
+            ->get(route('projects.show', ['project' => $project, 'workspace' => 'implementation']))
+            ->assertOk()
+            ->assertSee('id="orientationProgramsMandatory"', false)
+            ->assertSee('name="yakap_conducted" value="1" checked disabled', false);
     }
 
     public function test_monthly_orientation_report_uses_orientation_date_and_never_infers_programs(): void

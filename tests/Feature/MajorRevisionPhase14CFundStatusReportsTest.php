@@ -22,6 +22,7 @@ use Tests\TestCase;
 class MajorRevisionPhase14CFundStatusReportsTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     private User $admin;
     private Province $masbate;

@@ -5,7 +5,7 @@
 <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-barangay-cost-breakdown>
     <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
         <div>
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Connected to Beneficiary Mapping Source
             </div>
             <h2 class="mt-1 text-sm font-semibold text-slate-900">Barangay Cost &amp; PPE Classification</h2>
@@ -16,7 +16,7 @@
         </div>
 
         @if ($barangayCostBreakdown['basis'] === 'estimated')
-            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800">
                 Estimated
             </span>
         @endif
@@ -70,11 +70,11 @@
 
             <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div class="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-                    <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Working Days</div>
+                    <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Working Days</div>
                     <div class="mt-1 text-sm font-bold text-slate-900">{{ number_format($barangayCostBreakdown['rates']['working_days']) }}</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-                    <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Wage / Beneficiary</div>
+                    <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Wage / Beneficiary</div>
                     <div class="mt-1 flex flex-wrap items-baseline gap-x-1.5">
                         <span class="text-xs font-medium text-slate-500">
                             {{ $bcbMoney($barangayCostBreakdown['rates']['wage_rate_cents']) }} &times; {{ number_format($barangayCostBreakdown['rates']['working_days']) }} =
@@ -83,11 +83,11 @@
                     </div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-                    <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Insurance / Beneficiary</div>
+                    <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Insurance / Beneficiary</div>
                     <div class="mt-1 text-sm font-bold text-slate-900">{{ $bcbMoney($barangayCostBreakdown['rates']['insurance_per_beneficiary_cents']) }}</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-                    <div class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Hazardous / Non-hazardous</div>
+                    <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Hazardous / Non-hazardous</div>
                     <div class="mt-1 text-sm font-bold text-slate-900">
                         {{ number_format($barangayCostBreakdown['totals']['hazardous']) }} /
                         {{ number_format($barangayCostBreakdown['totals']['non_hazardous']) }}
@@ -99,12 +99,12 @@
         <div class="overflow-x-auto">
             <table class="tupad-system-table min-w-190 w-full">
                 <thead class="bg-slate-50">
-                    <tr class="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                    <tr class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                         <th class="px-4 py-2 text-left" colspan="4">Location</th>
                         <th class="px-4 py-2 text-center border-l border-slate-200" colspan="2">Total</th>
                         <th class="px-4 py-2 text-center border-l border-slate-200" colspan="2">Female</th>
                     </tr>
-                    <tr class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    <tr class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                         <th class="px-4 py-2 text-left">Barangay</th>
                         <th class="px-4 py-2 text-left">Municipality</th>
                         <th class="px-4 py-2 text-left">District</th>

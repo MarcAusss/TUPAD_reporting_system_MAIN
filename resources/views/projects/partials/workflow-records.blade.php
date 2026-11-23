@@ -60,7 +60,7 @@
             @foreach ($sectionInstances as $index => $instance)
                 <a href="#{{ $instance['anchor'] }}" data-records-jump="{{ $instance['anchor'] }}"
                     class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-[#063b86] hover:text-[#063b86]">
-                    <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 text-[9px] text-slate-500">{{ $index + 1 }}</span>
+                    <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 text-[11px] text-slate-500">{{ $index + 1 }}</span>
                     {{ $instance['title'] }}
                 </a>
             @endforeach
@@ -98,27 +98,27 @@
                     </span>
 
                     <div class="min-w-0 flex-1">
-                        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">{{ $instance['label'] }}</div>
+                        <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500">{{ $instance['label'] }}</div>
                         <h3 class="truncate text-sm font-semibold text-slate-900">{{ $instance['title'] }}</h3>
                     </div>
 
                     <div class="flex flex-wrap items-center gap-1.5">
                         @if ($sectionAttachments !== [])
-                            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                                 📎 {{ count($sectionAttachments) }}
                             </span>
                         @endif
                         @if ($logs->isNotEmpty())
-                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
                                 ✎ Edited
                             </span>
                         @endif
                         @if (! $canEditDirectly && $approvedRequest)
-                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
                                 Edit approved{{ $approvedRequest->decider ? ' by '.$approvedRequest->decider->name : '' }} · one save
                             </span>
                         @elseif (! $canEditDirectly && $pendingRequest)
-                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200">
+                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-200">
                                 Edit request pending Focal approval
                             </span>
                         @endif
@@ -145,7 +145,7 @@
                             <dl class="mt-4 grid gap-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-2 xl:grid-cols-4">
                                 @foreach ($extra as $extraLabel => $extraValue)
                                     <div>
-                                        <dt class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{{ $extraLabel }}</dt>
+                                        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ $extraLabel }}</dt>
                                         <dd class="mt-0.5 text-xs font-semibold text-slate-700">{{ $extraValue ?: '—' }}</dd>
                                     </div>
                                 @endforeach

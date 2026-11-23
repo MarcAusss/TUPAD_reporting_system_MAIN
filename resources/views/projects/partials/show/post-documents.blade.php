@@ -29,7 +29,7 @@
 
                 @if ($project->status === \App\Enums\ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS)
                     <span
-                        class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                        class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
                         Auto-update → For Payment
                     </span>
                 @endif
@@ -90,7 +90,7 @@
 
                 <div class="mt-4 flex justify-end">
                     <button type="submit"
-                        class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                        class="h-10 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                         Save Post-Documentary Requirements
                     </button>
                 </div>

@@ -24,7 +24,7 @@ class PreP5GipRemovalQuickWorkflowTest extends TestCase
     public function test_live_user_roles_are_admin_focal_and_tc_only(): void
     {
         $this->assertSame(
-            ['admin', 'focal', 'tc'],
+            ['admin', 'focal', 'tc', 'gsis'],
             array_map(static fn (UserRole $role): string => $role->value, UserRole::assignable()),
         );
         $this->assertNull(UserRole::tryFrom('gip'));

@@ -35,7 +35,7 @@
             @foreach ($views as $key => $tab)
                 <a href="{{ route('reports.workspace.fund-status', array_merge($commonQuery, ['view' => $key])) }}"
                     class="{{ $viewKey === $key ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} rounded-lg border px-3 py-3 transition">
-                    <div class="text-[10px] font-extrabold uppercase tracking-[0.14em] opacity-70">{{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">{{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}</div>
                     <div class="mt-1 text-xs font-bold leading-5">{{ $tab['label'] }}</div>
                 </a>
             @endforeach
@@ -103,7 +103,7 @@
             ['Cash Balance', $cashBalance, 'TUPAD allocation less total disbursed'],
         ] as [$label, $value, $hint])
             <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{{ $label }}</div>
+                <div class="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{{ $label }}</div>
                 <div class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{{ $money($value) }}</div>
                 <p class="mt-2 text-xs leading-5 text-slate-500">{{ $hint }}</p>
             </article>

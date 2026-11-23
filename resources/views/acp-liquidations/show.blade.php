@@ -49,19 +49,19 @@
 
     <div class="grid gap-px bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
         <div class="bg-white p-4">
-            <div class="text-[10px] font-bold uppercase text-slate-400">Released Amount</div>
+            <div class="text-[11px] font-bold uppercase text-slate-500">Released Amount</div>
             <div class="mt-1 text-xl font-bold text-slate-900">₱{{ $moneyFromCents($summary['required_cents']) }}</div>
         </div>
         <div class="bg-white p-4">
-            <div class="text-[10px] font-bold uppercase text-slate-400">Liquidated</div>
+            <div class="text-[11px] font-bold uppercase text-slate-500">Liquidated</div>
             <div class="mt-1 text-xl font-bold text-slate-900">₱{{ $moneyFromCents($summary['liquidated_cents']) }}</div>
         </div>
         <div class="bg-white p-4">
-            <div class="text-[10px] font-bold uppercase text-slate-400">Remaining Balance</div>
+            <div class="text-[11px] font-bold uppercase text-slate-500">Remaining Balance</div>
             <div class="mt-1 text-xl font-bold text-slate-900">₱{{ $moneyFromCents($summary['remaining_cents']) }}</div>
         </div>
         <div class="bg-white p-4">
-            <div class="text-[10px] font-bold uppercase text-slate-400">Liquidation Progress</div>
+            <div class="text-[11px] font-bold uppercase text-slate-500">Liquidation Progress</div>
             <div class="mt-1 text-xl font-bold text-slate-900">{{ $summary['progress_percent'] }}%</div>
         </div>
     </div>

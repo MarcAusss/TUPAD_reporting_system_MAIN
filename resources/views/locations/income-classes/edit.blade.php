@@ -68,7 +68,7 @@
                         <span class="text-xs font-semibold text-blue-100">{{ $rows->count() }} LGUs</span>
                     </div>
 
-                    <table class="w-full border-collapse text-sm">
+                    <div class="overflow-x-auto"><table class="w-full border-collapse text-sm">
                         <thead>
                             <tr class="bg-[#e8f0fa] text-[#17325c]">
                                 <th class="border-b border-slate-200 px-4 py-2 text-left text-xs font-bold uppercase tracking-wide">Municipality / City</th>
@@ -102,7 +102,7 @@
                                 </tr>
                             @endforeach
                         </tbody>
-                    </table>
+                    </table></div>
                 </section>
             @endforeach
         </div>

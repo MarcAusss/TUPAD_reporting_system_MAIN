@@ -18,6 +18,7 @@ use Tests\TestCase;
 class StatisticalPerformanceOfficialPrintMatrixLayoutTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     private User $admin;
     private Province $albay;

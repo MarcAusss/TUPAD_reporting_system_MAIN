@@ -33,7 +33,7 @@
                                 {{ $claim->incident_description }}
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 text-[10px] font-semibold">
+                        <div class="flex items-center gap-2 text-[11px] font-semibold">
                             <span class="text-slate-400">
                                 Reported by {{ $claim->reporter?->name ?? 'System' }}
                             </span>
@@ -46,7 +46,7 @@
                     <div class="border-t border-slate-200 bg-slate-50/60 px-5 py-4">
 
                         <div class="rounded-lg border border-slate-200 bg-white p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-red-700">
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-red-700">
                                 What Happened
                             </div>
                             <p class="mt-2 whitespace-pre-line text-xs leading-5 text-slate-700">
@@ -55,7 +55,7 @@
                         </div>
 
                         <div class="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-red-700">
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-red-700">
                                 Injured Beneficiary(ies)
                             </div>
                             <ul class="mt-2 space-y-1.5 text-xs text-slate-700">

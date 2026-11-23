@@ -143,6 +143,51 @@
                 {{-- Insurance Enrollment --}}
 
                 <div data-step-panel="insurance" class="hidden">
+                    @php
+                        $gpaiItem = $project->gpaiEnrollmentItem?->loadMissing('enrollment');
+                    @endphp
+                    @if ($gpaiItem)
+                        {{-- Enrolled in bulk by the GSIS Enrollment Officer: read-only for the TC. --}}
+                        <div class="rounded-xl border border-emerald-200 p-5">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                                        Requirement 1
+                                    </div>
+                                    <h4 class="mt-1 text-sm font-semibold text-slate-900">
+                                        Insurance Enrollment
+                                    </h4>
+                                </div>
+                                <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                                    Enrolled to GSIS GPAI
+                                </span>
+                            </div>
+
+                            <p class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-800">
+                                The GSIS Enrollment Officer enrolled this project under
+                                <b>{{ $gpaiItem->enrollment->gpai_number }}</b>. It is recorded automatically and cannot be edited here.
+                            </p>
+
+                            <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                                @foreach ([
+                                    'GPAI No.' => $gpaiItem->enrollment->gpai_number,
+                                    'Date Enrolled' => $gpaiItem->enrollment->transmittal_date->format('M j, Y'),
+                                    'Insured Beneficiaries' => number_format($gpaiItem->beneficiaries),
+                                    'Premium' => '₱'.number_format((float) $gpaiItem->premium, 2),
+                                    'Mode of Payment' => \App\Models\GpaiEnrollment::modeLabel($gpaiItem->enrollment->payment_mode),
+                                    'Coverage' => $gpaiItem->enrollment->coverage_start->format('M j, Y').' – '.$gpaiItem->enrollment->coverage_end->format('M j, Y'),
+                                    'OR Number' => $gpaiItem->enrollment->or_number ?: 'Pending',
+                                    'Policy ID' => $gpaiItem->enrollment->policy_id ?: 'Pending',
+                                    'GSIS Status' => $gpaiItem->enrollment->stageLabel(),
+                                ] as $label => $value)
+                                    <div>
+                                        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{{ $label }}</dt>
+                                        <dd class="mt-0.5 font-semibold text-slate-900">{{ $value }}</dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </div>
+                    @else
                     <form method="POST" action="{{ route('projects.implementation.insurance', $project) }}"
                         class="rounded-xl border border-slate-200 p-5">
                             @csrf
@@ -159,7 +204,7 @@
 
                                 @if ($project->insuranceEnrollment)
                                     <span
-                                        class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                        class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
                                         Saved
                                     </span>
                                 @endif
@@ -207,7 +252,7 @@
                                             </span>
 
                                             <span
-                                                class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                                class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                                 Locked
                                             </span>
                                         </div>
@@ -229,7 +274,7 @@
                                             </span>
 
                                             <span
-                                                class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                                class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                                 Locked
                                             </span>
                                         </div>
@@ -302,6 +347,7 @@
                                 Save Insurance Enrollment
                             </button>
                         </form>
+                    @endif
                 </div>
 
                 {{-- PPE Delivery --}}
@@ -321,7 +367,7 @@
 
                                 @if ($project->ppeDeliveries->isNotEmpty())
                                     <span
-                                        class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                        class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
                                         Saved
                                     </span>
                                 @endif
@@ -338,7 +384,7 @@
                                                         · DR No. {{ $delivery->delivery_receipt_number }}
                                                     @endif
                                                 </span>
-                                                <span class="text-[10px] text-emerald-700">
+                                                <span class="text-[11px] text-emerald-700">
                                                     By {{ $delivery->recorder?->name ?? 'System' }}
                                                 </span>
                                             </div>
@@ -433,7 +479,7 @@
                                             <span class="ppe-item-check ${selected ? '' : 'hidden'} text-emerald-600">&check;</span>
                                         </button>
 
-                                        <div class="mt-0.5 px-2 text-[10px] text-slate-400" data-item-remaining-label="${item.id}">
+                                        <div class="mt-0.5 px-2 text-[11px] text-slate-400" data-item-remaining-label="${item.id}">
                                             Remaining: ${item.remaining.toLocaleString()} / ${item.planned.toLocaleString()}
                                         </div>
 
@@ -445,8 +491,8 @@
                                                 value="${escapeHtml(quantity ?? '')}"
                                                 ${selected ? '' : 'disabled'}
                                                 class="h-8 w-full rounded-md border border-slate-300 px-2 text-xs">
-                                            <p class="mt-1 hidden text-[10px] font-medium text-red-600" data-error="deliveries.${index}.items.${item.id}.quantity"></p>
-                                            <p class="mt-1 hidden text-[10px] font-semibold text-red-600" data-item-exceeds-message="${item.id}"></p>
+                                            <p class="mt-1 hidden text-[11px] font-medium text-red-600" data-error="deliveries.${index}.items.${item.id}.quantity"></p>
+                                            <p class="mt-1 hidden text-[11px] font-semibold text-red-600" data-item-exceeds-message="${item.id}"></p>
                                         </div>
                                     </div>`;
 
@@ -696,7 +742,7 @@
                                 </div>
 
                                 @if ($project->nafa)
-                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
                                         Saved
                                     </span>
                                 @endif
@@ -797,7 +843,7 @@
 
                                 @if ($project->noticeToProceed)
                                     <span
-                                        class="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                        class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
                                         Saved
                                     </span>
                                 @endif
@@ -945,33 +991,34 @@
                         <div class="mt-4">
                             <div class="mb-2 text-xs font-semibold text-slate-700">
                                 Program Coverage for Monthly Reporting
+                                <span id="orientationProgramsMandatory" class="ml-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold uppercase text-emerald-700">Mandatory</span>
                             </div>
                             <p class="mb-3 text-[11px] leading-4 text-slate-500">
-                                Mark the beneficiary programs actually covered during this orientation. Legacy
-                                records may remain unspecified.
+                                Both programs are mandatory in every TUPAD beneficiary orientation, so they are
+                                always checked and counted in the Monthly Report (List of Orientations Conducted).
                             </p>
                             <div class="grid gap-2 sm:grid-cols-2">
                                 <label
                                     class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-                                    <input type="checkbox" name="alkansssya_conducted" value="1"
-                                        @checked(old('alkansssya_conducted', $project->orientation?->alkansssya_conducted))
+                                    <input type="checkbox" name="alkansssya_conducted" value="1" checked disabled
+                                        aria-describedby="orientationProgramsMandatory"
                                         class="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#063b86]">
                                     <span>
                                         <span class="block text-xs font-semibold text-slate-800">AlkanSSSya</span>
                                         <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">Included in
-                                            the recorded TUPAD beneficiary orientation.</span>
+                                            every TUPAD beneficiary orientation (mandatory).</span>
                                     </span>
                                 </label>
                                 <label
                                     class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-                                    <input type="checkbox" name="yakap_conducted" value="1"
-                                        @checked(old('yakap_conducted', $project->orientation?->yakap_conducted))
+                                    <input type="checkbox" name="yakap_conducted" value="1" checked disabled
+                                        aria-describedby="orientationProgramsMandatory"
                                         class="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#063b86]">
                                     <span>
                                         <span class="block text-xs font-semibold text-slate-800">YAKAP Program for
                                             TUPAD Beneficiaries</span>
                                         <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">Included in
-                                            the recorded TUPAD beneficiary orientation.</span>
+                                            every TUPAD beneficiary orientation (mandatory).</span>
                                     </span>
                                 </label>
                             </div>
@@ -988,7 +1035,7 @@
                         </div>
 
                         <button type="submit"
-                            class="mt-4 h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                            class="mt-4 h-10 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                             Save Orientation
                         </button>
 
@@ -1055,7 +1102,7 @@
                         </div>
 
                         <button type="submit"
-                            class="mt-4 h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                            class="mt-4 h-10 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                             Save Implementation Period
                         </button>
 

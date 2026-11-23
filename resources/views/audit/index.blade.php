@@ -61,7 +61,7 @@
                 <h2 class="text-sm font-semibold text-slate-900">Activity Register</h2>
                 <p class="mt-1 text-xs text-slate-500">{{ number_format($auditLogs->total()) }} matching audit record(s)</p>
             </div>
-            <span class="text-[10px] font-semibold text-slate-400">Newest activity first</span>
+            <span class="text-[11px] font-semibold text-slate-400">Newest activity first</span>
         </div>
 
         <div class="overflow-x-auto">
@@ -90,11 +90,11 @@
                             <td class="whitespace-nowrap px-5 py-4 text-xs text-slate-500">{{ $log->performed_at?->format('M d, Y h:i A') ?? '—' }}</td>
                             <td class="px-5 py-4">
                                 <div class="text-xs font-semibold text-slate-800">{{ $log->user?->name ?? 'System' }}</div>
-                                <div class="mt-0.5 text-[10px] text-slate-400">{{ $log->user?->username ?? 'Automated / seed' }}</div>
+                                <div class="mt-0.5 text-[11px] text-slate-400">{{ $log->user?->username ?? 'Automated / seed' }}</div>
                             </td>
                             <td class="px-5 py-4 text-xs text-slate-600">{{ $log->module }}</td>
                             <td class="px-5 py-4">
-                                <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700">{{ $log->action }}</span>
+                                <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-700">{{ $log->action }}</span>
                             </td>
                             <td class="px-5 py-4 text-xs text-slate-600">{{ $log->record_label }}</td>
                             <td class="px-5 py-4 text-xs text-slate-500">
@@ -102,7 +102,7 @@
                             </td>
                             <td class="px-5 py-4">
                                 <div class="text-[11px] text-slate-600">{{ $log->ip_address ?: 'No IP recorded' }}</div>
-                                <div class="mt-1 max-w-[220px] truncate text-[10px] text-slate-400" title="{{ $log->user_agent }}">{{ $log->user_agent ?: 'No user agent recorded' }}</div>
+                                <div class="mt-1 max-w-[220px] truncate text-[11px] text-slate-400" title="{{ $log->user_agent }}">{{ $log->user_agent ?: 'No user agent recorded' }}</div>
                             </td>
                         </tr>
                     @empty

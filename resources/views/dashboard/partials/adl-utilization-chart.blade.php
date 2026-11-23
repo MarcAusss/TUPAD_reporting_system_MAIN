@@ -22,7 +22,7 @@
 @endphp
 
 @if ($adlRows->isNotEmpty())
-    <section class="tupad-card mt-5 overflow-hidden" data-dashboard-adl-utilization>
+    <section class="tupad-card {{ $adlChartClass ?? 'mt-5' }} overflow-hidden" data-dashboard-adl-utilization>
         <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-sm font-semibold text-slate-900">Fund Utilization per ADL</h2>
@@ -35,7 +35,7 @@
                 <span class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-emerald-700">
                     Actual {{ $adlTotals['budget'] > 0 ? number_format($adlTotals['actual_cost'] / $adlTotals['budget'] * 100, 1) : '0.0' }}%
                 </span>
-                @if (Route::has('fund-monitoring.per-adl-current'))
+                @if (Route::has('fund-monitoring.per-adl-current') && ! request()->routeIs('fund-monitoring.per-adl-current'))
                     <a href="{{ route('fund-monitoring.per-adl-current') }}" class="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[#063b86] hover:bg-blue-100">Per ADL details →</a>
                 @endif
             </div>

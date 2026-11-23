@@ -30,7 +30,7 @@
 
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-[10px] font-bold uppercase tracking-widest text-teal-700">
+                            <div class="text-[11px] font-bold uppercase tracking-widest text-teal-700">
                                 {{ $location->district }}
                             </div>
                             <div class="mt-0.5 text-sm font-semibold text-slate-900">
@@ -48,12 +48,12 @@
                             <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700">
                                 {{ $barangay->name }}
                                 @if ($barangay->pivot?->beneficiaries_total !== null)
-                                    <span class="rounded bg-white px-1.5 text-[10px] font-bold text-teal-700 ring-1 ring-teal-100">
+                                    <span class="rounded bg-white px-1.5 text-[11px] font-bold text-teal-700 ring-1 ring-teal-100">
                                         {{ number_format((int) $barangay->pivot->beneficiaries_total) }}
                                     </span>
                                 @endif
                                 @if ($barangay->pivot?->beneficiaries_female !== null)
-                                    <span class="rounded bg-white px-1.5 text-[10px] font-bold text-pink-700 ring-1 ring-pink-100" title="Female beneficiaries">
+                                    <span class="rounded bg-white px-1.5 text-[11px] font-bold text-pink-700 ring-1 ring-pink-100" title="Female beneficiaries">
                                         {{ number_format((int) $barangay->pivot->beneficiaries_female) }} F
                                     </span>
                                 @endif

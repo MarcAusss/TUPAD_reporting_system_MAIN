@@ -18,6 +18,9 @@ final class DatabaseSeeder extends Seeder
         // Baseline municipal income classes (fills blanks only; Focal edits are kept).
         \App\Support\MunicipalityIncomeClasses::applyInitial();
 
+        // Governors and Mayors of Bicol (fills blanks only; Focal edits are kept).
+        $this->call(LocalChiefExecutiveSeeder::class, false, ['onlyBlanks' => true]);
+
         // $this->call(ProvinceProjectStatusCoverageSeeder::class);
     }
 }

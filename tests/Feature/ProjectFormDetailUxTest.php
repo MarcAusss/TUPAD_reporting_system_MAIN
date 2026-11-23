@@ -31,11 +31,15 @@ class ProjectFormDetailUxTest extends TestCase
             ->get(route('projects.create'));
 
         $response->assertOk();
-        $response->assertSee('Project Sections');
-        $response->assertSee('Encoding Guide');
+        // Step-by-step wizard (resources/js/form-wizard.js) instead of a long page.
+        $response->assertSee('data-wizard-stepper', false);
+        $response->assertSee('data-wizard-title="Allocation & Profile"', false);
+        $response->assertSee('data-wizard-title="PPE & Cost"', false);
+        $response->assertSee('data-wizard-title="Review & Save"', false);
+        $response->assertSee('data-wizard-review', false);
         $response->assertSee('Save Official Project');
-        $response->assertSee('href="#allocation"', false);
-        $response->assertSee('href="#costing"', false);
+        $response->assertSee('id="allocation"', false);
+        $response->assertSee('id="costing"', false);
     }
 
     public function test_project_detail_has_action_required_and_workspace_navigation(): void

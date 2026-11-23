@@ -81,8 +81,9 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
         $this->assertSame(UserRole::TC, $orlan->role);
         $this->assertSame($albay->id, $orlan->assigned_province_id);
         $this->assertTrue($orlan->assignedProvince()->where('is_active', true)->exists());
-        $this->assertTrue($orlan->must_change_password);
-        $this->assertFalse(Hash::check('password', (string) $orlan->password));
+        // Development accounts all sign in with "password" (the seeder refuses production).
+        $this->assertFalse($orlan->must_change_password);
+        $this->assertTrue(Hash::check('password', (string) $orlan->password));
         $this->assertDatabaseMissing('users', ['username' => 'tc']);
 
         User::query()
@@ -91,9 +92,24 @@ class MajorRevisionPhase13EAuthenticationProvinceSecurityReleaseVerificationTest
             ->each(function (User $coordinator): void {
                 $this->assertNotNull($coordinator->assigned_province_id);
                 $this->assertTrue($coordinator->assignedProvince()->where('is_active', true)->exists());
-                $this->assertTrue($coordinator->must_change_password);
-                $this->assertFalse(Hash::check('password', (string) $coordinator->password));
+                $this->assertFalse($coordinator->must_change_password);
+                $this->assertTrue(Hash::check('password', (string) $coordinator->password));
             });
+
+        $catanduanes = Province::query()->where('code', '052000000')->firstOrFail();
+        $this->assertSame($catanduanes->id, User::query()->where('username', 'Salvs')->value('assigned_province_id'));
+
+        $jhunlee = User::query()->where('username', 'Jhunlee')->firstOrFail();
+        $this->assertSame(UserRole::TC, $jhunlee->role);
+        $this->assertSame($albay->id, $jhunlee->assigned_province_id);
+
+        $pau = User::query()->where('username', 'Pau')->firstOrFail();
+        $this->assertTrue($pau->isCoordinatorWithFocalAccess());
+        $this->assertNull($pau->assigned_province_id);
+
+        $annie = User::query()->where('username', 'Annie')->firstOrFail();
+        $this->assertTrue($annie->isGsis());
+        $this->assertTrue(Hash::check('password', (string) $annie->password));
 
         foreach (['admin', 'focal'] as $username) {
             $this->assertNull(User::query()->where('username', $username)->value('assigned_province_id'));

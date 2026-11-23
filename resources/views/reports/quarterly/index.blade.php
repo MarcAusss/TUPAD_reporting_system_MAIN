@@ -28,7 +28,7 @@
             <a href="{{ route('reports.periodic.print', $officialQuery) }}" target="_blank" class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700">Official Print</a>
             <a href="{{ route('reports.periodic.export.pdf', $officialQuery) }}" class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white">Official PDF</a>
             <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
-                <div class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Reporting Period</div>
+                <div class="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Reporting Period</div>
                 <div class="mt-1 text-sm font-bold text-slate-900">{{ $quarterLabel }}</div>
             </div>
         </div>
@@ -39,7 +39,7 @@
             @foreach ($views as $key => $tab)
                 <a href="{{ route('reports.workspace.quarterly', array_merge($commonQuery, ['view' => $key])) }}"
                     class="{{ $viewKey === $key ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} rounded-lg border px-4 py-3 transition">
-                    <div class="text-[10px] font-extrabold uppercase tracking-[0.14em] opacity-70">Quarterly Report {{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">Quarterly Report {{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}</div>
                     <div class="mt-1 text-sm font-bold">{{ $tab['label'] }}</div>
                     <div class="mt-1 text-xs leading-5 opacity-75">{{ $tab['description'] }}</div>
                 </a>
@@ -130,7 +130,7 @@
                 ['Disbursed', $summary['disbursed_cents'], true],
             ] as [$label, $value, $isMoney])
                 <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
                     <div class="mt-2 text-2xl font-extrabold text-slate-900">{{ $isMoney ? $money($value) : number_format((int) $value) }}</div>
                 </article>
             @endforeach
@@ -159,7 +159,7 @@
                 ['Amount Released', $laborOverall['amount_released_cents'] ?? 0, true],
             ] as [$label, $value, $isMoney])
                 <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
                     <div class="mt-2 text-2xl font-extrabold text-slate-900">{{ $isMoney ? $money($value) : number_format((int) $value) }}</div>
                 </article>
             @endforeach
@@ -178,7 +178,7 @@
             </div>
             <div class="overflow-x-auto">
                 <table class="tupad-report-table tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
-                    <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
+                    <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
                         <tr><th class="px-4 py-3">Program</th><th class="px-4 py-3 text-right">Records</th><th class="px-4 py-3 text-right">Projects</th><th class="px-4 py-3 text-right">Referred</th><th class="px-4 py-3 text-right">Female</th><th class="px-4 py-3 text-right">Provided Intervention</th><th class="px-4 py-3 text-right">Amount Released</th></tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-slate-700">

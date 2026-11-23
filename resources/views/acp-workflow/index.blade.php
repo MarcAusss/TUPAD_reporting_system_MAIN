@@ -13,7 +13,7 @@
     </x-page-header>
 
     <section class="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
-        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-blue-700">Responsible Account</div>
+        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-blue-700">Responsible Account</div>
         <div class="mt-1 text-sm font-bold text-blue-950">{{ $queueOwner }}</div>
         <p class="mt-1 text-xs leading-5 text-blue-800">
             This queue contains only Through ACP projects. Direct Administration records are intentionally excluded.
@@ -27,7 +27,7 @@
             <input id="acp-workflow-search" name="q" value="{{ request('q') }}"
                 placeholder="Search project, code, province, municipality..."
                 class="h-10 flex-1 rounded-lg border border-slate-300 px-3 text-sm">
-            <button type="submit" class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
+            <button type="submit" class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 Search
             </button>
             @if (request()->filled('q'))
@@ -89,7 +89,7 @@
                             <td class="px-5 py-4 text-right align-top">
                                 <div class="text-xs font-semibold text-slate-700">{{ $progressLabel }}</div>
                                 @if ($queue === 'liquidation')
-                                    <div class="mt-1 text-[10px] text-slate-500">
+                                    <div class="mt-1 text-[11px] text-slate-500">
                                         ₱{{ number_format(((int) ($liquidation['liquidated_cents'] ?? 0)) / 100, 2) }} of
                                         ₱{{ number_format(((int) ($liquidation['required_cents'] ?? 0)) / 100, 2) }}
                                     </div>

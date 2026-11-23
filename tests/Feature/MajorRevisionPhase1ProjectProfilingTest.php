@@ -18,8 +18,8 @@ class MajorRevisionPhase1ProjectProfilingTest extends TestCase
         $this->assertStringContainsString("old('wage_rate', 455)", $view);
         $this->assertStringContainsString('Wage Rate × Beneficiaries × Number of Days', $view);
         $this->assertStringContainsString('Non-Hazardous or Hazardous PPE', $view);
-        $this->assertStringContainsString('Project Creation Completion', $view);
-        $this->assertStringContainsString('moves it directly to <strong>TSSD Evaluation</strong> status', $view);
+        $this->assertStringContainsString('What happens when you save', $view);
+        $this->assertStringContainsString('The project moves directly to <strong>TSSD Evaluation</strong> status', $view);
     }
 
     #[Test]

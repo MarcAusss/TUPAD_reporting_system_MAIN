@@ -64,18 +64,22 @@ function initializeSearchBox(form) {
         return link;
     };
 
-    const heading = (text) => el('div', 'px-4 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wider text-slate-400', text);
+    const heading = (text) => el('div', 'px-4 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wider text-slate-500', text);
 
     const render = (data, query) => {
         results.replaceChildren();
         const projects = data.projects || [];
         const adls = data.adls || [];
+        const enrollments = data.enrollments || [];
+        const cashAdvances = data.cash_advances || [];
 
-        if (projects.length === 0 && adls.length === 0) {
+        if (projects.length === 0 && adls.length === 0 && enrollments.length === 0 && cashAdvances.length === 0) {
             const empty = el('div', 'px-4 py-6 text-center');
             empty.append(
                 el('div', 'text-sm font-semibold text-slate-700', `No matches for “${query}”`),
-                el('p', 'mt-1 text-xs text-slate-500', 'Try a project title, project code, ADL number, municipality, or barangay.'),
+                el('p', 'mt-1 text-xs text-slate-500', data.enrollments !== undefined
+                    ? 'Try a project title, project code, GPAI number, ADL number, or municipality.'
+                    : 'Try a project title, project code, ADL number, municipality, or barangay.'),
             );
             results.append(empty);
             open();
@@ -99,7 +103,7 @@ function initializeSearchBox(form) {
                         if (position > 0) meta.append(el('span', 'text-slate-300', '•'));
                         meta.append(el('span', position === 0 && project.code ? 'font-semibold text-slate-700' : '', part));
                     });
-                const pill = el('span', `rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${project.status_classes || ''}`, project.status);
+                const pill = el('span', `rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${project.status_classes || ''}`, project.status);
                 meta.append(pill);
                 if (project.days !== null && project.days !== undefined) {
                     meta.append(el('span', project.days >= 14 ? 'font-semibold text-rose-600' : '', project.days === 0 ? 'today' : `${project.days}d in stage`));
@@ -119,6 +123,27 @@ function initializeSearchBox(form) {
                 results.append(link);
             });
         }
+
+        const simpleGroup = (title, items, prefix, iconPath) => {
+            if (items.length === 0) return;
+            results.append(heading(title));
+            items.forEach((item, index) => {
+                const link = option(item.url, `${prefix}${index}`);
+                const icon = el('span', 'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600');
+                icon.innerHTML = `<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${iconPath}</svg>`;
+                const body = el('span', 'min-w-0 flex-1');
+                body.append(el('span', 'block truncate text-sm font-semibold text-slate-900', item.number || item.label));
+                const meta = el('span', 'mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500');
+                meta.append(el('span', '', item.meta));
+                if (item.stage) meta.append(el('span', 'rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-[#063b86] ring-1 ring-inset ring-blue-200', item.stage));
+                body.append(meta);
+                link.append(icon, body);
+                results.append(link);
+            });
+        };
+
+        simpleGroup('GPAI Transmittals', enrollments, 'e', '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6Z"/><path d="m9 12 2 2 4-4"/>');
+        simpleGroup('Cash Advances', cashAdvances, 'c', '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>');
 
         const more = el('a', 'block border-t border-slate-100 px-4 py-2.5 text-center text-xs font-semibold text-[#063b86] hover:bg-slate-50', `See all results for “${query}” →`);
         more.href = data.more_url;

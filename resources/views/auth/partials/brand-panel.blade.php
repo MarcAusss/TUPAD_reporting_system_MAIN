@@ -44,7 +44,7 @@
             </div>
 
             <div class="absolute -right-36 top-16 hidden w-36 lg:block rounded-xl bg-white/95 p-3 text-[#10294f] shadow-xl shadow-black/20">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-[#6f7f98]">Fund Status</div>
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#6f7f98]">Fund Status</div>
                 <div class="mt-1.5 flex h-8 items-end gap-1">
                     <span class="w-full rounded-sm bg-[#ccd7e6]" style="height: 40%"></span>
                     <span class="w-full rounded-sm bg-[#ccd7e6]" style="height: 65%"></span>

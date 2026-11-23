@@ -93,7 +93,7 @@
                                     <td class="{{ $orTd }} whitespace-nowrap text-right text-slate-700">
                                         {{ number_format((int) $obligation->beneficiaries_total) }}
                                         @if ($obligation->beneficiaries_female !== null)
-                                            <span class="block text-[10px] text-slate-400">{{ number_format((int) $obligation->beneficiaries_female) }} female</span>
+                                            <span class="block text-[11px] text-slate-400">{{ number_format((int) $obligation->beneficiaries_female) }} female</span>
                                         @endif
                                     </td>
                                     <td class="{{ $orTd }} whitespace-nowrap text-right text-slate-700">{{ $orMoney($obligation->wages_amount ?? 0) }}</td>
@@ -150,7 +150,7 @@
                                         @if ($obligation->release_mode)
                                             {{ $orMode === $orReleaseController::OTHER_MODE ? 'Others' : $orMode }}
                                             @if ($orModeOther)
-                                                <span class="block text-[10px] text-slate-400">{{ $orModeOther }}</span>
+                                                <span class="block text-[11px] text-slate-400">{{ $orModeOther }}</span>
                                             @endif
                                         @else
                                             <span class="text-slate-400">—</span>
@@ -161,7 +161,7 @@
                                     <td class="{{ $orTd }}">
                                         <span class="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset {{ $orStateClasses }}">{{ $orStateLabel }}</span>
                                         @if ($obligation->releaser)
-                                            <span class="mt-0.5 block text-[10px] text-slate-400">by {{ $obligation->releaser->name }}</span>
+                                            <span class="mt-0.5 block text-[11px] text-slate-400">by {{ $obligation->releaser->name }}</span>
                                         @endif
                                     </td>
                                 </tr>

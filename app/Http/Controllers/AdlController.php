@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Adl;
+use App\Models\AdlAllocation;
+use App\Models\Municipality;
 use App\Models\Province;
 use App\Services\Monitoring\PerAdlSummaryService;
 use Illuminate\Http\RedirectResponse;
@@ -70,14 +72,43 @@ class AdlController extends Controller
             'allocations.projects.approval',
         ]);
 
+        $provinces = Province::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         return view('adl.show', [
             'adl' => $adl,
             'perAdlRows' => $summaryService->rowsForAdl($adl),
-            'provinces' => Province::query()
+            'provinces' => $provinces,
+            'municipalities' => Municipality::query()
+                ->whereIn('province_id', $provinces->pluck('id'))
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(),
+                ->get(['id', 'province_id', 'name', 'district', 'mayor']),
+            'fundSponsorOptions' => $this->allocationReferenceValues('fund_sponsor'),
+            'partnerOptions' => $this->allocationReferenceValues('partner'),
         ]);
+    }
+
+    /**
+     * Sponsor / Partner values already encoded on any ADL allocation, offered
+     * as dropdown choices so the same reference is not typed differently.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    private function allocationReferenceValues(string $column): \Illuminate\Support\Collection
+    {
+        return AdlAllocation::query()
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->distinct()
+            ->orderBy($column)
+            ->pluck($column)
+            ->map(fn ($value): string => trim((string) $value))
+            ->filter()
+            ->unique(fn (string $value): string => mb_strtolower($value))
+            ->values();
     }
 
     public function edit(Adl $adl): View

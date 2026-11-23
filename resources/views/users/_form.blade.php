@@ -1,6 +1,7 @@
 @php
     $editing = isset($account) && $account;
-    $selectedRole = old('role', $account?->role?->value ?? ($canManageAllRoles ? '' : \App\Enums\UserRole::TC->value));
+    $selectedRole = old('role', $account?->roleChoice() ?? ($canManageAllRoles ? '' : \App\Enums\UserRole::TC->value));
+    $focalAccessChoice = \App\Models\User::COORDINATOR_FOCAL_ACCESS_CHOICE;
     $selectedProvince = old('assigned_province_id', $account?->assigned_province_id ?? '');
 @endphp
 
@@ -35,21 +36,34 @@
                 <option value="">Select role</option>
                 @foreach ($roles as $role)
                     <option value="{{ $role->value }}" @selected($selectedRole === $role->value)>{{ $role->label() }}</option>
+                    @if ($role === \App\Enums\UserRole::TC)
+                        <option value="{{ $focalAccessChoice }}" @selected($selectedRole === $focalAccessChoice)>TUPAD Coordinator — Focal Access</option>
+                    @endif
                 @endforeach
             </select>
+            <p data-user-role-field="{{ $focalAccessChoice }}" class="{{ $selectedRole === $focalAccessChoice ? '' : 'hidden' }} mt-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
+                Labelled as a <b>TUPAD Coordinator</b> with a <b>Focal Access</b> badge, but has the same regional access and permissions as the Focal account. No province assignment is needed.
+            </p>
             @if ($isSelfAccount)
                 <input type="hidden" name="role" value="{{ $account->role->value }}">
                 <p class="mt-1.5 text-xs text-slate-500">Your own Administrator role cannot be changed here.</p>
             @endif
         @else
-            <input type="hidden" id="role" name="role" value="{{ \App\Enums\UserRole::TC->value }}">
-            <div class="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3.5 text-sm font-semibold text-slate-800">TUPAD Coordinator</div>
-            <p class="mt-1.5 text-xs text-slate-500">Focal accounts can manage TUPAD Coordinator accounts only.</p>
+            <select id="role" name="role" required
+                class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                <option value="{{ \App\Enums\UserRole::TC->value }}" @selected(! in_array($selectedRole, [$focalAccessChoice, \App\Enums\UserRole::GSIS->value], true))>TUPAD Coordinator</option>
+                <option value="{{ $focalAccessChoice }}" @selected($selectedRole === $focalAccessChoice)>TUPAD Coordinator — Focal Access</option>
+                <option value="{{ \App\Enums\UserRole::GSIS->value }}" @selected($selectedRole === \App\Enums\UserRole::GSIS->value)>GSIS Enrollment Officer</option>
+            </select>
+            <p class="mt-1.5 text-xs text-slate-500">Focal accounts can manage TUPAD Coordinator and GSIS Enrollment Officer accounts.</p>
+            <p data-user-role-field="{{ $focalAccessChoice }}" class="{{ $selectedRole === $focalAccessChoice ? '' : 'hidden' }} mt-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
+                Labelled as a <b>TUPAD Coordinator</b> with a <b>Focal Access</b> badge, but has the same regional access and permissions as the Focal account. No province assignment is needed.
+            </p>
         @endif
         @error('role')<p class="mt-1.5 text-xs font-medium text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    <div data-user-role-field="tc" class="{{ $selectedRole === \App\Enums\UserRole::TC->value || !$canManageAllRoles ? '' : 'hidden' }}">
+    <div data-user-role-field="tc" class="{{ $selectedRole === \App\Enums\UserRole::TC->value ? '' : 'hidden' }}">
         <label for="assigned_province_id" class="mb-1.5 block text-sm font-semibold text-slate-700">Assigned Province <span class="text-red-600">*</span></label>
         <select id="assigned_province_id" name="assigned_province_id"
             class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
@@ -67,7 +81,7 @@
     <div>
         <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Role Assignment</div>
         <div class="mt-1 text-sm font-semibold text-slate-900">Server validated</div>
-        <p class="mt-1 text-xs leading-5 text-slate-500">Administrator and Focal accounts have regional access. TUPAD Coordinator accounts require an active Region V province assignment.</p>
+        <p class="mt-1 text-xs leading-5 text-slate-500">Administrator, Focal, and TUPAD Coordinator — Focal Access accounts have regional access. TUPAD Coordinator accounts require an active Region V province assignment.</p>
     </div>
     <div>
         <div class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ $editing ? 'Password Management' : 'Initial Password' }}</div>
@@ -87,19 +101,19 @@
     </span>
 </label>
 
-@if ($canManageAllRoles)
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const roleSelect = document.getElementById('role');
         const provinceField = document.querySelector('[data-user-role-field="tc"]');
         const provinceSelect = document.getElementById('assigned_province_id');
+        const focalAccessNote = document.querySelector('[data-user-role-field="{{ $focalAccessChoice }}"]');
         function syncRoleFields() {
             const isTc = roleSelect?.value === 'tc';
             provinceField?.classList.toggle('hidden', !isTc);
+            focalAccessNote?.classList.toggle('hidden', roleSelect?.value !== '{{ $focalAccessChoice }}');
             if (provinceSelect) provinceSelect.required = isTc;
         }
         roleSelect?.addEventListener('change', syncRoleFields);
         syncRoleFields();
     });
 </script>
-@endif

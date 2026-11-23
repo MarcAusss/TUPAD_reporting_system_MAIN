@@ -46,7 +46,10 @@ class MultiLocationProjectTest extends TestCase
             'district' => '1st District',
             'is_city' => true,
             'is_active' => true,
+            'income_class' => '3rd Class',
         ]);
+        $tabaco->forceFill(['mayor' => 'Reynaldo B. Bragais'])->save();
+        $albay->forceFill(['governor' => 'Noel E. Rosal'])->save();
 
         $legazpi = Municipality::create([
             'province_id' => $albay->id,
@@ -91,10 +94,22 @@ class MultiLocationProjectTest extends TestCase
             'created_by' => $focal->id,
         ]);
 
+        // Create Project carries the income class and Mayor / Governor for the auto-fill.
+        $this->actingAs($tc)->get(route('projects.create'))
+            ->assertOk()
+            ->assertSee('id="income_class"', false)
+            ->assertSee('id="local_chief_executive"', false)
+            ->assertSee('"income_class":"3rd Class"', false)
+            ->assertSee('"mayor":"Reynaldo B. Bragais"', false)
+            ->assertSee('Noel E. Rosal');
+
         $response = $this
             ->actingAs($tc)
             ->post(route('projects.store'), [
                 'adl_allocation_id' => $allocation->id,
+                // Auto-filled on the form, then edited by the TC.
+                'income_class' => '3rd Class / 1st Class',
+                'local_chief_executive' => 'Mayor Reynaldo B. Bragais (Tabaco City) / Governor Noel E. Rosal',
                 'date_received' => now()->toDateString(),
                 'project_title' => 'Albay Multi-District Project',
                 'nature_of_work' => 'Community clean-up',
@@ -140,6 +155,9 @@ class MultiLocationProjectTest extends TestCase
             'project_title' => 'Albay Multi-District Project',
             'province_id' => $albay->id,
             'status' => ProjectStatus::TSSD_EVALUATION->value,
+
+            'income_class' => '3rd Class / 1st Class',
+            'local_chief_executive' => 'Mayor Reynaldo B. Bragais (Tabaco City) / Governor Noel E. Rosal',
 
             // First location is retained as compatibility snapshot.
             'municipality_id' => $tabaco->id,

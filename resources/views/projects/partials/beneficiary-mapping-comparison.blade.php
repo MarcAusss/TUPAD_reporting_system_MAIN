@@ -70,7 +70,7 @@
                         </div>
                     </div>
 
-                    <div class="max-h-96 overflow-y-auto">
+                    <div class="max-h-96 overflow-auto">
                         <table class="min-w-full text-sm">
                             <thead class="sticky top-0 bg-white text-[11px] uppercase tracking-wide text-slate-400 shadow-[0_1px_0_#f1f5f9]">
                                 <tr>
@@ -86,7 +86,7 @@
                                         <td class="px-4 py-2.5">
                                             <div class="font-medium text-slate-800">{{ $row['label'] }}</div>
                                             @if ($rowDeducted)
-                                                <div class="mt-0.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                                <div class="mt-0.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
                                                     −{{ number_format($row['deducted_total']) }} not included
                                                 </div>
                                             @endif

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Province extends Model
@@ -20,7 +21,13 @@ class Province extends Model
     {
         return [
             'is_active' => 'boolean',
+            'governor_updated_at' => 'datetime',
         ];
+    }
+
+    public function governorUpdatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'governor_updated_by');
     }
 
     public function municipalities(): HasMany

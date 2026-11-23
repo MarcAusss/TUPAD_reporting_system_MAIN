@@ -5,23 +5,23 @@
 <section class="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-tc-work-queue>
     <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Project Operations</div>
+            <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Project Operations</div>
             <h2 class="mt-1 text-sm font-bold text-slate-900">Project Workflow</h2>
             <p class="mt-1 text-xs text-slate-500">Open a queue to continue projects that require action.</p>
         </div>
-        <div class="text-[10px] text-slate-400">Open only the queue that currently requires action.</div>
+        <div class="text-[11px] text-slate-400">Open only the queue that currently requires action.</div>
     </div>
 
     <div class="overflow-x-auto">
-        <table class="min-w-full">
+        <table class="tupad-system-table min-w-full">
             <thead class="bg-slate-50/80">
                 <tr>
-                    <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Workflow queue</th>
-                    <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Purpose</th>
-                    <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Pending</th>
-                    <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Aged</th>
-                    <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Oldest</th>
-                    <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Action</th>
+                    <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Workflow queue</th>
+                    <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Purpose</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Pending</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Aged</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Oldest</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Action</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -52,22 +52,22 @@
     <section class="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-tc-acp-work-queue>
         <div class="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Through ACP</div>
+                <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Through ACP</div>
                 <h2 class="mt-1 text-sm font-bold text-slate-900">Through ACP Workflow</h2>
                 <p class="mt-1 text-xs text-slate-500">Through ACP implementation scheduling and monitoring.</p>
             </div>
         </div>
 
         <div class="overflow-x-auto">
-            <table class="min-w-full">
+            <table class="tupad-system-table min-w-full">
                 <thead class="bg-slate-50/80">
                     <tr>
-                        <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Workflow queue</th>
-                        <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Purpose</th>
-                        <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Pending</th>
-                        <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Aged</th>
-                        <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Oldest</th>
-                        <th class="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Action</th>
+                        <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Workflow queue</th>
+                        <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Purpose</th>
+                        <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Pending</th>
+                        <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Aged</th>
+                        <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Oldest</th>
+                        <th class="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Action</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">

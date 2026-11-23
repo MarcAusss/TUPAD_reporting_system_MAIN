@@ -106,7 +106,7 @@
                 <canvas data-tupad-chart='@json($liquidationSpec)' aria-label="Liquidation progress chart" role="img"></canvas>
                 <div class="pointer-events-none absolute inset-x-0 top-[38%] text-center">
                     <div class="text-2xl font-extrabold text-slate-900">{{ $chartLiquidationPercent }}%</div>
-                    <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">liquidated</div>
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">liquidated</div>
                 </div>
             </div>
         </div>

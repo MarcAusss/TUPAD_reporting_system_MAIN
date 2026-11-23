@@ -25,6 +25,7 @@ use Tests\TestCase;
 class MajorRevisionPhase12DWorkflowDashboardReportingIntegrationTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\TreatsProjectsAsReportable;
 
     private User $admin;
     private User $focal;
@@ -139,7 +140,7 @@ class MajorRevisionPhase12DWorkflowDashboardReportingIntegrationTest extends Tes
         $this->actingAs($this->focal)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Focal Work Queue')
+            ->assertDontSee('Focal Work Queue')
             ->assertSee('ACP Payment')
             ->assertSee('Check Release')
             ->assertSee('Liquidation')

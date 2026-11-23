@@ -17,6 +17,9 @@
 
     <div class="p-5">
 
+        {{-- Request GPAI Enrollment before approval (shown only while the project awaits enrollment). --}}
+        <div class="mb-5 empty:hidden">@include('projects.partials.gpai-enrollment-request')</div>
+
         {{-- TSSD Evaluation / Compliance --}}
 
         @if (in_array(
@@ -57,7 +60,7 @@
                             </div>
 
                             <div class="rounded-lg border border-amber-300 bg-white px-4 py-2 text-right">
-                                <div class="text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                                <div class="text-[11px] font-bold uppercase tracking-wide text-amber-600">
                                     Aging
                                 </div>
 
@@ -132,7 +135,7 @@
                                         class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
 
                                     @error('compliance_date')
-                                        <p class="mt-1 text-[10px] font-semibold text-rose-600">
+                                        <p class="mt-1 text-[11px] font-semibold text-rose-600">
                                             {{ $message }}
                                         </p>
                                     @enderror
@@ -158,7 +161,7 @@
                                 </p>
 
                                 @error('compliance_remarks')
-                                    <p class="mt-1 text-[10px] font-semibold text-rose-600">
+                                    <p class="mt-1 text-[11px] font-semibold text-rose-600">
                                         {{ $message }}
                                     </p>
                                 @enderror
@@ -180,11 +183,11 @@
                                 </p>
 
                                 @error('attachments')
-                                    <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $message }}</p>
+                                    <p class="mt-1 text-[11px] font-semibold text-rose-600">{{ $message }}</p>
                                 @enderror
                                 @foreach ($errors->get('attachments.*') as $attachmentMessages)
                                     @foreach ($attachmentMessages as $attachmentMessage)
-                                        <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $attachmentMessage }}</p>
+                                        <p class="mt-1 text-[11px] font-semibold text-rose-600">{{ $attachmentMessage }}</p>
                                     @endforeach
                                 @endforeach
                             </div>
@@ -306,11 +309,11 @@
                             </p>
 
                             @error('attachments')
-                                <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $message }}</p>
+                                <p class="mt-1 text-[11px] font-semibold text-rose-600">{{ $message }}</p>
                             @enderror
                             @foreach ($errors->get('attachments.*') as $attachmentMessages)
                                 @foreach ($attachmentMessages as $attachmentMessage)
-                                    <p class="mt-1 text-[10px] font-semibold text-rose-600">{{ $attachmentMessage }}</p>
+                                    <p class="mt-1 text-[11px] font-semibold text-rose-600">{{ $attachmentMessage }}</p>
                                 @endforeach
                             @endforeach
                         </div>
@@ -329,7 +332,7 @@
                     <div class="flex justify-end">
 
                         <button type="submit"
-                            class="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                            class="h-10 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                             Save Evaluation
                         </button>
 
@@ -374,7 +377,7 @@
                         class="h-10 w-full max-w-xs rounded-lg border border-slate-300 px-3 text-sm">
 
                     @error('approval')
-                        <p class="mt-1.5 text-[10px] font-semibold text-rose-600">
+                        <p class="mt-1.5 text-[11px] font-semibold text-rose-600">
                             {{ $message }}
                         </p>
                     @enderror

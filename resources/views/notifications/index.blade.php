@@ -15,19 +15,19 @@
 
     <section class="mb-5 grid gap-3 sm:grid-cols-3">
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Active Alerts</div>
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Active Alerts</div>
             <div data-notification-total class="mt-2 text-2xl font-extrabold text-slate-900">
                 {{ number_format($notificationData['total_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Current records represented by your alerts.</p>
         </article>
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Needs Attention</div>
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Needs Attention</div>
             <div data-notification-attention class="mt-2 text-2xl font-extrabold text-amber-700">
                 {{ number_format($notificationData['attention_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Aged or returned records requiring closer review.</p>
         </article>
         <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Critical Aging</div>
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Critical Aging</div>
             <div data-notification-critical class="mt-2 text-2xl font-extrabold text-rose-700">
                 {{ number_format($notificationData['critical_count']) }}</div>
             <p class="mt-1 text-xs text-slate-500">Workflow items beyond the configured critical threshold.</p>
@@ -80,6 +80,38 @@
         </section>
     @endif
 
+    @php
+        $gpaiItems = collect($notificationData['project_items'] ?? [])
+            ->filter(fn (array $item): bool => ($item['kind'] ?? null) === 'gpai_enrollment');
+    @endphp
+
+    @if ($gpaiItems->isNotEmpty())
+        <section id="gpai-enrollments" class="mb-5 overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm">
+            <div class="border-b border-emerald-100 bg-emerald-50 px-5 py-4">
+                <h2 class="text-sm font-semibold text-emerald-950">GSIS GPAI Enrollment</h2>
+                <p class="mt-1 text-xs text-emerald-800">
+                    Your projects enrolled to GSIS Group Personal Accident Insurance by the GSIS Enrollment Officer. The GSIS Enrollment requirement of each project is recorded automatically.
+                </p>
+            </div>
+
+            <div class="divide-y divide-slate-100">
+                @foreach ($gpaiItems as $item)
+                    <div class="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0">
+                            <div class="text-sm font-semibold text-slate-900">{{ $item['project_title'] }}</div>
+                            <div class="mt-0.5 text-xs text-slate-600">{{ $item['message'] }}</div>
+                            <div class="mt-0.5 text-[11px] text-slate-400">{{ $item['location'] }} · {{ $item['stage_label'] }} · {{ $item['occurred_human'] }}</div>
+                        </div>
+                        <a href="{{ $item['url'] }}"
+                            class="inline-flex h-9 shrink-0 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                            View Project
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     <section class="tupad-table-shell overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="text-sm font-semibold text-slate-900">Current Notifications</h2>
@@ -105,7 +137,7 @@
                         <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
                                 <span
-                                    class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide {{ $tone }}">
+                                    class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide {{ $tone }}">
                                     {{ $item['category'] }}
                                 </span>
                                 <span class="text-xs font-semibold text-slate-500">{{ number_format($item['count']) }}
@@ -115,7 +147,7 @@
                             <p class="mt-1 text-xs leading-5 text-slate-500">{{ $item['message'] }}</p>
                         </div>
                         <a href="{{ $item['url'] }}"
-                            class="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800">
+                            class="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6d]">
                             Open Queue
                         </a>
                     </div>
@@ -123,4 +155,6 @@
             @endif
         </div>
     </section>
+
+    @include('dashboard.partials.recent-official-projects')
 @endsection

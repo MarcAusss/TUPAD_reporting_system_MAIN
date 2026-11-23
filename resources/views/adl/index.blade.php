@@ -12,7 +12,7 @@
         <x-slot:actions>
             <a
                 href="{{ route('adl.create') }}"
-                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]"
             >
                 <span class="text-base leading-none">+</span>
                 Add ADL
@@ -128,7 +128,7 @@
                                     <x-slot:action>
                                         <a
                                             href="{{ route('adl.create') }}"
-                                            class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
+                                            class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6d]"
                                         >
                                             Add ADL
                                         </a>

@@ -67,9 +67,9 @@ class Phase5GoLiveAudit extends Command
     private function verifyThreeRoleModel(): void
     {
         $assignable = array_map(static fn (UserRole $role): string => $role->value, UserRole::assignable());
-        $assignable === ['admin', 'focal', 'tc']
-            ? $this->pass('Access', 'Assignable roles', 'Administrator, Focal, and TC only.')
-            : $this->recordFailure('Access', 'Assignable roles', 'Live assignable roles are not exactly admin, focal, tc.');
+        $assignable === ['admin', 'focal', 'tc', 'gsis']
+            ? $this->pass('Access', 'Assignable roles', 'Administrator, Focal, TC, and GSIS Enrollment Officer only.')
+            : $this->recordFailure('Access', 'Assignable roles', 'Live assignable roles are not exactly admin, focal, tc, gsis.');
 
         if (Schema::hasTable('users')) {
             $legacy = User::query()->where('role', 'gip')->count();

@@ -16,7 +16,7 @@ Program snapshot
     <div class="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
 
         <article class="tupad-card tupad-metric-card p-5">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                 Active Projects
             </div>
 
@@ -30,7 +30,7 @@ Program snapshot
         </article>
 
         <article class="tupad-card tupad-metric-card p-5">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                 Beneficiaries
             </div>
 
@@ -44,7 +44,7 @@ Program snapshot
         </article>
 
         <article class="tupad-card tupad-metric-card p-5">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                 Completed Projects
             </div>
 
@@ -58,7 +58,7 @@ Program snapshot
         </article>
 
         <article class="tupad-card tupad-metric-card p-5">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                 Total Program Budget
             </div>
 

@@ -34,15 +34,15 @@
                 </div>
 
                 @if ($acpPayout)
-                    <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold {{ $acpWorkflowService->releaseDone($project) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-700' }}">
+                    <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $acpWorkflowService->releaseDone($project) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-700' }}">
                         {{ $acpWorkflowService->releaseDone($project) ? 'Released' : 'Waiting for payout date ('.$acpPayout->payout_date->format('M d, Y').')' }}
                     </span>
                 @elseif ($acpReleaseOpen)
-                    <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                    <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
                         Awaiting Release of Assistance
                     </span>
                 @else
-                    <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                    <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
                         Opens after the work period ends{{ $project->implementation ? ' ('.$project->implementation->end_date->format('M d, Y').')' : '' }}
                     </span>
                 @endif
@@ -57,7 +57,7 @@
                     'Venue' => $acpPayout->venue,
                 ] as $acpReleaseLabel => $acpReleaseValue)
                     <div class="bg-white px-5 py-4">
-                        <dt class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $acpReleaseLabel }}</dt>
+                        <dt class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{{ $acpReleaseLabel }}</dt>
                         <dd class="mt-1 text-sm font-semibold text-slate-900">{{ $acpReleaseValue }}</dd>
                     </div>
                 @endforeach
@@ -97,7 +97,8 @@
                             @endforeach
                         </select>
                         <div data-payout-mode-other class="mt-2 {{ $acpSelectedMode === $releaseController::OTHER_MODE ? '' : 'hidden' }}">
-                            <input name="payout_mode_other" maxlength="92" placeholder="Specify mode of payment"
+                            <label for="acp_payout_mode_other" class="sr-only">Specify mode of payment</label>
+                            <input id="acp_payout_mode_other" name="payout_mode_other" maxlength="92" placeholder="Specify mode of payment"
                                 value="{{ old('payout_mode_other') }}"
                                 class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
                         </div>

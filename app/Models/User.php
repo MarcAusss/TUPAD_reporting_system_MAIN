@@ -39,9 +39,13 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'password_changed_at' => 'datetime',
             'is_active' => 'boolean',
+            'has_focal_access' => 'boolean',
             'role' => UserRole::class,
         ];
     }
+
+    /** Form value for "TUPAD Coordinator with Focal access" in User Administration. */
+    public const COORDINATOR_FOCAL_ACCESS_CHOICE = 'tc_focal';
 
     public function assignedProvince(): BelongsTo
     {
@@ -76,9 +80,35 @@ class User extends Authenticatable
         return $this->role === UserRole::FOCAL;
     }
 
+    /** GSIS Enrollment Officer: enrolls TUPAD projects to GSIS GPAI insurance in bulk. */
+    public function isGsis(): bool
+    {
+        return $this->role === UserRole::GSIS;
+    }
+
+    /**
+     * A TUPAD Coordinator account given the Focal access level: the role is
+     * Focal (so isFocal() and every role:focal route apply as-is), but the
+     * account is labelled as a TUPAD Coordinator.
+     */
+    public function isCoordinatorWithFocalAccess(): bool
+    {
+        return $this->isFocal() && (bool) $this->has_focal_access;
+    }
+
     public function roleLabel(): string
     {
-        return $this->role->label();
+        return $this->isCoordinatorWithFocalAccess()
+            ? UserRole::TC->label().' (Focal Access)'
+            : $this->role->label();
+    }
+
+    /** The account type picked in User Administration: a role value or tc_focal. */
+    public function roleChoice(): ?string
+    {
+        return $this->isCoordinatorWithFocalAccess()
+            ? self::COORDINATOR_FOCAL_ACCESS_CHOICE
+            : $this->role?->value;
     }
 
     public function initials(): string

@@ -2,11 +2,14 @@
 
 namespace App\Services\Notifications;
 
+use App\Models\GpaiEnrollment;
+use App\Models\GpaiEnrollmentItem;
 use App\Models\Project;
 use App\Models\ProjectEditRequest;
 use App\Models\User;
 use App\Services\Auth\ProvinceAccessService;
 use App\Services\Dashboards\DashboardActionQueueService;
+use App\Services\Gsis\GpaiEnrollmentService;
 use App\Services\Projects\ProjectSectionRegistry;
 use App\Services\Projects\ProjectWorkspacePresenter;
 use Illuminate\Support\Carbon;
@@ -19,11 +22,15 @@ class NotificationCenterService
     /** Declined edit requests stay visible to the TC for this many days. */
     private const DECLINED_VISIBLE_DAYS = 3;
 
+    /** GSIS GPAI enrollment news stays visible to the TC for this many days. */
+    private const GPAI_VISIBLE_DAYS = 14;
+
     public function __construct(
         private readonly DashboardActionQueueService $actionQueues,
         private readonly ProvinceAccessService $provinceAccess,
         private readonly ProjectSectionRegistry $sections,
         private readonly ProjectWorkspacePresenter $workspacePresenter,
+        private readonly GpaiEnrollmentService $gpai,
     ) {
     }
 
@@ -76,6 +83,9 @@ class NotificationCenterService
             ]);
         }
 
+        $gpaiItems = $this->gpaiProjectItems($user);
+        $items = $items->concat($this->gpaiSummaryItems($user, $gpaiItems));
+
         $severityOrder = ['critical' => 0, 'attention' => 1, 'normal' => 2];
         $items = $items
             ->sortBy(fn (array $item): string => sprintf('%d-%s', $severityOrder[$item['severity']] ?? 9, $item['title']))
@@ -88,6 +98,7 @@ class NotificationCenterService
             'items' => $items,
             'project_items' => $this->editRequestItems($user, $editRequests)
                 ->concat($this->projectItems($queueData['queues']))
+                ->concat($gpaiItems)
                 ->sortByDesc(fn (array $item): string => $item['occurred_at'])
                 ->take(self::PROJECT_ITEM_LIMIT)
                 ->values(),
@@ -215,5 +226,227 @@ class NotificationCenterService
                 ]).'#project-progress',
             ])
             ->values();
+    }
+
+    /**
+     * TC: projects in their province recently enrolled to GSIS GPAI by the
+     * GSIS Enrollment Officer, and those whose OR and Policy were received.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function gpaiProjectItems(User $user): Collection
+    {
+        if ($user->isGsis()) {
+            return $this->gsisOfficerItems();
+        }
+
+        if (! $user->isTc()) {
+            return collect();
+        }
+
+        $since = now()->subDays(self::GPAI_VISIBLE_DAYS);
+
+        return GpaiEnrollmentItem::query()
+            ->with(['enrollment', 'project'])
+            ->whereHas('project', fn ($projects) => $this->provinceAccess->scopeProjects($projects, $user))
+            ->whereHas('enrollment', fn ($enrollments) => $enrollments
+                ->where(fn ($recent) => $recent
+                    ->where('created_at', '>=', $since)
+                    ->orWhere('or_policy_received_on', '>=', $since->toDateString())))
+            ->latest('id')
+            ->limit(self::PROJECT_ITEM_LIMIT)
+            ->get()
+            ->map(function (GpaiEnrollmentItem $item): array {
+                $enrollment = $item->enrollment;
+                $project = $item->project;
+                $complete = $enrollment->isComplete();
+                $occurredAt = Carbon::parse($complete ? ($enrollment->distributed_on ?? $enrollment->or_policy_received_on) : $enrollment->created_at);
+
+                return [
+                    'key' => 'gpai:'.$item->id.':'.($complete ? 'complete' : 'enrolled'),
+                    'kind' => 'gpai_enrollment',
+                    'project_id' => (int) $project->id,
+                    'project_title' => (string) $project->project_title,
+                    'location' => collect([$project->municipality, $project->province])->filter()->implode(', '),
+                    'implementation_mode' => (string) ($project->implementation_mode?->label() ?? ''),
+                    'beneficiaries_total' => (int) $project->beneficiaries_total,
+                    'total_project_cost' => (float) $project->total_project_cost,
+                    'status_label' => $project->status->label(),
+                    'queue_label' => 'GSIS GPAI Enrollment',
+                    'action_label' => null,
+                    'message' => $complete
+                        ? sprintf('OR and Policy received for %s (OR No. %s, Policy ID %s).', $enrollment->gpai_number, $enrollment->or_number ?: '—', $enrollment->policy_id ?: '—')
+                        : sprintf('Enrolled to GSIS GPAI under %s on %s: %s beneficiaries, premium ₱%s.', $enrollment->gpai_number, $enrollment->transmittal_date->format('M j, Y'), number_format($item->beneficiaries), number_format((float) $item->premium, 2)),
+                    'reason' => null,
+                    'actions' => [],
+                    'progress_percent' => 0,
+                    'stage_label' => $enrollment->stageLabel(),
+                    'stage_number' => 0,
+                    'stage_count' => 0,
+                    'severity' => 'normal',
+                    'occurred_at' => $occurredAt->toIso8601String(),
+                    'occurred_human' => $occurredAt->diffForHumans(),
+                    'url' => route('projects.show', ['project' => $project->id, 'workspace' => 'overview']),
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * GSIS Enrollment Officer list items, matching the bell count: every
+     * transmittal still waiting for the OR and Policy (opens it at its next
+     * step) and every project awaiting enrollment (opens Enroll Projects).
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function gsisOfficerItems(): Collection
+    {
+        $stageKeys = array_keys(GpaiEnrollment::STAGES);
+        $stageCount = count($stageKeys);
+
+        $transmittals = GpaiEnrollment::query()
+            ->with(['items.project'])
+            ->whereNull('or_policy_received_on')
+            ->latest('updated_at')
+            ->limit(self::PROJECT_ITEM_LIMIT)
+            ->get()
+            ->map(function (GpaiEnrollment $enrollment) use ($stageKeys, $stageCount): array {
+                $stageNumber = (int) array_search($enrollment->stage(), $stageKeys, true) + 1;
+                $next = $enrollment->nextStep();
+                $occurredAt = Carbon::parse($enrollment->updated_at ?? $enrollment->created_at);
+
+                return [
+                    'key' => 'gsis-transmittal:'.$enrollment->id.':'.$enrollment->stage().':'.($next ?? 'done'),
+                    'kind' => 'gpai_enrollment',
+                    'project_id' => null,
+                    'project_title' => $enrollment->natureOfPayment(),
+                    'location' => GpaiEnrollment::modeLabel($enrollment->payment_mode).' · '.$enrollment->items->count().' project(s)',
+                    'implementation_mode' => '',
+                    'beneficiaries_total' => $enrollment->beneficiaries(),
+                    'total_project_cost' => $enrollment->totalCents() / 100,
+                    'status_label' => $enrollment->stageLabel(),
+                    'queue_label' => 'GSIS GPAI Enrollment',
+                    'action_label' => null,
+                    'message' => $next
+                        ? sprintf('%s next step: %s.', $enrollment->gpai_number, GpaiEnrollment::STEPS[$next][0])
+                        : sprintf('%s is waiting for the OR and Policy.', $enrollment->gpai_number),
+                    'reason' => null,
+                    'actions' => [],
+                    'progress_percent' => (int) round(($stageNumber - 1) / max(1, $stageCount - 1) * 100),
+                    'stage_label' => $enrollment->stageLabel(),
+                    'stage_number' => $stageNumber,
+                    'stage_count' => $stageCount,
+                    'severity' => 'normal',
+                    'occurred_at' => $occurredAt->toIso8601String(),
+                    'occurred_human' => $occurredAt->diffForHumans(),
+                    'url' => route('gsis.enrollments.edit', $enrollment).($next ? '#step-'.$next : ''),
+                ];
+            });
+
+        // Requested projects come first (eligibleProjects() order) and date from the request.
+        $awaiting = $this->gpai->eligibleProjects()
+            ->take(self::PROJECT_ITEM_LIMIT)
+            ->map(function (Project $project) use ($stageCount): array {
+                $request = $project->latestGpaiEnrollmentRequest;
+                $occurredAt = Carbon::parse($request?->created_at ?? $project->updated_at ?? $project->created_at);
+
+                return [
+                    'key' => 'gsis-awaiting:'.$project->id.($request ? ':request-'.$request->id : ''),
+                    'kind' => 'gpai_enrollment',
+                    'project_id' => (int) $project->id,
+                    'project_title' => (string) $project->project_title,
+                    'location' => collect([$project->municipality, $project->province])->filter()->implode(', '),
+                    'implementation_mode' => (string) ($project->implementation_mode?->label() ?? ''),
+                    'beneficiaries_total' => (int) $project->insurance_beneficiaries,
+                    'total_project_cost' => (float) $project->insurance_total,
+                    'status_label' => 'Awaiting Enrollment',
+                    'queue_label' => 'GSIS GPAI Enrollment',
+                    'action_label' => null,
+                    'message' => $request
+                        ? sprintf('Enrollment requested by %s: %s insured beneficiaries, premium ₱%s.', $request->requester?->name ?? 'a TUPAD Coordinator', number_format((int) $project->insurance_beneficiaries), number_format((float) $project->insurance_total, 2))
+                        : sprintf('Ready for GPAI enrollment: %s insured beneficiaries, premium ₱%s.', number_format((int) $project->insurance_beneficiaries), number_format((float) $project->insurance_total, 2)),
+                    'reason' => null,
+                    'actions' => [],
+                    'progress_percent' => 0,
+                    'stage_label' => $request ? 'Enrollment Requested' : 'Awaiting Enrollment',
+                    'stage_number' => 0,
+                    'stage_count' => $stageCount,
+                    'severity' => $request ? 'critical' : 'attention',
+                    'occurred_at' => $occurredAt->toIso8601String(),
+                    'occurred_human' => $occurredAt->diffForHumans(),
+                    'url' => route('gsis.enrollments.create'),
+                ];
+            });
+
+        return $transmittals->concat($awaiting)->values();
+    }
+
+    /**
+     * Summary rows: the TC sees how many of their projects were enrolled; the
+     * GSIS Enrollment Officer sees projects awaiting enrollment and
+     * transmittals still in process.
+     *
+     * @param  Collection<int, array<string, mixed>>  $gpaiItems
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function gpaiSummaryItems(User $user, Collection $gpaiItems): Collection
+    {
+        if ($user->isTc()) {
+            return $gpaiItems->isEmpty() ? collect() : collect([[
+                'key' => 'gpai-enrollments',
+                'title' => 'GSIS GPAI Enrollment',
+                'message' => $gpaiItems->count().' of your project(s) were enrolled to GSIS GPAI or received their OR and Policy.',
+                'count' => $gpaiItems->count(),
+                'severity' => 'normal',
+                'url' => route('notifications.index').'#gpai-enrollments',
+                'category' => 'GSIS Enrollment',
+                'state_token' => sha1($gpaiItems->pluck('key')->implode('|')),
+            ]]);
+        }
+
+        if (! $user->isGsis()) {
+            return collect();
+        }
+
+        $items = collect();
+        $eligible = $this->gpai->eligibleProjectsQuery()->pluck('id');
+        // Latest "Request GPAI Enrollment" per still-eligible project.
+        $requestIds = \App\Models\GpaiEnrollmentRequest::query()
+            ->whereIn('project_id', $eligible)
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('project_id')
+            ->pluck('id');
+
+        if ($eligible->isNotEmpty()) {
+            $items->push([
+                'key' => 'gpai-awaiting',
+                'title' => 'Projects Awaiting GPAI Enrollment',
+                'message' => $eligible->count().' project(s) with an insurance budget are ready to enroll'
+                    .($requestIds->isNotEmpty() ? ', '.$requestIds->count().' requested by TUPAD Coordinators.' : '.'),
+                'count' => $eligible->count(),
+                'severity' => $requestIds->isNotEmpty() ? 'critical' : 'attention',
+                'url' => route('gsis.enrollments.create'),
+                'category' => 'GSIS Enrollment',
+                // A new request makes the bell unread again.
+                'state_token' => sha1($eligible->implode(',').'|'.$requestIds->sort()->implode(',')),
+            ]);
+        }
+
+        $inProcess = GpaiEnrollment::query()->whereNull('or_policy_received_on')->pluck('id');
+
+        if ($inProcess->isNotEmpty()) {
+            $items->push([
+                'key' => 'gpai-in-process',
+                'title' => 'Transmittals In Process',
+                'message' => $inProcess->count().' GPAI transmittal(s) are waiting for the OR and Policy.',
+                'count' => $inProcess->count(),
+                'severity' => 'normal',
+                'url' => route('gsis.status'),
+                'category' => 'GSIS Enrollment',
+                'state_token' => sha1($inProcess->implode(',')),
+            ]);
+        }
+
+        return $items;
     }
 }

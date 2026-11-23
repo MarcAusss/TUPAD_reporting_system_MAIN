@@ -4,7 +4,7 @@
     $pageTitle = $canManageAllRoles ? 'User Accounts' : 'TUPAD Coordinator Accounts';
     $pageDescription = $canManageAllRoles
         ? 'Manage Administrator, Focal, and TUPAD Coordinator accounts from one audited registry.'
-        : 'Create and maintain province-assigned TUPAD Coordinator accounts. Coordinators are restricted to their assigned province when province enforcement is activated.';
+        : 'Create and maintain TUPAD Coordinator accounts: province-assigned Coordinators, and Coordinators with Focal access (regional, same access as Focal).';
 @endphp
 
 @section('title', $pageTitle)
@@ -17,7 +17,7 @@
     >
         <x-slot:actions>
             <a href="{{ route('users.create') }}"
-                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 <span class="text-base leading-none">+</span>
                 {{ $canManageAllRoles ? 'Add User Account' : 'Add Coordinator' }}
             </a>
@@ -41,16 +41,23 @@
         <section class="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="User role totals">
             @foreach ($roles as $role)
                 <article class="tupad-metric-card rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $role->label() }}</div>
+                    <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{{ $role->label() }}</div>
                     <div class="mt-2 text-2xl font-extrabold text-slate-900">{{ number_format((int) ($roleCounts[$role->value] ?? 0)) }}</div>
                     <p class="mt-1 text-xs text-slate-500">Registered {{ $role->shortLabel() }} account(s)</p>
                 </article>
+                @if ($role === \App\Enums\UserRole::TC)
+                    <article class="tupad-metric-card rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
+                        <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-blue-700">TUPAD Coordinator — Focal Access</div>
+                        <div class="mt-2 text-2xl font-extrabold text-slate-900">{{ number_format((int) ($roleCounts[\App\Models\User::COORDINATOR_FOCAL_ACCESS_CHOICE] ?? 0)) }}</div>
+                        <p class="mt-1 text-xs text-slate-500">TC-labelled account(s) with Focal access</p>
+                    </article>
+                @endif
             @endforeach
         </section>
     @endif
 
     <section class="tupad-filter-panel mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <form method="GET" action="{{ route('users.index') }}" class="grid gap-3 {{ $canManageAllRoles ? 'xl:grid-cols-[minmax(220px,1fr)_180px_190px_160px_auto]' : 'lg:grid-cols-[minmax(220px,1fr)_220px_180px_auto]' }} lg:items-end">
+        <form method="GET" action="{{ route('users.index') }}" class="grid gap-3 {{ $canManageAllRoles ? 'xl:grid-cols-[minmax(220px,1fr)_180px_190px_160px_auto]' : 'lg:grid-cols-[minmax(220px,1fr)_220px_220px_180px_auto]' }} lg:items-end">
             <div>
                 <label for="search" class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Search</label>
                 <input id="search" name="search" type="search" value="{{ $filters['search'] ?? '' }}" placeholder="Name, username, email, or position"
@@ -64,7 +71,20 @@
                         <option value="">All roles</option>
                         @foreach ($roles as $role)
                             <option value="{{ $role->value }}" @selected(($filters['role'] ?? '') === $role->value)>{{ $role->label() }}</option>
+                            @if ($role === \App\Enums\UserRole::TC)
+                                <option value="{{ \App\Models\User::COORDINATOR_FOCAL_ACCESS_CHOICE }}" @selected(($filters['role'] ?? '') === \App\Models\User::COORDINATOR_FOCAL_ACCESS_CHOICE)>TUPAD Coordinator — Focal Access</option>
+                            @endif
                         @endforeach
+                    </select>
+                </div>
+            @else
+                <div>
+                    <label for="role_filter" class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">Account Type</label>
+                    <select id="role_filter" name="role" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                        <option value="">All accounts</option>
+                        <option value="{{ \App\Enums\UserRole::TC->value }}" @selected(($filters['role'] ?? '') === \App\Enums\UserRole::TC->value)>TUPAD Coordinator</option>
+                        <option value="{{ \App\Models\User::COORDINATOR_FOCAL_ACCESS_CHOICE }}" @selected(($filters['role'] ?? '') === \App\Models\User::COORDINATOR_FOCAL_ACCESS_CHOICE)>TUPAD Coordinator — Focal Access</option>
+                        <option value="{{ \App\Enums\UserRole::GSIS->value }}" @selected(($filters['role'] ?? '') === \App\Enums\UserRole::GSIS->value)>GSIS Enrollment Officer</option>
                     </select>
                 </div>
             @endif
@@ -135,7 +155,10 @@
                                 <div class="mt-1 font-mono text-[11px] text-slate-400">{{ $account->username }}</div>
                             </td>
                             <td class="px-5 py-4">
-                                <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $account->role->label() }}</span>
+                                <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $account->isCoordinatorWithFocalAccess() ? \App\Enums\UserRole::TC->label() : $account->role->label() }}</span>
+                                @if ($account->isCoordinatorWithFocalAccess())
+                                    <span class="ml-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">Focal Access</span>
+                                @endif
                             </td>
                             <td class="px-5 py-4">
                                 <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold {{ $scopeWarning ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-900' }}">{{ $scope }}</span>
@@ -145,7 +168,7 @@
                                     {{ $account->is_active ? 'Active' : 'Inactive' }}
                                 </span>
                                 @if ($account->must_change_password)
-                                    <div class="mt-1 text-[10px] font-semibold text-amber-700">Password change required</div>
+                                    <div class="mt-1 text-[11px] font-semibold text-amber-700">Password change required</div>
                                 @endif
                             </td>
                             <td class="px-5 py-4">
@@ -177,7 +200,7 @@
                             <td colspan="5" class="p-0">
                                 <x-empty-state :title="$canManageAllRoles ? 'No user accounts found' : 'No Coordinator accounts found'" :message="$canManageAllRoles ? 'Create an account or change the current filters.' : 'Create a province-assigned TUPAD Coordinator account or change the current filters.'">
                                     <x-slot:action>
-                                        <a href="{{ route('users.create') }}" class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800">{{ $canManageAllRoles ? 'Add User Account' : 'Add Coordinator' }}</a>
+                                        <a href="{{ route('users.create') }}" class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6d]">{{ $canManageAllRoles ? 'Add User Account' : 'Add Coordinator' }}</a>
                                     </x-slot:action>
                                 </x-empty-state>
                             </td>

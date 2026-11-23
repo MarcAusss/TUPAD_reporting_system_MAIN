@@ -23,6 +23,11 @@
     <span>Provincial Summary</span>
 </a>
 
+<a href="{{ route('gpai-status.index') }}" class="{{ $navClass(request()->routeIs('gpai-status.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+    <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+    <span>GPAI Enrollment Status</span>
+</a>
+
 <div class="tupad-nav-section">Funds & Payments</div>
 
 <a href="{{ route('adl.index') }}"
@@ -106,4 +111,9 @@
 <a href="{{ route('reports.district-representatives.edit') }}" class="{{ $navClass(request()->routeIs('reports.district-representatives.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
     <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path><path d="m16 3 1.5 1.5L21 1"></path></svg>
     <span>Edit Representatives</span>
+</a>
+
+<a href="{{ route('locations.local-chief-executives.edit') }}" class="{{ $navClass(request()->routeIs('locations.local-chief-executives.*')) }} flex h-11 items-center gap-3 rounded-lg px-4 text-[13px] font-semibold transition">
+    <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18"></path><path d="M4 21V9l8-5 8 5v12"></path><circle cx="12" cy="12" r="2.5"></circle><path d="M8.5 21a3.5 3.5 0 0 1 7 0"></path></svg>
+    <span>Edit Mayors &amp; Governors</span>
 </a>

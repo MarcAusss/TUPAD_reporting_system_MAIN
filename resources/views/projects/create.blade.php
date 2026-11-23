@@ -7,7 +7,7 @@
     <div class="mx-auto max-w-330">
 
         <x-page-header eyebrow="Project Management" title="Add Official Project" :breadcrumbs="[['label' => 'Projects', 'url' => route('projects.index')], ['label' => 'Create Project']]"
-            description="Encode the official project profile in sections. Required fields are marked automatically, and project cost previews update while you work.">
+            description="Encode the official project profile in six short steps, then review before saving. Location fields load in sequence, and Term, Wages, Insurance, PPE, and Total Project Cost are calculated as you encode.">
             <x-slot:actions>
                 <a href="{{ route('projects.index') }}"
                     class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -45,58 +45,27 @@
             </div>
         @endif
 
-        <div class="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
-            <div class="text-xs font-bold uppercase tracking-widest text-blue-700">
-                Encoding Guide
-            </div>
-
-            <p class="mt-1 text-xs leading-5 text-blue-800">
-                Complete the sections from top to bottom. Location fields load in sequence,
-                while Term, Wages, Insurance, PPE, and Total Project Cost are calculated as you encode.
-            </p>
-        </div>
-
-        <form method="POST" action="{{ route('projects.store') }}" class="space-y-5" id="projectForm">
+        <form method="POST" action="{{ route('projects.store') }}" class="space-y-5" id="projectForm"
+            data-wizard data-warn-unsaved data-wizard-errors='@json($errors->keys())'>
 
             @csrf
 
             <input type="hidden" name="exact_barangay_allocation" value="1">
 
-            <div class="grid gap-6 xl:grid-cols-[230px_minmax(0,1fr)]">
+            {{-- Step navigation (rendered by resources/js/form-wizard.js) --}}
+            <div class="sticky top-21 z-20 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur">
+                <div data-wizard-stepper></div>
+                <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-2 pt-2 mt-2 text-xs text-slate-500">
+                    <p data-wizard-progress class="font-semibold text-slate-700">
+                        Complete each section, then save.
+                    </p>
+                    <p>Fields marked <span class="font-bold text-rose-600">*</span> are required. Totals update as you type.</p>
+                </div>
+            </div>
 
-                <aside class="hidden xl:block">
+            <div class="min-w-0 space-y-5">
 
-                    <div class="sticky top-22 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-
-                        <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                            Project Sections
-                        </div>
-
-                        <nav class="mt-3 space-y-1" aria-label="Project form sections">
-
-                            @foreach ([['allocation', '1', 'ADL Allocation'], ['general', '2', 'General Information'], ['funding', '3', 'Funding Information'], ['verification', '4', 'Series & TEVS'], ['location', '5', 'Project Location'], ['implementation', '6', 'Implementation'], ['beneficiaries', '7', 'Beneficiaries & Wage'], ['ppe', '8', 'PPE Requirements'], ['costing', '9', 'Insurance & Cost'], ['remarks', '10', 'Remarks']] as [$sectionId, $sectionNumber, $sectionLabel])
-                                <a href="#{{ $sectionId }}"
-                                    class="group flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-950">
-                                    <span
-                                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-500 group-hover:border-slate-300">
-                                        {{ $sectionNumber }}
-                                    </span>
-
-                                    <span>{{ $sectionLabel }}</span>
-                                </a>
-                            @endforeach
-
-                        </nav>
-
-                        <div class="mt-4 border-t border-slate-100 pt-4 text-[11px] leading-5 text-slate-500">
-                            Fields marked <span class="font-bold text-red-500">*</span> are required.
-                        </div>
-
-                    </div>
-
-                </aside>
-
-                <div class="min-w-0 space-y-5">
+                <div data-wizard-step data-wizard-title="Allocation & Profile" class="space-y-5">
 
                     {{-- ADL / Allocation --}}
                     <section id="allocation" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -109,11 +78,11 @@
 
                         <div class="p-6">
 
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
+                            <label for="adlAllocationSelect" class="mb-2 block text-sm font-semibold text-slate-700">
                                 Allocation
                             </label>
 
-                            <select id="adlAllocationSelect" name="adl_allocation_id" required
+                            <select id="adlAllocationSelect" name="adl_allocation_id" required data-wizard-summary="ADL allocation"
                                 class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200">
 
                                 <option value="">
@@ -148,29 +117,29 @@
                                 class="mt-4 hidden rounded-xl border border-blue-200 bg-blue-50 p-4">
                                 <div class="flex flex-wrap items-start justify-between gap-3">
                                     <div>
-                                        <div class="text-[10px] font-bold uppercase tracking-widest text-blue-700">Selected
+                                        <div class="text-[11px] font-bold uppercase tracking-widest text-blue-700">Selected
                                             Allocation Capacity</div>
                                         <div id="allocationBudgetLabel" class="mt-1 text-sm font-semibold text-blue-950">
                                         </div>
                                     </div>
                                     <div id="allocationBudgetState"
-                                        class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-blue-700">
+                                        class="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase text-blue-700">
                                         Available</div>
                                 </div>
                                 <div class="mt-4 grid gap-3 sm:grid-cols-3">
                                     <div class="rounded-lg bg-white px-3 py-3">
-                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Allocation</div>
+                                        <div class="text-[11px] uppercase tracking-wide text-slate-500">Allocation</div>
                                         <div id="allocationOriginalAmount" class="mt-1 text-sm font-bold text-slate-900">
                                             ₱0.00</div>
                                     </div>
                                     <div class="rounded-lg bg-white px-3 py-3">
-                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Already Utilized
+                                        <div class="text-[11px] uppercase tracking-wide text-slate-500">Already Utilized
                                         </div>
                                         <div id="allocationUtilizedAmount" class="mt-1 text-sm font-bold text-slate-900">
                                             ₱0.00</div>
                                     </div>
                                     <div class="rounded-lg bg-white px-3 py-3">
-                                        <div class="text-[10px] uppercase tracking-wide text-slate-400">Remaining Available
+                                        <div class="text-[11px] uppercase tracking-wide text-slate-500">Remaining Available
                                         </div>
                                         <div id="allocationRemainingAmount" class="mt-1 text-sm font-bold text-emerald-700">
                                             ₱0.00</div>
@@ -197,34 +166,37 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="date_received" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Date Received
                                 </label>
 
-                                <input name="date_received" type="date"
+                                <input id="date_received" name="date_received" type="date"
                                     value="{{ old('date_received', now()->format('Y-m-d')) }}" required
+                                    data-wizard-summary="Date received"
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                             </div>
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="project_title" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Project Title
                                 </label>
 
-                                <input name="project_title" value="{{ old('project_title') }}" required
+                                <input id="project_title" name="project_title" value="{{ old('project_title') }}" required
+                                    data-wizard-summary="Project title"
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                             </div>
 
                             <div class="md:col-span-2">
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="nature_of_work" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Nature of Work
                                 </label>
 
-                                <textarea name="nature_of_work" rows="3" required
+                                <textarea id="nature_of_work" name="nature_of_work" rows="3" required
+                                    data-wizard-summary="Nature of work"
                                     class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('nature_of_work') }}</textarea>
 
                             </div>
@@ -232,6 +204,10 @@
                         </div>
 
                     </section>
+
+                </div>
+
+                <div data-wizard-step data-wizard-title="Funding & TEVS" class="space-y-5">
 
                     {{-- Funding Information --}}
 
@@ -255,7 +231,7 @@
                                     Fund Sponsor
                                 </label>
 
-                                <select id="fund_sponsor" name="fund_sponsor" required
+                                <select id="fund_sponsor" name="fund_sponsor" required data-wizard-summary="Fund sponsor" data-wizard-summary-other="#fund_sponsor_other"
                                     class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
                                     <option value="">Select fund sponsor</option>
 
@@ -301,7 +277,7 @@
                                             Partner
                                         </label>
 
-                                        <select id="partner" name="partner" required
+                                        <select id="partner" name="partner" required data-wizard-summary="Partner" data-wizard-summary-other="#partner_other"
                                             class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
                                             <option value="">Select partner</option>
 
@@ -383,7 +359,7 @@
                                     Project Series
                                 </label>
 
-                                <input id="project_series" name="project_series" value="{{ old('project_series') }}"
+                                <input id="project_series" name="project_series" value="{{ old('project_series') }}" data-wizard-summary="Project series"
                                     required maxlength="100" placeholder="e.g. Regular TUPAD / Series 2026-01"
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
                             </div>
@@ -405,7 +381,7 @@
                                     TEVS Date Verified
                                 </label>
 
-                                <input id="tevs_date_verified" name="tevs_date_verified" type="date"
+                                <input id="tevs_date_verified" name="tevs_date_verified" type="date" data-wizard-summary="TEVS date verified"
                                     value="{{ old('tevs_date_verified') }}" required
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
                             </div>
@@ -423,6 +399,10 @@
                         </div>
 
                     </section>
+
+                </div>
+
+                <div data-wizard-step data-wizard-title="Location" class="space-y-5">
 
                     {{-- Project Location --}}
 
@@ -443,7 +423,7 @@
                                 </div>
 
                                 <span
-                                    class="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700">
+                                    class="rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-blue-700">
                                     Region V only
                                 </span>
 
@@ -469,7 +449,7 @@
                                             Province
                                         </label>
 
-                                        <select id="province_id" name="province_id" required
+                                        <select id="province_id" name="province_id" required data-wizard-summary="Province"
                                             class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
                                             <option value="">Select Bicol province</option>
 
@@ -526,6 +506,46 @@
 
                                 </div>
 
+                                {{-- Filled automatically from the locations above; both stay editable. --}}
+                                <div class="mt-4 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 lg:grid-cols-2" data-location-derived>
+                                    <div>
+                                        <label for="income_class" class="mb-2 block text-sm font-semibold text-slate-700">
+                                            Income Class
+                                        </label>
+                                        <input id="income_class" name="income_class" maxlength="100" list="incomeClassOptions"
+                                            value="{{ old('income_class') }}" autocomplete="off"
+                                            data-auto-value="" placeholder="Filled from the selected municipality / city"
+                                            class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                        <datalist id="incomeClassOptions">
+                                            @foreach (['1st Class', '2nd Class', '3rd Class', '4th Class', '5th Class', '6th Class'] as $incomeClass)
+                                                <option value="{{ $incomeClass }}"></option>
+                                            @endforeach
+                                        </datalist>
+                                        <p id="incomeClassHint" class="mt-1 text-[11px] leading-4 text-slate-500">
+                                            From the municipality / city of the beneficiary locations. You can edit it.
+                                        </p>
+                                        @error('income_class')
+                                            <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
+                                        <label for="local_chief_executive" class="mb-2 block text-sm font-semibold text-slate-700">
+                                            Local Chief Executive
+                                        </label>
+                                        <input id="local_chief_executive" name="local_chief_executive" maxlength="255"
+                                            value="{{ old('local_chief_executive') }}" autocomplete="off"
+                                            data-auto-value="" placeholder="Filled from Mayors & Governors"
+                                            class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                                        <p id="lceHint" class="mt-1 text-[11px] leading-4 text-slate-500">
+                                            Mayor of each municipality / city, and the Governor. You can edit it.
+                                        </p>
+                                        @error('local_chief_executive')
+                                            <p class="mt-1 text-xs font-medium text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                </div>
+
                             </div>
 
                             <aside>
@@ -551,12 +571,12 @@
 
                                         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
                                             <div class="text-xs font-semibold text-emerald-900">Total Areas Covered</div>
-                                            <div id="locationSummaryCount" class="mt-1 text-[11px] text-emerald-700">
+                                            <div id="locationSummaryCount" data-wizard-summary="Areas covered" class="mt-1 text-xs text-emerald-700">
                                             </div>
                                         </div>
 
                                         <div class="mt-4 border-t border-slate-100 pt-4">
-                                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                                            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                                                 Province</div>
                                             <div id="locationSummaryProvince"
                                                 class="mt-1 text-sm font-semibold text-slate-800"></div>
@@ -586,6 +606,10 @@
 
                     </section>
 
+                </div>
+
+                <div data-wizard-step data-wizard-title="Beneficiaries & Wage" class="space-y-5">
+
                     {{-- Implementation --}}
                     <section id="implementation"
                         class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -600,11 +624,12 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="implementation_mode" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Mode
                                 </label>
 
-                                <select name="implementation_mode" required
+                                <select id="implementation_mode" name="implementation_mode" required
+                                    data-wizard-summary="Implementation mode"
                                     class="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
 
                                     <option value="">
@@ -612,7 +637,7 @@
                                     </option>
 
                                     @foreach ($implementationModes as $mode)
-                                        <option value="{{ $mode->value }}">
+                                        <option value="{{ $mode->value }}" @selected((string) old('implementation_mode') === (string) $mode->value)>
                                             {{ $mode->label() }}
                                         </option>
                                     @endforeach
@@ -623,19 +648,20 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="numberOfDays" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Number of Days
                                 </label>
 
                                 <input id="numberOfDays" name="number_of_days" type="number" min="10"
                                     max="90" value="{{ old('number_of_days') }}" required
+                                    data-wizard-summary="Number of days"
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                             </div>
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="termPreview" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Term
                                 </label>
 
@@ -667,12 +693,13 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="beneficiariesTotal" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Total Beneficiaries
                                 </label>
 
                                 <input id="beneficiariesTotal" name="beneficiaries_total" type="number" min="1"
                                     value="{{ old('beneficiaries_total', 0) }}" readonly required
+                                    data-wizard-summary="Total beneficiaries"
                                     class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold">
 
                                 <p class="mt-1 text-[11px] leading-4 text-slate-500">
@@ -683,12 +710,13 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="beneficiariesFemale" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Female Beneficiaries
                                 </label>
 
                                 <input id="beneficiariesFemale" name="beneficiaries_female" type="number"
                                     min="0" value="{{ old('beneficiaries_female', 0) }}" readonly required
+                                    data-wizard-summary="Female beneficiaries"
                                     class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold">
                                 <p class="mt-1 text-[11px] leading-4 text-slate-500">
                                     Automatically totaled from the barangay Female allocations encoded in Project Location.
@@ -700,7 +728,7 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="wageRate" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Regional Wage Rate
                                 </label>
 
@@ -716,11 +744,11 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="wagesPreview" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Computed Wages
                                 </label>
 
-                                <input id="wagesPreview" readonly value="₱0.00"
+                                <input id="wagesPreview" readonly value="₱0.00" data-wizard-summary="Computed wages"
                                     class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold">
 
                             </div>
@@ -728,6 +756,10 @@
                         </div>
 
                     </section>
+
+                </div>
+
+                <div data-wizard-step data-wizard-title="PPE & Cost" class="space-y-5">
 
                     {{-- PPE --}}
                     <section id="ppe" class="scroll-mt-24 rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -772,15 +804,39 @@
 
                             <div id="ppeItems" class="space-y-3"></div>
 
+                            {{-- Split view: shown automatically when both Non-Hazardous and Hazardous PPE are encoded --}}
+                            <div id="ppeGroupedItems" class="hidden space-y-5">
+                                @foreach ([
+                                    ['non_hazardous', 'Non-Hazardous PPE', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-800'],
+                                    ['hazardous', 'Hazardous PPE', 'border-amber-200', 'bg-amber-50', 'text-amber-800'],
+                                ] as [$groupType, $groupLabel, $groupBorder, $groupBg, $groupText])
+                                    <div data-ppe-group="{{ $groupType }}" class="overflow-hidden rounded-xl border {{ $groupBorder }}">
+                                        <div class="flex items-center justify-between gap-3 {{ $groupBg }} px-4 py-2.5">
+                                            <h3 class="text-xs font-bold uppercase tracking-widest {{ $groupText }}">
+                                                {{ $groupLabel }}
+                                            </h3>
+                                            <span data-ppe-group-count class="text-[11px] font-semibold {{ $groupText }}">0 items</span>
+                                        </div>
+
+                                        <div data-ppe-group-rows class="space-y-3 p-3"></div>
+
+                                        <div class="flex items-center justify-end gap-3 border-t {{ $groupBorder }} {{ $groupBg }} px-4 py-2.5">
+                                            <span class="text-xs font-semibold {{ $groupText }}">{{ $groupLabel }} Subtotal</span>
+                                            <span data-ppe-group-subtotal class="min-w-28 text-right text-sm font-bold text-slate-900">₱0.00</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+
                             <div class="mt-5 flex justify-end">
 
                                 <div class="text-right">
 
-                                    <div class="text-xs text-slate-500">
+                                    <div id="ppeTotalLabel" class="text-xs text-slate-500">
                                         PPE Total
                                     </div>
 
-                                    <div id="ppeTotalPreview" class="mt-1 text-lg font-bold text-slate-900">
+                                    <div id="ppeTotalPreview" data-wizard-summary="PPE total" class="mt-1 text-lg font-bold text-slate-900">
                                         ₱0.00
                                     </div>
 
@@ -825,6 +881,7 @@
                                 <input id="insuranceBeneficiaries" name="insurance_beneficiaries" type="number"
                                     min="0" value="{{ old('insurance_beneficiaries') }}"
                                     placeholder="Beneficiaries requiring insurance" required
+                                    data-wizard-summary="Insurance beneficiaries"
                                     class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
 
                                 <p id="insuranceBeneficiaryLimit" class="mt-1 text-[11px] leading-4 text-slate-500">
@@ -841,11 +898,11 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="insurancePreview" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Insurance Total
                                 </label>
 
-                                <input id="insurancePreview" readonly value="₱0.00"
+                                <input id="insurancePreview" readonly value="₱0.00" data-wizard-summary="Insurance total"
                                     class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold">
 
                                 <p class="mt-1 text-[11px] leading-4 text-slate-500">
@@ -856,11 +913,11 @@
 
                             <div>
 
-                                <label class="mb-2 block text-sm font-semibold text-slate-700">
+                                <label for="projectTotalPreview" class="mb-2 block text-sm font-semibold text-slate-700">
                                     Total Project Cost
                                 </label>
 
-                                <input id="projectTotalPreview" readonly value="₱0.00"
+                                <input id="projectTotalPreview" readonly value="₱0.00" data-wizard-summary="Total project cost"
                                     class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-bold">
 
                                 <p class="mt-1 text-[11px] leading-4 text-slate-500">
@@ -873,62 +930,77 @@
 
                     </section>
 
-                    <section class="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
-                        <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-700">
-                            Save & Workflow
+                </div>
+
+                <div data-wizard-step data-wizard-title="Review & Save" class="space-y-5">
+
+                    <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 px-6 py-4">
+                            <h2 class="text-sm font-semibold text-slate-900">
+                                Review the Project
+                            </h2>
+                            <p class="mt-1 text-xs leading-5 text-slate-500">
+                                Check the details below. Use <strong>Edit</strong> to go back to a step; nothing you
+                                entered is lost.
+                            </p>
                         </div>
 
-                        <h2 class="mt-1 text-sm font-semibold text-slate-900">
-                            Project Creation Completion
-                        </h2>
-
-                        <p class="mt-1 text-xs leading-5 text-slate-600">
-                            Saving a complete project profile moves it directly to <strong>TSSD Evaluation</strong> status —
-                            no separate submission step is needed.
-                        </p>
+                        <div data-wizard-review class="grid gap-3 p-6 lg:grid-cols-2"></div>
                     </section>
 
                     {{-- Remarks --}}
                     <section id="remarks"
                         class="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
 
-                        <label class="mb-2 block text-sm font-semibold text-slate-700">
-                            Remarks
+                        <label for="remarks_input" class="mb-2 block text-sm font-semibold text-slate-700">
+                            Remarks <span class="font-normal text-slate-400">(optional)</span>
                         </label>
 
-                        <textarea name="remarks" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks') }}</textarea>
+                        <textarea id="remarks_input" name="remarks" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('remarks') }}</textarea>
 
                     </section>
 
-                    <div
-                        class="sticky bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+                    <section class="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
+                        <h2 class="text-sm font-semibold text-blue-950">
+                            What happens when you save
+                        </h2>
 
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="mt-1 text-xs leading-5 text-blue-900">
+                            The project moves directly to <strong>TSSD Evaluation</strong> status. No separate
+                            submission step is needed.
+                        </p>
+                    </section>
 
-                            <div>
-                                <div class="text-xs font-semibold text-slate-700">
-                                    Ready to create the official project?
-                                </div>
+                </div>
 
-                                <p class="mt-1 text-[11px] text-slate-500">
-                                    Review calculated totals before saving. Validation will keep you on this page if
-                                    required information is missing.
-                                </p>
-                            </div>
+                <div
+                    class="sticky bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:p-4">
 
-                            <div class="flex shrink-0 gap-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
 
-                                <a href="{{ route('projects.index') }}"
-                                    class="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                                    Cancel
-                                </a>
+                        <a href="{{ route('projects.index') }}"
+                            class="inline-flex h-11 items-center rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">
+                            Cancel
+                        </a>
 
-                                <button type="submit"
-                                    class="inline-flex h-10 items-center rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
-                                    Save Official Project
-                                </button>
+                        <div class="flex flex-1 justify-end gap-2">
 
-                            </div>
+                            <button type="button" data-wizard-prev hidden
+                                class="inline-flex h-11 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                                Back
+                            </button>
+
+                            <button type="button" data-wizard-next hidden
+                                class="inline-flex h-11 items-center gap-1.5 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6d]">
+                                <span data-wizard-next-label>Next</span>
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                            </button>
+
+                            <button type="submit" data-wizard-submit
+                                class="inline-flex h-11 items-center rounded-lg bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800">
+                                Save Official Project
+                            </button>
 
                         </div>
 
@@ -1190,7 +1262,7 @@
 
                         <div class="selected-barangays mt-3 space-y-2"></div>
 
-                        <div class="mt-2 text-[10px] leading-4 text-slate-400">
+                        <div class="mt-2 text-[11px] leading-4 text-slate-400">
                             Allocation column: Total beneficiaries.
                         </div>
                     </div>
@@ -1363,7 +1435,7 @@
                 if (checkedBarangays.length === 0) {
                     const empty = document.createElement('div');
                     empty.className =
-                        'rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[10px] text-slate-400';
+                        'rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400';
                     empty.textContent =
                         'Select at least one barangay to encode beneficiary allocation.';
                     selected.appendChild(empty);
@@ -1389,13 +1461,13 @@
                             <div class="truncate text-[11px] font-semibold text-blue-900">
                                 ${escapeHtml(checkbox.dataset.name)}
                             </div>
-                            <div class="mt-0.5 text-[9px] text-blue-600">
+                            <div class="mt-0.5 text-[11px] text-blue-600">
                                 Exact beneficiary allocation
                             </div>
                         </div>
 
                         <label class="block">
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                            <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                 Total
                             </span>
                             <input
@@ -1411,7 +1483,7 @@
                         </label>
 
                         <label class="block">
-                            <span class="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                            <span class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                 Female
                             </span>
                             <input
@@ -1571,7 +1643,54 @@
                 return true;
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | Income Class + Local Chief Executive auto-fill
+            |--------------------------------------------------------------------------
+            | Filled from the municipalities / cities of the beneficiary locations
+            | and the province's Governor. A value the TC typed is kept: the field
+            | only follows the locations while it still holds the auto-filled value.
+            */
+            const LOCATION_REFERENCE = @json($locationReference);
+            const incomeClassInput = document.getElementById('income_class');
+            const lceInput = document.getElementById('local_chief_executive');
+
+            function setAutoValue(input, value) {
+                if (!input) return;
+
+                const untouched = input.value.trim() === '' || input.value === input.dataset.autoValue;
+                input.dataset.autoValue = value;
+
+                if (untouched) {
+                    input.value = value;
+                }
+            }
+
+            function updateLocationDerivedFields() {
+                const municipalityIds = Array.from(projectLocations.querySelectorAll('.municipality-select'))
+                    .map((select) => select.value)
+                    .filter(Boolean);
+                const municipalities = [...new Set(municipalityIds)]
+                    .map((id) => LOCATION_REFERENCE.municipalities[id])
+                    .filter(Boolean);
+
+                const incomeClasses = [...new Set(municipalities.map((row) => row.income_class).filter(Boolean))];
+                setAutoValue(incomeClassInput, incomeClasses.join(' / '));
+
+                const officials = municipalities
+                    .filter((row) => row.mayor)
+                    .map((row) => municipalities.length > 1 ? `Mayor ${row.mayor} (${row.name})` : `Mayor ${row.mayor}`);
+                const governor = LOCATION_REFERENCE.governors[provinceSelect.value];
+
+                if (governor) {
+                    officials.push(`Governor ${governor}`);
+                }
+
+                setAutoValue(lceInput, officials.join(' / '));
+            }
+
             function updateLocationSummary() {
+                updateLocationDerivedFields();
                 const provinceName =
                     provinceSelect.options[
                         provinceSelect.selectedIndex
@@ -1672,7 +1791,7 @@
                                 <div class="mt-2 space-y-1.5">
                                     ${item.barangays.map(
                                         barangay => `
-                                                            <div class="flex items-center justify-between gap-3 rounded-md bg-white px-2 py-1.5 text-[10px] shadow-sm">
+                                                            <div class="flex items-center justify-between gap-3 rounded-md bg-white px-2 py-1.5 text-[11px] shadow-sm">
                                                                 <span class="min-w-0 truncate font-medium text-slate-600">
                                                                     ${escapeHtml(barangay.name)}
                                                                 </span>
@@ -1724,8 +1843,73 @@
 
             const ppeItems = document.getElementById('ppeItems');
             const addPpeItem = document.getElementById('addPpeItem');
+            const ppeGroupedItems = document.getElementById('ppeGroupedItems');
+            const ppeTotalLabel = document.getElementById('ppeTotalLabel');
+            const ppeGroups = {
+                non_hazardous: ppeGroupedItems.querySelector('[data-ppe-group="non_hazardous"]'),
+                hazardous: ppeGroupedItems.querySelector('[data-ppe-group="hazardous"]'),
+            };
 
             let ppeIndex = 0;
+
+            function allPpeRows() {
+                return Array.from(document.querySelectorAll('[data-ppe-row]'))
+                    .sort((a, b) => Number(a.dataset.ppeOrder) - Number(b.dataset.ppeOrder));
+            }
+
+            function ppeRowType(row) {
+                return row.querySelector('[data-ppe-type]').value === 'hazardous' ?
+                    'hazardous' :
+                    'non_hazardous';
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | PPE Hazard Grouping
+            |--------------------------------------------------------------------------
+            |
+            | When the encoded PPE mixes Non-Hazardous and Hazardous items, rows are
+            | moved into two separate tables, each with its own subtotal, and the
+            | grand total is relabeled as the Overall PPE Total. With a single type
+            | the plain list is kept. Rows are only moved when their container
+            | changes (keeps focus while typing) and keep their original order.
+            |--------------------------------------------------------------------------
+            */
+
+            function placePpeRow(row, container) {
+                if (row.parentElement === container) return;
+
+                const order = Number(row.dataset.ppeOrder);
+                const before = Array.from(container.querySelectorAll(':scope > [data-ppe-row]'))
+                    .find((existing) => Number(existing.dataset.ppeOrder) > order);
+
+                container.insertBefore(row, before || null);
+            }
+
+            function arrangePpeGroups() {
+                const rows = allPpeRows();
+                const types = new Set(rows.map(ppeRowType));
+                const split = types.has('hazardous') && types.has('non_hazardous');
+
+                rows.forEach(function(row) {
+                    const target = split ?
+                        ppeGroups[ppeRowType(row)].querySelector('[data-ppe-group-rows]') :
+                        ppeItems;
+
+                    placePpeRow(row, target);
+                });
+
+                ppeItems.classList.toggle('hidden', split);
+                ppeGroupedItems.classList.toggle('hidden', !split);
+                ppeTotalLabel.textContent = split ? 'Overall PPE Total' : 'PPE Total';
+
+                return split;
+            }
+
+            function clearPpeRows() {
+                document.querySelectorAll('[data-ppe-row]').forEach((row) => row.remove());
+                ppeIndex = 0;
+            }
 
             function currency(value) {
                 return new Intl.NumberFormat('en-PH', {
@@ -1769,7 +1953,7 @@
                     const overBy = Math.abs(afterProject);
                     allocationBudgetState.textContent = 'Exceeded';
                     allocationBudgetState.className =
-                        'rounded-full bg-red-100 px-3 py-1 text-[10px] font-bold uppercase text-red-700';
+                        'rounded-full bg-red-100 px-3 py-1 text-[11px] font-bold uppercase text-red-700';
                     allocationProjectCostMessage.className = 'mt-3 text-xs font-semibold text-red-700';
                     allocationProjectCostMessage.textContent =
                         `Total Project Cost ${currency(projectTotal)} exceeds the remaining allocation ${currency(data.remaining)} by ${currency(overBy)}.`;
@@ -1779,7 +1963,7 @@
                 } else {
                     allocationBudgetState.textContent = 'Available';
                     allocationBudgetState.className =
-                        'rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-bold uppercase text-emerald-700';
+                        'rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold uppercase text-emerald-700';
                     allocationProjectCostMessage.className = 'mt-3 text-xs font-medium text-emerald-700';
                     allocationProjectCostMessage.textContent =
                         `Remaining after this project: ${currency(Math.max(0, afterProject))}.`;
@@ -1839,9 +2023,18 @@
                     insuranceValue;
 
                 let ppeTotal = 0;
+                const ppeSubtotals = {
+                    non_hazardous: 0,
+                    hazardous: 0
+                };
+                const ppeCounts = {
+                    non_hazardous: 0,
+                    hazardous: 0
+                };
 
-                document
-                    .querySelectorAll('[data-ppe-row]')
+                arrangePpeGroups();
+
+                allPpeRows()
                     .forEach(function(row) {
                         const count = Number(
                             row.querySelector('[data-ppe-count]').value || 0
@@ -1899,7 +2092,16 @@
                             currency(total);
 
                         ppeTotal += total;
+                        ppeSubtotals[ppeRowType(row)] += total;
+                        ppeCounts[ppeRowType(row)] += 1;
                     });
+
+                Object.entries(ppeGroups).forEach(function([type, group]) {
+                    group.querySelector('[data-ppe-group-subtotal]').textContent =
+                        currency(ppeSubtotals[type]);
+                    group.querySelector('[data-ppe-group-count]').textContent =
+                        `${ppeCounts[type]} ${ppeCounts[type] === 1 ? 'item' : 'items'}`;
+                });
 
                 wagesPreview.value = currency(wages);
                 insurancePreview.value = currency(insurance);
@@ -1917,6 +2119,7 @@
                 const row = document.createElement('div');
 
                 row.dataset.ppeRow = 'true';
+                row.dataset.ppeOrder = String(index);
 
                 row.className =
                     'flex min-w-0 flex-wrap items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4';
@@ -1927,7 +2130,7 @@
                 row.innerHTML = `
             <label class="min-w-36 flex-1">
                 <span class="${labelClass}">Type</span>
-                <select name="ppe_items[${index}][ppe_type]" class="${inputClass}">
+                <select data-ppe-type name="ppe_items[${index}][ppe_type]" class="${inputClass}">
                     <option value="non_hazardous">Non-Hazardous</option>
                     <option value="hazardous">Hazardous</option>
                 </select>
@@ -2167,23 +2370,36 @@
                 const beneficiaryValue = Number(beneficiaries.value || 0);
 
                 if (!dayValue || !beneficiaryValue) {
-                    alert('Enter Number of Days and Total Beneficiaries first.');
+                    const missing = !dayValue ? days : document.getElementById('location');
+
+                    Promise.resolve(window.TupadConfirm?.({
+                        title: 'Standard PPE set needs more details',
+                        message: !dayValue
+                            ? 'Enter the Number of Days first. The standard set depends on whether the project is Short-Term or Long-Term.'
+                            : 'Encode the barangay beneficiary allocations in Project Location first. They set the Total Beneficiaries covered by the PPE.',
+                        confirmText: !dayValue ? 'Go to Number of Days' : 'Go to Project Location',
+                        cancelText: 'Stay here',
+                    })).then(function(go) {
+                        if (!go) return;
+                        document.getElementById('projectForm')?.tupadWizard?.reveal(missing);
+                        missing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        (missing === days ? days : document.getElementById('province_id'))?.focus({ preventScroll: true });
+                    });
                     return;
                 }
 
                 const isLongTerm = dayValue >= 31 && dayValue <= 90;
                 const set = PPE_STANDARD_SETS[ppeWorkClassification.value] || [];
 
-                ppeItems.innerHTML = '';
-                ppeIndex = 0;
+                clearPpeRows();
 
                 set.forEach(function(item) {
                     addRow();
 
-                    const rows = ppeItems.querySelectorAll('[data-ppe-row]');
+                    const rows = allPpeRows();
                     const row = rows[rows.length - 1];
 
-                    row.querySelector('select[name^="ppe_items"]').value = item.ppe_type;
+                    row.querySelector('[data-ppe-type]').value = item.ppe_type;
 
                     const productSelect = row.querySelector('[data-ppe-product-select]');
                     productSelect.value = item.product;
@@ -2208,18 +2424,34 @@
 
             calculate();
 
+            const locationSection = document.getElementById('location');
+
+            function focusLocationProblem() {
+                const target = locationAllocationStatus?.offsetParent
+                    ? locationAllocationStatus
+                    : document.getElementById('province_id');
+
+                target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target?.focus({ preventScroll: true });
+            }
+
+            // Wizard: the Location step can't be left until every barangay
+            // allocation is complete (form-wizard.js "wizard:validate").
+            locationSection?.closest('[data-wizard-step]')?.addEventListener('wizard:validate', function(event) {
+                if (!updateAllocationValidation()) {
+                    event.preventDefault();
+                    window.setTimeout(focusLocationProblem, 0);
+                }
+            });
+
+            // Fallback when the wizard is not running (the wizard checks first otherwise).
             document.getElementById('projectForm')?.addEventListener(
                 'submit',
                 function(event) {
                     if (!updateAllocationValidation()) {
                         event.preventDefault();
-
-                        document.getElementById('location')?.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start',
-                        });
-
-                        locationAllocationStatus?.focus();
+                        event.currentTarget.tupadWizard?.reveal(locationSection);
+                        focusLocationProblem();
                     }
                 }
             );

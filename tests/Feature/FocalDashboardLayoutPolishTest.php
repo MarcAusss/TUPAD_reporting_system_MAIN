@@ -25,17 +25,41 @@ class FocalDashboardLayoutPolishTest extends TestCase
         $response->assertOk()
             ->assertSee('data-focal-operations-overview', false)
             ->assertSee('data-focal-fund-position', false)
-            ->assertSee('data-focal-work-queue', false)
-            ->assertSee('Operational Overview')
+            ->assertDontSee('data-focal-work-queue', false)
+            ->assertDontSee('Focal Work Queue')
             ->assertSee('Fund Position')
-            ->assertSee('Focal Work Queue')
-            ->assertSee('Financial action')
-            ->assertSee('Geographic Report Analytics')
+            ->assertSee('data-beneficiary-distribution', false)
+            ->assertDontSee('Project Cost Trend')
+            ->assertDontSee('Fund Utilization per ADL')
             ->assertDontSee('Projects currently waiting in your role-specific queues.')
             ->assertDontSee('tupad-metric-card', false);
     }
 
-    public function test_tc_dashboard_keeps_existing_role_specific_layout(): void
+    public function test_focal_dashboard_overview_has_one_status_chart_in_system_colours(): void
+    {
+        $focal = User::factory()->create([
+            'role' => UserRole::FOCAL,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($focal)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('data-focal-overview', false)
+            ->assertSee('data-focal-status-chart', false)
+            ->assertSee('Projects by Status')
+            ->assertSee('data-focal-beneficiaries', false)
+            ->assertSee('data-focal-implementation', false)
+            ->assertSee('data-focal-financial-overview', false)
+            ->assertSee('data-focal-recent-activity', false)
+            ->assertDontSee('Projects Overview');
+
+        // Legend dots use the workflow-phase colours of the status pills.
+        $response->assertSee(\App\Services\Dashboards\FocalDashboardOverviewService::STATUS_COLORS['tssd_evaluation'], false)
+            ->assertSee(\App\Services\Dashboards\FocalDashboardOverviewService::STATUS_COLORS['completed'], false);
+    }
+
+    public function test_tc_dashboard_uses_the_focal_layout_for_their_province(): void
     {
         $tc = User::factory()->create([
             'role' => UserRole::TC,
@@ -46,8 +70,34 @@ class FocalDashboardLayoutPolishTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Project Workflow')
-            ->assertSee('tupad-metric-card', false)
-            ->assertDontSee('data-focal-operations-overview', false)
-            ->assertDontSee('data-focal-work-queue', false);
+            ->assertSee('data-focal-operations-overview', false)
+            ->assertSee('data-beneficiary-distribution', false)
+            ->assertSee('data-tc-distributions', false)
+            ->assertSee('Beneficiary Distribution —')
+            ->assertSee('Project Distribution —')
+            ->assertSee('id="tcProjectDistributionData"', false)
+            ->assertSee('data-dashboard-report-charts', false)
+            ->assertSee('CQPR · Projects per Municipality')
+            ->assertDontSee('data-focal-work-queue', false)
+            ->assertDontSee('Bicol Region by Report');
+    }
+
+    public function test_focal_dashboard_shows_a_pie_chart_per_report(): void
+    {
+        $focal = User::factory()->create([
+            'role' => UserRole::FOCAL,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($focal)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Bicol Region by Report')
+            ->assertSee('CQPR · Projects per Province')
+            ->assertSee('SPRS · Beneficiaries per Province');
+
+        foreach (['cqpr', 'sprs', 'status', 'implementation_mode', 'labor_market', 'gpai'] as $chart) {
+            $response->assertSee('data-report-chart="'.$chart.'"', false);
+        }
     }
 }

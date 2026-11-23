@@ -43,6 +43,7 @@ class Project extends Model
         'municipality',
         'barangay',
         'income_class',
+        'local_chief_executive',
 
         'implementation_mode',
         'number_of_days',
@@ -145,6 +146,17 @@ class Project extends Model
         return $this->hasMany(ProjectEvaluation::class);
     }
 
+    /** "Request GPAI Enrollment" presses (newest first). */
+    public function gpaiEnrollmentRequests(): HasMany
+    {
+        return $this->hasMany(GpaiEnrollmentRequest::class)->latest('id');
+    }
+
+    public function latestGpaiEnrollmentRequest(): HasOne
+    {
+        return $this->hasOne(GpaiEnrollmentRequest::class)->latestOfMany();
+    }
+
     public function approval(): HasOne
     {
         return $this->hasOne(ProjectApproval::class);
@@ -154,6 +166,12 @@ class Project extends Model
         return $this->hasOne(
             ProjectInsuranceEnrollment::class
         );
+    }
+
+    /** The GSIS GPAI transmittal line this project was bulk-enrolled in, if any. */
+    public function gpaiEnrollmentItem(): HasOne
+    {
+        return $this->hasOne(GpaiEnrollmentItem::class);
     }
 
     public function ppeDeliveries(): HasMany
@@ -216,6 +234,12 @@ class Project extends Model
     {
         return $this->hasMany(ProjectObligation::class)
             ->orderBy('tranche_number');
+    }
+
+    /** Payment of Wages: insurance and PPE after deducting beneficiaries not included. */
+    public function paymentInsurancePpe(): HasOne
+    {
+        return $this->hasOne(ProjectPaymentInsurancePpe::class);
     }
 
     /** Through ACP: Notice of Availability of Fund. */
@@ -336,11 +360,17 @@ class Project extends Model
 
         $obligations = $this->relationLoaded('obligations') ? $this->obligations : $this->obligations()->get();
 
+        // Insurance and PPE recorded at Payment of Wages already exclude the
+        // beneficiaries not included; older projects fall back to the plan.
+        $insurancePpe = $this->relationLoaded('paymentInsurancePpe')
+            ? $this->paymentInsurancePpe
+            : $this->paymentInsurancePpe()->first();
+
         // Sum in cents to avoid floating-point drift across tranches.
         $toCents = fn ($value): int => (int) round(((float) $value) * 100);
         $cents = $obligations->sum(fn ($obligation): int => $toCents($obligation->wages_amount))
-            + $toCents($this->ppe_total)
-            + $toCents($this->insurance_total);
+            + $toCents($insurancePpe?->ppe_amount ?? $this->ppe_total)
+            + $toCents($insurancePpe?->insurance_amount ?? $this->insurance_total);
 
         return $cents / 100;
     }

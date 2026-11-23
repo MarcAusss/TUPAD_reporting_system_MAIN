@@ -39,13 +39,13 @@
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
                     @if($dockCompleted)
-                        <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                        <span class="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
                             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
                             All workflow steps complete
                         </span>
                     @else
-                        <span class="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">Next Workflow Action</span>
-                        <span class="hidden rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600 sm:inline-flex">
+                        <span class="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-700">Next Workflow Action</span>
+                        <span class="hidden rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 sm:inline-flex">
                             {{ $project->status->label() }} → {{ $nextStatusLabel }}
                         </span>
                     @endif
@@ -62,7 +62,7 @@
                         title="{{ $dockPendingEditRequests->map(fn ($r) => $dockSectionLabels[$r->section] ?? $r->section)->implode(', ') }}"
                         class="inline-flex h-10 items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-100">
                         Review edit request
-                        <span class="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{{ $dockPendingEditRequests->count() }}</span>
+                        <span class="rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-bold text-white">{{ $dockPendingEditRequests->count() }}</span>
                     </a>
                 @endif
 
@@ -114,7 +114,7 @@
             <section class="max-h-[88vh] w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
                 <header class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-5 py-4">
                     <div>
-                        <div class="text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">Quick Workflow Progression</div>
+                        <div class="text-[11px] font-bold uppercase tracking-[0.12em] text-blue-700">Quick Workflow Progression</div>
                         <h2 id="quick-workflow-title" class="mt-1 text-lg font-bold text-slate-950">{{ $project->status->label() }} → {{ $nextStatusLabel }}</h2>
                         <p class="mt-1 text-xs leading-5 text-slate-500">Complete the current workflow action here without scrolling through the full project record.</p>
                     </div>
@@ -198,7 +198,7 @@
                                 <label for="quick-approval-date" class="mb-2 block text-xs font-semibold text-slate-700">Date of Approval <span class="text-rose-600">*</span></label>
                                 <input id="quick-approval-date" name="approval_date" type="date" required value="{{ old('approval_date', now()->format('Y-m-d')) }}" class="h-10 w-full max-w-xs rounded-lg border border-slate-300 px-3 text-sm">
                                 @error('approval')
-                                    <p class="mt-1.5 text-[10px] font-semibold text-rose-600">{{ $message }}</p>
+                                    <p class="mt-1.5 text-[11px] font-semibold text-rose-600">{{ $message }}</p>
                                 @enderror
                             </div>
                             <p class="text-[11px] leading-4 text-slate-500">

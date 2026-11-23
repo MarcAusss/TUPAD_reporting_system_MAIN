@@ -27,7 +27,7 @@
             <a href="{{ route('reports.periodic.export.pdf', $officialQuery) }}"
                 class="inline-flex h-10 items-center rounded-lg bg-[#063b86] px-4 text-sm font-semibold text-white hover:bg-[#052f6d]">Official PDF</a>
             <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
-                <div class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Reporting Period</div>
+                <div class="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Reporting Period</div>
                 <div class="mt-1 text-sm font-bold text-slate-900">{{ $monthName }}</div>
             </div>
         </div>
@@ -38,7 +38,7 @@
             @foreach ($views as $key => $tab)
                 <a href="{{ route('reports.workspace.monthly', array_merge($commonQuery, ['view' => $key])) }}"
                     class="{{ $viewKey === $key ? 'border-blue-200 bg-blue-50 text-[#063b86]' : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} rounded-lg border px-4 py-3 transition">
-                    <div class="text-[10px] font-extrabold uppercase tracking-[0.14em] opacity-70">Monthly Report {{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">Monthly Report {{ str_pad((string) ($loop->index + 1), 2, '0', STR_PAD_LEFT) }}</div>
                     <div class="mt-1 text-sm font-bold">{{ $tab['label'] }}</div>
                     <div class="mt-1 text-xs leading-5 opacity-75">{{ $tab['description'] }}</div>
                 </a>
@@ -120,7 +120,7 @@
                 ['Completed Projects', $summary['completed_project_count'], 'Projects currently marked Completed'],
             ] as [$label, $value, $hint])
                 <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
                     <div class="mt-2 text-2xl font-extrabold text-slate-900">{{ number_format((int) $value) }}</div>
                     <p class="mt-2 text-[11px] leading-4 text-slate-500">{{ $hint }}</p>
                 </article>
@@ -136,7 +136,7 @@
                 ['Disbursed', $summary['disbursed_cents']],
             ] as [$label, $value])
                 <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
                     <div class="mt-2 text-xl font-extrabold text-slate-900">{{ $money($value) }}</div>
                 </article>
             @endforeach
@@ -150,7 +150,7 @@
                 ['Program Unspecified', $orientationCounts['program_unspecified'], 'Legacy or unclassified orientation records; no program is inferred'],
             ] as [$label, $value, $hint])
                 <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
+                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{{ $label }}</div>
                     <div class="mt-2 text-2xl font-extrabold text-slate-900">{{ number_format((int) $value) }}</div>
                     <p class="mt-2 text-[11px] leading-4 text-slate-500">{{ $hint }}</p>
                 </article>
@@ -223,7 +223,7 @@
                             <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-center font-bold">No.</th>
                             <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Date of Activity</th>
                             <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Venue</th>
-                            <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Learning Modality<br><span class="text-[10px] font-medium text-blue-200">(AVP / Face-to-Face)</span></th>
+                            <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Learning Modality<br><span class="text-[11px] font-medium text-blue-200">(AVP / Face-to-Face)</span></th>
                             <th colspan="2" class="border border-[#26456f] px-3 py-2 text-center font-bold">No. of Beneficiaries Oriented</th>
                             <th colspan="2" class="border border-[#26456f] px-3 py-2 text-center font-bold">Topics Discussed</th>
                             <th rowspan="2" class="border border-[#26456f] px-3 py-3 text-left font-bold">Name of Facilitator/s</th>
@@ -287,7 +287,7 @@
         @else
             <div class="overflow-x-auto">
                 <table class="tupad-report-table tupad-system-table tupad-report-screen-table min-w-full divide-y divide-slate-200 text-left text-xs">
-                    <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
+                    <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
                         <tr>
                             <th class="px-4 py-3 font-bold">Date</th>
                             <th class="px-4 py-3 font-bold">Project Code</th>
@@ -317,7 +317,7 @@
                                         @if (count($row['programs']))
                                             <div class="flex flex-wrap gap-1.5">
                                                 @foreach ($row['programs'] as $program)
-                                                    <span class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-800">{{ $program }}</span>
+                                                    <span class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800">{{ $program }}</span>
                                                 @endforeach
                                             </div>
                                         @else

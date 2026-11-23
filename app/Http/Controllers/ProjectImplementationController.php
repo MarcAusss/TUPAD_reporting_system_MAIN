@@ -37,6 +37,10 @@ class ProjectImplementationController extends Controller
     ): RedirectResponse {
         $this->ensurePreparationAllowed($project);
 
+        // Enrolled to GSIS GPAI by the GSIS Enrollment Officer: insurance is
+        // already recorded and is not taken from this form.
+        $gpaiEnrolled = $project->gpaiEnrollmentItem()->exists();
+
         $validated = $request->validate([
             /*
             |--------------------------------------------------------------------------
@@ -44,12 +48,16 @@ class ProjectImplementationController extends Controller
             |--------------------------------------------------------------------------
             */
 
+            'insurance' => [Rule::excludeIf($gpaiEnrolled)],
+
             'insurance.date_enrolled' => [
+                Rule::excludeIf($gpaiEnrolled),
                 'required',
                 'date',
             ],
 
             'insurance.payment_mode' => [
+                Rule::excludeIf($gpaiEnrolled),
                 'required',
                 Rule::in([
                     'voucher',
@@ -132,7 +140,8 @@ class ProjectImplementationController extends Controller
             function () use (
                 $request,
                 $project,
-                $validated
+                $validated,
+                $gpaiEnrolled
             ) {
                 /*
                 |--------------------------------------------------------------------------
@@ -140,6 +149,7 @@ class ProjectImplementationController extends Controller
                 |--------------------------------------------------------------------------
                 */
 
+                if (! $gpaiEnrolled) {
                 $project
                     ->insuranceEnrollment()
                     ->updateOrCreate(
@@ -179,6 +189,7 @@ class ProjectImplementationController extends Controller
                                 $request->user()->id,
                         ]
                     );
+                }
 
                 /*
                 |--------------------------------------------------------------------------
@@ -272,6 +283,12 @@ class ProjectImplementationController extends Controller
     public function insurance(Request $request, Project $project): RedirectResponse
     {
         $this->ensurePreparationAllowed($project);
+
+        abort_if(
+            $project->gpaiEnrollmentItem()->exists(),
+            403,
+            'This project was enrolled to GSIS GPAI by the GSIS Enrollment Officer; its insurance enrollment cannot be edited here.'
+        );
 
         $validated = $request->validate([
             'date_enrolled' => ['required', 'date'],
@@ -554,8 +571,9 @@ class ProjectImplementationController extends Controller
                 'beneficiaries_oriented' => $validated['beneficiaries_oriented'],
                 'venue' => trim($validated['venue']),
                 'oriented_by' => trim($validated['oriented_by']),
-                'alkansssya_conducted' => $request->boolean('alkansssya_conducted'),
-                'yakap_conducted' => $request->boolean('yakap_conducted'),
+                // Mandatory in every orientation (also enforced by the model).
+                'alkansssya_conducted' => true,
+                'yakap_conducted' => true,
                 'remarks' => $validated['remarks'] ?? null,
                 'recorded_by' => $request->user()->id,
             ]

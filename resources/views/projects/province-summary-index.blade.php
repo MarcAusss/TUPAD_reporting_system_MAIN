@@ -68,7 +68,7 @@
                     <div class="mt-5 grid grid-cols-2 gap-3">
 
                         <div class="rounded-lg bg-slate-50 p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                 Projects
                             </div>
 
@@ -78,7 +78,7 @@
                         </div>
 
                         <div class="rounded-lg bg-slate-50 p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                 Municipalities
                             </div>
 
@@ -88,7 +88,7 @@
                         </div>
 
                         <div class="rounded-lg bg-slate-50 p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                 Beneficiaries
                             </div>
 
@@ -96,13 +96,13 @@
                                 {{ number_format($item['beneficiaries']) }}
                             </div>
 
-                            <div class="mt-0.5 text-[10px] text-slate-400">
+                            <div class="mt-0.5 text-[11px] text-slate-400">
                                 {{ number_format($item['female_beneficiaries']) }} female
                             </div>
                         </div>
 
                         <div class="rounded-lg bg-slate-50 p-3">
-                            <div class="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                                 Amount Assisted
                             </div>
 

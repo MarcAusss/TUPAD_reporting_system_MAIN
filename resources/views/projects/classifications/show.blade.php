@@ -44,7 +44,7 @@
 {{-- Project context --}}
 <section class="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
     <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:col-span-2">
-        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">Project</div>
+        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Project</div>
         <div class="mt-1 text-sm font-bold leading-5 text-slate-900">{{ $project->project_title }}</div>
         <div class="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
             <span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{{ $project->approval?->project_code ?: 'Project code not yet assigned' }}</span>
@@ -52,12 +52,12 @@
         </div>
     </div>
     <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">Declared Beneficiaries</div>
+        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Declared Beneficiaries</div>
         <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ number_format($declaredTotal) }}</div>
         <div class="text-xs text-slate-500">{{ number_format($declaredFemale) }} female</div>
     </div>
     <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">Labor Market Records</div>
+        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Labor Market Records</div>
         <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ number_format($referrals->count()) }}</div>
         <div class="text-xs text-slate-500">{{ number_format($referrals->sum('interested_referred_total')) }} referred · {{ number_format($referrals->sum('provided_intervention_total')) }} provided</div>
     </div>
@@ -178,7 +178,7 @@
                                         <div class="ml-auto h-1.5 w-16 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
                                             <div class="h-full rounded-full {{ $group['tone'] === 'violet' ? 'bg-violet-500' : 'bg-sky-500' }}" style="width: 0%" data-sector-bar></div>
                                         </div>
-                                        <div class="mt-1 text-[10px] font-semibold text-slate-400" data-sector-share>0%</div>
+                                        <div class="mt-1 text-[11px] font-semibold text-slate-400" data-sector-share>0%</div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -198,7 +198,7 @@
             </div>
             <dl class="space-y-3 px-5 py-4 text-sm">
                 <div>
-                    <dt class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Intervention Focus</dt>
+                    <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Intervention Focus</dt>
                     <dd class="mt-0.5 font-semibold text-slate-900" data-focus-summary>
                         {{ collect($interventionFocuses)->first(fn ($focus) => $focus->value === $currentFocus)?->label() ?? 'Not selected' }}
                     </dd>

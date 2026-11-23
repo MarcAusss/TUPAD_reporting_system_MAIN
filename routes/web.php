@@ -9,9 +9,12 @@ use App\Http\Controllers\Auth\RequiredPasswordChangeController;
 use App\Http\Controllers\CoordinatorAccountController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DistrictRepresentativeController;
+use App\Http\Controllers\LocalChiefExecutiveController;
+use App\Http\Controllers\DashboardBeneficiaryDistributionController;
 use App\Http\Controllers\DashboardGeographicAnalyticsController;
 use App\Http\Controllers\ExecutiveDashboardController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\GsisEnrollmentController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MunicipalityIncomeClassController;
 use App\Http\Controllers\MonthlyQuarterlyReportController;
@@ -99,6 +102,19 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
     Route::middleware('role:focal')->group(function () {
         Route::get('/dashboard/geographic-analytics', DashboardGeographicAnalyticsController::class)
             ->name('dashboard.geographic-analytics');
+
+        Route::put('/dashboard/beneficiary-targets', [\App\Http\Controllers\DashboardBeneficiaryTargetController::class, 'update'])
+            ->name('dashboard.beneficiary-targets.update');
+
+    });
+
+    // Barangay drill-down: Focal (whole region) and TUPAD Coordinators (their province).
+    Route::middleware('role:focal,tc')->group(function () {
+        Route::get('/dashboard/beneficiary-distribution/barangays', [DashboardBeneficiaryDistributionController::class, 'barangays'])
+            ->name('dashboard.beneficiary-distribution.barangays');
+
+        Route::get('/dashboard/project-distribution/barangays', [DashboardBeneficiaryDistributionController::class, 'projectBarangays'])
+            ->name('dashboard.project-distribution.barangays');
     });
 
     Route::get('/notifications', [NotificationCenterController::class, 'index'])
@@ -227,6 +243,12 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
         Route::put('/locations/income-classes', [MunicipalityIncomeClassController::class, 'update'])
             ->name('locations.income-classes.update');
+
+        Route::get('/locations/local-chief-executives', [LocalChiefExecutiveController::class, 'edit'])
+            ->name('locations.local-chief-executives.edit');
+
+        Route::put('/locations/local-chief-executives', [LocalChiefExecutiveController::class, 'update'])
+            ->name('locations.local-chief-executives.update');
     });
 
     Route::middleware('role:admin,tc,focal')->group(function () {
@@ -296,6 +318,60 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         '/locations/municipalities/{municipality}/barangays',
         [LocationController::class, 'barangays']
     )->name('locations.barangays');
+
+    /*
+    |--------------------------------------------------------------------------
+    | GSIS GPAI Enrollment — GSIS Enrollment Officer
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('role:gsis')->prefix('gsis')->name('gsis.')->group(function () {
+        Route::get('/yearly-status', [GsisEnrollmentController::class, 'status'])
+            ->name('status');
+
+        Route::get('/enrollments/create', [GsisEnrollmentController::class, 'create'])
+            ->name('enrollments.create');
+
+        Route::post('/enrollments', [GsisEnrollmentController::class, 'store'])
+            ->name('enrollments.store');
+
+        Route::get('/enrollments/{enrollment}', [GsisEnrollmentController::class, 'edit'])
+            ->name('enrollments.edit');
+
+        Route::put('/enrollments/{enrollment}', [GsisEnrollmentController::class, 'update'])
+            ->name('enrollments.update');
+
+        Route::patch('/enrollments/{enrollment}/status', [GsisEnrollmentController::class, 'updateStatus'])
+            ->name('enrollments.status');
+
+        Route::get('/enrollments/{enrollment}/transmittal', [GsisEnrollmentController::class, 'transmittal'])
+            ->name('enrollments.transmittal');
+
+        Route::get('/cash-advances', [GsisEnrollmentController::class, 'cashAdvances'])
+            ->name('cash-advances');
+
+        Route::post('/cash-advances', [GsisEnrollmentController::class, 'storeCashAdvance'])
+            ->name('cash-advances.store');
+
+        Route::get('/yearly-summary', [GsisEnrollmentController::class, 'summary'])
+            ->name('summary');
+
+        Route::get('/reports', [GsisEnrollmentController::class, 'report'])
+            ->name('report');
+    });
+
+    // Ask the GSIS Enrollment Officer to enroll a project (3 per 3 hours).
+    Route::middleware('role:admin,tc,focal')->group(function () {
+        Route::post('/projects/{project}/gpai-enrollment-request', [\App\Http\Controllers\ProjectGpaiEnrollmentRequestController::class, 'store'])
+            ->name('projects.gpai-enrollment-request');
+    });
+
+    // Read-only GPAI enrollment progress: Admin, TUPAD Coordinators (their
+    // province) and TUPAD Coordinators with Focal access.
+    Route::middleware('role:admin,tc,focal')->group(function () {
+        Route::get('/gpai-enrollment-status', [GsisEnrollmentController::class, 'coordinatorStatus'])
+            ->name('gpai-status.index');
+    });
 
     /*
     |--------------------------------------------------------------------------
@@ -389,6 +465,10 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         Route::post('/adl/{adl}/allocations', [AdlAllocationController::class, 'store'])
             ->name('adl.allocations.store');
 
+        Route::put('/adl/{adl}/allocations/{allocation}', [AdlAllocationController::class, 'update'])
+            ->scopeBindings()
+            ->name('adl.allocations.update');
+
         Route::get('/payments', [ProjectController::class, 'paymentQueue'])
             ->name('payments.index');
 
@@ -405,6 +485,10 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         Route::post('/projects/{project}/payment', [ProjectPaymentController::class, 'store'])
             ->whereNumber('project')
             ->name('projects.payment.store');
+
+        Route::post('/projects/{project}/payment/insurance-ppe', [ProjectPaymentController::class, 'storeInsurancePpe'])
+            ->whereNumber('project')
+            ->name('projects.payment.insurance-ppe.store');
 
         Route::post(
             '/payments/{project}/tranches/{obligation}/disbursements',

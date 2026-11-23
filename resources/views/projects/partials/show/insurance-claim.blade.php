@@ -5,7 +5,7 @@
         class="mt-5 overflow-hidden rounded-xl border border-red-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'beneficiaries' ? 'hidden' : '' }}">
 
         <div class="border-b border-slate-200 px-5 py-4">
-            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-red-700">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-red-700">
                 Insurance Claim
             </div>
             <h2 class="mt-1 text-sm font-semibold text-slate-900">
@@ -23,7 +23,7 @@
             <summary
                 class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
                 <span class="text-xs font-semibold text-red-800">Record Insurance Claim</span>
-                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">Expand /
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">Expand /
                     Collapse</span>
             </summary>
 
@@ -140,7 +140,7 @@
                 class="h-8 w-full rounded-md border border-slate-300 px-2 text-xs">
             <input type="text" name="beneficiaries[${index}][address]" placeholder="Address" required
                 class="h-8 w-full rounded-md border border-slate-300 px-2 text-xs">
-            <button type="button" data-remove-row class="inline-flex h-8 items-center justify-center rounded-md border border-red-200 bg-white px-2 text-[10px] font-semibold text-red-600 hover:bg-red-50">
+            <button type="button" data-remove-row class="inline-flex h-8 items-center justify-center rounded-md border border-red-200 bg-white px-2 text-[11px] font-semibold text-red-600 hover:bg-red-50">
                 Remove
             </button>
         `;

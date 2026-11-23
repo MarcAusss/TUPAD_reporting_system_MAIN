@@ -38,7 +38,7 @@
                         <h2 class="text-sm font-semibold text-slate-900">Regional Fund Position</h2>
                         <p class="mt-1 text-xs text-slate-500">Allocation, target, obligation and remaining regional fund position.</p>
                     </div>
-                    <span class="inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-blue-800">
+                    <span class="inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-blue-800">
                         Current monitoring basis
                     </span>
                 </div>
@@ -51,7 +51,7 @@
                         ['Available Balance', $totals['available_balance'], 'Available fund position'],
                     ] as [$label, $value, $caption])
                         <div class="border-b border-slate-100 px-5 py-5 sm:border-r xl:border-b-0 last:border-r-0">
-                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ $label }}</div>
+                            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{{ $label }}</div>
                             <div class="mt-2 text-xl font-bold tabular-nums text-slate-950">₱{{ number_format($value, 2) }}</div>
                             <div class="mt-1 text-[11px] text-slate-500">{{ $caption }}</div>
                         </div>
@@ -61,7 +61,7 @@
                 <div class="border-t border-slate-200 bg-slate-50/70 px-5 py-4">
                     <div class="flex items-end justify-between gap-4">
                         <div>
-                            <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Fund Utilization</div>
+                            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Fund Utilization</div>
                             <div class="mt-1 text-2xl font-bold tabular-nums text-[#063b86]">{{ number_format($totals['utilization'], 2) }}%</div>
                         </div>
                         <div class="text-right text-xs text-slate-500">
@@ -133,15 +133,15 @@
                 </div>
                 <div class="grid gap-0 sm:grid-cols-3">
                     <div class="border-b border-slate-100 px-5 py-5 sm:border-b-0 sm:border-r">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Target</div>
+                        <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Target</div>
                         <div class="mt-2 text-2xl font-bold tabular-nums text-slate-950">{{ number_format($targetBeneficiaries) }}</div>
                     </div>
                     <div class="border-b border-slate-100 px-5 py-5 sm:border-b-0 sm:border-r">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Accomplished</div>
+                        <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Accomplished</div>
                         <div class="mt-2 text-2xl font-bold tabular-nums text-[#063b86]">{{ number_format($accomplishedBeneficiaries) }}</div>
                     </div>
                     <div class="px-5 py-5">
-                        <div class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Female</div>
+                        <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Female</div>
                         <div class="mt-2 text-2xl font-bold tabular-nums text-slate-950">{{ number_format($femaleBeneficiaries) }}</div>
                     </div>
                 </div>

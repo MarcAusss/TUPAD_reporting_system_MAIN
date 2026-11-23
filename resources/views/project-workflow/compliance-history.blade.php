@@ -87,7 +87,7 @@
             </select>
 
             <button type="submit"
-                class="h-10 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800">
+                class="h-10 rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6d]">
                 Search
             </button>
 
@@ -206,7 +206,7 @@
                                 <div class="text-sm font-bold {{ $agingClass }}">
                                     {{ number_format($agingDays) }} day(s)
                                 </div>
-                                <div class="mt-1 text-[10px] text-slate-400">
+                                <div class="mt-1 text-[11px] text-slate-400">
                                     {{ $complied ? 'To comply' : 'Since TSSD finding' }}
                                 </div>
                             </td>
@@ -222,7 +222,7 @@
                             <td class="px-5 py-4 text-right">
                                 @if ($project)
                                     <a href="{{ route('projects.show', $project) }}"
-                                        class="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800">
+                                        class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-3 text-xs font-semibold text-white hover:bg-[#052f6d]">
                                         Open Project
                                     </a>
                                 @endif
