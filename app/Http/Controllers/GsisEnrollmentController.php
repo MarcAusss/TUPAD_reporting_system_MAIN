@@ -176,6 +176,17 @@ class GsisEnrollmentController extends Controller
                 $enrollment->or_policy_received_on = now()->toDateString();
             }
 
+            // The Table 2 (OR & Policy) status follows the dates by itself, so
+            // the officer does not set the dropdown: once the On-call Payment
+            // Slip date is recorded it is "For OR and Policy", and once the OR
+            // and Policy are received it is "Complete". A narrower status the
+            // officer picked (For OR only / For Policy only) is kept.
+            if ($enrollment->or_policy_received_on !== null) {
+                $enrollment->ops_status = 'complete';
+            } elseif ($enrollment->payment_slip_on !== null && in_array($enrollment->ops_status, [null, 'complete'], true)) {
+                $enrollment->ops_status = 'for_or_and_policy';
+            }
+
             // Distributed to PCs: the moment the system notifies the TUPAD
             // Coordinators (on completion). Cleared if it is no longer complete.
             if ($enrollment->isComplete()) {
@@ -235,7 +246,7 @@ class GsisEnrollmentController extends Controller
         return redirect()
             ->route('gsis.enrollments.edit', $enrollment)
             ->with('success', sprintf(
-                '%s created for %d %s. The TUPAD Coordinators were notified.',
+                '%s created for %d %s. The TUPAD Coordinators are notified that their projects are enrolled once the On-call Payment Slip Date is recorded.',
                 $enrollment->gpai_number,
                 $enrollment->items->count(),
                 str('project')->plural($enrollment->items->count()),
@@ -248,6 +259,9 @@ class GsisEnrollmentController extends Controller
 
         return view('gsis.enrollments.edit', [
             'enrollment' => $enrollment,
+            'cashAdvances' => $enrollment->payment_mode === GpaiEnrollment::MODE_CASH_ADVANCE
+                ? $this->gpai->cashAdvances((int) $enrollment->fiscal_year)
+                : collect(),
         ]);
     }
 
@@ -274,11 +288,14 @@ class GsisEnrollmentController extends Controller
         ]);
 
         $wasComplete = $enrollment->isComplete();
+        $wasPaid = $enrollment->payment_slip_on !== null;
         $this->saveProgress($request, $enrollment, $validated);
 
-        $message = ! $wasComplete && $enrollment->isComplete()
-            ? $enrollment->gpai_number.' is complete. The TUPAD Coordinators were notified that the OR and Policy were received.'
-            : $enrollment->gpai_number.' updated.';
+        $message = match (true) {
+            ! $wasComplete && $enrollment->isComplete() => $enrollment->gpai_number.' is complete. The TUPAD Coordinators were notified that the OR and Policy were received.',
+            ! $wasPaid && $enrollment->payment_slip_on !== null => $enrollment->gpai_number.' updated. The On-call Payment Slip is recorded: the status is now For OR and Policy and the TUPAD Coordinators were notified that their projects are enrolled.',
+            default => $enrollment->gpai_number.' updated.',
+        };
 
         // Land on the next step to record, so the officer can keep going.
         $next = $enrollment->fresh()->nextStep();
@@ -286,6 +303,126 @@ class GsisEnrollmentController extends Controller
         return redirect()
             ->to(route('gsis.enrollments.edit', $enrollment).($next ? '#step-'.$next : ''))
             ->with('success', $message);
+    }
+
+    /**
+     * Edit the transmittal's own details and its project lines (no Focal
+     * approval needed). The payment mode stays, since it decides the GPAI
+     * number series; the transmittal date stays within its fiscal year.
+     */
+    public function updateDetails(Request $request, GpaiEnrollment $enrollment): RedirectResponse
+    {
+        $enrollment->load('items');
+        $isCashAdvance = $enrollment->payment_mode === GpaiEnrollment::MODE_CASH_ADVANCE;
+        $itemIds = $enrollment->items->pluck('id')->all();
+
+        $validated = $request->validateWithBag('details', [
+            'transmittal_date' => ['required', 'date', function (string $attribute, mixed $value, \Closure $fail) use ($enrollment): void {
+                if ((int) date('Y', strtotime((string) $value)) !== (int) $enrollment->fiscal_year) {
+                    $fail("The transmittal date must stay within FY {$enrollment->fiscal_year} ({$enrollment->gpai_number}).");
+                }
+            }],
+            'coverage_start' => ['required', 'date', 'after_or_equal:transmittal_date'],
+            'coverage_end' => ['required', 'date', 'after:coverage_start'],
+            'gpai_cash_advance_id' => [Rule::requiredIf($isCashAdvance), 'nullable', 'integer', 'exists:gpai_cash_advances,id'],
+            'items' => ['required', 'array'],
+            'items.*.adl_number' => ['nullable', 'string', 'max:100'],
+            'items.*.particulars' => ['required', 'string', 'max:500'],
+            'items.*.beneficiaries' => ['required', 'integer', 'min:1', 'max:100000'],
+            'items.*.premium' => ['required', 'numeric', 'min:0', 'max:9999999999'],
+        ], [
+            'gpai_cash_advance_id.required' => 'Select the Cash Advance that pays this enrollment.',
+        ], [
+            'items.*.particulars' => 'particulars',
+            'items.*.beneficiaries' => 'beneficiaries',
+            'items.*.premium' => 'premium',
+        ]);
+
+        DB::transaction(function () use ($request, $enrollment, $validated, $isCashAdvance, $itemIds): void {
+            foreach ($validated['items'] as $itemId => $values) {
+                if (! in_array((int) $itemId, $itemIds, true)) {
+                    continue;
+                }
+
+                $enrollment->items->firstWhere('id', (int) $itemId)->update([
+                    'adl_number' => filled($values['adl_number'] ?? null) ? trim($values['adl_number']) : null,
+                    'particulars' => trim($values['particulars']),
+                    'beneficiaries' => (int) $values['beneficiaries'],
+                    'premium' => round((float) $values['premium'], 2),
+                ]);
+            }
+
+            $enrollment->fill([
+                'transmittal_date' => $validated['transmittal_date'],
+                'coverage_start' => $validated['coverage_start'],
+                'coverage_end' => $validated['coverage_end'],
+                'gpai_cash_advance_id' => $isCashAdvance ? (int) $validated['gpai_cash_advance_id'] : null,
+                'updated_by' => $request->user()->id,
+            ])->save();
+
+            $enrollment->unsetRelation('items');
+
+            if ($isCashAdvance) {
+                $cashAdvance = GpaiCashAdvance::query()->with('enrollments.items')->lockForUpdate()->findOrFail($enrollment->gpai_cash_advance_id);
+
+                if ($cashAdvance->balanceCents() < 0) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'gpai_cash_advance_id' => sprintf(
+                            'The transmittals charged to %s would exceed its amount by ₱%s.',
+                            $cashAdvance->label(),
+                            number_format(-$cashAdvance->balanceCents() / 100, 2),
+                        ),
+                    ])->errorBag('details');
+                }
+            }
+
+            $this->gpai->syncProjectInsurance($enrollment, $request->user());
+        });
+
+        return redirect()
+            ->route('gsis.enrollments.edit', $enrollment)
+            ->with('success', $enrollment->gpai_number.' details updated.');
+    }
+
+    /** Edit a Cash Advance (no Focal approval needed). */
+    public function updateCashAdvance(Request $request, GpaiCashAdvance $cashAdvance): RedirectResponse
+    {
+        $bag = 'cash_advance_'.$cashAdvance->id;
+
+        $validated = $request->validateWithBag($bag, [
+            'cash_advance_date' => ['required', 'date'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:9999999999'],
+            'reference' => ['nullable', 'string', 'max:150'],
+            'remarks' => ['nullable', 'string', 'max:3000'],
+        ]);
+
+        $cashAdvance->load('enrollments.items');
+        $fiscalYear = (int) date('Y', strtotime($validated['cash_advance_date']));
+        $errors = [];
+
+        if ((int) round((float) $validated['amount'] * 100) < $cashAdvance->disbursedCents()) {
+            $errors['amount'] = sprintf(
+                'The amount cannot be less than the ₱%s already charged to this cash advance.',
+                number_format($cashAdvance->disbursedCents() / 100, 2),
+            );
+        }
+
+        if ($cashAdvance->enrollments->isNotEmpty() && $fiscalYear !== (int) $cashAdvance->fiscal_year) {
+            $errors['cash_advance_date'] = "The CA date must stay within FY {$cashAdvance->fiscal_year} because transmittals are charged to it.";
+        }
+
+        if ($errors !== []) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors)->errorBag($bag);
+        }
+
+        $cashAdvance->update([
+            ...$validated,
+            'fiscal_year' => $fiscalYear,
+        ]);
+
+        return redirect()
+            ->route('gsis.cash-advances', ['fiscal_year' => $cashAdvance->fiscal_year])
+            ->with('success', $cashAdvance->label().' updated.');
     }
 
     public function transmittal(GpaiEnrollment $enrollment): View
@@ -419,10 +556,22 @@ class GsisEnrollmentController extends Controller
             'total_cents' => (int) $group->sum('total_cents'),
         ];
 
+        // Voucher / CA buttons: show one payment mode only (null = both).
+        $modeFilter = in_array($request->query('mode'), [GpaiEnrollment::MODE_VOUCHER, GpaiEnrollment::MODE_CASH_ADVANCE], true)
+            ? (string) $request->query('mode')
+            : null;
+
+        if ($modeFilter !== null) {
+            $rows = $rows->filter(fn (array $row): bool => $row['enrollment']->payment_mode === $modeFilter)->values();
+            $enrollments = $enrollments->where('payment_mode', $modeFilter)->values();
+        }
+
         $sections = collect([
             GpaiEnrollment::MODE_VOUCHER => 'Voucher',
             GpaiEnrollment::MODE_CASH_ADVANCE => 'Cash Advance',
-        ])->map(function (string $label, string $mode) use ($rows, $totals): array {
+        ])
+            ->when($modeFilter !== null, fn (Collection $modes) => $modes->only($modeFilter))
+            ->map(function (string $label, string $mode) use ($rows, $totals): array {
             $group = $rows->filter(fn (array $row): bool => $row['enrollment']->payment_mode === $mode)->values();
 
             return [
@@ -442,6 +591,7 @@ class GsisEnrollmentController extends Controller
             'fiscalYears' => $this->fiscalYears(),
             'period' => $period,
             'part' => $part,
+            'mode' => $modeFilter,
             'grouped' => $period !== 'annual' && $part === null,
             'periodLabel' => match (true) {
                 $part === null && $period !== 'annual' => 'All '.['semester' => 'semesters', 'quarter' => 'quarters', 'month' => 'months'][$period].' of '.$year,

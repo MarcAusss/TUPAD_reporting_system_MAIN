@@ -403,10 +403,8 @@ class Project extends Model
 
         $obligations = $this->relationLoaded('obligations') ? $this->obligations : $this->obligations()->get();
 
-        return [
-            (int) $obligations->sum('beneficiaries_total'),
-            (int) $obligations->sum('beneficiaries_female'),
-        ];
+        // Long-term tranches pay the same beneficiaries again (headcount).
+        return ProjectObligation::paidBeneficiaryCounts($obligations);
     }
 
     public function actualBeneficiaries(): ?int
@@ -740,6 +738,31 @@ class Project extends Model
         return $this->beneficiaries()
             ->where('sex', 'female')
             ->count();
+    }
+
+    /**
+     * Beneficiary Mapping progress: beneficiaries encoded by barangay against
+     * the project's total beneficiaries. Uses the `mapped_beneficiaries`
+     * aggregate when the query selected it.
+     *
+     * @return array{key:string,label:string,mapped:int,total:int}
+     */
+    public function beneficiaryMappingStatus(): array
+    {
+        $mapped = array_key_exists('mapped_beneficiaries', $this->attributes)
+            ? (int) $this->attributes['mapped_beneficiaries']
+            : (int) ($this->relationLoaded('beneficiaryAddresses')
+                ? $this->beneficiaryAddresses->sum('beneficiaries_total')
+                : $this->beneficiaryAddresses()->sum('beneficiaries_total'));
+        $total = (int) $this->beneficiaries_total;
+
+        [$key, $label] = match (true) {
+            $mapped <= 0 => ['not_mapped', 'Not Yet Mapped'],
+            $mapped < $total => ['partial', 'Partially Mapped'],
+            default => ['completed', 'Completed'],
+        };
+
+        return ['key' => $key, 'label' => $label, 'mapped' => $mapped, 'total' => $total];
     }
 
     public function beneficiaryRegistryComplete(): bool

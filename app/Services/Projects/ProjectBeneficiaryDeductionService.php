@@ -6,6 +6,7 @@ use App\Enums\ImplementationMode;
 use App\Models\Project;
 use App\Models\ProjectBeneficiaryAddress;
 use App\Models\ProjectBeneficiaryDeduction;
+use App\Models\ProjectObligation;
 use App\Models\ProjectLocation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -56,10 +57,11 @@ class ProjectBeneficiaryDeductionService
         $project->loadMissing(['obligations', 'beneficiaryAddresses']);
 
         [$mappedTotal, $mappedFemale] = $this->mappedCounts($project);
+        [$paidTotal, $paidFemale] = ProjectObligation::paidBeneficiaryCounts($project->obligations);
 
         return [
-            'total' => max(0, $mappedTotal - (int) $project->obligations->sum('beneficiaries_total')),
-            'female' => max(0, $mappedFemale - (int) $project->obligations->sum('beneficiaries_female')),
+            'total' => max(0, $mappedTotal - $paidTotal),
+            'female' => max(0, $mappedFemale - $paidFemale),
         ];
     }
 
@@ -93,7 +95,9 @@ class ProjectBeneficiaryDeductionService
             then (select coalesce(sum(pba.beneficiaries_{$column}), 0) from project_beneficiary_addresses pba where pba.project_id = projects.id)
             else projects.beneficiaries_{$column} end)";
 
-        return "{$mapped} > (select coalesce(sum(project_obligations.beneficiaries_{$column}), 0) from project_obligations where project_obligations.project_id = projects.id)";
+        $paid = ProjectObligation::paidBeneficiariesAggregateSql($column);
+
+        return "{$mapped} > (select {$paid} from project_obligations where project_obligations.project_id = projects.id)";
     }
 
     public function needsDeduction(Project $project): bool

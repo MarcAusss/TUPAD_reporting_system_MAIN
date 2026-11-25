@@ -1,8 +1,12 @@
 {{-- Release of Assistance (per tranche) --}}
 
+@php
+    // Long-term tranches are released while implementation is ongoing.
+    $releaseTranches = app(\App\Services\Projects\LongTermTrancheService::class);
+@endphp
+
 @if (
-    $project->implementation_mode === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION &&
-        in_array($project->status, [\App\Enums\ProjectStatus::FOR_PAYMENT, \App\Enums\ProjectStatus::COMPLETED], true) &&
+    $releaseTranches->paymentVisible($project) &&
         ($project->obligations->isNotEmpty() || $project->payout))
     @php
         $releaseController = \App\Http\Controllers\ProjectReleaseOfAssistanceController::class;
@@ -10,7 +14,7 @@
         $releaseSummary = $releasePaymentService->releaseSummary($project);
         $releasePaymentSummary = $releasePaymentService->summary($project);
         $canRecordRelease =
-            $project->status === \App\Enums\ProjectStatus::FOR_PAYMENT &&
+            $releaseTranches->paymentOpen($project) &&
             (auth()->user()->isTc() || auth()->user()->isAdmin());
         $releasedCount = $releaseSummary['released'] + $releaseSummary['release_scheduled'];
         $releaseProgress = $releaseSummary['tranche_count'] > 0
@@ -66,7 +70,7 @@
                 </div>
             </div>
 
-            @if ($project->status === \App\Enums\ProjectStatus::FOR_PAYMENT && ! $releasePaymentSummary['obligations_completed'])
+            @if ($releaseTranches->paymentOpen($project) && ! $releasePaymentSummary['obligations_completed'])
                 <p class="mt-3 text-[11px] text-slate-500">
                     The Focal has not yet completed the obligation tranches; more tranches may still be added.
                 </p>
@@ -110,6 +114,12 @@
                                 ₱{{ number_format($trancheObligated / 100, 2) }}
                                 <span class="font-normal text-slate-500">· {{ number_format($obligation->beneficiaries_total) }} beneficiaries · {{ $obligation->payee }}</span>
                             </div>
+                            @if ($obligation->postDocument?->isTranche())
+                                <div class="mt-0.5 text-[11px] text-slate-500">
+                                    Date covered: {{ $obligation->postDocument->coverage_start_date->format('M d, Y') }} –
+                                    {{ $obligation->postDocument->coverage_end_date->format('M d, Y') }}
+                                </div>
+                            @endif
                         </div>
                         <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $releaseStateMeta[$trancheState][1] }}">
                             {{ $releaseStateMeta[$trancheState][0] }}

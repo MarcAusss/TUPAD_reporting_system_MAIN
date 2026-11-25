@@ -4,6 +4,7 @@ namespace App\Services\Dashboards;
 
 use App\Enums\ImplementationMode;
 use App\Enums\ProjectStatus;
+use App\Enums\ProjectTerm;
 use App\Models\Project;
 use App\Models\ProjectDisbursement;
 use App\Models\ProjectImplementation;
@@ -11,6 +12,7 @@ use App\Models\ProjectObligation;
 use App\Models\ProjectStatusHistory;
 use App\Models\User;
 use App\Services\Auth\ProvinceAccessService;
+use App\Services\Projects\LongTermTrancheService;
 use App\Services\Projects\ProjectWorkspacePresenter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -55,11 +57,12 @@ class DashboardActionQueueService
                     ->whereNotNull('obligations_completed_at')
                     ->whereNull('beneficiary_deductions_recorded_at')))
             ->addSelect([
+                // Paid headcount (long-term tranches pay the same beneficiaries).
                 'obligated_beneficiaries' => ProjectObligation::query()
-                    ->selectRaw('coalesce(sum(beneficiaries_total), 0)')
+                    ->selectRaw(ProjectObligation::paidBeneficiariesAggregateSql('total'))
                     ->whereColumn('project_obligations.project_id', 'projects.id'),
                 'obligated_female' => ProjectObligation::query()
-                    ->selectRaw('coalesce(sum(beneficiaries_female), 0)')
+                    ->selectRaw(ProjectObligation::paidBeneficiariesAggregateSql('female'))
                     ->whereColumn('project_obligations.project_id', 'projects.id'),
                 // Beneficiary Mapping Source totals (null when nothing is mapped).
                 'mapped_beneficiaries' => \App\Models\ProjectBeneficiaryAddress::query()
@@ -82,6 +85,20 @@ class DashboardActionQueueService
                     ->whereColumn('project_obligations.project_id', 'projects.id')
                     ->whereNull('project_obligations.release_date')
                     ->whereRaw(ProjectObligation::FULLY_DISBURSED_SQL),
+                // Long-term tranche submissions the Focal has not obligated, and
+                // obligated tranches not yet fully disbursed.
+                'pending_tranche_documents' => \App\Models\ProjectPostDocument::query()
+                    ->selectRaw('count(*)')
+                    ->whereColumn('project_post_documents.project_id', 'projects.id')
+                    ->whereNotNull('project_post_documents.tranche_number')
+                    ->whereNotExists(fn ($obligated) => $obligated
+                        ->selectRaw('1')
+                        ->from('project_obligations')
+                        ->whereColumn('project_obligations.project_post_document_id', 'project_post_documents.id')),
+                'undisbursed_tranches' => ProjectObligation::query()
+                    ->selectRaw('count(*)')
+                    ->whereColumn('project_obligations.project_id', 'projects.id')
+                    ->whereRaw('not ('.ProjectObligation::FULLY_DISBURSED_SQL.')'),
                 'work_period_end_date' => ProjectImplementation::query()
                     ->select('end_date')
                     ->whereColumn('project_implementations.project_id', 'projects.id')
@@ -193,7 +210,8 @@ class DashboardActionQueueService
                 'route' => 'project-workflow.index',
                 'route_params' => ['queue' => 'release-of-assistance'],
                 'implementation_mode' => ImplementationMode::DIRECT_ADMINISTRATION,
-                'statuses' => [ProjectStatus::FOR_PAYMENT],
+                // Long-term tranches are released while implementation is ongoing.
+                'statuses' => LongTermTrancheService::OPEN_STATUSES,
                 'filter' => fn (Project $project): bool =>
                     $project->release_pending_since !== null,
                 // The TC's action starts when the Focal fully disburses a tranche.
@@ -265,7 +283,14 @@ class DashboardActionQueueService
                 'description' => 'Projects requiring obligation or disbursement action.',
                 'route' => 'payments.index',
                 'implementation_mode' => ImplementationMode::DIRECT_ADMINISTRATION,
-                'statuses' => [ProjectStatus::FOR_PAYMENT],
+                'statuses' => LongTermTrancheService::OPEN_STATUSES,
+                // Long-term tranches are paid while implementation is ongoing.
+                'filter' => fn (Project $project): bool =>
+                    $project->status === ProjectStatus::FOR_PAYMENT
+                    || (
+                        $project->term === ProjectTerm::LONG_TERM
+                        && ((int) $project->pending_tranche_documents > 0 || (int) $project->undisbursed_tranches > 0)
+                    ),
             ],
             'acp_payment' => [
                 'label' => 'ACP Payment',

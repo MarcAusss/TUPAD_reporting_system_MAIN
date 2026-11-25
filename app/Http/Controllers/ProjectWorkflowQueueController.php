@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\ProjectEvaluation;
 use App\Services\Auth\ProvinceAccessService;
 use App\Services\Projects\ImplementationStageService;
+use App\Services\Projects\LongTermTrancheService;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -424,9 +425,11 @@ class ProjectWorkflowQueueController extends Controller
                 'description' =>
                     'Direct Administration projects with fully disbursed tranches waiting for the mode of payment, payout date, and venue.',
                 'owner' => 'TUPAD Coordinator / Administrator',
-                'statuses' => [
-                    ProjectStatus::FOR_PAYMENT->value,
-                ],
+                // Long-term tranches are released while implementation is ongoing.
+                'statuses' => array_map(
+                    static fn (ProjectStatus $status): string => $status->value,
+                    LongTermTrancheService::OPEN_STATUSES,
+                ),
                 'scope' => fn (Builder $query): Builder => $query
                     ->where('implementation_mode', ImplementationMode::DIRECT_ADMINISTRATION->value)
                     ->whereHas('obligations', fn (Builder $obligations): Builder => $obligations->awaitingRelease()),

@@ -15,6 +15,7 @@ use App\Models\Province;
 use App\Services\Auth\ProvinceAccessService;
 use App\Services\Finance\FinancialCeilingService;
 use App\Services\Projects\BarangayCostBreakdownService;
+use App\Services\Projects\LongTermTrancheService;
 use App\Services\Projects\ProjectWorkspacePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -148,7 +149,9 @@ class ProjectController extends Controller
                 'projectLocations.province',
                 'projectLocations.municipality',
                 'projectLocations.barangays',
-            ]);
+            ])
+            // Beneficiary Mapping column: beneficiaries encoded by barangay.
+            ->withSum('beneficiaryAddresses as mapped_beneficiaries', 'beneficiaries_total');
 
         if ($filters['q'] !== '') {
             $search = $filters['q'];
@@ -309,10 +312,21 @@ class ProjectController extends Controller
                 'implementation_mode',
                 ImplementationMode::DIRECT_ADMINISTRATION->value
             )
-            ->whereIn('status', [
-                ProjectStatus::FOR_PAYMENT->value,
-                ProjectStatus::COMPLETED->value,
-            ])
+            ->where(fn ($query) => $query
+                ->whereIn('status', [
+                    ProjectStatus::FOR_PAYMENT->value,
+                    ProjectStatus::COMPLETED->value,
+                ])
+                // Long-term tranches are paid while implementation is ongoing.
+                ->orWhere(fn ($longTerm) => $longTerm
+                    ->where('term', ProjectTerm::LONG_TERM->value)
+                    ->whereIn('status', [
+                        ProjectStatus::ONGOING_IMPLEMENTATION->value,
+                        ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS->value,
+                    ])
+                    ->where(fn ($started) => $started
+                        ->whereHas('obligations')
+                        ->orWhereHas('postDocuments', fn ($documents) => $documents->whereNotNull('tranche_number')))))
             ->with([
                 'allocation.adl',
                 'approval',
@@ -1159,6 +1173,26 @@ class ProjectController extends Controller
         });
     }
 
+    /**
+     * Focal accounts open projects once their payment is open. Long-term
+     * Direct Administration projects are paid per tranche while
+     * implementation is still ongoing, so they open from that stage.
+     */
+    public static function focalCanOpen(Project $project): bool
+    {
+        if ($project->implementation_mode === ImplementationMode::THROUGH_ACP) {
+            return in_array($project->status, [
+                ProjectStatus::FOR_PAYMENT,
+                ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
+                ProjectStatus::FOR_LIQUIDATION,
+                ProjectStatus::PARTIALLY_LIQUIDATED,
+                ProjectStatus::COMPLETED,
+            ], true);
+        }
+
+        return app(LongTermTrancheService::class)->paymentVisible($project);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Show Official Project
@@ -1182,23 +1216,8 @@ class ProjectController extends Controller
         // The GSIS Enrollment Officer works from the GPAI enrollment pages only.
         abort_if($user->isGsis(), 403);
 
-        if ($user->isFocal()) {
-            $allowedStatuses = $project->implementation_mode === ImplementationMode::THROUGH_ACP
-                ? [
-                    ProjectStatus::FOR_PAYMENT,
-                    ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
-                    ProjectStatus::FOR_LIQUIDATION,
-                    ProjectStatus::PARTIALLY_LIQUIDATED,
-                    ProjectStatus::COMPLETED,
-                ]
-                : [
-                    ProjectStatus::FOR_PAYMENT,
-                    ProjectStatus::COMPLETED,
-                ];
-
-            if (! in_array($project->status, $allowedStatuses, true)) {
-                abort(403);
-            }
+        if ($user->isFocal() && ! self::focalCanOpen($project)) {
+            abort(403);
         }
 
         $project->load([
@@ -1242,6 +1261,8 @@ class ProjectController extends Controller
             'implementation.recorder',
 
             'postDocuments.recorder',
+            'postDocuments.coverageUpdater',
+            'obligations.postDocument',
             'obligation.recorder',
             'obligations.recorder',
             'obligations.disbursements.recorder',

@@ -252,14 +252,19 @@ class ProjectPaymentService
      */
     public function obligatedTotals(iterable $obligations): array
     {
+        $obligations = collect($obligations);
+
         $totals = array_fill_keys(
             ['beneficiaries_total', 'beneficiaries_female', 'wages', 'insurance', 'ppe', 'total'],
             0
         );
 
+        // Beneficiaries are a headcount: long-term tranches pay the same
+        // beneficiaries again, so they are not added up (see the model).
+        [$totals['beneficiaries_total'], $totals['beneficiaries_female']] =
+            ProjectObligation::paidBeneficiaryCounts($obligations);
+
         foreach ($obligations as $obligation) {
-            $totals['beneficiaries_total'] += (int) $obligation->beneficiaries_total;
-            $totals['beneficiaries_female'] += (int) $obligation->beneficiaries_female;
             $totals['wages'] += $this->amountToCents($obligation->wages_amount);
             $totals['insurance'] += $this->amountToCents($obligation->insurance_amount);
             $totals['ppe'] += $this->amountToCents($obligation->ppe_amount);

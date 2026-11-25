@@ -64,6 +64,42 @@
                             <div class="{{ $cashAdvance->balanceCents() < 0 ? 'text-red-700' : 'text-emerald-700' }}">Balance <b>{{ $peso($cashAdvance->balanceCents()) }}</b> · Liquidation ({{ number_format($cashAdvance->balanceCents() / 100, 2) }})</div>
                         </div>
                     </div>
+                    @php
+                        $caErrors = $errors->getBag('cash_advance_'.$cashAdvance->id);
+                    @endphp
+                    <details class="border-b border-slate-200 px-5 py-2" @if ($caErrors->any()) open @endif>
+                        <summary class="cursor-pointer text-xs font-semibold text-[#063b86]">Edit Cash Advance</summary>
+                        <form method="POST" action="{{ route('gsis.cash-advances.update', $cashAdvance) }}" class="grid gap-3 py-3 sm:grid-cols-4">
+                            @csrf
+                            @method('PUT')
+                            @foreach ($caErrors->all() as $caError)
+                                <p class="text-xs text-red-700 sm:col-span-4">{{ $caError }}</p>
+                            @endforeach
+                            <label class="block text-xs font-semibold text-slate-700">CA Date
+                                <input type="date" name="cash_advance_date" required
+                                    value="{{ $caErrors->any() ? old('cash_advance_date') : $cashAdvance->cash_advance_date->toDateString() }}"
+                                    class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm">
+                            </label>
+                            <label class="block text-xs font-semibold text-slate-700">Amount
+                                <input type="number" step="0.01" min="0.01" name="amount" required
+                                    value="{{ $caErrors->any() ? old('amount') : number_format((float) $cashAdvance->amount, 2, '.', '') }}"
+                                    class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm">
+                            </label>
+                            <label class="block text-xs font-semibold text-slate-700">Reference
+                                <input name="reference" maxlength="150"
+                                    value="{{ $caErrors->any() ? old('reference') : $cashAdvance->reference }}"
+                                    class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm">
+                            </label>
+                            <label class="block text-xs font-semibold text-slate-700">Remarks
+                                <input name="remarks" maxlength="3000"
+                                    value="{{ $caErrors->any() ? old('remarks') : $cashAdvance->remarks }}"
+                                    class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm">
+                            </label>
+                            <div class="text-right sm:col-span-4">
+                                <button class="inline-flex h-9 items-center rounded-lg bg-[#063b86] px-4 text-xs font-semibold text-white hover:bg-[#052f6b]">Save Changes</button>
+                            </div>
+                        </form>
+                    </details>
                     <div class="overflow-x-auto"><table class="tupad-system-table min-w-full text-sm">
                         <thead>
                             <tr>

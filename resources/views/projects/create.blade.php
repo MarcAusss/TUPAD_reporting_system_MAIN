@@ -768,8 +768,12 @@
                             class="flex flex-col gap-4 border-b border-slate-200 px-6 py-4 lg:flex-row lg:items-start lg:justify-between">
 
                             <div class="min-w-0 max-w-3xl">
-                                <h2 class="text-sm font-semibold text-slate-900">
+                                <h2 class="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
                                     PPE Requirements
+                                    <span id="ppeLongTermBadge"
+                                        class="hidden rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+                                        Long-Term · standard PPE set filled automatically
+                                    </span>
                                 </h2>
 
                                 <p class="mt-1 text-xs leading-5 text-slate-500">
@@ -2365,30 +2369,31 @@
             const autoFillPpeSet = document.getElementById('autoFillPpeSet');
             const ppeWorkClassification = document.getElementById('ppeWorkClassification');
 
-            autoFillPpeSet?.addEventListener('click', function() {
+            const ppeSection = document.getElementById('ppe');
+            const ppeLongTermBadge = document.getElementById('ppeLongTermBadge');
+
+            // True while the PPE rows are an untouched automatic fill, so they
+            // may be refreshed when the days/beneficiaries change. Any edit by
+            // the user (trusted input/change event) keeps their rows.
+            let ppeAutoManaged = false;
+
+            ppeSection?.addEventListener('input', (event) => { if (event.isTrusted) ppeAutoManaged = false; });
+            ppeSection?.addEventListener('change', (event) => {
+                if (event.isTrusted && event.target !== ppeWorkClassification) ppeAutoManaged = false;
+            });
+            addPpeItem.addEventListener('click', () => { ppeAutoManaged = false; });
+            ppeSection?.addEventListener('click', (event) => {
+                if (event.target.closest('[data-remove-ppe]')) ppeAutoManaged = false;
+            });
+
+            function isLongTermDays() {
                 const dayValue = Number(days.value || 0);
+                return dayValue >= 31 && dayValue <= 90;
+            }
+
+            function fillStandardPpeSet() {
+                const isLongTerm = isLongTermDays();
                 const beneficiaryValue = Number(beneficiaries.value || 0);
-
-                if (!dayValue || !beneficiaryValue) {
-                    const missing = !dayValue ? days : document.getElementById('location');
-
-                    Promise.resolve(window.TupadConfirm?.({
-                        title: 'Standard PPE set needs more details',
-                        message: !dayValue
-                            ? 'Enter the Number of Days first. The standard set depends on whether the project is Short-Term or Long-Term.'
-                            : 'Encode the barangay beneficiary allocations in Project Location first. They set the Total Beneficiaries covered by the PPE.',
-                        confirmText: !dayValue ? 'Go to Number of Days' : 'Go to Project Location',
-                        cancelText: 'Stay here',
-                    })).then(function(go) {
-                        if (!go) return;
-                        document.getElementById('projectForm')?.tupadWizard?.reveal(missing);
-                        missing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        (missing === days ? days : document.getElementById('province_id'))?.focus({ preventScroll: true });
-                    });
-                    return;
-                }
-
-                const isLongTerm = dayValue >= 31 && dayValue <= 90;
                 const set = PPE_STANDARD_SETS[ppeWorkClassification.value] || [];
 
                 clearPpeRows();
@@ -2418,11 +2423,67 @@
                 });
 
                 calculate();
+            }
+
+            // Long-Term projects: highlight PPE and show the standard set
+            // automatically (no click needed) while there are no PPE rows yet
+            // or the rows are still the untouched automatic fill.
+            function syncLongTermPpe() {
+                const isLongTerm = isLongTermDays();
+
+                ppeSection?.classList.toggle('ring-2', isLongTerm);
+                ppeSection?.classList.toggle('ring-blue-400', isLongTerm);
+                ppeSection?.classList.toggle('border-blue-300', isLongTerm);
+                ppeLongTermBadge?.classList.toggle('hidden', !isLongTerm);
+
+                if (!isLongTerm || Number(beneficiaries.value || 0) <= 0) return;
+
+                if (allPpeRows().length === 0 || ppeAutoManaged) {
+                    fillStandardPpeSet();
+                    ppeAutoManaged = true;
+                }
+            }
+
+            days.addEventListener('input', syncLongTermPpe);
+            beneficiaries.addEventListener('input', syncLongTermPpe);
+            ppeWorkClassification?.addEventListener('change', () => {
+                if (ppeAutoManaged) fillStandardPpeSet();
+            });
+            // The beneficiaries are set from the barangay allocations, so also
+            // check whenever the wizard moves (e.g. onto the PPE & Cost step).
+            document.getElementById('projectForm')?.addEventListener('wizard:change', syncLongTermPpe);
+
+            autoFillPpeSet?.addEventListener('click', function() {
+                const dayValue = Number(days.value || 0);
+                const beneficiaryValue = Number(beneficiaries.value || 0);
+
+                if (!dayValue || !beneficiaryValue) {
+                    const missing = !dayValue ? days : document.getElementById('location');
+
+                    Promise.resolve(window.TupadConfirm?.({
+                        title: 'Standard PPE set needs more details',
+                        message: !dayValue
+                            ? 'Enter the Number of Days first. The standard set depends on whether the project is Short-Term or Long-Term.'
+                            : 'Encode the barangay beneficiary allocations in Project Location first. They set the Total Beneficiaries covered by the PPE.',
+                        confirmText: !dayValue ? 'Go to Number of Days' : 'Go to Project Location',
+                        cancelText: 'Stay here',
+                    })).then(function(go) {
+                        if (!go) return;
+                        document.getElementById('projectForm')?.tupadWizard?.reveal(missing);
+                        missing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        (missing === days ? days : document.getElementById('province_id'))?.focus({ preventScroll: true });
+                    });
+                    return;
+                }
+
+                fillStandardPpeSet();
+                ppeAutoManaged = false;
             });
 
             allocationSelect?.addEventListener('change', calculate);
 
             calculate();
+            syncLongTermPpe();
 
             const locationSection = document.getElementById('location');
 

@@ -231,6 +231,13 @@ final class ProjectWorkspacePresenter
 
     private function directActionFor(Project $project, User $user): array
     {
+        if (
+            in_array($project->status, [ProjectStatus::ONGOING_IMPLEMENTATION, ProjectStatus::FOR_SUBMISSION_OF_POST_DOCS], true)
+            && app(LongTermTrancheService::class)->applies($project)
+        ) {
+            return $this->longTermTrancheActionFor($project, $user);
+        }
+
         return match ($project->status) {
             ProjectStatus::APPROVED => $this->internalAction(
                 'Action Required',
@@ -274,6 +281,70 @@ final class ProjectWorkspacePresenter
                 'final-workflow',
             ),
         };
+    }
+
+    /**
+     * Long-term projects are paid per tranche while implementation is still
+     * ongoing: the TC records each tranche's post-documents, the Focal pays
+     * it, and the TC records its Release of Assistance.
+     */
+    private function longTermTrancheActionFor(Project $project, User $user): array
+    {
+        $tranches = app(LongTermTrancheService::class);
+        $paymentService = app(ProjectPaymentService::class);
+        $project->loadMissing(['postDocuments', 'obligations.disbursements']);
+
+        $pending = $tranches->pendingTranches($project)->count();
+        $undisbursed = $project->obligations
+            ->reject(fn ($obligation): bool => $paymentService->trancheFullyDisbursed($obligation))
+            ->count();
+        $readyForRelease = $paymentService->releaseSummary($project)['ready_for_release'];
+
+        if (($user->isAdmin() || $user->isFocal()) && ($pending > 0 || $undisbursed > 0)) {
+            return $this->externalAction(
+                'Action Required',
+                'Process the tranche payment',
+                $pending > 0
+                    ? sprintf('%d tranche(s) from the TUPAD Coordinator are waiting to be obligated.', $pending)
+                    : sprintf('%d obligated tranche(s) still need their disbursements.', $undisbursed),
+                'Manage Payment of Wages',
+                route('payments.show', $project),
+                'financial',
+            );
+        }
+
+        if (($user->isAdmin() || $user->isTc()) && $readyForRelease > 0) {
+            return $this->internalAction(
+                'Action Required',
+                'Record the Release of Assistance',
+                sprintf('%d disbursed tranche(s) need the mode of payment, date of payout, and venue.', $readyForRelease),
+                'Record Release of Assistance',
+                'workflow',
+                'release-of-assistance',
+            );
+        }
+
+        if ($user->isAdmin() || $user->isTc()) {
+            return $this->internalAction(
+                $project->status === ProjectStatus::ONGOING_IMPLEMENTATION ? 'Current Stage' : 'Action Required',
+                $project->status === ProjectStatus::ONGOING_IMPLEMENTATION
+                    ? 'Implementation is in progress · paid per tranche'
+                    : 'Submit the remaining tranche post-documents',
+                'Record each tranche\'s post-documents (beneficiaries and dates covered) so the Focal can process its payment.',
+                'Record Tranche Post-Documents',
+                'workflow',
+                'post-documents',
+            );
+        }
+
+        return $this->internalAction(
+            'Current Stage',
+            'Waiting for the next tranche',
+            'The TUPAD Coordinator records each tranche\'s post-documents; its payment opens here once recorded.',
+            'View Post-Documents',
+            'workflow',
+            'post-documents',
+        );
     }
 
     /**

@@ -23,6 +23,7 @@ class ProjectObligation extends Model
 
     protected $fillable = [
         'project_id',
+        'project_post_document_id',
         'tranche_number',
 
         'adl_number',
@@ -58,6 +59,7 @@ class ProjectObligation extends Model
     protected function casts(): array
     {
         return [
+            'project_post_document_id' => 'integer',
             'tranche_number' => 'integer',
             'beneficiaries_total' => 'integer',
             'beneficiaries_female' => 'integer',
@@ -71,9 +73,59 @@ class ProjectObligation extends Model
         ];
     }
 
+    /**
+     * Beneficiaries [total, female] the tranches paid. Long-term tranches
+     * created from the TUPAD Coordinator's tranche submissions pay the same
+     * beneficiaries over different coverage dates, so the headcount is the
+     * largest tranche; other tranches pay different beneficiaries and add up.
+     *
+     * @param  iterable<self>  $obligations
+     * @return array{0:int,1:int}
+     */
+    public static function paidBeneficiaryCounts(iterable $obligations): array
+    {
+        $obligations = collect($obligations);
+
+        if ($obligations->contains(fn (self $obligation): bool => $obligation->isLongTermTranche())) {
+            return [
+                (int) $obligations->max('beneficiaries_total'),
+                (int) $obligations->max('beneficiaries_female'),
+            ];
+        }
+
+        return [
+            (int) $obligations->sum('beneficiaries_total'),
+            (int) $obligations->sum('beneficiaries_female'),
+        ];
+    }
+
+    /**
+     * SQL aggregate over a project's project_obligations rows matching
+     * paidBeneficiaryCounts(), for the "total" or "female" column.
+     */
+    public static function paidBeneficiariesAggregateSql(string $column): string
+    {
+        $column = $column === 'female' ? 'beneficiaries_female' : 'beneficiaries_total';
+
+        return "coalesce(case when count(project_obligations.project_post_document_id) > 0
+            then max(project_obligations.{$column})
+            else sum(project_obligations.{$column}) end, 0)";
+    }
+
+    /** Created from a long-term tranche submission (same beneficiaries, different dates). */
+    public function isLongTermTranche(): bool
+    {
+        return $this->project_post_document_id !== null;
+    }
+
     public function isReleased(): bool
     {
         return $this->release_date !== null;
+    }
+
+    public function postDocument(): BelongsTo
+    {
+        return $this->belongsTo(ProjectPostDocument::class, 'project_post_document_id');
     }
 
     /**

@@ -532,6 +532,22 @@ final class ProjectSectionRegistry
         ];
 
         foreach ($checks as $key => [$field, $value, $label, $money]) {
+            // Long-term tranches pay the same beneficiaries again, so their
+            // beneficiaries are checked per tranche, not added up.
+            if ($obligation->isLongTermTranche() && str_starts_with($key, 'beneficiaries_')) {
+                if ($value > $limits[$key]) {
+                    throw ValidationException::withMessages([
+                        $field => sprintf(
+                            'A tranche cannot include more than the project\'s %s %s.',
+                            number_format($limits[$key]),
+                            $label,
+                        ),
+                    ]);
+                }
+
+                continue;
+            }
+
             if ($others[$key] + $value > $limits[$key]) {
                 $remaining = max(0, $limits[$key] - $others[$key]);
 

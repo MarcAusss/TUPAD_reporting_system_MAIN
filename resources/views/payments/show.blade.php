@@ -155,16 +155,43 @@
     </div>
 @endif
 
+@if($longTerm && $project->status !== \App\Enums\ProjectStatus::COMPLETED)
+    <div class="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
+        <div class="text-sm font-semibold text-blue-950">Long-term project · paid per tranche</div>
+        <p class="mt-1 text-xs leading-5 text-blue-800">
+            Each tranche starts from the TUPAD Coordinator's post-documents, which state its beneficiaries and the
+            dates it covers. Payment may proceed while implementation is ongoing
+            @if($project->implementation)
+                (work period {{ $project->implementation->start_date->format('M d, Y') }} – {{ $project->implementation->end_date->format('M d, Y') }})
+            @endif
+            ; the project completes only after the work period ends and every tranche is obligated, disbursed, and released.
+        </p>
+    </div>
+@endif
+
 @if($canEditTranches)
     @php
-        $initialTranches = old('tranches') ?: (($remainingDefaults['beneficiaries_total'] <= 0 || (float) $remainingDefaults['wages_amount'] <= 0) ? [] : [[
-            'beneficiaries_total' => $remainingDefaults['beneficiaries_total'] ?: '',
-            'beneficiaries_female' => $remainingDefaults['beneficiaries_female'],
-            'wages_amount' => $remainingDefaults['wages_amount'],
-            'obligation_date' => now()->toDateString(),
-            'payee' => '',
-            'remarks' => '',
-        ]]);
+        if ($longTerm) {
+            // One card per TC tranche not yet obligated; after a failed save the
+            // entered values are restored onto their tranche.
+            $oldRows = collect(old('tranches', []))->filter(fn ($row) => is_array($row))->keyBy(fn ($row) => (int) ($row['post_document_id'] ?? 0));
+            $initialTranches = collect($pendingTranches)
+                ->map(fn (array $row) => array_merge($row, array_intersect_key(
+                    $oldRows->get($row['post_document_id'], []),
+                    array_flip(['beneficiaries_total', 'beneficiaries_female', 'wages_amount', 'obligation_date', 'payee', 'remarks'])
+                )))
+                ->values()
+                ->all();
+        } else {
+            $initialTranches = old('tranches') ?: (($remainingDefaults['beneficiaries_total'] <= 0 || (float) $remainingDefaults['wages_amount'] <= 0) ? [] : [[
+                'beneficiaries_total' => $remainingDefaults['beneficiaries_total'] ?: '',
+                'beneficiaries_female' => $remainingDefaults['beneficiaries_female'],
+                'wages_amount' => $remainingDefaults['wages_amount'],
+                'obligation_date' => now()->toDateString(),
+                'payee' => '',
+                'remarks' => '',
+            ]]);
+        }
     @endphp
 
     <form
@@ -176,6 +203,7 @@
         data-wage-per-beneficiary-cents="{{ $wagePerBeneficiaryCents }}"
         data-today="{{ now()->toDateString() }}"
         data-saved-tranches="{{ $project->obligations->count() }}"
+        data-long-term="{{ $longTerm ? 'true' : 'false' }}"
         data-warn-unsaved
     >
         @csrf
@@ -183,6 +211,15 @@
         <div class="flex flex-col gap-3 border-b border-blue-100 bg-blue-50 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <h2 class="text-sm font-semibold text-blue-950">Obligation Tranches</h2>
+                @if($longTerm)
+                <p class="mt-1 text-xs text-blue-700">
+                    The number of beneficiaries and female beneficiaries come from the TUPAD Coordinator's tranche
+                    post-documents; adjust them if needed. The date covered is set by the TC and cannot be changed here.
+                    Enter the payee, obligation date, and wages. Wages fill in as beneficiaries × ₱{{ number_format((float) $project->wage_rate, 2) }}
+                    wage rate × the days covered. Each tranche may include up to the project's
+                    {{ number_format($project->beneficiaries_total) }} beneficiaries; total wages may not exceed the project's wages.
+                </p>
+                @else
                 <p class="mt-1 text-xs text-blue-700">
                     Wages fill in automatically as beneficiaries × ₱{{ $money($wagePerBeneficiaryCents) }}
                     (₱{{ number_format((float) $project->wage_rate, 2) }} wage rate × {{ number_format((int) $project->number_of_days) }} days)
@@ -191,8 +228,10 @@
                     <a href="#insurance-ppe" class="font-semibold underline">Insurance and PPE</a> form below and saved separately.
                     Tranches may total less than the project data, but not more.
                 </p>
+                @endif
             </div>
 
+            @unless($longTerm)
             <button
                 type="button"
                 data-add-tranche
@@ -200,6 +239,7 @@
             >
                 <span aria-hidden="true">+</span> Add Tranche
             </button>
+            @endunless
         </div>
 
         <div class="border-b border-slate-200 px-5 py-4">
@@ -223,6 +263,7 @@
                 >
                     Save Tranches
                 </button>
+                @if($canCompleteTranches)
                 <button
                     type="submit"
                     name="intent"
@@ -232,8 +273,15 @@
                 >
                     Complete
                 </button>
+                @endif
             </div>
         </div>
+
+        @unless($canCompleteTranches)
+            <div class="border-t border-slate-200 bg-white px-5 py-3 text-[11px] text-slate-500">
+                Complete becomes available once the work period ends, so the TUPAD Coordinator can still add the remaining tranches.
+            </div>
+        @endunless
     </form>
 
     <script type="application/json" id="obligationTrancheLimits">@json(['limits' => $obligationLimits, 'obligated' => $obligatedTotals])</script>
@@ -284,8 +332,15 @@
                 </div>
 
                 <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    @php $trancheDocument = $obligation->postDocument?->isTranche() ? $obligation->postDocument : null; @endphp
                     @foreach(array_filter([
                         'Beneficiaries' => number_format($obligation->beneficiaries_total).' ('.number_format($obligation->beneficiaries_female).' female)',
+                        'Date Covered' => $trancheDocument
+                            ? $trancheDocument->coverage_start_date->format('M d, Y').' – '.$trancheDocument->coverage_end_date->format('M d, Y').' ('.number_format($trancheDocument->coverageDays()).' days)'
+                            : null,
+                        'Balance Days' => $trancheDocument
+                            ? number_format($trancheDocument->balanceDays()).' day(s) left'
+                            : null,
                         'Wages' => '₱'.number_format((float) $obligation->wages_amount, 2),
                         // Older tranches may still carry insurance/PPE amounts.
                         'Insurance' => (float) $obligation->insurance_amount > 0 ? '₱'.number_format((float) $obligation->insurance_amount, 2) : null,
@@ -368,7 +423,7 @@
                 @endif
 
                 @if(
-                    $project->status === \App\Enums\ProjectStatus::FOR_PAYMENT
+                    $paymentOpen
                     && $trancheRemaining > 0
                 )
                     <form
@@ -432,12 +487,19 @@
                 @endif
             </article>
         @empty
-            <x-empty-state
-                title="No obligation tranches recorded"
-                message="Add the first obligation to begin Payment of Wages processing."
-                action-label="Add First Tranche"
-                action-click="[data-add-tranche]"
-            />
+            @if($longTerm)
+                <x-empty-state
+                    title="No obligation tranches recorded"
+                    message="Obligate a tranche once the TUPAD Coordinator records its post-documents."
+                />
+            @else
+                <x-empty-state
+                    title="No obligation tranches recorded"
+                    message="Add the first obligation to begin Payment of Wages processing."
+                    action-label="Add First Tranche"
+                    action-click="[data-add-tranche]"
+                />
+            @endif
         @endforelse
     </div>
 </section>
@@ -455,6 +517,10 @@
         const nextTranche = Number(form.dataset.nextTranche || 1);
         const wagePerBeneficiaryCents = Number(form.dataset.wagePerBeneficiaryCents || 0);
         const today = form.dataset.today;
+        // Long-term: one card per TC tranche; each pays the same beneficiaries,
+        // so beneficiaries are checked per tranche instead of added up.
+        const longTerm = form.dataset.longTerm === 'true';
+        const isBeneficiaryKey = (key) => key.startsWith('beneficiaries_');
 
         const readJson = (id, fallback) => {
             try {
@@ -516,14 +582,40 @@
             card.dataset.trancheCard = '';
             card.className = 'rounded-xl border border-slate-200 bg-slate-50 p-4';
 
+            if (values.tranche_number) card.dataset.trancheNumber = values.tranche_number;
+            if (values.wage_per_beneficiary_cents !== undefined) {
+                card.dataset.wagePerBeneficiaryCents = values.wage_per_beneficiary_cents;
+            }
+
+            const coverage = values.post_document_id ? `
+                <input type="hidden" name="tranches[${index}][post_document_id]" value="${escapeHtml(values.post_document_id)}">
+                <div class="mb-3 grid gap-2 rounded-lg border border-blue-200 bg-white p-3 text-xs sm:grid-cols-3">
+                    <div>
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Date Covered <span class="font-normal normal-case text-slate-400">(set by TC)</span></div>
+                        <div class="mt-0.5 font-semibold text-slate-900">${escapeHtml(values.coverage_start)} – ${escapeHtml(values.coverage_end)}</div>
+                        <div class="text-[11px] text-slate-500">${Number(values.coverage_days || 0).toLocaleString('en-PH')} day(s)</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Balance Days</div>
+                        <div class="mt-0.5 font-semibold text-blue-800">${Number(values.balance_days || 0).toLocaleString('en-PH')} day(s) left</div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">TC Indicated</div>
+                        <div class="mt-0.5 font-semibold text-slate-900">${Number(values.tc_beneficiaries_total || 0).toLocaleString('en-PH')} beneficiaries</div>
+                        <div class="text-[11px] text-slate-500">${Number(values.tc_beneficiaries_female || 0).toLocaleString('en-PH')} female</div>
+                    </div>
+                </div>` : '';
+
             card.innerHTML = `
                 <div class="mb-3 flex items-center justify-between gap-3">
                     <div class="text-xs font-bold uppercase tracking-widest text-blue-700" data-tranche-label></div>
                     <button type="button" data-remove-tranche
                         class="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50">
-                        Remove
+                        ${values.post_document_id ? 'Not Now' : 'Remove'}
                     </button>
                 </div>
+
+                ${coverage}
 
                 <div class="grid gap-3 sm:grid-cols-3">
                     ${field(index, 'beneficiaries_total', 'No. of Beneficiaries', values.beneficiaries_total ?? '', 'type="number" min="1" step="1"')}
@@ -558,8 +650,12 @@
                 const beneficiaries = toInt(beneficiariesInput.value);
                 const before = obligatedBefore(card);
                 const cap = (key, cents) => Math.max(0, Math.min(cents, Number(limits[key] || 0) - before[key]));
+                // Long-term cards: wage rate × the tranche's days covered.
+                const perBeneficiary = card.dataset.wagePerBeneficiaryCents !== undefined
+                    ? Number(card.dataset.wagePerBeneficiaryCents)
+                    : wagePerBeneficiaryCents;
 
-                setMoney(wagesInput, cap('wages', beneficiaries * wagePerBeneficiaryCents));
+                setMoney(wagesInput, cap('wages', beneficiaries * perBeneficiary));
 
                 if (beneficiariesInput.value.trim() !== '' && toInt(femaleInput.value) > beneficiaries) {
                     femaleInput.value = beneficiaries;
@@ -587,7 +683,9 @@
 
                 const values = cardValues(other);
                 Object.keys(running).forEach((key) => {
-                    running[key] = Number(running[key] || 0) + (values[key] || 0);
+                    running[key] = longTerm && isBeneficiaryKey(key)
+                        ? Math.max(Number(running[key] || 0), values[key] || 0)
+                        : Number(running[key] || 0) + (values[key] || 0);
                 });
             }
 
@@ -665,16 +763,30 @@
             exceededMessages = [];
 
             cards.forEach((card, position) => {
-                const trancheLabel = `Tranche ${nextTranche + position}`;
+                const trancheLabel = `Tranche ${card.dataset.trancheNumber || (nextTranche + position)}`;
                 card.querySelector('[data-tranche-label]').textContent = trancheLabel;
-                card.querySelector('[data-remove-tranche]').classList.toggle('hidden', cards.length === 1 && position === 0);
+                card.querySelector('[data-remove-tranche]').classList.toggle('hidden', !longTerm && cards.length === 1 && position === 0);
 
                 const values = cardValues(card);
 
                 LIMIT_FIELDS.forEach(({ key, label, input, money }) => {
                     const limit = Number(limits[key] || 0);
-                    const before = Number(running[key] || 0);
+                    const perTranche = longTerm && isBeneficiaryKey(key);
+                    // Per-tranche checks compare the tranche alone with the project.
+                    const before = perTranche ? 0 : Number(running[key] || 0);
                     const after = before + values[key];
+
+                    if (perTranche) {
+                        if (values[key] > limit) {
+                            setWarning(card, input, `Exceeds the project's ${label.toLowerCase()} beneficiaries (${formatValue(limit, money)}) for one tranche.`);
+                            exceededMessages.push(`${trancheLabel} – ${label}: ${formatValue(values[key], money)} vs ${formatValue(limit, money)} in the project.`);
+                        } else {
+                            setWarning(card, input, '');
+                        }
+
+                        running[key] = Math.max(Number(running[key] || 0), values[key]);
+                        return;
+                    }
 
                     if (values[key] > 0 && after > limit) {
                         setWarning(
@@ -702,7 +814,9 @@
                 const empty = document.createElement('p');
                 empty.dataset.trancheEmpty = '';
                 empty.className = 'rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-xs text-slate-500';
-                empty.textContent = 'No new tranche entered. Click "Add Tranche" to add one, or click Complete if all tranches are saved.';
+                empty.textContent = longTerm
+                    ? 'No tranche is waiting for payment. The next tranche appears here once the TUPAD Coordinator records its post-documents.'
+                    : 'No new tranche entered. Click "Add Tranche" to add one, or click Complete if all tranches are saved.';
                 list.appendChild(empty);
             } else {
                 list.querySelector('[data-tranche-empty]')?.remove();
@@ -731,7 +845,7 @@
             return running;
         }
 
-        form.querySelector('[data-add-tranche]').addEventListener('click', () => {
+        form.querySelector('[data-add-tranche]')?.addEventListener('click', () => {
             addCard({ obligation_date: today }).querySelector('input')?.focus();
         });
 

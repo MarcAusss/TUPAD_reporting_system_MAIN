@@ -9,8 +9,7 @@
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #111; margin: 0; padding: 24px; background: #fff; }
         .sheet { max-width: 7.4in; margin: 0 auto; }
-        .agency { text-align: center; line-height: 1.35; font-size: 9.5pt; }
-        .agency b { font-size: 11pt; }
+        .dole-official-letterhead { border-bottom: 1px solid #333; margin-bottom: 4px; }
         h1 { text-align: center; font-size: 12.5pt; margin: 16px 0 4px; letter-spacing: .04em; }
         .number { text-align: center; font-weight: bold; margin-bottom: 14px; }
         .date { margin: 10px 0 12px; }
@@ -34,13 +33,9 @@
 <body>
     <div class="toolbar"><button type="button" onclick="window.print()">Print</button></div>
 
-    <div class="sheet">
-        <div class="agency">
-            Republic of the Philippines<br>
-            <b>DEPARTMENT OF LABOR AND EMPLOYMENT</b><br>
-            Regional Office No. 5<br>
-            DOLE RO5 Bldg., Doña Aurora St., Old Albay, Legazpi City
-        </div>
+    <div class="sheet print-portrait">
+        {{-- Official DOLE RO5 letterhead with logos (same as the printed reports). --}}
+        @include('reports.partials.official-print-header', ['printTitle' => null])
 
         <h1>ENROLLMENT TO GPAI TRANSMITTAL</h1>
         <div class="number">{{ $enrollment->gpai_number }}</div>

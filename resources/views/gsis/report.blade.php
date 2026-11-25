@@ -90,6 +90,17 @@
                 @endforeach
             </div>
         </div>
+        <div>
+            <span class="mb-1 block text-xs font-semibold text-slate-600">Payment</span>
+            <div class="flex rounded-lg border border-slate-300 bg-white p-0.5">
+                @foreach (['' => 'All', Gpai::MODE_VOUCHER => 'Voucher', Gpai::MODE_CASH_ADVANCE => 'CA'] as $value => $label)
+                    <label class="cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold {{ (string) $mode === (string) $value ? 'bg-[#063b86] text-white' : 'text-slate-600 hover:bg-slate-50' }}">
+                        <input type="radio" name="mode" value="{{ $value }}" class="sr-only" @checked((string) $mode === (string) $value) onchange="this.form.submit()">
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
+        </div>
         @if ($period !== 'annual')
             <div>
                 <label for="part" class="mb-1 block text-xs font-semibold text-slate-600">{{ ['semester' => 'Semester', 'quarter' => 'Quarter', 'month' => 'Month'][$period] }}</label>
@@ -105,8 +116,8 @@
     </form>
 
     {{-- Voucher / Cash Advance / Overall totals --}}
-    <section class="mb-5 grid gap-4 sm:grid-cols-3" aria-label="Report totals">
-        @foreach ([...$sections->map(fn ($section) => [$section['label'], $section['totals']])->values()->all(), ['Overall', $overall]] as [$label, $total])
+    <section class="mb-5 grid gap-4 {{ $mode ? 'sm:grid-cols-1' : 'sm:grid-cols-3' }}" aria-label="Report totals">
+        @foreach ($mode ? $sections->map(fn ($section) => [$section['label'], $section['totals']])->values()->all() : [...$sections->map(fn ($section) => [$section['label'], $section['totals']])->values()->all(), ['Overall', $overall]] as [$label, $total])
             <article class="rounded-xl border {{ $label === 'Overall' ? 'border-[#063b86] bg-blue-50' : 'border-slate-200 bg-white' }} p-4 shadow-sm">
                 <div class="text-[11px] font-bold uppercase tracking-[0.08em] {{ $label === 'Overall' ? 'text-[#063b86]' : 'text-slate-400' }}">{{ $label }}</div>
                 <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ $peso($total['total_cents']) }}</div>

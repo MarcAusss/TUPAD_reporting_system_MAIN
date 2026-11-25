@@ -25,7 +25,7 @@ class FocalDashboardOverviewService
         'for_liquidation' => '#e11d48',            // rose-600
         'partially_liquidated' => '#fb7185',       // rose-400
         'completed' => '#059669',                  // emerald-600
-    ];
+    ]; 
 
     public function build(
         Builder $projects,

@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\ProjectObligation;
 use App\Services\Payments\ProjectPaymentService;
 use App\Services\Projects\AcpWorkflowService;
+use App\Services\Projects\LongTermTrancheService;
 use App\Services\Projects\ProjectStatusEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,19 +68,16 @@ class ProjectReleaseOfAssistanceController extends Controller
         ProjectObligation $obligation,
         ProjectStatusEngine $statusEngine,
         ProjectPaymentService $paymentService,
+        LongTermTrancheService $tranches,
     ): RedirectResponse {
         if ((int) $obligation->project_id !== (int) $project->id) {
             abort(404);
         }
 
-        if (
-            $project->implementation_mode
-                !== ImplementationMode::DIRECT_ADMINISTRATION
-            || $project->status !== ProjectStatus::FOR_PAYMENT
-        ) {
+        if (! $tranches->paymentOpen($project)) {
             abort(
                 403,
-                'Release of Assistance applies only to Direct Administration projects with For Payment status.'
+                'Release of Assistance applies only to Direct Administration projects with For Payment status (long-term projects: from Ongoing Implementation).'
             );
         }
 

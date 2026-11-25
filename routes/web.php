@@ -344,6 +344,13 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
         Route::patch('/enrollments/{enrollment}/status', [GsisEnrollmentController::class, 'updateStatus'])
             ->name('enrollments.status');
 
+        // GSIS Enrollment Officer edits its own data directly (no Focal approval).
+        Route::put('/enrollments/{enrollment}/details', [GsisEnrollmentController::class, 'updateDetails'])
+            ->name('enrollments.details');
+
+        Route::put('/cash-advances/{cashAdvance}', [GsisEnrollmentController::class, 'updateCashAdvance'])
+            ->name('cash-advances.update');
+
         Route::get('/enrollments/{enrollment}/transmittal', [GsisEnrollmentController::class, 'transmittal'])
             ->name('enrollments.transmittal');
 
@@ -749,6 +756,14 @@ Route::middleware(['auth', 'password.changed', 'province.scope'])->group(functio
 
         Route::post('/projects/{project}/post-documents', [ProjectPostDocumentController::class, 'store'])
             ->name('projects.post-documents.store');
+
+        Route::put(
+            '/projects/{project}/post-documents/{postDocument}/coverage',
+            [ProjectPostDocumentController::class, 'updateCoverage']
+        )
+            ->whereNumber('project')
+            ->whereNumber('postDocument')
+            ->name('projects.post-documents.coverage.update');
 
         Route::post(
             '/projects/{project}/tranches/{obligation}/release-of-assistance',

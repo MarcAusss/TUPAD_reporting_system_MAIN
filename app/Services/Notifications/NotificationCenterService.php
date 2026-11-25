@@ -246,12 +246,17 @@ class NotificationCenterService
 
         $since = now()->subDays(self::GPAI_VISIBLE_DAYS);
 
+        // The TC is told a project is enrolled only once the On-call Payment
+        // Slip is recorded (payment made), not when the transmittal is prepared.
         return GpaiEnrollmentItem::query()
             ->with(['enrollment', 'project'])
             ->whereHas('project', fn ($projects) => $this->provinceAccess->scopeProjects($projects, $user))
             ->whereHas('enrollment', fn ($enrollments) => $enrollments
+                ->where(fn ($paid) => $paid
+                    ->whereNotNull('payment_slip_on')
+                    ->orWhereNotNull('or_policy_received_on'))
                 ->where(fn ($recent) => $recent
-                    ->where('created_at', '>=', $since)
+                    ->where('payment_slip_on', '>=', $since->toDateString())
                     ->orWhere('or_policy_received_on', '>=', $since->toDateString())))
             ->latest('id')
             ->limit(self::PROJECT_ITEM_LIMIT)
@@ -260,7 +265,7 @@ class NotificationCenterService
                 $enrollment = $item->enrollment;
                 $project = $item->project;
                 $complete = $enrollment->isComplete();
-                $occurredAt = Carbon::parse($complete ? ($enrollment->distributed_on ?? $enrollment->or_policy_received_on) : $enrollment->created_at);
+                $occurredAt = Carbon::parse($complete ? ($enrollment->distributed_on ?? $enrollment->or_policy_received_on) : $enrollment->payment_slip_on);
 
                 return [
                     'key' => 'gpai:'.$item->id.':'.($complete ? 'complete' : 'enrolled'),
@@ -276,7 +281,7 @@ class NotificationCenterService
                     'action_label' => null,
                     'message' => $complete
                         ? sprintf('OR and Policy received for %s (OR No. %s, Policy ID %s).', $enrollment->gpai_number, $enrollment->or_number ?: '—', $enrollment->policy_id ?: '—')
-                        : sprintf('Enrolled to GSIS GPAI under %s on %s: %s beneficiaries, premium ₱%s.', $enrollment->gpai_number, $enrollment->transmittal_date->format('M j, Y'), number_format($item->beneficiaries), number_format((float) $item->premium, 2)),
+                        : sprintf('Your project is now enrolled to GSIS GPAI under %s (On-call Payment Slip %s): %s beneficiaries, premium ₱%s.', $enrollment->gpai_number, $enrollment->payment_slip_on->format('M j, Y'), number_format($item->beneficiaries), number_format((float) $item->premium, 2)),
                     'reason' => null,
                     'actions' => [],
                     'progress_percent' => 0,

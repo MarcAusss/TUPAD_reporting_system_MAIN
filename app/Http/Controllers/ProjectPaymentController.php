@@ -7,6 +7,7 @@ use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\ProjectObligation;
 use App\Services\Payments\ProjectPaymentService;
+use App\Services\Projects\LongTermTrancheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,21 +35,18 @@ class ProjectPaymentController extends Controller
 
     public function show(
         Project $project,
-        ProjectPaymentService $paymentService
+        ProjectPaymentService $paymentService,
+        LongTermTrancheService $tranches,
     ): View {
         $this->ensureDirectAdministration($project);
 
-        if (
-            ! in_array(
-                $project->status,
-                [ProjectStatus::FOR_PAYMENT, ProjectStatus::COMPLETED],
-                true
-            )
-        ) {
+        if (! $tranches->paymentVisible($project)) {
             abort(403);
         }
 
         $project->load([
+            'implementation',
+            'postDocuments',
             'allocation.adl',
             'approval',
             'projectLocations.province',
@@ -57,6 +55,7 @@ class ProjectPaymentController extends Controller
             'obligations' => fn ($query) =>
                 $query->orderBy('tranche_number'),
             'obligations.recorder',
+            'obligations.postDocument',
             'obligations.disbursements' => fn ($query) =>
                 $query->orderBy('date_disbursed')->orderBy('id'),
             'obligations.disbursements.recorder',
@@ -74,13 +73,23 @@ class ProjectPaymentController extends Controller
         $obligatedTotals = $paymentService->obligatedTotals($project->obligations);
         $remaining = fn (string $key): int => max(0, $limits[$key] - $obligatedTotals[$key]);
         $wagePerBeneficiary = $paymentService->wagePerBeneficiaryCents($project);
+        $paymentOpen = $tranches->paymentOpen($project);
+        $longTerm = $tranches->applies($project);
 
         return view('payments.show', [
             'project' => $project,
             'summary' => $summary,
             'nextTranche' => $nextTranche,
+            'paymentOpen' => $paymentOpen,
+            'longTerm' => $longTerm,
+            'pendingTranches' => $longTerm
+                ? $this->pendingTrancheRows($project, $tranches, $paymentService, $remaining('wages'))
+                : [],
+            // Long-term tranches are completed once the work period has ended.
+            'canCompleteTranches' => ! $longTerm
+                || $project->status !== ProjectStatus::ONGOING_IMPLEMENTATION,
             'canEditTranches' =>
-                $project->status === ProjectStatus::FOR_PAYMENT
+                $paymentOpen
                 && ! $summary['obligations_completed'],
             'obligationLimits' => $limits,
             'obligatedTotals' => $obligatedTotals,
@@ -101,9 +110,54 @@ class ProjectPaymentController extends Controller
                 $obligatedTotals['beneficiaries_total'],
             ),
             'canEditInsurancePpe' =>
-                $project->status === ProjectStatus::FOR_PAYMENT
+                $paymentOpen
                 && ! $summary['obligations_completed'],
         ]);
+    }
+
+    /**
+     * One prefilled row per tranche the TUPAD Coordinator submitted and the
+     * Focal has not obligated yet. Beneficiaries come from the submission
+     * (still editable); wages default to beneficiaries × wage rate × the
+     * coverage days, within the wages the project has left.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function pendingTrancheRows(
+        Project $project,
+        LongTermTrancheService $tranches,
+        ProjectPaymentService $paymentService,
+        int $remainingWagesCents,
+    ): array {
+        $wageRateCents = (int) round((float) $project->wage_rate * 100);
+        $rows = [];
+
+        foreach ($tranches->pendingTranches($project) as $document) {
+            $coverageDays = (int) $document->coverageDays();
+            $perBeneficiary = $wageRateCents * $coverageDays;
+            $wages = max(0, min($remainingWagesCents, (int) $document->beneficiaries_total * $perBeneficiary));
+            $remainingWagesCents -= $wages;
+
+            $rows[] = [
+                'post_document_id' => $document->id,
+                'tranche_number' => $document->tranche_number,
+                'beneficiaries_total' => (int) $document->beneficiaries_total,
+                'beneficiaries_female' => (int) $document->beneficiaries_female,
+                'tc_beneficiaries_total' => (int) $document->beneficiaries_total,
+                'tc_beneficiaries_female' => (int) $document->beneficiaries_female,
+                'wages_amount' => $paymentService->centsToDecimal($wages),
+                'wage_per_beneficiary_cents' => $perBeneficiary,
+                'coverage_start' => $document->coverage_start_date->format('M d, Y'),
+                'coverage_end' => $document->coverage_end_date->format('M d, Y'),
+                'coverage_days' => $coverageDays,
+                'balance_days' => (int) $document->balanceDays(),
+                'obligation_date' => now()->toDateString(),
+                'payee' => '',
+                'remarks' => '',
+            ];
+        }
+
+        return $rows;
     }
 
     /**
@@ -114,17 +168,21 @@ class ProjectPaymentController extends Controller
     public function store(
         Request $request,
         Project $project,
-        ProjectPaymentService $paymentService
+        ProjectPaymentService $paymentService,
+        LongTermTrancheService $tranches,
     ): RedirectResponse {
         $this->ensureDirectAdministration($project);
 
-        if ($project->status !== ProjectStatus::FOR_PAYMENT) {
+        if (! $tranches->paymentOpen($project)) {
             abort(
                 403,
-                'Obligations can only be recorded for projects with For Payment status.'
+                $tranches->applies($project)
+                    ? 'Long-term obligations can be recorded from Ongoing Implementation until the project is completed.'
+                    : 'Obligations can only be recorded for projects with For Payment status.'
             );
         }
 
+        $longTerm = $tranches->applies($project);
         $completing = $request->input('intent') === 'complete';
 
         $rows = collect($request->input('tranches', []))
@@ -151,7 +209,15 @@ class ProjectPaymentController extends Controller
             'tranches.*.obligation_date' => ['required', 'date'],
             'tranches.*.payee' => ['required', 'string', 'max:255'],
             'tranches.*.remarks' => ['nullable', 'string', 'max:3000'],
+            // Long-term: each tranche comes from the TC's tranche submission.
+            'tranches.*.post_document_id' => $longTerm
+                ? ['required', 'integer', 'distinct']
+                : ['prohibited'],
         ], [
+            'tranches.*.post_document_id.required' =>
+                'Long-term tranches start from the TUPAD Coordinator\'s tranche post-documents.',
+            'tranches.*.post_document_id.prohibited' =>
+                'Only long-term projects obligate tranches from post-documents.',
             'tranches.required' => 'Enter at least one tranche before saving.',
             'tranches.*.beneficiaries_female.lte' =>
                 'Female beneficiaries cannot exceed the tranche\'s total beneficiaries.',
@@ -170,18 +236,16 @@ class ProjectPaymentController extends Controller
             $project,
             $validated,
             $completing,
-            $paymentService
+            $paymentService,
+            $tranches,
+            $longTerm
         ): int {
             $lockedProject = Project::query()
                 ->with(['allocation.adl'])
                 ->lockForUpdate()
                 ->findOrFail($project->id);
 
-            if (
-                $lockedProject->implementation_mode
-                    !== ImplementationMode::DIRECT_ADMINISTRATION
-                || $lockedProject->status !== ProjectStatus::FOR_PAYMENT
-            ) {
+            if (! $tranches->paymentOpen($lockedProject)) {
                 throw ValidationException::withMessages([
                     'tranches' =>
                         'This project is no longer available for payment processing.',
@@ -208,7 +272,25 @@ class ProjectPaymentController extends Controller
             $nextTranche = ((int) $obligations->max('tranche_number')) + 1;
             $rows = $validated['tranches'] ?? [];
 
+            // Long-term: the TC's tranche submissions not yet obligated.
+            $pendingDocuments = $longTerm
+                ? $tranches->pendingTranches($lockedProject)->keyBy('id')
+                : collect();
+
             foreach ($rows as $key => $row) {
+                $document = null;
+
+                if ($longTerm) {
+                    $document = $pendingDocuments->get((int) $row['post_document_id']);
+
+                    if ($document === null) {
+                        throw ValidationException::withMessages([
+                            "tranches.{$key}.post_document_id" =>
+                                'This tranche is not a pending tranche post-document of the project (it may already be obligated).',
+                        ]);
+                    }
+                }
+
                 // Wages only; insurance and PPE were settled at Preparation.
                 $wagesCents = $paymentService->amountToCents($row['wages_amount'] ?? null);
                 $insuranceCents = 0;
@@ -231,14 +313,19 @@ class ProjectPaymentController extends Controller
                     'total' => $totalCents,
                 ];
 
-                $this->ensureWithinProjectLimits($key, $rowValues, $running, $limits);
+                $this->ensureWithinProjectLimits($key, $rowValues, $running, $limits, perTrancheBeneficiaries: $longTerm);
 
                 foreach ($rowValues as $limitKey => $value) {
-                    $running[$limitKey] += $value;
+                    // Long-term tranches pay the same beneficiaries again,
+                    // so the beneficiary headcount is the largest tranche.
+                    $running[$limitKey] = $longTerm && str_starts_with($limitKey, 'beneficiaries_')
+                        ? max($running[$limitKey], $value)
+                        : $running[$limitKey] + $value;
                 }
 
                 $lockedProject->obligations()->create([
-                    'tranche_number' => $nextTranche++,
+                    'project_post_document_id' => $document?->id,
+                    'tranche_number' => $document?->tranche_number ?? $nextTranche++,
                     'adl_number' =>
                         $lockedProject->allocation->adl->adl_number,
                     'fund_sponsor' =>
@@ -275,10 +362,33 @@ class ProjectPaymentController extends Controller
             }
 
             if ($completing) {
-                if ($nextTranche === 1) {
+                if ($obligations->isEmpty() && $rows === []) {
                     throw ValidationException::withMessages([
                         'tranches' => 'Record at least one tranche before completing the obligations.',
                     ]);
+                }
+
+                if ($longTerm) {
+                    // Completing locks the tranches, so it waits for the end
+                    // of the work period and for every TC tranche to be paid.
+                    if ($lockedProject->status === ProjectStatus::ONGOING_IMPLEMENTATION) {
+                        throw ValidationException::withMessages([
+                            'tranches' =>
+                                'Long-term tranches can be completed once the work period has ended. Save this tranche for now.',
+                        ]);
+                    }
+
+                    $stillPending = $pendingDocuments->keys()
+                        ->diff(collect($rows)->pluck('post_document_id')->map(fn ($id): int => (int) $id));
+
+                    if ($stillPending->isNotEmpty()) {
+                        throw ValidationException::withMessages([
+                            'tranches' => sprintf(
+                                'Obligate every tranche the TUPAD Coordinator submitted before completing (pending: Tranche %s).',
+                                $pendingDocuments->only($stillPending->all())->pluck('tranche_number')->implode(', '),
+                            ),
+                        ]);
+                    }
                 }
 
                 // Insurance and PPE must match the final paid beneficiaries:
@@ -336,12 +446,13 @@ class ProjectPaymentController extends Controller
     public function storeInsurancePpe(
         Request $request,
         Project $project,
-        ProjectPaymentService $paymentService
+        ProjectPaymentService $paymentService,
+        LongTermTrancheService $tranches,
     ): RedirectResponse {
         $this->ensureDirectAdministration($project);
 
-        if ($project->status !== ProjectStatus::FOR_PAYMENT) {
-            abort(403, 'Insurance and PPE can only be recorded for projects with For Payment status.');
+        if (! $tranches->paymentOpen($project)) {
+            abort(403, 'Insurance and PPE can only be recorded while the project\'s payment is open.');
         }
 
         $project->loadMissing('ppeItems');
@@ -394,9 +505,9 @@ class ProjectPaymentController extends Controller
                 ]);
             }
 
-            $savedBeneficiaries = (int) ProjectObligation::query()
-                ->where('project_id', $lockedProject->id)
-                ->sum('beneficiaries_total');
+            [$savedBeneficiaries] = ProjectObligation::paidBeneficiaryCounts(
+                ProjectObligation::query()->where('project_id', $lockedProject->id)->get()
+            );
 
             if ((int) $validated['beneficiaries_paid'] < $savedBeneficiaries) {
                 throw ValidationException::withMessages([
@@ -483,12 +594,16 @@ class ProjectPaymentController extends Controller
      * @param  array<string,int>  $rowValues
      * @param  array<string,int>  $running  already obligated (saved + earlier rows)
      * @param  array<string,int>  $limits  the project's own figures
+     * @param  bool  $perTrancheBeneficiaries  long-term: each tranche pays the
+     *                                         same beneficiaries, so beneficiaries
+     *                                         are checked per tranche, not added up
      */
     private function ensureWithinProjectLimits(
         int|string $key,
         array $rowValues,
         array $running,
         array $limits,
+        bool $perTrancheBeneficiaries = false,
     ): void {
         $checks = [
             'beneficiaries_total' => ['beneficiaries_total', 'number of beneficiaries', false],
@@ -500,6 +615,20 @@ class ProjectPaymentController extends Controller
         ];
 
         foreach ($checks as $limitKey => [$field, $label, $isMoney]) {
+            if ($perTrancheBeneficiaries && str_starts_with($limitKey, 'beneficiaries_')) {
+                if ($rowValues[$limitKey] > $limits[$limitKey]) {
+                    throw ValidationException::withMessages([
+                        "tranches.{$key}.{$field}" => sprintf(
+                            'A tranche cannot include more than the project\'s %s %s.',
+                            number_format($limits[$limitKey]),
+                            $label,
+                        ),
+                    ]);
+                }
+
+                continue;
+            }
+
             if ($running[$limitKey] + $rowValues[$limitKey] <= $limits[$limitKey]) {
                 continue;
             }

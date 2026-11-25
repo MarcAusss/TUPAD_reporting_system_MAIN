@@ -253,6 +253,7 @@
                         <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Location</th>
                         <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Mode</th>
                         <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Beneficiaries</th>
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Beneficiary Mapping</th>
                         <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Project Cost</th>
                         <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500">Status</th>
                         <th class="px-5 py-3 text-right text-xs font-semibold text-slate-500">Action</th>
@@ -262,24 +263,14 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse($projects as $project)
                         @php
-                            $canOpenProject = true;
-
-                            if (auth()->user()->isFocal()) {
-                                $allowedStatuses = $project->implementation_mode === \App\Enums\ImplementationMode::THROUGH_ACP
-                                    ? [
-                                        \App\Enums\ProjectStatus::FOR_PAYMENT,
-                                        \App\Enums\ProjectStatus::FOR_RELEASE_OF_CHECK_TO_PROPONENT,
-                                        \App\Enums\ProjectStatus::FOR_LIQUIDATION,
-                                        \App\Enums\ProjectStatus::PARTIALLY_LIQUIDATED,
-                                        \App\Enums\ProjectStatus::COMPLETED,
-                                    ]
-                                    : [
-                                        \App\Enums\ProjectStatus::FOR_PAYMENT,
-                                        \App\Enums\ProjectStatus::COMPLETED,
-                                    ];
-
-                                $canOpenProject = in_array($project->status, $allowedStatuses, true);
-                            }
+                            $canOpenProject = ! auth()->user()->isFocal()
+                                || \App\Http\Controllers\ProjectController::focalCanOpen($project);
+                            $mapping = $project->beneficiaryMappingStatus();
+                            $mappingTone = match ($mapping['key']) {
+                                'completed' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                'partial' => 'border-amber-200 bg-amber-50 text-amber-800',
+                                default => 'border-slate-200 bg-slate-50 text-slate-600',
+                            };
                         @endphp
 
                         <tr class="align-top hover:bg-slate-50/60">
@@ -326,6 +317,15 @@
                                 {{ number_format($project->beneficiaries_total) }}
                             </td>
 
+                            <td class="px-5 py-4">
+                                <span class="inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $mappingTone }}">
+                                    {{ $mapping['label'] }}
+                                </span>
+                                <div class="mt-1 text-[11px] tabular-nums text-slate-500">
+                                    {{ number_format($mapping['mapped']) }} / {{ number_format($mapping['total']) }} mapped
+                                </div>
+                            </td>
+
                             <td class="px-5 py-4 text-right text-sm font-semibold tabular-nums text-slate-900">
                                 ₱{{ number_format((float) $project->total_project_cost, 2) }}
                             </td>
@@ -359,7 +359,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="p-0">
+                            <td colspan="9" class="p-0">
                                 @if ($hasFilters)
                                     <x-empty-state title="No projects match these filters"
                                         message="Adjust the search or filters, or reset the registry to view all projects in your authorized scope.">

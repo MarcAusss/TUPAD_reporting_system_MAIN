@@ -17,6 +17,10 @@
         :description="$enrollment->natureOfPayment()"
     >
         <x-slot:actions>
+            <button type="button" data-details-open
+                class="inline-flex h-10 items-center justify-center rounded-lg border border-[#063b86] bg-white px-4 text-sm font-semibold text-[#063b86] hover:bg-blue-50">
+                Edit Details
+            </button>
             <a href="{{ route('gsis.enrollments.transmittal', $enrollment) }}" target="_blank"
                 class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Print Transmittal
@@ -173,6 +177,124 @@
         </section>
     </div>
 
+    @php
+        $detailErrors = $errors->getBag('details');
+    @endphp
+    <dialog id="gsisDetails" data-details-dialog @if ($detailErrors->any()) data-details-error @endif aria-labelledby="gsisDetailsTitle"
+        class="tupad-dialog w-[calc(100%-2rem)] max-w-4xl rounded-2xl border border-slate-200 bg-white p-0 text-left shadow-2xl">
+        <form method="POST" action="{{ route('gsis.enrollments.details', $enrollment) }}">
+            @csrf
+            @method('PUT')
+
+            <div class="flex items-start justify-between gap-4 border-b border-slate-100 px-6 pt-5 pb-4">
+                <div>
+                    <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ $enrollment->gpai_number }}</div>
+                    <h2 id="gsisDetailsTitle" class="mt-1 text-lg font-bold text-slate-900">Edit Transmittal Details</h2>
+                    <p class="mt-1 text-xs text-slate-500">Saved directly, no Focal approval needed. The payment mode stays {{ \App\Models\GpaiEnrollment::modeLabel($enrollment->payment_mode) }} (it sets the GPAI number series). The projects' GSIS Enrollment (Insurance) records are updated too.</p>
+                </div>
+                <button type="button" data-details-close class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Close">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
+                @if ($detailErrors->any())
+                    <ul class="list-disc space-y-1 rounded-lg border border-red-200 bg-red-50 py-2 pr-3 pl-7 text-xs text-red-800">
+                        @foreach ($detailErrors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                <div class="grid gap-3 sm:grid-cols-3">
+                    <div>
+                        <label for="detail_transmittal_date" class="mb-1 block text-xs font-semibold text-slate-700">Transmittal Date</label>
+                        <input id="detail_transmittal_date" type="date" name="transmittal_date" required
+                            value="{{ $detailErrors->any() ? old('transmittal_date') : $d($enrollment->transmittal_date) }}"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                    </div>
+                    <div>
+                        <label for="detail_coverage_start" class="mb-1 block text-xs font-semibold text-slate-700">Coverage Start</label>
+                        <input id="detail_coverage_start" type="date" name="coverage_start" required
+                            value="{{ $detailErrors->any() ? old('coverage_start') : $d($enrollment->coverage_start) }}"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                    </div>
+                    <div>
+                        <label for="detail_coverage_end" class="mb-1 block text-xs font-semibold text-slate-700">Coverage End</label>
+                        <input id="detail_coverage_end" type="date" name="coverage_end" required
+                            value="{{ $detailErrors->any() ? old('coverage_end') : $d($enrollment->coverage_end) }}"
+                            class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                    </div>
+                </div>
+
+                @if ($enrollment->payment_mode === \App\Models\GpaiEnrollment::MODE_CASH_ADVANCE)
+                    <div>
+                        <label for="detail_cash_advance" class="mb-1 block text-xs font-semibold text-slate-700">Paid from Cash Advance</label>
+                        <select id="detail_cash_advance" name="gpai_cash_advance_id" required class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                            @foreach ($cashAdvances as $cashAdvance)
+                                <option value="{{ $cashAdvance->id }}" @selected((int) ($detailErrors->any() ? old('gpai_cash_advance_id') : $enrollment->gpai_cash_advance_id) === $cashAdvance->id)>
+                                    {{ $cashAdvance->label() }} · balance {{ $peso($cashAdvance->balanceCents()) }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+
+                <div class="overflow-x-auto rounded-lg border border-slate-200">
+                    <table class="tupad-system-table min-w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="p-2 text-left">Project</th>
+                                <th class="p-2 text-left">ADL No.</th>
+                                <th class="p-2 text-left">Particulars</th>
+                                <th class="p-2 text-right">Beneficiaries</th>
+                                <th class="p-2 text-right">Premium</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($enrollment->items as $item)
+                                @php
+                                    $oldItem = $detailErrors->any() ? old('items.'.$item->id, []) : [];
+                                @endphp
+                                <tr class="align-top">
+                                    <td class="p-2 text-xs text-slate-600">{{ $item->project?->project_title ?? '—' }}</td>
+                                    <td class="p-2">
+                                        <input name="items[{{ $item->id }}][adl_number]" maxlength="100" value="{{ $oldItem['adl_number'] ?? $item->adl_number }}"
+                                            class="h-9 w-32 rounded-lg border border-slate-300 px-2 text-xs">
+                                    </td>
+                                    <td class="p-2">
+                                        <textarea name="items[{{ $item->id }}][particulars]" rows="2" maxlength="500" required
+                                            class="w-64 rounded-lg border border-slate-300 p-2 text-xs">{{ $oldItem['particulars'] ?? $item->particulars }}</textarea>
+                                    </td>
+                                    <td class="p-2 text-right">
+                                        <input type="number" min="1" step="1" required name="items[{{ $item->id }}][beneficiaries]" value="{{ $oldItem['beneficiaries'] ?? $item->beneficiaries }}"
+                                            class="h-9 w-24 rounded-lg border border-slate-300 px-2 text-right text-xs">
+                                    </td>
+                                    <td class="p-2 text-right">
+                                        <input type="number" min="0" step="0.01" required name="items[{{ $item->id }}][premium]" value="{{ $oldItem['premium'] ?? number_format((float) $item->premium, 2, '.', '') }}"
+                                            class="h-9 w-28 rounded-lg border border-slate-300 px-2 text-right text-xs">
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-[11px] text-slate-500">The documentary stamp, remarks, statuses, and GSIS processing dates are edited in GSIS Processing.</p>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-3">
+                <button type="button" data-details-close
+                    class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="inline-flex h-10 items-center justify-center rounded-lg bg-[#063b86] px-5 text-sm font-semibold text-white hover:bg-[#052f6b]">
+                    Save Details
+                </button>
+            </div>
+        </form>
+    </dialog>
+
     <dialog id="gsisWizard" data-wizard aria-labelledby="gsisWizardTitle"
         @if ($errorFields !== []) data-wizard-error-fields="{{ implode(',', $errorFields) }}" @endif
         class="tupad-dialog w-[calc(100%-2rem)] max-w-2xl rounded-2xl border border-slate-200 bg-white p-0 text-left shadow-2xl">
@@ -287,7 +409,11 @@
                                         <option value="{{ $value }}" @selected(old('ops_status', $enrollment->ops_status) === $value)>{{ $label }}</option>
                                     @endforeach
                                 </select>
-                                <p class="mt-1 text-[11px] text-slate-500">Complete also records today as the OR and Policy received date if it is empty.</p>
+                                <p class="mt-1 text-[11px] text-slate-500">
+                                    Set automatically: <b>For OR and Policy</b> once the On-call Payment Slip Date is recorded,
+                                    and <b>Complete</b> once the OR and Policy are received. Change it only for
+                                    "For OR only" / "For Policy only".
+                                </p>
                             </div>
                             <div>
                                 <label for="ops_document_url" class="mb-1 block text-xs font-semibold text-slate-700">File / Document (Google Drive link)</label>
@@ -348,6 +474,14 @@
 
 @push('scripts')
     <script>
+        (function () {
+            const details = document.querySelector('[data-details-dialog]');
+            if (!details) return;
+            document.querySelectorAll('[data-details-open]').forEach((button) => button.addEventListener('click', () => details.showModal()));
+            details.querySelectorAll('[data-details-close]').forEach((button) => button.addEventListener('click', () => details.close()));
+            if (details.hasAttribute('data-details-error')) details.showModal();
+        })();
+
         (function () {
             const dialog = document.querySelector('[data-wizard]');
             if (!dialog) return;

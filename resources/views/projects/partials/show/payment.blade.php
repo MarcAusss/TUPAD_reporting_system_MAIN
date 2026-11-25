@@ -1,8 +1,6 @@
 {{-- Payment of Wages --}}
 
-@if (
-    $project->implementation_mode === \App\Enums\ImplementationMode::DIRECT_ADMINISTRATION &&
-        in_array($project->status, [\App\Enums\ProjectStatus::FOR_PAYMENT, \App\Enums\ProjectStatus::COMPLETED], true))
+@if (app(\App\Services\Projects\LongTermTrancheService::class)->paymentVisible($project))
 
     <section id="payment" data-workspace-panel="financial"
         class="scroll-mt-32 mt-5 rounded-xl border border-slate-200 bg-white shadow-sm {{ $workspace['default_tab'] !== 'financial' ? 'hidden' : '' }}">

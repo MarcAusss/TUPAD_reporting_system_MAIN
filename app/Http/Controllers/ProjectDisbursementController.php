@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\ProjectDisbursement;
 use App\Models\ProjectObligation;
 use App\Services\Payments\ProjectPaymentService;
+use App\Services\Projects\LongTermTrancheService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,20 +20,17 @@ class ProjectDisbursementController extends Controller
         Request $request,
         Project $project,
         ProjectObligation $obligation,
-        ProjectPaymentService $paymentService
+        ProjectPaymentService $paymentService,
+        LongTermTrancheService $tranches,
     ): RedirectResponse {
         if ((int) $obligation->project_id !== (int) $project->id) {
             abort(404);
         }
 
-        if (
-            $project->implementation_mode
-                !== ImplementationMode::DIRECT_ADMINISTRATION
-            || $project->status !== ProjectStatus::FOR_PAYMENT
-        ) {
+        if (! $tranches->paymentOpen($project)) {
             abort(
                 403,
-                'Disbursements can only be recorded for Direct Administration projects with For Payment status.'
+                'Disbursements can only be recorded for Direct Administration projects with For Payment status (long-term projects: from Ongoing Implementation).'
             );
         }
 
@@ -58,17 +56,14 @@ class ProjectDisbursementController extends Controller
             $project,
             $obligation,
             $validated,
-            $paymentService
+            $paymentService,
+            $tranches
         ): string {
             $lockedProject = Project::query()
                 ->lockForUpdate()
                 ->findOrFail($project->id);
 
-            if (
-                $lockedProject->implementation_mode
-                    !== ImplementationMode::DIRECT_ADMINISTRATION
-                || $lockedProject->status !== ProjectStatus::FOR_PAYMENT
-            ) {
+            if (! $tranches->paymentOpen($lockedProject)) {
                 throw ValidationException::withMessages([
                     'amount' =>
                         'This project is no longer available for payment processing.',

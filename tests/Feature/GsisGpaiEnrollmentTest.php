@@ -704,6 +704,18 @@ class GsisGpaiEnrollmentTest extends TestCase
         ]);
         $enrollment = GpaiEnrollment::query()->firstOrFail();
 
+        // Not yet: the TC is told only once the On-call Payment Slip is recorded.
+        $feed = $this->actingAs($this->tc)->getJson(route('notifications.feed'))->assertOk()->json();
+        $this->assertNull(collect($feed['project_items'])->firstWhere('kind', 'gpai_enrollment'));
+
+        $this->actingAs($this->gsis)->put(route('gsis.enrollments.update', $enrollment), [
+            'payment_slip_on' => now()->toDateString(),
+            'doc_stamp' => $enrollment->doc_stamp,
+        ])->assertSessionHasNoErrors();
+
+        // The Table 2 (OR & Policy) status follows the payment slip date by itself.
+        $this->assertSame('for_or_and_policy', $enrollment->fresh()->ops_status);
+
         $feed = $this->actingAs($this->tc)
             ->getJson(route('notifications.feed'))
             ->assertOk()
@@ -711,6 +723,7 @@ class GsisGpaiEnrollmentTest extends TestCase
 
         $item = collect($feed['project_items'])->firstWhere('kind', 'gpai_enrollment');
         $this->assertNotNull($item);
+        $this->assertStringContainsString('now enrolled', $item['message']);
         $this->assertSame($project->id, $item['project_id']);
         $this->assertStringContainsString($enrollment->gpai_number, $item['message']);
         $this->assertNotNull(collect($feed['items'])->firstWhere('key', 'gpai-enrollments'));
@@ -958,6 +971,148 @@ class GsisGpaiEnrollmentTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertMatchesRegularExpression('/value="'.$awaiting->id.'"[^>]*checked/s', $html);
+    }
+
+    public function test_or_and_policy_status_is_automatic_and_completes_with_the_or_and_policy(): void
+    {
+        $project = $this->project('Oas Project', 51);
+        $this->actingAs($this->gsis)->post(route('gsis.enrollments.store'), [
+            'project_ids' => [$project->id],
+            'payment_mode' => GpaiEnrollment::MODE_VOUCHER,
+            'transmittal_date' => now()->toDateString(),
+        ]);
+        $enrollment = GpaiEnrollment::query()->firstOrFail();
+
+        $this->actingAs($this->gsis)->put(route('gsis.enrollments.update', $enrollment), [
+            'payment_slip_on' => now()->toDateString(),
+            'doc_stamp' => $enrollment->doc_stamp,
+        ]);
+        $this->assertSame('for_or_and_policy', $enrollment->fresh()->ops_status);
+
+        $this->actingAs($this->gsis)->put(route('gsis.enrollments.update', $enrollment), [
+            'payment_slip_on' => now()->toDateString(),
+            'or_policy_received_on' => now()->toDateString(),
+            'doc_stamp' => $enrollment->doc_stamp,
+        ]);
+        $this->assertSame('complete', $enrollment->fresh()->ops_status);
+    }
+
+    public function test_gsis_officer_edits_transmittal_details_and_project_lines_directly(): void
+    {
+        $project = $this->project('Oas Project', 51);
+        $this->actingAs($this->gsis)->post(route('gsis.enrollments.store'), [
+            'project_ids' => [$project->id],
+            'payment_mode' => GpaiEnrollment::MODE_VOUCHER,
+            'transmittal_date' => now()->toDateString(),
+        ]);
+        $enrollment = GpaiEnrollment::query()->with('items')->firstOrFail();
+        $item = $enrollment->items->first();
+        $year = (int) $enrollment->fiscal_year;
+
+        $this->actingAs($this->gsis)->get(route('gsis.enrollments.edit', $enrollment))
+            ->assertOk()
+            ->assertSee('Edit Transmittal Details');
+
+        $this->actingAs($this->gsis)->put(route('gsis.enrollments.details', $enrollment), [
+            'transmittal_date' => "{$year}-02-01",
+            'coverage_start' => "{$year}-02-02",
+            'coverage_end' => ($year + 1).'-02-01',
+            'items' => [$item->id => [
+                'adl_number' => 'ADL-EDITED',
+                'particulars' => 'Edited particulars',
+                'beneficiaries' => 50,
+                'premium' => '2500.00',
+            ]],
+        ])->assertSessionHasNoErrors();
+
+        $item->refresh();
+        $this->assertSame(50, $item->beneficiaries);
+        $this->assertSame('ADL-EDITED', $item->adl_number);
+        $this->assertSame("{$year}-02-01", $enrollment->fresh()->transmittal_date->toDateString());
+        // The project's insurance record follows the edit.
+        $this->assertSame(50, (int) $project->fresh()->insuranceEnrollment->beneficiary_count);
+
+        // The transmittal date stays within the GPAI number's fiscal year.
+        $this->actingAs($this->gsis)->put(route('gsis.enrollments.details', $enrollment), [
+            'transmittal_date' => ($year + 1).'-01-05',
+            'coverage_start' => ($year + 1).'-01-06',
+            'coverage_end' => ($year + 2).'-01-05',
+            'items' => [$item->id => ['particulars' => 'x', 'beneficiaries' => 50, 'premium' => '2500.00']],
+        ])->assertSessionHasErrorsIn('details', 'transmittal_date');
+
+        // Other roles cannot edit.
+        $this->actingAs($this->tc)->put(route('gsis.enrollments.details', $enrollment), [])->assertForbidden();
+    }
+
+    public function test_gsis_officer_edits_a_cash_advance_but_not_below_what_is_charged(): void
+    {
+        $project = $this->project('Ligao Project', 20);
+        $cashAdvance = GpaiCashAdvance::query()->create([
+            'fiscal_year' => (int) now()->year,
+            'cash_advance_date' => now()->toDateString(),
+            'amount' => 100000,
+            'created_by' => $this->gsis->id,
+        ]);
+        $this->actingAs($this->gsis)->post(route('gsis.enrollments.store'), [
+            'project_ids' => [$project->id],
+            'payment_mode' => GpaiEnrollment::MODE_CASH_ADVANCE,
+            'gpai_cash_advance_id' => $cashAdvance->id,
+            'transmittal_date' => now()->toDateString(),
+        ]);
+
+        $this->actingAs($this->gsis)->put(route('gsis.cash-advances.update', $cashAdvance), [
+            'cash_advance_date' => now()->toDateString(),
+            'amount' => '1.00',
+        ])->assertSessionHasErrorsIn('cash_advance_'.$cashAdvance->id, 'amount');
+
+        $this->actingAs($this->gsis)->put(route('gsis.cash-advances.update', $cashAdvance), [
+            'cash_advance_date' => now()->toDateString(),
+            'amount' => '80000.00',
+            'reference' => 'CA-REF-2',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('80000.00', (string) $cashAdvance->fresh()->amount);
+        $this->assertSame('CA-REF-2', $cashAdvance->fresh()->reference);
+    }
+
+    public function test_report_has_voucher_and_ca_buttons_and_transmittal_prints_the_letterhead(): void
+    {
+        $voucherProject = $this->project('Oas Project', 51);
+        $caProject = $this->project('Ligao Project', 20);
+        $cashAdvance = GpaiCashAdvance::query()->create([
+            'fiscal_year' => (int) now()->year,
+            'cash_advance_date' => now()->toDateString(),
+            'amount' => 100000,
+            'created_by' => $this->gsis->id,
+        ]);
+        $this->actingAs($this->gsis)->post(route('gsis.enrollments.store'), [
+            'project_ids' => [$voucherProject->id],
+            'payment_mode' => GpaiEnrollment::MODE_VOUCHER,
+            'transmittal_date' => now()->toDateString(),
+        ]);
+        $this->actingAs($this->gsis)->post(route('gsis.enrollments.store'), [
+            'project_ids' => [$caProject->id],
+            'payment_mode' => GpaiEnrollment::MODE_CASH_ADVANCE,
+            'gpai_cash_advance_id' => $cashAdvance->id,
+            'transmittal_date' => now()->toDateString(),
+        ]);
+
+        $this->actingAs($this->gsis)->get(route('gsis.report', ['mode' => GpaiEnrollment::MODE_CASH_ADVANCE]))
+            ->assertOk()
+            ->assertSee('name="mode"', false)
+            ->assertSee('Ligao Project')
+            ->assertDontSee('Oas Project');
+
+        $this->actingAs($this->gsis)->get(route('gsis.report', ['mode' => GpaiEnrollment::MODE_VOUCHER]))
+            ->assertOk()
+            ->assertSee('Oas Project')
+            ->assertDontSee('Ligao Project');
+
+        $enrollment = GpaiEnrollment::query()->firstOrFail();
+        $this->actingAs($this->gsis)->get(route('gsis.enrollments.transmittal', $enrollment))
+            ->assertOk()
+            ->assertSee('dole-official-letterhead', false)
+            ->assertSee('images/print/mainlogo.png', false);
     }
 
     private function project(string $title, int $insured, array $overrides = []): Project
